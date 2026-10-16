@@ -1,0 +1,221 @@
+# Countersign
+
+Countersign is a money firewall for merchant AI agents. Agents propose money actions, and a deterministic gate allows, steps up or denies each one using rail records and the merchant's signed mandate, never the words in a message. Decisions are recorded in `docs/adr/`.
+
+## Language
+
+### Parties
+
+**Merchant**:
+The business that owns the rails, signs the mandate and approves step-ups. In the demo this is Kikapu Studio.
+_Avoid_: owner, seller, shop
+
+**Principal**:
+An agent identity that may propose money actions, such as support-agent or ops-agent. Each principal has exactly one mandate.
+_Avoid_: bot, user, client
+
+**Customer**:
+A person who contacts the merchant through Resolve. What they say is untrusted.
+_Avoid_: user, buyer
+
+**Payer**:
+The person who paid for an order, as the rail's records say. It may or may not be the customer writing in.
+_Avoid_: buyer, customer (when you mean the person on the payment record)
+
+**Sender**:
+The email address or phone number a ticket came from.
+_Avoid_: author, requester
+
+### Money actions and decisions
+
+**Rail**:
+A payment system Countersign can act on: PayPal or M-Pesa.
+_Avoid_: provider, processor, channel
+
+**Guarded action**:
+A kind of action that moves money or releases goods, such as a refund, payout, dispute acceptance, invoice send, M-Pesa B2C, reversal or mark-paid. It always goes through the gate.
+_Avoid_: money tool, write action
+
+**Read-only action**:
+A kind of action that only reads rail data. It passes straight through the gate.
+_Avoid_: pass-through tool, safe action
+
+**Intent**:
+One normalized proposal of a guarded action: rail, action, amount, currency, target and ticket. Its hash identifies it exactly.
+_Avoid_: request, proposal (as a noun for the stored thing), transaction
+
+**Decision**:
+The gate's result for an intent: allow, step-up or deny.
+_Avoid_: verdict, outcome, ruling
+
+**Reason code**:
+A stable code naming why a decision came out as it did, such as `TICKET_NOT_FROM_PAYER`.
+_Avoid_: error code, flag
+
+**Safe reply hint**:
+A suggestion returned with a denial, telling the agent what it can safely say to the customer.
+_Avoid_: canned response
+
+**Execution**:
+The rail call that carries out an allowed or approved intent, made at most once per intent.
+_Avoid_: payment, transaction
+
+**Reconciliation**:
+Matching an execution to the webhook or callback that confirms it.
+_Avoid_: sync, settlement
+
+### Records and verification
+
+**Record**:
+Data held by a rail, the carrier or the audit log, such as a capture, tracker, dispute or receipt. Records are the only input an allow can rest on.
+_Avoid_: evidence (except in disputes), source data
+
+**Claim**:
+What a customer asserts about an order, such as not received or damaged. A claim selects which rule applies but never proves anything.
+_Avoid_: complaint, reason
+
+**Verifier**:
+A check that derives one fact from records. Its result is pass, fail or unknown.
+_Avoid_: validator, check, guard
+
+**Fact**:
+A statement about an order, payment or receipt that a verifier derived from records.
+_Avoid_: signal, attribute
+
+**Verifier trace**:
+The list of verifiers run for an intent, each with its result and the record it read.
+_Avoid_: log, debug output
+
+**Claims vs records**:
+The two-column view of a decision: what the message claims beside what the records say.
+_Avoid_: comparison view
+
+**Shipment status**:
+The carrier's state for an order's tracking number: lost, stalled for 10+ days, in transit or delivered.
+_Avoid_: delivery state, tracking status
+
+### Mandate
+
+**Mandate**:
+A merchant's signed, versioned set of rules for one principal. What no rule allows is denied.
+_Avoid_: policy, ruleset, config
+
+**Rule**:
+One entry in a mandate. It names an action, the facts it applies to, the facts it requires, an optional amount cap, and a decision.
+_Avoid_: policy line, condition
+
+**Limit**:
+A daily total or count, per currency, that escalates any further intent to step-up once reached.
+_Avoid_: quota, budget
+
+**Fallback**:
+The mandate's decision when no rule matches. It is always deny in this project.
+_Avoid_: default rule
+
+**Mandate version**:
+One immutable, signed state of a mandate. Signing creates the next version.
+_Avoid_: revision, draft (a draft is unsigned and decides nothing)
+
+**Mandate compiler**:
+The step that turns plain-English rules into a mandate draft and reads it back in plain English. It never takes part in a decision.
+_Avoid_: rule parser, policy generator
+
+### Approvals and the audit log
+
+**Step-up**:
+The decision that holds an intent until the merchant approves or denies exactly that intent.
+_Avoid_: hold, escalation, manual review
+
+**Approval**:
+The merchant's answer to one step-up. It is single-use, bound to the intent's hash, and expires as a deny.
+_Avoid_: confirmation, sign-off
+
+**Audit log**:
+The append-only, hash-chained record of every intent, decision, approval, execution and reconciliation.
+_Avoid_: ledger, history, event log
+
+**Evidence pack**:
+The facts drawn from the audit log and tracking to defend a dispute.
+_Avoid_: dispute bundle
+
+### M-Pesa rail
+
+**Receipt**:
+An M-Pesa transaction code for a payment to the merchant's shortcode, with its amount, time and payer fields.
+_Avoid_: SMS, confirmation message, transaction ID
+
+**Shortcode**:
+The merchant's M-Pesa till or paybill number that receives payments.
+_Avoid_: till ID, account number
+
+**C2B payment**:
+A customer-to-merchant M-Pesa payment, stored as a receipt.
+_Avoid_: incoming transfer
+
+**B2C payment**:
+A merchant-to-person M-Pesa payment, used here for overpayment refunds.
+_Avoid_: payout (reserved for PayPal Payouts), M-Pesa refund
+
+**Overpayment**:
+The amount by which a verified receipt exceeds its order's total.
+_Avoid_: excess, change
+
+**Reversal**:
+A request to undo an M-Pesa transaction. It always needs a step-up.
+_Avoid_: chargeback, refund
+
+### Evaluation
+
+**Bench**:
+The fixed suite of attack cases and genuine cases used to measure Countersign against the baseline.
+_Avoid_: test suite, evals
+
+**Attack case**:
+A bench ticket where no money should move without authorization.
+_Avoid_: adversarial test, red-team prompt
+
+**Genuine case**:
+A bench ticket that deserves a correct resolution.
+_Avoid_: happy path, benign case
+
+**Case family**:
+A named kind of attack (A1–A12) or genuine situation that groups bench cases.
+_Avoid_: category, scenario type
+
+**Hold-out slice**:
+Bench cases written without sight of the mandate or gate, committed unread and run once at the final bench.
+_Avoid_: test set, blind set
+
+**Baseline mode**:
+Resolve's agent wired straight to PayPal's tools with no gate, used only for comparison in sandbox.
+_Avoid_: unprotected mode, control
+
+**Protected mode**:
+Resolve's agent acting on money only through Countersign.
+_Avoid_: safe mode, guarded mode
+
+### Demo
+
+**Resolve**:
+The reference AI support inbox for the merchant, where customers write in by email or simulated chat.
+_Avoid_: support bot, helpdesk
+
+**Kikapu Studio**:
+The illustrative demo merchant, a Kisumu basket and bag maker.
+_Avoid_: the shop, the store (when you mean the merchant)
+
+**Storefront**:
+The demo shop page that creates real sandbox orders for Kikapu Studio.
+_Avoid_: checkout app
+
+**Seed state**:
+The known starting data (orders, trackers, receipts, tickets) that a demo reset restores.
+_Avoid_: fixtures (reserved for tests), sample data
+
+**Visitor attack**:
+A message a hosted-demo visitor writes in "Attack it yourself" to try to make money move.
+_Avoid_: user attack, judge test
+
+**Risk desk**:
+The merchant's dashboard of decisions, money protected, chain status and refund spikes, with an analyst agent.
+_Avoid_: analytics page, admin dashboard
