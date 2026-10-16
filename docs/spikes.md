@@ -12,7 +12,7 @@ Findings from roadmap phase 2 (brief §13, spikes S1–S9). Each spike passes or
 | S6 Daraja | Partly done; the rest moves to roadmap phase 18 | OAuth, B2C, Transaction Status (echoes the amount), C2B register and STK Push results work. No C2B confirmation or successful STK payment yet |
 | S7 Hosting | Not started | |
 | S8 Gemini API | Passes; rate limits to record | Tool loop, thought signatures, structured output and the fail-closed check work on Flash and Flash-Lite. Default model is now Flash-Lite, set by `GEMINI_MODEL` |
-| S9 AG Studio | Mostly passes | Studio renders with the Graphite theme (both themes) and a custom widget. The Gemini analyst built a widget through the server-side route. Still to do: the licence key, the client-bundle key check, and better answers |
+| S9 AG Studio | Mostly passes | Studio renders with the Graphite theme (both themes) and a custom widget. The Gemini analyst built a widget through the server-side route, and the production client bundle holds no key. Still to do: the licence key and better answers |
 
 ## S4 Baseline agent
 
@@ -91,7 +91,7 @@ Live run, 16 Oct 2026, `gemini-3.5-flash-lite`, no licence key:
 | 3. Every built-in Studio tool schema is accepted after sanitizing | Passes: 8 tools for the main agent, 7 for the delegates |
 | 4. A JSON-format turn with tools | Not observed. The route doesn't log the response format yet |
 | 5. A failure surfaces as failed with no tool calls | Passes, by accident: two free-tier 503s, after the SDK's three retries, reached Studio as errors and ran no tools. Studio shows the raw JSON error, which needs a plain message |
-| 6. The production client bundle has no Gemini key | To do: needs a production build |
+| 6. The production client bundle has no Gemini key | Passes. After `npm run build`, `spikes/ag-studio/s9-key-check.ts` scanned the 30 files the browser can receive (`.next/static` plus prerendered HTML and RSC payloads). It found no key value, no `AIza` prefix and no `GEMINI_API_KEY` name. The name appears only in server chunks: the route reads the key there, and the page passes the client only `aiEnabled`, a boolean |
 | 7. Model calls per question | One question took 15 successful calls plus 2 failed ones, about 181,000 input tokens (12,000 a call on average, 16,000 inside the delegates). One call took 101 s with retries |
 
 Findings:
