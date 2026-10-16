@@ -1,0 +1,19 @@
+{
+  "name": "@countersign/graphite",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tokens.css": "./graphite-tokens.css",
+    "./tailwind.css": "./tailwind.css",
+    "./theme-script": "./src/theme-script.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  }
+}

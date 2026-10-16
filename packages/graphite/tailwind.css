@@ -1,0 +1,209 @@
+/* Graphite for Tailwind v4. Generated from graphite-tokens.css: every utility maps to a Graphite
+   token of the same name, and Tailwind's own palette and scales are removed (ADR 0006). */
+@import "./graphite-tokens.css";
+
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+  --font-weight-*: initial;
+  --tracking-*: initial;
+  --leading-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+  --ease-*: initial;
+}
+
+@theme inline {
+  --spacing: var(--space);
+
+  --color-page: var(--color-page);
+  --color-shell: var(--color-shell);
+  --color-container: var(--color-container);
+  --color-container-recessed: var(--color-container-recessed);
+  --color-modal: var(--color-modal);
+  --color-overlay: var(--color-overlay);
+  --color-card: var(--color-card);
+  --color-sunken: var(--color-sunken);
+  --color-standout: var(--color-standout);
+  --color-component: var(--color-component);
+  --color-component-hover: var(--color-component-hover);
+  --color-component-active: var(--color-component-active);
+  --color-component-on-sunken: var(--color-component-on-sunken);
+  --color-component-on-inverted: var(--color-component-on-inverted);
+  --color-component-on-container-subtle: var(--color-component-on-container-subtle);
+  --color-component-on-container-subtle-hover: var(--color-component-on-container-subtle-hover);
+  --color-component-on-container-strong: var(--color-component-on-container-strong);
+  --color-component-on-container-strong-hover: var(--color-component-on-container-strong-hover);
+  --color-transparent: var(--color-transparent);
+  --color-transparent-hover: var(--color-transparent-hover);
+  --color-transparent-active: var(--color-transparent-active);
+  --color-brand-solid: var(--color-brand-solid);
+  --color-brand-solid-hover: var(--color-brand-solid-hover);
+  --color-brand-solid-active: var(--color-brand-solid-active);
+  --color-brand-subtle: var(--color-brand-subtle);
+  --color-brand-subtle-hover: var(--color-brand-subtle-hover);
+  --color-brand-subtle-active: var(--color-brand-subtle-active);
+  --color-positive-solid: var(--color-positive-solid);
+  --color-positive-solid-hover: var(--color-positive-solid-hover);
+  --color-positive-solid-active: var(--color-positive-solid-active);
+  --color-positive-subtle: var(--color-positive-subtle);
+  --color-positive-subtle-hover: var(--color-positive-subtle-hover);
+  --color-positive-subtle-active: var(--color-positive-subtle-active);
+  --color-warning-solid: var(--color-warning-solid);
+  --color-warning-solid-hover: var(--color-warning-solid-hover);
+  --color-warning-solid-active: var(--color-warning-solid-active);
+  --color-warning-subtle: var(--color-warning-subtle);
+  --color-warning-subtle-hover: var(--color-warning-subtle-hover);
+  --color-warning-subtle-active: var(--color-warning-subtle-active);
+  --color-danger-solid: var(--color-danger-solid);
+  --color-danger-solid-hover: var(--color-danger-solid-hover);
+  --color-danger-solid-active: var(--color-danger-solid-active);
+  --color-danger-subtle: var(--color-danger-subtle);
+  --color-danger-subtle-hover: var(--color-danger-subtle-hover);
+  --color-danger-subtle-active: var(--color-danger-subtle-active);
+  --color-inverted-solid: var(--color-inverted-solid);
+  --color-inverted-solid-hover: var(--color-inverted-solid-hover);
+  --color-inverted-solid-active: var(--color-inverted-solid-active);
+  --color-disabled: var(--color-disabled);
+  --color-primary-foreground: var(--color-primary-foreground);
+  --color-secondary-foreground: var(--color-secondary-foreground);
+  --color-secondary-foreground-solid: var(--color-secondary-foreground-solid);
+  --color-tertiary-foreground: var(--color-tertiary-foreground);
+  --color-disabled-foreground: var(--color-disabled-foreground);
+  --color-brand-foreground: var(--color-brand-foreground);
+  --color-positive-foreground: var(--color-positive-foreground);
+  --color-warning-foreground: var(--color-warning-foreground);
+  --color-danger-foreground: var(--color-danger-foreground);
+  --color-on-inverted-foreground: var(--color-on-inverted-foreground);
+  --color-on-standout-primary-foreground: var(--color-on-standout-primary-foreground);
+  --color-on-standout-secondary-foreground: var(--color-on-standout-secondary-foreground);
+  --color-border-on-standout: var(--color-border-on-standout);
+  --color-on-brand-solid-foreground: var(--color-on-brand-solid-foreground);
+  --color-on-brand-subtle-foreground: var(--color-on-brand-subtle-foreground);
+  --color-on-positive-solid-foreground: var(--color-on-positive-solid-foreground);
+  --color-on-positive-subtle-foreground: var(--color-on-positive-subtle-foreground);
+  --color-on-warning-solid-foreground: var(--color-on-warning-solid-foreground);
+  --color-on-warning-subtle-foreground: var(--color-on-warning-subtle-foreground);
+  --color-on-danger-solid-foreground: var(--color-on-danger-solid-foreground);
+  --color-on-danger-subtle-foreground: var(--color-on-danger-subtle-foreground);
+  --color-border-default: var(--color-border-default);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-strong-solid: var(--color-border-strong-solid);
+  --color-border-inverted: var(--color-border-inverted);
+  --color-border-control: var(--color-border-control);
+  --color-brand-border-default: var(--color-brand-border-default);
+  --color-brand-border-subtle: var(--color-brand-border-subtle);
+  --color-brand-border-focus: var(--color-brand-border-focus);
+  --color-positive-border-default: var(--color-positive-border-default);
+  --color-positive-border-subtle: var(--color-positive-border-subtle);
+  --color-warning-border-default: var(--color-warning-border-default);
+  --color-warning-border-subtle: var(--color-warning-border-subtle);
+  --color-danger-border-default: var(--color-danger-border-default);
+  --color-danger-border-subtle: var(--color-danger-border-subtle);
+
+  --text-heading-1: var(--text-heading-1);
+  --text-heading-1--line-height: var(--leading-heading-1);
+  --text-heading-2: var(--text-heading-2);
+  --text-heading-2--line-height: var(--leading-heading-2);
+  --text-heading-3: var(--text-heading-3);
+  --text-heading-3--line-height: var(--leading-heading-3);
+  --text-heading-4: var(--text-heading-4);
+  --text-heading-4--line-height: var(--leading-heading-4);
+  --text-heading-5: var(--text-heading-5);
+  --text-heading-5--line-height: var(--leading-heading-5);
+  --text-heading-6: var(--text-heading-6);
+  --text-heading-6--line-height: var(--leading-heading-6);
+  --text-body-lg: var(--text-body-lg);
+  --text-body-lg--line-height: var(--leading-body-lg);
+  --text-body-base: var(--text-body-base);
+  --text-body-base--line-height: var(--leading-body-base);
+  --text-body-sm: var(--text-body-sm);
+  --text-body-sm--line-height: var(--leading-body-sm);
+  --text-caption-lg: var(--text-caption-lg);
+  --text-caption-lg--line-height: var(--leading-caption-lg);
+  --text-caption-base: var(--text-caption-base);
+  --text-caption-base--line-height: var(--leading-caption-base);
+  --text-caption-sm: var(--text-caption-sm);
+  --text-caption-sm--line-height: var(--leading-caption-sm);
+  --text-caption-xs: var(--text-caption-xs);
+  --text-caption-xs--line-height: var(--leading-caption-xs);
+  --text-code-sm: var(--text-code-sm);
+  --text-code-xs: var(--text-code-xs);
+
+  --leading-heading-1: var(--leading-heading-1);
+  --leading-heading-2: var(--leading-heading-2);
+  --leading-heading-3: var(--leading-heading-3);
+  --leading-heading-4: var(--leading-heading-4);
+  --leading-heading-5: var(--leading-heading-5);
+  --leading-heading-6: var(--leading-heading-6);
+  --leading-body-lg: var(--leading-body-lg);
+  --leading-body-base: var(--leading-body-base);
+  --leading-body-sm: var(--leading-body-sm);
+  --leading-caption-lg: var(--leading-caption-lg);
+  --leading-caption-base: var(--leading-caption-base);
+  --leading-caption-sm: var(--leading-caption-sm);
+  --leading-caption-xs: var(--leading-caption-xs);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+  --font-pixel: var(--font-pixel);
+
+  --font-weight-regular: var(--font-weight-regular);
+  --font-weight-semimedium: var(--font-weight-semimedium);
+  --font-weight-medium: var(--font-weight-medium);
+  --font-weight-semibold: var(--font-weight-semibold);
+
+  --tracking-heading: var(--tracking-heading);
+  --tracking-caption-upper: var(--tracking-caption-upper);
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-3xl: var(--radius-3xl);
+  --radius-4xl: var(--radius-4xl);
+  --radius-5xl: var(--radius-5xl);
+  --radius-full: var(--radius-full);
+
+  --shadow-border: var(--shadow-border);
+  --shadow-default: var(--shadow-default);
+  --shadow-large: var(--shadow-large);
+  --shadow-xl: var(--shadow-xl);
+
+  --ease-out: var(--ease-out);
+  --ease-in-out: var(--ease-in-out);
+  --ease-out-quint: var(--ease-out-quint);
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--color-shell);
+    color: var(--color-primary-foreground);
+    font-family: var(--font-sans);
+    font-size: var(--text-body-base);
+    line-height: var(--leading-body-base);
+    font-feature-settings: "ss03";
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  :focus-visible {
+    outline: 1px solid var(--color-brand-border-focus);
+    outline-offset: -1px;
+  }
+}

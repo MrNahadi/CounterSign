@@ -4,5 +4,54 @@
     "pr": "",
     "sessionUrl": false
   },
-  "includeCoAuthoredBy": false
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "WebFetch",
+      "Agent",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git stash:*)",
+      "Bash(git mv:*)",
+      "Bash(git rm:*)",
+      "Bash(git branch --show-current)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run lint)",
+      "Bash(npm test:*)",
+      "Bash(npm run build)",
+      "Bash(npm run format)",
+      "Bash(npm run db:generate)"
+    ],
+    "ask": [
+      "Bash(git switch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(npm install:*)",
+      "Bash(pip install:*)"
+    ],
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(git reset:*)",
+      "Bash(git rebase:*)",
+      "Bash(git clean:*)",
+      "Bash(rm -rf:*)",
+      "Bash(sudo:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(gh:*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)"
+    ]
+  }
 }
