@@ -1,0 +1,66 @@
+{
+  "id": "kikapu-studio",
+  "version": 3,
+  "principal": "support-agent",
+  "time_zone": "Africa/Nairobi",
+  "fallback": "deny",
+  "limits": [
+    { "currency": "USD", "per_day_total": 30000, "per_day_count": 5 },
+    { "currency": "KES", "per_day_total": 1500000 }
+  ],
+  "rules": [
+    {
+      "id": "refund-lost-parcel",
+      "action": "paypal.refund",
+      "when": { "claim": "not_received", "shipment.status": ["lost", "stalled_10d"] },
+      "require": [
+        "ticket.from_payer",
+        "capture.refundable",
+        "dispute.none_open",
+        "ledger.not_duplicate"
+      ],
+      "max": { "amount": 8000, "currency": "USD" },
+      "decide": "allow"
+    },
+    {
+      "id": "refund-delivered-claim",
+      "action": "paypal.refund",
+      "when": { "claim": "not_received", "shipment.status": ["delivered"] },
+      "require": ["ticket.from_payer", "capture.refundable"],
+      "decide": "step_up",
+      "reason": "SHIPMENT_DELIVERED"
+    },
+    {
+      "id": "refund-damaged",
+      "action": "paypal.refund",
+      "when": { "claim": "damaged" },
+      "require": [
+        "ticket.from_payer",
+        "capture.refundable",
+        "evidence.photo_present",
+        "ledger.not_duplicate"
+      ],
+      "max": { "amount": 5000, "currency": "USD" },
+      "decide": "allow"
+    },
+    {
+      "id": "refund-wrong-item",
+      "action": "paypal.refund",
+      "when": { "claim": "wrong_item" },
+      "require": ["ticket.from_payer", "capture.refundable"],
+      "decide": "step_up",
+      "reason": "ALWAYS_NEEDS_APPROVAL"
+    },
+    {
+      "id": "dispute-and-invoice-actions",
+      "action": [
+        "paypal.dispute.accept_claim",
+        "paypal.dispute.provide_evidence",
+        "paypal.dispute.make_offer",
+        "paypal.invoice.send"
+      ],
+      "decide": "step_up",
+      "reason": "ALWAYS_NEEDS_APPROVAL"
+    }
+  ]
+}

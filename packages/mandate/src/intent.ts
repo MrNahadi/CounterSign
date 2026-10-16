@@ -1,7 +1,6 @@
 // The intent: one normalized proposal of a guarded action, and the hash that identifies it.
 
-import { createHash } from "node:crypto";
-import { canonicalJson } from "./canonical-json";
+import { sha256Canonical } from "./canonical-json";
 import type { Money } from "./money";
 
 export const RAILS = ["paypal", "mpesa"] as const;
@@ -54,6 +53,6 @@ export function hashIntent(intent: Intent): IntentHash {
     target: { captureId: intent.target.captureId, orderId: intent.target.orderId },
     ticketId: intent.ticketId,
   };
-  const hash = createHash("sha256").update(canonicalJson(executes), "utf8").digest("hex");
+  const hash = sha256Canonical(executes);
   return { hash, id: `int_${hash.slice(0, 24)}` };
 }

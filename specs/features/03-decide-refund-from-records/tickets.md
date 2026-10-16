@@ -16,19 +16,19 @@ Notes:
 
 ## T-002: Reason codes and the mandate schema
 
-Status: open
+Status: done
 Blocked by: T-001
 Slice: The fixture mandate `kikapu-studio` v3 for `support-agent` loads, validates and hashes, and every reason code has its words and reply hint.
 Test seam: the mandate schema, mandate hash and reason-code catalog exports of `@countersign/mandate`
 Acceptance:
-- [ ] The fixture mandate (rules and limits in plan.md, amounts in minor units) parses, and its hash ignores key order
-- [ ] Parsing rejects, with the bad field's path:
+- [x] The fixture mandate (rules and limits in plan.md, amounts in minor units) parses, and its hash ignores key order
+- [x] Parsing rejects, with the bad field's path:
   - a fallback other than deny;
   - an unknown action, verifier name or `when` key;
   - a non-integer or negative amount;
   - a currency other than USD or KES;
   - a step-up or deny rule without a rule reason code
-- [ ] The catalog holds every code in requirements.md with its words, and a reply hint wherever the table gives one. Only rule reason codes are allowed in a rule's reason
+- [x] The catalog holds every code in requirements.md with its words, and a reply hint wherever the table gives one. Only rule reason codes are allowed in a rule's reason
 Notes:
 
 ## T-003: Verifier trace, capture.refundable and ticket.from_payer

@@ -1,6 +1,8 @@
 // RFC 8785 (JCS) canonical JSON for the values we hash (ADR 0019). Numbers are safe integers
 // only, because money is always integer minor units; anything else is rejected, not serialized.
 
+import { createHash } from "node:crypto";
+
 export type JsonValue =
   | null
   | boolean
@@ -46,4 +48,9 @@ export function canonicalJson(value: JsonValue): string {
     default:
       throw new TypeError(`Canonical JSON can't hold a ${typeof value}`);
   }
+}
+
+// SHA-256, as hex, of a value's canonical JSON. The intent and mandate hashes both use it.
+export function sha256Canonical(value: JsonValue): string {
+  return createHash("sha256").update(canonicalJson(value), "utf8").digest("hex");
 }
