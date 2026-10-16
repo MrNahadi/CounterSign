@@ -1,0 +1,33 @@
+<!-- @dsCard group="Navigation" height=170 width=560 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tabs</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&amp;family=Geist+Mono:wght@400..600&amp;family=Newsreader:opsz,wght@6..72,400..700&amp;display=swap">
+</head>
+<body>
+<div class="gr-stage">
+  <div class="gr-tabs" role="tablist" data-group="tabs">
+    <button class="gr-tab" role="tab" aria-selected="false">Overview</button>
+    <button class="gr-tab" role="tab" aria-selected="true">Deployments</button>
+    <button class="gr-tab" role="tab" aria-selected="false">Logs</button>
+    <button class="gr-tab" role="tab" aria-selected="false">Settings</button>
+  </div>
+  <div class="gr-segmented" data-group="seg">
+    <button class="gr-segment" aria-pressed="false">Day</button>
+    <button class="gr-segment" aria-pressed="true">Week</button>
+    <button class="gr-segment" aria-pressed="false">Month</button>
+  </div>
+</div>
+<script>
+document.querySelectorAll('[data-group]').forEach(function (g) {
+  var attr = g.dataset.group === 'tabs' ? 'aria-selected' : 'aria-pressed';
+  g.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    g.querySelectorAll('button').forEach(function (x) { x.setAttribute(attr, String(x === b)); });
+  });
+});
+</script>
+</body>
+</html>

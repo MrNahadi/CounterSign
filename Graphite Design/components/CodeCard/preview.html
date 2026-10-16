@@ -1,0 +1,21 @@
+<!-- @dsCard group="Data display" height=260 width=640 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CodeCard</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&amp;family=Geist+Mono:wght@400..600&amp;family=Newsreader:opsz,wght@6..72,400..700&amp;display=swap">
+</head>
+<body>
+<div class="gr-stage">
+  <div class="gr-codecard" style="max-width:560px">
+    <div class="gr-codecard-head"><span>deploy.ts</span><button class="gr-btn gr-btn-transparent gr-btn-sm gr-btn-icon" aria-label="Copy code"><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true" style="--icon:14px"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button></div>
+<pre><span class="gr-tok-com">// Deploy the current branch to production</span>
+<span class="gr-tok-key">import</span> { deploy } <span class="gr-tok-key">from</span> <span class="gr-tok-str">"@acme/cli"</span>;
+
+<span class="gr-tok-key">await</span> deploy({ project: <span class="gr-tok-str">"graphite-web"</span>, prod: <span class="gr-tok-key">true</span> });</pre>
+  </div>
+  <p style="margin:0">Run <code class="gr-code">npm run deploy</code> from the project root.</p>
+</div>
+</body>
+</html>

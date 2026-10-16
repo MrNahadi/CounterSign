@@ -1,0 +1,35 @@
+<!-- @dsCard group="Overlays" height=300 width=560 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Menu</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&amp;family=Geist+Mono:wght@400..600&amp;family=Newsreader:opsz,wght@6..72,400..700&amp;display=swap">
+</head>
+<body>
+<div class="gr-stage">
+  <div class="gr-row gr-row-lg" style="gap:32px">
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">
+      <button class="gr-btn gr-btn-secondary gr-btn-md" aria-haspopup="menu" aria-expanded="true"><span>Actions</span><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="gr-popover" role="menu">
+        <div class="gr-menu-item" role="menuitem" data-highlighted><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/></svg>Rename<span class="gr-menu-shortcut">⌘R</span></div>
+        <div class="gr-menu-item" role="menuitem"><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Copy link<span class="gr-menu-shortcut">⌘L</span></div>
+        <div class="gr-menu-item" role="menuitem" aria-disabled="true"><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>Transfer</div>
+        <div class="gr-menu-sep" role="separator"></div>
+        <div class="gr-menu-item gr-menu-item-danger" role="menuitem"><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>Delete</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">
+      <button class="gr-btn gr-btn-transparent gr-btn-md gr-btn-icon" aria-label="View options" aria-haspopup="menu"><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/></svg></button>
+      <div class="gr-popover" role="menu">
+        <div class="gr-menu-group">View</div>
+        <div class="gr-menu-item" role="menuitemcheckbox" aria-checked="true"><span class="gr-menu-check"><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>Show previews</div>
+        <div class="gr-menu-item" role="menuitemcheckbox" aria-checked="false"><span class="gr-menu-check"></span>Show archived</div>
+        <div class="gr-menu-sep" role="separator"></div>
+        <div class="gr-menu-item" role="menuitem"><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

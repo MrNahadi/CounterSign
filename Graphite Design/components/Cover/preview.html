@@ -1,0 +1,54 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Graphite</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&amp;family=Newsreader:opsz,wght@6..72,400..700&amp;display=swap">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--color-page); color: var(--color-primary-foreground); font-family: var(--font-sans); overflow: hidden; }
+  .cover { position: relative; width: 960px; height: 288px; overflow: hidden; }
+  .art { position: absolute; top: 0; left: 480px; width: 480px; height: 288px; overflow: hidden; }
+  .art svg { display: block; width: 480px; height: 288px; }
+  .ink { fill: var(--color-inverted-solid); }
+  .brand { fill: var(--color-brand-solid); }
+  .tint { fill: var(--color-brand-subtle); }
+  .mid { fill: var(--gray-9); }
+  .dot { fill: var(--color-brand-solid); }
+  .blk { rx: var(--radius-2xl); }
+  .chip { rx: var(--radius-lg); }
+  .words { position: absolute; left: var(--space-6); bottom: var(--space-6); max-width: 440px; }
+  .name { margin: 0; font-family: var(--font-serif); font-size: 96px; line-height: .92; font-weight: 400; letter-spacing: -0.02em; font-variation-settings: 'opsz' 72; color: var(--color-primary-foreground); }
+  .tag { margin: var(--space-3) 0 0 2px; font-size: 13px; line-height: 20px; color: var(--color-secondary-foreground); }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="art" aria-hidden="true">
+    <svg viewBox="0 0 480 288" width="480" height="288">
+      <!--
+        blocks      color-inverted-solid slab 144×280 bled off the top (the monochrome primary, largest) · color-brand-subtle 176×192 bled off the right edge (the tint) · color-brand-solid 128×144 (the one accent) · gray-9 chip 64×32, a control-lg tall button shape; about 30% of 960×288
+        arrangement one tall ink slab with satellites, all bottoms on one line space-6 above the edge, space-4 gutters
+        pattern     dot grid, from "dense UI on a strict 4px grid": brand-solid dots at a space-4 pitch, 4 rows × 9 across the top of the tint block (36 units)
+        scales      sides in space-4 multiples; gutters space-4; pitch space-4; corners radius-2xl on blocks, radius-lg on the chip
+      -->
+      <rect class="ink blk" x="16" y="-16" width="144" height="280" rx="12"/>
+      <rect class="mid chip" x="176" y="72" width="64" height="32" rx="8"/>
+      <rect class="brand blk" x="176" y="120" width="128" height="144" rx="12"/>
+      <rect class="tint blk" x="320" y="72" width="176" height="192" rx="12"/>
+      <g class="dot">
+        <circle cx="336" cy="88" r="1.5"/><circle cx="352" cy="88" r="1.5"/><circle cx="368" cy="88" r="1.5"/><circle cx="384" cy="88" r="1.5"/><circle cx="400" cy="88" r="1.5"/><circle cx="416" cy="88" r="1.5"/><circle cx="432" cy="88" r="1.5"/><circle cx="448" cy="88" r="1.5"/><circle cx="464" cy="88" r="1.5"/>
+        <circle cx="336" cy="104" r="1.5"/><circle cx="352" cy="104" r="1.5"/><circle cx="368" cy="104" r="1.5"/><circle cx="384" cy="104" r="1.5"/><circle cx="400" cy="104" r="1.5"/><circle cx="416" cy="104" r="1.5"/><circle cx="432" cy="104" r="1.5"/><circle cx="448" cy="104" r="1.5"/><circle cx="464" cy="104" r="1.5"/>
+        <circle cx="336" cy="120" r="1.5"/><circle cx="352" cy="120" r="1.5"/><circle cx="368" cy="120" r="1.5"/><circle cx="384" cy="120" r="1.5"/><circle cx="400" cy="120" r="1.5"/><circle cx="416" cy="120" r="1.5"/><circle cx="432" cy="120" r="1.5"/><circle cx="448" cy="120" r="1.5"/><circle cx="464" cy="120" r="1.5"/>
+        <circle cx="336" cy="136" r="1.5"/><circle cx="352" cy="136" r="1.5"/><circle cx="368" cy="136" r="1.5"/><circle cx="384" cy="136" r="1.5"/><circle cx="400" cy="136" r="1.5"/><circle cx="416" cy="136" r="1.5"/><circle cx="432" cy="136" r="1.5"/><circle cx="448" cy="136" r="1.5"/><circle cx="464" cy="136" r="1.5"/>
+      </g>
+    </svg>
+  </div>
+  <div class="words">
+    <h1 class="name">Graphite</h1>
+    <p class="tag">Quiet, dense interface design. Monochrome first, one blue accent.</p>
+  </div>
+</div>
+</body>
+</html>

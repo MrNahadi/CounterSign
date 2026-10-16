@@ -1,0 +1,23 @@
+<!-- @dsCard group="Overlays" height=130 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tooltip</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&amp;family=Geist+Mono:wght@400..600&amp;family=Newsreader:opsz,wght@6..72,400..700&amp;display=swap">
+</head>
+<body>
+<div class="gr-stage">
+  <div class="gr-row" style="gap:48px;align-items:flex-start">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+      <span class="gr-tooltip" role="tooltip" id="tt1">Copy link</span>
+      <button class="gr-btn gr-btn-tertiary gr-btn-md gr-btn-icon" aria-label="Copy link" aria-describedby="tt1"><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+      <span class="gr-tooltip" role="tooltip" id="tt2">Search <kbd class="gr-kbd">⌘</kbd><kbd class="gr-kbd">K</kbd></span>
+      <button class="gr-btn gr-btn-transparent gr-btn-md gr-btn-icon" aria-label="Search" aria-describedby="tt2"><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

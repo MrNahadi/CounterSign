@@ -1,0 +1,36 @@
+<!-- @dsCard group="Forms" height=330 width=620 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Select</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&amp;family=Geist+Mono:wght@400..600&amp;family=Newsreader:opsz,wght@6..72,400..700&amp;display=swap">
+</head>
+<body>
+<div class="gr-stage">
+  <div class="gr-row gr-row-lg">
+    <div class="gr-field" style="width:240px">
+      <span class="gr-label">Region</span>
+      <button class="gr-select" style="width:240px" aria-haspopup="listbox" aria-expanded="true"><span>Frankfurt</span><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="gr-popover" role="listbox" style="width:240px">
+        <div class="gr-menu-group">Europe</div>
+        <div class="gr-menu-item" role="option" aria-selected="true"><span class="gr-menu-check"><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>Frankfurt</div>
+        <div class="gr-menu-item" role="option" data-highlighted><span class="gr-menu-check"></span>London</div>
+        <div class="gr-menu-item" role="option"><span class="gr-menu-check"></span>Stockholm</div>
+        <div class="gr-menu-group">Africa</div>
+        <div class="gr-menu-item" role="option"><span class="gr-menu-check"></span>Cape Town</div>
+      </div>
+    </div>
+    <div class="gr-field" style="width:240px">
+      <span class="gr-label">Owner</span>
+      <button class="gr-select" style="width:240px" data-placeholder aria-haspopup="listbox"><span>Choose a teammate</span><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+      <div class="gr-popover" role="listbox" style="width:240px">
+        <div style="padding:4px 4px 6px"><span class="gr-input-wrap"><svg class="gr-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input class="gr-input" placeholder="Search people" style="height:28px"></span></div>
+        <div class="gr-menu-item" role="option" data-highlighted><span class="gr-avatar gr-avatar-20 gr-avatar-blue">AK</span>Amani Kiprop</div>
+        <div class="gr-menu-item" role="option"><span class="gr-avatar gr-avatar-20 gr-avatar-green">LW</span>Lena Weiss</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

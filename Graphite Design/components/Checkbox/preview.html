@@ -1,0 +1,27 @@
+<!-- @dsCard group="Forms" height=180 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Checkbox</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&amp;family=Geist+Mono:wght@400..600&amp;family=Newsreader:opsz,wght@6..72,400..700&amp;display=swap">
+</head>
+<body>
+<div class="gr-stage">
+  <div class="gr-row gr-row-lg" style="gap:48px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span class="gr-label">Notifications</span>
+      <label class="gr-check"><input type="checkbox" class="gr-checkbox" checked>Email me when a deploy fails</label>
+      <label class="gr-check"><input type="checkbox" class="gr-checkbox">Weekly usage summary</label>
+      <label class="gr-check"><input type="checkbox" class="gr-checkbox" disabled>Billing alerts (owners only)</label>
+    </div>
+    <fieldset style="border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:8px">
+      <legend class="gr-label" style="padding:0;margin-bottom:8px">Visibility</legend>
+      <label class="gr-check"><input type="radio" class="gr-radio" name="vis" checked>Private</label>
+      <label class="gr-check"><input type="radio" class="gr-radio" name="vis">Team</label>
+      <label class="gr-check"><input type="radio" class="gr-radio" name="vis">Public</label>
+    </fieldset>
+  </div>
+</div>
+</body>
+</html>

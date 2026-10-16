@@ -1,0 +1,35 @@
+<!-- @dsCard group="Overlays" height=340 width=900 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dialog</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&amp;family=Geist+Mono:wght@400..600&amp;family=Newsreader:opsz,wght@6..72,400..700&amp;display=swap">
+</head>
+<body>
+<div class="gr-stage" style="padding:0">
+  <div class="gr-row" style="gap:0;align-items:stretch;flex-wrap:nowrap">
+    <div class="gr-overlay" style="flex:1;min-height:300px">
+      <div class="gr-dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-t">
+        <h2 class="gr-dialog-title" id="dlg-t">Delete this project?</h2>
+        <p class="gr-dialog-desc">graphite-web and its 128 deployments will be removed. You can't undo this.</p>
+        <div class="gr-dialog-footer">
+          <button class="gr-btn gr-btn-secondary gr-btn-lg"><span>Cancel</span></button>
+          <button class="gr-btn gr-btn-danger gr-btn-lg"><span>Delete project</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="gr-overlay" style="width:360px;flex:none;align-items:flex-end;padding:32px 20px 0">
+      <div class="gr-drawer" role="dialog" aria-modal="true" aria-labelledby="drw-t">
+        <div class="gr-drawer-handle"></div>
+        <h2 class="gr-dialog-title" id="drw-t">Share project</h2>
+        <p class="gr-dialog-desc">Anyone with the link can view deployments.</p>
+        <div class="gr-dialog-footer" style="justify-content:stretch">
+          <button class="gr-btn gr-btn-primary gr-btn-xl" style="flex:1"><span>Copy link</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
