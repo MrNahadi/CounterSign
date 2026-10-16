@@ -4,7 +4,7 @@ Findings from roadmap phase 2 (brief §13, spikes S1–S9). Each spike passes or
 
 | Spike | Status | Result |
 |---|---|---|
-| S1 PayPal order, capture, refund, seeding | Not started | |
+| S1 PayPal order, capture, refund, seeding | Passes; seeding route open | Capture, partial refund and refund idempotency work. The vault (one approval for many orders) is refused for now |
 | S2 Tracking | Not started | |
 | S3 Disputes | Not started | |
 | S4 Baseline agent | Not started | |
@@ -13,6 +13,32 @@ Findings from roadmap phase 2 (brief §13, spikes S1–S9). Each spike passes or
 | S7 Hosting | Not started | |
 | S8 Gemini API | Not started | |
 | S9 AG Studio | Not started | |
+
+## S1 PayPal order, capture, refund
+
+Script: `spikes/paypal/s1.ts`, one command per REST call. It loads `.env.local` with `tsx --env-file` and never prints the token or secret.
+
+Live run, 16 Oct 2026, on the sandbox app:
+
+| Step | Result |
+|---|---|
+| OAuth (client credentials) | Works |
+| Create order, $48.00 (`7BN283777R9375221`) | `PAYER_ACTION_REQUIRED`, with a `payer-action` approval link. The owner approved it as the sandbox personal buyer |
+| Capture | HTTP 201. Capture `7YL89768KH2865638`, `COMPLETED`. The order and capture both carry `payer.email_address` and `payer_id` (the buyer is a `KE` sandbox account) |
+| Refund $12.00 with `PayPal-Request-Id` X | HTTP 201, refund `9FA910708B137330K`, `COMPLETED` |
+| The same refund again with the same X | HTTP 200 with the **same** refund ID. No second refund |
+| Capture after the refund | `PARTIALLY_REFUNDED`. PayPal's fee on the $48.00 capture was $1.93 |
+| Vault setup token (save the buyer's PayPal for later orders) | HTTP 403 `NOT_AUTHORIZED` |
+| Payout, $1.00 to the sandbox buyer | HTTP 201, batch `XX8SGFEB9W6QQ`, `PENDING` |
+| List disputes | HTTP 200, empty list |
+
+Findings:
+
+- **S1's pass condition holds.** Replaying a refund with the same `PayPal-Request-Id` returns the original refund (200 instead of 201). The gate's exactly-once execution can rely on it, with the intent hash as the request ID.
+- **Wallet orders carry the payer's email**, so `ticket.from_payer` has a record to check against. Card orders may not, which is why the seed shouldn't use them.
+- **The merchant account supports Payouts and the Disputes API**, so phase 12 and spike S3 aren't blocked by the account.
+- **Fees are real.** The capture breakdown has `paypal_fee` and `net_amount`. Money-protected figures should say whether they're gross or net.
+- **Seeding about 30 orders is still open.** Each wallet order needs a buyer approval. The vault would make it one approval in total, but the app isn't allowed to use it yet. The two routes are switching the vault on in the app's settings, or approving each order in a scripted browser that holds the sandbox buyer's session.
 
 ## S6 Daraja
 
