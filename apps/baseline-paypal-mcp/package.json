@@ -10,5 +10,9 @@
     "@types/node": "26.6.5",
     "typescript": "5.9.3",
     "vitest": "4.1.12"
+  },
+  "dependencies": {
+    "@paypal/agent-toolkit": "1.11.0",
+    "@paypal/mcp": "1.8.1"
   }
 }

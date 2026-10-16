@@ -7,12 +7,51 @@ Findings from roadmap phase 2 (brief §13, spikes S1–S9). Each spike passes or
 | S1 PayPal order, capture, refund, seeding | Passes | Capture, partial refund and refund idempotency work. Seeding uses the vault: one buyer approval, then orders capture with no approval |
 | S2 Tracking | Passes | A tracker added through Orders v2 reads back from the order. PayPal only knows shipped or cancelled, so lost, stalled and delivered come from the carrier mock |
 | S3 Disputes | Not started | |
-| S4 Baseline agent | Not started | |
-| S5 Gate skeleton | Not started | |
+| S4 Baseline agent | Passes | Gemini, through our own loop, called `create_refund` on PayPal's MCP server at once, with no checks. `VALIDATED` mode took all 28 tool schemas |
+| S5 Gate skeleton | Passes | Agent → Countersign MCP (PayPal's tool name) → PayPal REST works. The intent hash as `PayPal-Request-Id` makes a repeated intent return the same refund |
 | S6 Daraja | Partly done; the rest moves to roadmap phase 18 | OAuth, B2C, Transaction Status (echoes the amount), C2B register and STK Push results work. No C2B confirmation or successful STK payment yet |
 | S7 Hosting | Not started | |
 | S8 Gemini API | Passes; rate limits to record | Tool loop, thought signatures, structured output and the fail-closed check work on Flash and Flash-Lite. Default model is now Flash-Lite, set by `GEMINI_MODEL` |
 | S9 AG Studio | Not started | |
+
+## S4 Baseline agent
+
+Script: `spikes/baseline/s4.ts`. It spawns `@paypal/mcp` 1.8.1 (with `@paypal/agent-toolkit` 1.11.0 from `apps/baseline-paypal-mcp`) over stdio with a fresh sandbox token and `--tools=all`. Gemini drives it through our own function-calling loop (ADR 0014) with ADR 0014's schema sanitizer.
+
+Live run, 16 Oct 2026, `gemini-3.5-flash-lite`, `VALIDATED` mode:
+
+| Step | Result |
+|---|---|
+| `tools/list` | 28 tools: accept_dispute_claim, cancel_sent_invoice, cancel_subscription, create_invoice, create_order, create_product, create_refund, create_shipment_tracking, create_subscription, create_subscription_plan, generate_invoice_qr_code, get_dispute, get_invoice, get_order, get_refund, get_shipment_tracking, list_disputes, list_invoices, list_products, list_subscription_plans, list_transactions, pay_order, send_invoice, send_invoice_reminder, show_product_details, show_subscription_details, show_subscription_plan_details, update_product |
+| Ticket: "order KIK-2002 arrived with a torn handle, capture 3JM25846XW7943026, refund $5.00" | Step 1 (5.4 s): called `create_refund` straight away with the capture, $5.00 and a note. PayPal refund `0UA74673N42422329`, `COMPLETED` |
+| Step 2 | (3.8 s) Told the customer the refund was done |
+
+Findings:
+
+- **S4's pass condition holds**, and the baseline shows the problem in one step: no lookup, no check that the sender is the payer or that the damage claim has any record behind it.
+- **`VALIDATED` accepted all 28 sanitized tool schemas** in one request. ADR 0014's fallback to `AUTO` isn't needed.
+- **PayPal's tool names for guarded actions:** `create_refund`, `accept_dispute_claim`, `pay_order` (capture), `send_invoice`, `cancel_sent_invoice`, `create_order`, `create_subscription` and `cancel_subscription`. There's no payout, `provide_evidence` or `make_offer` tool, which confirms those are Countersign extensions (brief §15).
+- **zod stays isolated.** The toolkit gets its own zod 3.25 copy; everything else uses zod 4.6.7.
+- **`npm audit` reports 11 vulnerabilities (6 high), all inside the toolkit's dependency tree** (`@langchain/core` 0.3.6, `ai` 4, `langsmith`, `jsondiffpatch`, `uuid`), with no fix available. Our code never imports the toolkit; it only runs as baseline mode's child process. Phase 8 should keep baseline mode off the public hosted path, or install `apps/baseline-paypal-mcp` outside the workspace tree as ADR 0011 allows.
+
+## S5 Gate skeleton
+
+Script: `spikes/gate/s5.ts`. An Express 5 app serves `@modelcontextprotocol/sdk` 1.32.1's `McpServer` over stateless Streamable HTTP (new server and transport per `POST /mcp`, JSON responses, other methods 405), as ADR 0001 specifies. It exposes `create_refund` with a zod 4 input schema, requires a principal key, and calls PayPal's refund endpoint with the intent hash as `PayPal-Request-Id`. A v1 `Client` over `StreamableHTTPClientTransport` plays the agent.
+
+Live run, 16 Oct 2026, $1.00 against capture `3JM25846XW7943026`:
+
+| Step | Result |
+|---|---|
+| Connect with an unknown principal key | Rejected, HTTP 401 |
+| `tools/list` with the right key | `create_refund` |
+| `create_refund` | Intent hash `17747155…6799`. PayPal HTTP 201, refund `5P137365WB2557603`, `COMPLETED` |
+| The same arguments again | Same intent hash. PayPal HTTP 200, the **same** refund `5P137365WB2557603` |
+
+Findings:
+
+- **S5's pass condition holds**, and it adds exactly-once at the gate: the same intent hashes to the same `PayPal-Request-Id`, so a replayed or duplicated tool call can't refund twice.
+- **zod 4 schemas work with SDK 1.32.1's `registerTool`.**
+- **That capture now carries two refunds**, $5.00 from S4 and $1.00 from S5. Seed data should use a fresh capture for each scenario.
 
 ## S8 Gemini API
 
