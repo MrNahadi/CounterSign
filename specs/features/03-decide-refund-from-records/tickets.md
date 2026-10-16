@@ -2,16 +2,16 @@
 
 ## T-001: Money, canonical JSON and the intent hash
 
-Status: open
+Status: done
 Blocked by:
 Slice: A refund intent built in code gets a stable intent hash and ID, with its amount held as integer minor units and printable as `$96.00`.
 Test seam: the money, canonical JSON and intent exports of `@countersign/mandate` (public interface only)
 Acceptance:
-- [ ] Money parsing accepts `"12.00"`, `"12.5"` and `"12"` for USD and KES as minor units. It rejects a sign, an exponent, more than two decimals, thousands separators, zero and other currencies
-- [ ] Money formats as `$96.00` and `KSh 4,500`
-- [ ] Canonical JSON matches the RFC 8785 examples in our subset, including UTF-16 key ordering and string escaping. It rejects non-integer, non-finite and unsafe numbers
-- [ ] The intent hash ignores key order and the claim and mandate version. It changes with the amount, currency, target, ticket or principal. The intent ID is `int_` plus 24 hex characters of the hash
-- [ ] A hand-written expected canonical string for one reference intent hashes to the same SHA-256 as the intent
+- [x] Money parsing accepts `"12.00"`, `"12.5"` and `"12"` for USD and KES as minor units. It rejects a sign, an exponent, more than two decimals, thousands separators, zero and other currencies
+- [x] Money formats as `$96.00` and `KSh 4,500`
+- [x] Canonical JSON matches the RFC 8785 examples in our subset, including UTF-16 key ordering and string escaping. It rejects non-integer, non-finite and unsafe numbers
+- [x] The intent hash ignores key order and the claim and mandate version. It changes with the amount, currency, target, ticket or principal. The intent ID is `int_` plus 24 hex characters of the hash
+- [x] A hand-written expected canonical string for one reference intent hashes to the same SHA-256 as the intent
 Notes:
 
 ## T-002: Reason codes and the mandate schema
