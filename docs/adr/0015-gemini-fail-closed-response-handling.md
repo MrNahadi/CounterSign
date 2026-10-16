@@ -1,6 +1,6 @@
 # 0015. A Gemini response is acted on only when it finished with `STOP`; safety filters are off; retries and fallback live in our code
 
-Status: accepted
+Status: accepted. The fallback model ID now comes from `GEMINI_FALLBACK_MODEL` (ADR 0017); the rest stands.
 Decided-by: answerer (researched; the safety-filter setting is inferred from brief §5 Out of scope and §10 trade-off 2)
 Question: Gemini migration, G5 (16 Oct 2026). What replaces Anthropic's "check `stop_reason: refusal` before reading content" and its server-side fallbacks? Which `safetySettings` suit a support inbox whose tickets deliberately contain prompt injections? Every failure must fail closed: no tool call means no money action.
 Decision:

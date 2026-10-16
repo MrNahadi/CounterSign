@@ -1,6 +1,6 @@
 # Tech stack
 
-Derived from brief §8–§9 and ADRs 0001–0016 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
+Derived from brief §8–§9 and ADRs 0001–0017 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
 
 ## Runtime and tooling
 
@@ -89,12 +89,12 @@ specs/                  Brief, constitution, feature specs
 - Load fonts with DESIGN.md's Google Fonts link, not `next/font`.
 - A Vitest design check (`packages/graphite/test/design-check.test.ts`) fails on raw hex or color functions, emojis, default Tailwind palette classes, palette steps in app code, drift between `packages/graphite/graphite-tokens.css` and `Graphite Design/graphite-tokens.css`, or a semantic token missing from `packages/graphite/tailwind.css`. It has no per-line escape.
 
-**AI calls** (ADRs 0013–0016)
+**AI calls** (ADRs 0013–0017)
 - Product AI uses the Gemini Developer API through `@google/genai`, constructed as `new GoogleGenAI({ apiKey: env.GEMINI_API_KEY, vertexai: false })`. Call `ai.models.generateContent`. Never use automatic function calling, `mcpToTool`, `ai.chats` or the Interactions API.
-- Use model `gemini-3.8-flash` for every role, and record `modelVersion` from every call. Always set `thinkingConfig.thinkingLevel`: `MEDIUM` for the agent, `HIGH` for the compiler, `LOW` for the Risk desk. Never send `thinkingBudget`, `MINIMAL`, `temperature`, `topP` or `topK`.
+- Every role reads its model from `GEMINI_MODEL` (default `gemini-3.5-flash-lite`; exact IDs only, never `-latest`), and records `modelVersion` from every call. Always set `thinkingConfig.thinkingLevel`: `MEDIUM` for the agent, `HIGH` for the compiler, `LOW` for the Risk desk. Never send `thinkingBudget`, `MINIMAL`, `temperature`, `topP` or `topK`.
 - Declare tools with sanitized `parametersJsonSchema` and `functionCallingConfig.mode: VALIDATED`. For JSON, use `responseMimeType: "application/json"` with `responseJsonSchema` from `z.toJSONSchema`, then validate the result with zod.
 - Fail closed. Before reading content, require no `promptFeedback.blockReason`, a candidate, `finishReason === "STOP"` and content parts. Anything else ends the run, and no tool call from that response runs (ADR 0015). Set all five adjustable safety categories, including `HARM_CATEGORY_JAILBREAK`, to `OFF`.
-- The SDK retries 408 and 5xx responses; our code handles 429. Fall back to `gemini-3.6-flash` only between ticket runs, never mid-loop.
+- The SDK retries 408 and 5xx responses; our code handles 429. Fall back to `GEMINI_FALLBACK_MODEL` (default `gemini-3.1-flash-lite`) only between ticket runs, never mid-loop.
 - Keep the system instruction and tool declarations byte-stable and the history append-only, so implicit caching hits. No explicit caches.
 - Resolve's harness is our own function-calling loop over an MCP v1 client in both modes (ADRs 0011, 0014). The Risk desk calls Gemini from a console server route, never from the browser (ADR 0016).
 - Recheck these API details against current docs at spike S8.

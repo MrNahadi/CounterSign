@@ -9,11 +9,12 @@ Where this brief and the original disagree, this brief wins.
 Approved by the owner on 2026-10-16. At approval the owner added the Graphite design system as a constraint on all UI.
 Version 1.1 (2026-10-16): at the owner's request, every product AI role moves from Anthropic Claude to Google Gemini, because Claude costs more and Gemini has a free tier. The how is in ADRs 0013-0016. The build loop still runs on Claude Code.
 Version 1.2 (2026-10-16): at the owner's request, the M-Pesa rail becomes a secondary feature, built last before the freeze, because the Daraja sandbox's customer-payment callbacks were unreliable in spike S6. PayPal is the main path. We still want M-Pesa before submission.
+Version 1.3 (2026-10-16): at the owner's request, the default model is `gemini-3.5-flash-lite`, and `GEMINI_MODEL` in the env file switches it, for example to a larger model on the paid tier (ADR 0017).
 -->
 
 | Field | Value |
 |---|---|
-| Version | 1.2 (1.0 restructured from countersign.md v1 and approved 2026-10-16; 1.1 moves product AI to Google Gemini; 1.2 makes the M-Pesa rail a secondary feature, built last; both 2026-10-16) |
+| Version | 1.3 (1.0 restructured from countersign.md v1 and approved 2026-10-16; 1.1 moves product AI to Google Gemini; 1.2 makes the M-Pesa rail a secondary feature, built last; 1.3 makes Gemini Flash-Lite the default model, set in the env file; all 2026-10-16) |
 | Date | 2026-10-16 |
 | Owner | muigufarid@gmail.com |
 | Project type | Greenfield. There's no code yet, and this folder isn't a git repo yet |
@@ -266,7 +267,7 @@ From original §12, updated for the AG Grid prize.
 | Design system | Graphite (`Graphite Design/`). Apps import `graphite-tokens.css` rather than redefining values. Fonts: Inter, Geist Mono, Newsreader. Icons: Lucide | | Raw hex in components, emojis, mixing icon sets, CSS borders where Graphite uses rings | How the tokens file is shared across apps (copied package or import) |
 | Dashboards | AG Studio for the Risk desk (the AG Grid prize is judged on it) | Start from the official [hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate) (Next.js + AG Studio + PayPal) | AG Grid Enterprise features outside Studio without a licence key, which show a watermark | |
 | Payments | PayPal sandbox APIs (hackathon rule) | Direct REST for guarded execution, so we control `PayPal-Request-Id`. `@paypal/agent-toolkit` for the baseline agent and read pass-through. JS SDK v6 on the storefront. Daraja 3.0 REST | | |
-| AI | Google Gemini through the Gemini Developer API (owner decision, 16 Oct 2026, for cost) | `@google/genai` with `gemini-3.8-flash` (ADR 0013) | | Free or paid API tier (§15) |
+| AI | Google Gemini through the Gemini Developer API (owner decision, 16 Oct 2026, for cost) | `@google/genai`; model set by `GEMINI_MODEL`, default `gemini-3.5-flash-lite` (ADRs 0013, 0017) | | Free or paid API tier (§15) |
 | Storage | | Postgres on Render, paid plan from day one | Render free Postgres (expires after 30 days) | |
 | Testing | | Vitest for verifiers and the rule engine. Fixture-based contract tests for rail clients. Playwright for the hosted smoke test. A CLI bench runner | | |
 | Hosting / distribution | | Render paid web services (free ones spin down), Postgres, and a cron job for reconciliation and the smoke test | | |
@@ -344,7 +345,7 @@ How far apart they are: 1 and 2 are absolute and never traded. 3 and 4 sit close
 
 **Submission**
 - [ ] The YouTube video is public and ≤ 2:55, with captions, no third-party logos or copyrighted music, and simulation labeled on screen. Every number on screen traces to the bench file or a sandbox ID.
-- [ ] The Devpost text covers features, functionality, tools (Google Gemini 3.8 Flash and each role; the PayPal APIs; Daraja; AG Studio; Render), real vs simulated, the hosted URL and the test credentials.
+- [ ] The Devpost text covers features, functionality, tools (Google Gemini, naming the model that ran, and each role; the PayPal APIs; Daraja; AG Studio; Render), real vs simulated, the hosted URL and the test credentials.
 - [ ] At least 3 gallery images, including the claims-vs-records card.
 - [ ] The AG Grid sponsor tick-box is ticked, with a paragraph naming the widgets, theme and agent.
 - [ ] Submitted by Wed 11 Nov, with a confirmation screenshot saved.
@@ -372,7 +373,7 @@ From original §19. Each phase ends at a gate. If a gate is missed, the cut it n
 | S5 | Gate skeleton | Agent → Countersign MCP → PayPal REST works for one tool |
 | S6 | Daraja | App created; OAuth works; C2B register + simulate; confirmation callback received; Transaction Status result received, **and it echoes the simulated amount**; B2C result received; **masked-field behavior noted**. Partly proven on 16 Oct (`docs/spikes.md`). The rest is retried when the M-Pesa rail is built, and no longer gates anything earlier |
 | S7 | Hosting | Render paid service + Postgres + a public HTTPS URL receiving webhooks and callbacks |
-| S8 | Gemini API | A `gemini-3.8-flash` call with a VALIDATED function declaration and a structured output; the finish-reason and block-reason check is in place; the project's AI Studio rate limits are recorded |
+| S8 | Gemini API | A call to the configured model (default `gemini-3.5-flash-lite`) with a VALIDATED function declaration and a structured output; the finish-reason and block-reason check is in place; the project's AI Studio rate limits are recorded |
 | S9 | AG Studio | The boilerplate runs. One custom widget and a theme render. A Studio Agent Framework agent backed by Gemini, through an adapter that calls a server-side route so the key never reaches the browser, builds a widget from a question. The licence key removes the watermark |
 
 ## 14. Working agreement with the agent (REQUIRED)

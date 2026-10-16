@@ -1,6 +1,6 @@
 # 0013. Product AI runs on the Gemini Developer API through `@google/genai` 2.27.0, with `gemini-3.8-flash` for every role
 
-Status: accepted
+Status: accepted. The model choice (`gemini-3.8-flash` for every role) is superseded by ADR 0017; the rest stands.
 Decided-by: answerer (researched). The move from Anthropic to Google Gemini is the owner's decision, stated in session on 16 Oct 2026; this ADR records the technical "how".
 Question: Gemini migration, G1, G3, G4 and G7 (16 Oct 2026). Which SDK version and API route, which model and thinking setting per role, what replaces `strict: true` tools and structured outputs, and how do we keep prompt caching, for the Resolve agent (both modes), the mandate compiler and the Risk desk analyst?
 Decision:
