@@ -7,11 +7,12 @@ Restructured on 2026-10-16 from countersign.md (v1), kept verbatim as specs/brie
 At the owner's request, Claude drafted sections 3, 4, 5, 8, 10, 12 and 14, and the additions to 7, 9, 11, 13 and 15. It worked from the original brief, an independent second opinion, and the hackathon rules checked on 2026-10-16. Approving this brief confirms those lines.
 Where this brief and the original disagree, this brief wins.
 Approved by the owner on 2026-10-16. At approval the owner added the Graphite design system as a constraint on all UI.
+Version 1.1 (2026-10-16): at the owner's request, every product AI role moves from Anthropic Claude to Google Gemini, because Claude costs more and Gemini has a free tier. The how is in ADRs 0013-0016. The build loop still runs on Claude Code.
 -->
 
 | Field | Value |
 |---|---|
-| Version | 1.0 (restructured from countersign.md v1; approved 2026-10-16) |
+| Version | 1.1 (1.0 restructured from countersign.md v1 and approved 2026-10-16; 1.1 moves product AI to Google Gemini, 2026-10-16) |
 | Date | 2026-10-16 |
 | Owner | muigufarid@gmail.com |
 | Project type | Greenfield. There's no code yet, and this folder isn't a git repo yet |
@@ -173,7 +174,7 @@ Rule evaluation is deterministic:
 ### Flow: the merchant changes their rules
 
 1. The merchant writes or edits rules in plain English.
-2. Claude compiles them into the Mandate schema using structured outputs.
+2. Gemini compiles them into the Mandate schema using structured output.
 3. Countersign reads the compiled rules back in plain English, shows the diff against the current version, and **replays the bench cases affected by the change**. For example: "This change would have auto-approved 3 attack tickets."
 4. The merchant signs. The version is immutable and its hash goes into the audit log.
 
@@ -218,11 +219,11 @@ Timings, captions and recording rules are in original §15. The video's final st
 | **Verifier trace** | The list of verifiers run for an intent, each with its result (pass / fail / unknown), the record it read and that record's sandbox ID |
 | **Claims vs records** | The two-column view of a decision: what the message claims, and what the records say |
 | **Fallback** | The mandate's decision when no rule matches. Default deny |
-| **Mandate compiler** | The Claude step that turns plain-English rules into the typed Mandate schema and reads them back. It never runs at decision time |
+| **Mandate compiler** | The Gemini step that turns plain-English rules into the typed Mandate schema and reads them back. It never runs at decision time |
 | **Bench** | The red-team suite of attack cases and genuine cases, run against baseline and protected modes to produce the metrics |
 | **Attack case / genuine case** | A bench ticket where no money should move without authorization / a bench ticket that deserves a correct resolution |
 | **Hold-out slice** | Bench cases written without sight of the mandate or gate, committed unread and run once at the final bench |
-| **Resolve** | The reference AI support inbox for Kikapu Studio. Its Claude agent acts only through Countersign (in protected mode) |
+| **Resolve** | The reference AI support inbox for Kikapu Studio. Its Gemini agent acts only through Countersign (in protected mode) |
 | **Kikapu Studio / Kikapu storefront** | The illustrative demo merchant, and the tiny shop that creates real sandbox orders for it |
 | **Seed state / demo reset** | The known starting data (about 30 orders, trackers, receipts, tickets) that the reset button restores |
 | **AG Studio** | AG Grid's embedded-analytics component (dashboards, charts and grids, with a Studio Agent Framework). Used for the Risk desk |
@@ -264,7 +265,7 @@ From original §12, updated for the AG Grid prize.
 | Design system | Graphite (`Graphite Design/`). Apps import `graphite-tokens.css` rather than redefining values. Fonts: Inter, Geist Mono, Newsreader. Icons: Lucide | | Raw hex in components, emojis, mixing icon sets, CSS borders where Graphite uses rings | How the tokens file is shared across apps (copied package or import) |
 | Dashboards | AG Studio for the Risk desk (the AG Grid prize is judged on it) | Start from the official [hackathon boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate) (Next.js + AG Studio + PayPal) | AG Grid Enterprise features outside Studio without a licence key, which show a watermark | |
 | Payments | PayPal sandbox APIs (hackathon rule) | Direct REST for guarded execution, so we control `PayPal-Request-Id`. `@paypal/agent-toolkit` for the baseline agent and read pass-through. JS SDK v6 on the storefront. Daraja 3.0 REST | | |
-| AI | | `@anthropic-ai/sdk` with `claude-opus-5-5` | | |
+| AI | Google Gemini through the Gemini Developer API (owner decision, 16 Oct 2026, for cost) | `@google/genai` with `gemini-3.8-flash` (ADR 0013) | | Free or paid API tier (§15) |
 | Storage | | Postgres on Render, paid plan from day one | Render free Postgres (expires after 30 days) | |
 | Testing | | Vitest for verifiers and the rule engine. Fixture-based contract tests for rail clients. Playwright for the hosted smoke test. A CLI bench runner | | |
 | Hosting / distribution | | Render paid web services (free ones spin down), Postgres, and a cron job for reconciliation and the smoke test | | |
@@ -312,7 +313,7 @@ How far apart they are: 1 and 2 are absolute and never traded. 3 and 4 sit close
 - [ ] Judge guide: hosted URL, sandbox buyer login, approver login and reset button, readable in 60 seconds.
 - [ ] Setup and run instructions.
 - [ ] PayPal integration map with ≥ 10 rows, each with a file link and a real sandbox ID or webhook event ID. Countersign extensions are marked as such.
-- [ ] AI table: `claude-opus-5-5`, each role it plays, and an explicit "not AI" list.
+- [ ] AI table: the Gemini model ID, each role it plays, the API tier and its data-use terms, and an explicit "not AI" list.
 - [ ] Bench summary: date, model, mandate version and case-set tag, baseline vs protected, hold-out slice separate, with a link to the results JSON.
 - [ ] Threat model: what it stops and what it doesn't.
 - [ ] Real vs simulated table.
@@ -342,7 +343,7 @@ How far apart they are: 1 and 2 are absolute and never traded. 3 and 4 sit close
 
 **Submission**
 - [ ] The YouTube video is public and ≤ 2:55, with captions, no third-party logos or copyrighted music, and simulation labeled on screen. Every number on screen traces to the bench file or a sandbox ID.
-- [ ] The Devpost text covers features, functionality, tools (Claude Opus 5.5 and each role; the PayPal APIs; Daraja; AG Studio; Render), real vs simulated, the hosted URL and the test credentials.
+- [ ] The Devpost text covers features, functionality, tools (Google Gemini 3.8 Flash and each role; the PayPal APIs; Daraja; AG Studio; Render), real vs simulated, the hosted URL and the test credentials.
 - [ ] At least 3 gallery images, including the claims-vs-records card.
 - [ ] The AG Grid sponsor tick-box is ticked, with a paragraph naming the widgets, theme and agent.
 - [ ] Submitted by Wed 11 Nov, with a confirmation screenshot saved.
@@ -366,12 +367,12 @@ From original §19. Each phase ends at a gate. If a gate is missed, the cut it n
 | S1 | PayPal order → capture → partial refund, and seeding | Replaying with the same `PayPal-Request-Id` returns the same refund, not a second one. We also know how the seed script gets about 30 captured orders that carry `payer.email_address` (sandbox buyer approval through browser automation, or another route) |
 | S2 | Tracking | A tracker is added through Orders v2 `/track` and read back from `GET` order |
 | S3 | Disputes | A dispute is opened as the sandbox buyer; the `CUSTOMER.DISPUTE.CREATED` webhook arrives on Render; `require-evidence`, then `provide-evidence` with a PDF, then `adjudicate` all work. **If not:** beat 7 becomes "evidence pack + recorded sandbox submission" |
-| S4 | Baseline agent | A Claude agent calls `create_refund` through `@paypal/agent-toolkit` |
+| S4 | Baseline agent | The Resolve harness on Gemini calls `create_refund` on PayPal's MCP server (`@paypal/mcp`, built on `@paypal/agent-toolkit`) |
 | S5 | Gate skeleton | Agent → Countersign MCP → PayPal REST works for one tool |
 | S6 | Daraja | App created; OAuth works; C2B register + simulate; confirmation callback received; Transaction Status result received, **and it echoes the simulated amount**; B2C result received; **masked-field behavior noted**. **If not by Sun 25 Oct:** M-Pesa moves to the roadmap |
 | S7 | Hosting | Render paid service + Postgres + a public HTTPS URL receiving webhooks and callbacks |
-| S8 | Claude API | `claude-opus-5-5` call with a strict tool and a structured output; the refusal check is in place |
-| S9 | AG Studio | The boilerplate runs. One custom widget and a theme render. A Studio Agent Framework agent backed by Claude (a swapped-in harness if needed) builds a widget from a question. The licence key removes the watermark |
+| S8 | Gemini API | A `gemini-3.8-flash` call with a VALIDATED function declaration and a structured output; the finish-reason and block-reason check is in place; the project's AI Studio rate limits are recorded |
+| S9 | AG Studio | The boilerplate runs. One custom widget and a theme render. A Studio Agent Framework agent backed by Gemini, through an adapter that calls a server-side route so the key never reaches the browser, builds a widget from a question. The licence key removes the watermark |
 
 ## 14. Working agreement with the agent (REQUIRED)
 
@@ -395,7 +396,8 @@ From original §19. Each phase ends at a gate. If a gate is missed, the cut it n
 | 7 | Render tier | Paid plans from creation until 22 Dec. The hackathon's Render credit covers part of it |
 
 **Still open:**
-- **AG Studio licence timing.** The trial lasts 45 days, so a key requested on Sun 1 Nov runs to about 16 Dec. Ask the AG Grid team on the PayPal Discord for cover to 22 Dec. Spike S9 shows whether the Studio Agent Framework can run on Claude.
+- **AG Studio licence timing.** The trial lasts 45 days, so a key requested on Sun 1 Nov runs to about 16 Dec. Ask the AG Grid team on the PayPal Discord for cover to 22 Dec. Spike S9 shows whether the Studio Agent Framework runs on Gemini through a server-side adapter.
+- **Gemini free tier or paid tier.** Free-tier Flash is reported at about 20 requests a day, which can't carry a bench run (about 3,000 calls) or judging. Google's terms allow only paid quota for an app open to users in the UK, the EEA or Switzerland, and free-tier prompts may be read by human reviewers and used for training. The $300 Google Cloud trial credit doesn't cover the Gemini API. Decide before the first bench run (ADR 0013).
 - **Seeding orders.** Capturing a PayPal-wallet order needs buyer approval, and card orders may lack `payer.email_address`, which `ticket.from_payer` needs. Spike S1 decides the route.
 - **M-Pesa payer matching.** C2B payer phone numbers may be hashed or masked. Spike S6 decides whether `mpesa.recipient_is_payer` matches on phone or on name plus receipt. If neither is reliable, that rule becomes step-up.
 - **M-Pesa verification.** If sandbox Transaction Status doesn't echo simulated amounts, the verifier checks against the stored C2B confirmation callback instead, and the README says so.

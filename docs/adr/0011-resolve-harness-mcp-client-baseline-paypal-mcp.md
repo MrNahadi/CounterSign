@@ -1,6 +1,6 @@
 # 0011. Resolve uses one harness for both modes; baseline mode connects to PayPal's own MCP server over stdio
 
-Status: accepted
+Status: accepted, harness part superseded by ADR 0014. The toolRunner and `mcpTools` lines no longer apply since product AI moved to Gemini (brief v1.1). One harness for both modes, the MCP v1 client and transports, and the baseline workspace's isolation still hold.
 Decided-by: answerer (researched)
 Question: Phase 1 constitution, Q11. The baseline agent needs Claude (`claude-opus-5-5`) calling PayPal's Agent Toolkit tools (`create_refund` etc.) directly. What is the cleanest way to wire Claude to it, keeping the toolkit's zod 3 / ai 4 dependencies isolated to the baseline only?
 Decision:

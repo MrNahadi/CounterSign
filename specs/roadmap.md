@@ -4,13 +4,14 @@ Each phase is one user-visible feature, built on its own `feature/NN-slug` branc
 
 ## Core: Fri 16 – Sun 25 Oct
 
-- [ ] **1. Scaffold** *(interactive, spec-ralph Phase 2).* The monorepo runs. Every app and package exists as a stub. A console page renders with Graphite tokens in light and dark. One Vitest test passes. All Feedback commands pass from the repo root, including the Graphite design check.
+- [x] **1. Scaffold** *(interactive, spec-ralph Phase 2).* The monorepo runs. Every app and package exists as a stub. A console page renders with Graphite tokens in light and dark. One Vitest test passes. All Feedback commands pass from the repo root, including the Graphite design check.
 - [ ] **2. Integration spikes S1–S9** *(interactive).* Each spike in brief §13 passes or has a chosen fallback. Findings go in `docs/spikes.md`, and anything that sets direction becomes an ADR. Credentials live only in local env files and Render. Spike S6 goes first, because Daraja is the riskiest outside dependency; it uses a cloudflared quick tunnel for callbacks.
 
 Additions from the ADRs:
-- S4 runs through the shared Resolve harness: an MCP client against PayPal's own MCP server (ADR 0011).
+- S4 runs through the shared Resolve harness: an MCP client against PayPal's own MCP server (ADR 0011), driven by our own Gemini function-calling loop (ADR 0014).
 - S7 confirms that Render installs Node 26 (ADR 0008).
-- S9 runs on Next 16.4.2 and React 19.3.1 (ADR 0010), and checks that the AG Studio theme reads the Graphite CSS variables (ADR 0006).
+- S8 checks the Gemini call shape, the fail-closed response check, and the project's real AI Studio rate limits (ADRs 0013, 0015).
+- S9 runs on Next 16.4.2 and React 19.3.1 (ADR 0010), checks that the AG Studio theme reads the Graphite CSS variables (ADR 0006), and runs the analyst on Gemini through a server-side route (ADR 0016).
 - [ ] **3. Decide a refund from records** [1]. Given an order's recorded PayPal and carrier facts, a refund intent gets allow, step-up or deny from a CLI, with reason codes and a verifier trace. Everything runs from fixtures: the mandate schema, the evaluator and the PayPal verifiers.
 - [ ] **4. Tamper-evident audit log** [5]. Every intent and decision is appended to a hash-chained log. `ledger verify` passes, and fails on any edited row.
 - [ ] **5. Kikapu storefront and seed** [7]. A shopper buys on the storefront with JS SDK v6. A seed script creates about 30 real sandbox orders with captures and trackers, and the carrier mock reports lost, stalled, in-transit and delivered.
@@ -19,7 +20,7 @@ Additions from the ADRs:
 ## Product: Mon 26 Oct – Sun 1 Nov
 
 - [ ] **7. The gate over MCP** [1]. An agent connects to Countersign's MCP server with a principal key and uses PayPal's tool names. Every guarded PayPal action is decided (refund, dispute accept / evidence / offer, invoice send, order capture, payout), and read-only actions pass through.
-- [ ] **8. Resolve, protected and baseline** [6]. Customers write in by email or the simulated chat. The Claude agent investigates, replies, and proposes money actions only through the gate. A switch runs the same agent in baseline mode against PayPal's tools directly.
+- [ ] **8. Resolve, protected and baseline** [6]. Customers write in by email or the simulated chat. The Gemini agent investigates, replies, and proposes money actions only through the gate. A switch runs the same agent in baseline mode against PayPal's tools directly.
 - [ ] **9. Phone step-up approvals** [3]. A held intent becomes an itemized card on the merchant's phone, opened by QR code. One tap approves or denies exactly that intent. Approvals are single-use and expire as a deny.
 - [ ] **10. Claims vs records, and the audit console** [4, 5]. Every decision shows what the message claims beside what the records say, each fact with its source and sandbox ID. The console lists every intent with its trace and rail response, checks the chain, and exports evidence.
 - [ ] **11. Dispute evidence** [13]. When a dispute webhook arrives, the agent drafts an evidence pack from the audit log and tracking. The merchant approves it, and it's submitted with `provide-evidence`. Cut line: if S3 failed, this becomes a recorded sandbox submission.
@@ -31,7 +32,7 @@ Additions from the ADRs:
 - [ ] **14. The M-Pesa rail** [14]. Orders paid by M-Pesa are marked paid only on a verified, matching, unused receipt. Genuine overpayments up to KSh 2,000 refund through B2C, and reversals always step up. Cut line: if Daraja is blocked, this becomes a documented adapter plus a labeled recorded run.
 - [ ] **15. Bench v1** [10]. Case sets of ≥ 60 attack and ≥ 50 genuine cases are frozen and tagged with a fixed genuine mix, plus a hold-out slice. One command runs baseline vs protected, writes `bench/results/<date>.json`, and reruns any slice.
 - [ ] **16. "Attack it yourself"** [9]. A visitor writes any message as any sender and watches the proposal, trace and decision. A counter shows money moved by visitors. Rate limit and daily spend cap are in force.
-- [ ] **17. The Risk desk** [11]. An AG Studio dashboard themed with Graphite, with custom widgets for money protected, decisions by reason code, chain status and refund-spike alerts. A Claude-backed analyst agent builds widgets from questions.
+- [ ] **17. The Risk desk** [11]. An AG Studio dashboard themed with Graphite, with custom widgets for money protected, decisions by reason code, chain status and refund-spike alerts. A Gemini-backed analyst agent, called through a console server route, builds widgets from questions.
 - [ ] **18. The mandate compiler** [12]. The merchant writes rules in plain English, sees them compiled and read back, the diff, and the bench cases the change would flip, then signs version N+1. **Gate G3: feature freeze (Thu 5 Nov).**
 
 ## Polish and ship: Fri 6 – Wed 11 Nov
@@ -46,7 +47,7 @@ Additions from the ADRs:
 ## Human track (parallel, outside the loop)
 
 - [ ] Register the Safaricom Daraja app and the PayPal sandbox app, webhooks and buyer accounts (Fri 16 Oct).
-- [ ] Anthropic API key with a spend limit. Render account on paid plans.
+- [ ] Gemini API key from Google AI Studio. If the paid tier is chosen, prepay and set a project spend cap. Render account on paid plans.
 - [ ] 5 merchant and 2 developer conversations by Sun 1 Nov, logged in `docs/validation.md` with consent.
 - [ ] Request the AG Studio trial licence on Sun 1 Nov, and ask the AG Grid team on Discord for cover until 22 Dec.
 - [ ] Pre-create sandbox disputes before recording and before judging.

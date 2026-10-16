@@ -1,6 +1,6 @@
 # Tech stack
 
-Derived from brief §8–§9 and ADRs 0001–0012 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
+Derived from brief §8–§9 and ADRs 0001–0016 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
 
 ## Runtime and tooling
 
@@ -28,7 +28,7 @@ Pin exact versions with no `^` or `~`. The loop can't install packages, so new d
 | drizzle-orm / drizzle-kit | 0.45.4 / 0.31.11 | packages/db |
 | postgres | 3.4.9 | packages/db (Render, Postgres 18) |
 | @electric-sql/pglite | 0.5.10 | packages/db (tests) |
-| @anthropic-ai/sdk | 0.135.0 | resolve-agent, mandate compiler, console agents |
+| @google/genai | 2.27.0 | resolve-agent; console (mandate compiler and Risk desk server routes) |
 | @paypal/mcp / @paypal/agent-toolkit | 1.8.1 / 1.11.0 | `apps/baseline-paypal-mcp` only |
 | next | 16.4.2 | console, storefront |
 | react / react-dom | 19.3.1 | console, storefront |
@@ -48,7 +48,7 @@ Next.js and React stay on versions with the October 2026 security fixes (ADR 001
 apps/
   gate/                 Express 5 + MCP v1 (stateless Streamable HTTP): /mcp, approval API, PayPal webhooks, Daraja callbacks
   console/              Next.js: inbox, approvals page, audit console, Risk desk (AG Studio), mandate editor, bench, judge path
-  resolve-agent/        Claude harness for Resolve; protected mode talks to the gate, baseline mode to baseline-paypal-mcp
+  resolve-agent/        Gemini harness for Resolve (our own function-calling loop); protected mode talks to the gate, baseline mode to baseline-paypal-mcp
   baseline-paypal-mcp/  Isolated workspace holding @paypal/mcp + agent-toolkit; nothing imports it, it's spawned over stdio
   storefront/           Next.js Kikapu shop on PayPal JS SDK v6, plus the seed script
 packages/
@@ -87,14 +87,16 @@ specs/                  Brief, constitution, feature specs
 - Every screen uses `@countersign/graphite`: Tailwind v4 restricted to Graphite semantic tokens, so classes equal token names (`bg-container`, `text-secondary-foreground`). Tailwind's default palette is removed (ADR 0006).
 - No raw hex colors, no emojis, Lucide icons only. Light is the default and dark must work.
 - Load fonts with DESIGN.md's Google Fonts link, not `next/font`.
-- A Vitest design check fails on raw hex, emojis, default Tailwind palette classes, or drift between `packages/graphite` and `Graphite Design/graphite-tokens.css`.
+- A Vitest design check (`packages/graphite/test/design-check.test.ts`) fails on raw hex or color functions, emojis, default Tailwind palette classes, palette steps in app code, drift between `packages/graphite/graphite-tokens.css` and `Graphite Design/graphite-tokens.css`, or a semantic token missing from `packages/graphite/tailwind.css`. It has no per-line escape.
 
-**AI calls**
-- Use model `claude-opus-5-5`, and always set `output_config.effort` explicitly: `medium` for the agent, `high` for the compiler.
-- Use `tool_choice: auto` with `strict: true` tools. Use structured outputs for JSON.
-- Check `stop_reason: "refusal"` before reading content, and enable server-side fallbacks.
-- Keep system prompts and tool definitions stable so prompt caching hits.
-- Resolve's harness is `beta.messages.toolRunner` over an MCP v1 client in both modes (ADR 0011).
+**AI calls** (ADRs 0013–0016)
+- Product AI uses the Gemini Developer API through `@google/genai`, constructed as `new GoogleGenAI({ apiKey: env.GEMINI_API_KEY, vertexai: false })`. Call `ai.models.generateContent`. Never use automatic function calling, `mcpToTool`, `ai.chats` or the Interactions API.
+- Use model `gemini-3.8-flash` for every role, and record `modelVersion` from every call. Always set `thinkingConfig.thinkingLevel`: `MEDIUM` for the agent, `HIGH` for the compiler, `LOW` for the Risk desk. Never send `thinkingBudget`, `MINIMAL`, `temperature`, `topP` or `topK`.
+- Declare tools with sanitized `parametersJsonSchema` and `functionCallingConfig.mode: VALIDATED`. For JSON, use `responseMimeType: "application/json"` with `responseJsonSchema` from `z.toJSONSchema`, then validate the result with zod.
+- Fail closed. Before reading content, require no `promptFeedback.blockReason`, a candidate, `finishReason === "STOP"` and content parts. Anything else ends the run, and no tool call from that response runs (ADR 0015). Set all five adjustable safety categories, including `HARM_CATEGORY_JAILBREAK`, to `OFF`.
+- The SDK retries 408 and 5xx responses; our code handles 429. Fall back to `gemini-3.6-flash` only between ticket runs, never mid-loop.
+- Keep the system instruction and tool declarations byte-stable and the history append-only, so implicit caching hits. No explicit caches.
+- Resolve's harness is our own function-calling loop over an MCP v1 client in both modes (ADRs 0011, 0014). The Risk desk calls Gemini from a console server route, never from the browser (ADR 0016).
 - Recheck these API details against current docs at spike S8.
 
 **Secrets and environment**
@@ -108,7 +110,7 @@ specs/                  Brief, constitution, feature specs
 
 ## Feedback commands
 
-These are pending: the scaffold (roadmap phase 1) makes them exist and pass. Each runs from the repo root and must pass on a clean checkout.
+Each runs from the repo root and must pass on a clean checkout. All four have passed since the scaffold (roadmap phase 1). `npm run format` (`biome check --write .`) fixes formatting and import order.
 
 | Check | Command |
 |---|---|
