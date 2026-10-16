@@ -27,7 +27,7 @@ The full measures and the rules that keep them honest are in brief §4.
 | G3 | The agent stays useful | ≥ 60% of genuine cases auto-resolved, ≤ 30% step-up, < 5% wrongly denied |
 | G4 | Fast | Median ticket-to-refund ≤ 2 minutes on auto-resolved genuine cases |
 | G5 | Real PayPal depth | ≥ 10 capabilities with file links and real sandbox IDs |
-| G6 | The second rail is real | 3 Daraja APIs with real sandbox responses, or a labeled recorded run |
+| G6 | The second rail is real (secondary) | 3 Daraja APIs with real sandbox responses, or a labeled recorded run. It doesn't block other goals |
 | G7 | Grounded in real people | 5 merchants + 2 developers by 1 Nov; ≥ 2 cleared quotes |
 | G8 | Understood from the video alone | 2 fresh viewers explain who it's for, what it stopped and why words didn't matter |
 | G9 | The demo holds up through judging | Daily smoke test green from 11 Nov to 22 Dec; ≥ 99% uptime |
@@ -49,7 +49,7 @@ These are the 18 outcomes in brief §5, in priority order:
 11. The AG Studio Risk desk.
 12. The mandate compiler with diff and bench impact.
 13. The dispute evidence flow.
-14. The M-Pesa rail.
+14. The M-Pesa rail (secondary, built last before the freeze).
 15. Ops-agent payouts.
 16. Interview-backed mandate limits and quotes.
 17. The submission materials.

@@ -8,11 +8,12 @@ At the owner's request, Claude drafted sections 3, 4, 5, 8, 10, 12 and 14, and t
 Where this brief and the original disagree, this brief wins.
 Approved by the owner on 2026-10-16. At approval the owner added the Graphite design system as a constraint on all UI.
 Version 1.1 (2026-10-16): at the owner's request, every product AI role moves from Anthropic Claude to Google Gemini, because Claude costs more and Gemini has a free tier. The how is in ADRs 0013-0016. The build loop still runs on Claude Code.
+Version 1.2 (2026-10-16): at the owner's request, the M-Pesa rail becomes a secondary feature, built last before the freeze, because the Daraja sandbox's customer-payment callbacks were unreliable in spike S6. PayPal is the main path. We still want M-Pesa before submission.
 -->
 
 | Field | Value |
 |---|---|
-| Version | 1.1 (1.0 restructured from countersign.md v1 and approved 2026-10-16; 1.1 moves product AI to Google Gemini, 2026-10-16) |
+| Version | 1.2 (1.0 restructured from countersign.md v1 and approved 2026-10-16; 1.1 moves product AI to Google Gemini; 1.2 makes the M-Pesa rail a secondary feature, built last; both 2026-10-16) |
 | Date | 2026-10-16 |
 | Owner | muigufarid@gmail.com |
 | Project type | Greenfield. There's no code yet, and this folder isn't a git repo yet |
@@ -74,7 +75,7 @@ The overall aim is to place: a grand prize, or an Honorable Mention, plus the AG
 | G3 | The agent stays useful | ≥ 50 genuine cases, mean of 3 runs: **≥ 60%** resolved correctly with no human, **≤ 30%** need a step-up, **< 5%** wrongly denied. Same file |
 | G4 | Fast | Median time from ticket to executed refund on auto-resolved genuine cases is **≤ 2 minutes**, taken from audit-log timestamps in the results file |
 | G5 | Real PayPal depth | **≥ 10** PayPal capabilities from original §14 used in the hosted build. Each one appears in the README integration map with a file link and a real sandbox ID or webhook event ID |
-| G6 | The second rail is real | **3** Daraja APIs (C2B confirmation, Transaction Status, B2C) return real sandbox responses. If spike S6 is blocked, a labeled recorded run counts instead |
+| G6 | The second rail is real (secondary) | **3** Daraja APIs (C2B confirmation, Transaction Status, B2C) return real sandbox responses. If the sandbox is still unreliable when the rail is built, a labeled recorded run counts instead. Secondary: it doesn't block any other goal or gate |
 | G7 | Grounded in real people | **5 merchants + 2 developers** spoken to by Sun 1 Nov and logged in `docs/validation.md` (date, role, rail mix, consent). **≥ 2** quotes cleared for the video. The demo mandate's limits come from the limits they named |
 | G8 | Understood from the video alone | **2 people** who haven't seen the project watch the video once. Each can then say who it's for, what it stopped, and why the agent's words didn't matter. Logged in `docs/validation.md` |
 | G9 | The demo holds up through judging | The hosted smoke test passes **every day from 11 Nov to 22 Dec**, and the external uptime monitor shows **≥ 99%** |
@@ -83,7 +84,7 @@ The baseline gets no target. Its numbers are reported as they come.
 
 **How the targets stay honest:**
 1. **Freeze first.** Tag the case sets and the mandate `bench-v1` before the first protected run used for tuning, and record the SHA in every results file. Any later edit creates a new version, and both versions are reported.
-2. **Fix the genuine mix up front.** Publish it before the first run: about 40% lost or stalled, 20% damaged under the cap, 10% damaged over the cap, 10% wrong item, 10% M-Pesa overpayment, 10% disputes. It deliberately includes cases the mandate escalates by design.
+2. **Fix the genuine mix up front.** Publish it before the first run: about 40% lost or stalled, 20% damaged under the cap, 10% damaged over the cap, 10% wrong item, 10% M-Pesa overpayment, 10% disputes. It deliberately includes cases the mandate escalates by design. The M-Pesa cases (the overpayment slice and the M-Pesa attack families) run once item 14 exists. If item 14 ships as its recorded-run fallback, they're reported as not run, not redistributed.
 3. **Hold out a slice.** A separate session writes 20 attack and 15 genuine cases from the family descriptions only, without ever seeing the mandate or the gate. They're committed unread, run once at the final bench, and reported separately.
 4. **Label before running.** Each case's expected outcome is written when the case is authored, never after seeing a result.
 5. **Close the mandate gap before freezing.** The original example mandate has no rule for wrong-item or partial-refund claims, so those genuine cases would fall to deny. The demo mandate gets a step-up rule for them.
@@ -94,20 +95,20 @@ The baseline gets no target. Its numbers are reported as they come.
 
 In priority order; the roadmap refers to these numbers. Nothing is cut to save build effort. The only cut lines are the outside-blocker fallbacks listed below.
 
-1. An agent can propose any guarded money action through Countersign's MCP server and get allow, step-up or deny, with reason codes. The actions are: PayPal refund, payout, invoice send, dispute accept / evidence / offer, order capture, M-Pesa B2C, M-Pesa reversal, and mark-paid. The decision uses only rail, carrier and audit-log records plus the signed mandate. The server keeps PayPal's tool names where the Agent Toolkit has them and adds Countersign extensions where it doesn't. Read-only tools pass straight through.
+1. An agent can propose any guarded money action through Countersign's MCP server and get allow, step-up or deny, with reason codes. The actions are: PayPal refund, payout, invoice send, dispute accept / evidence / offer, order capture, and, once item 14 is built, M-Pesa B2C, M-Pesa reversal and mark-paid. The decision uses only rail, carrier and audit-log records plus the signed mandate. The server keeps PayPal's tool names where the Agent Toolkit has them and adds Countersign extensions where it doesn't. Read-only tools pass straight through.
 2. An allowed action executes exactly once on the sandbox, and replays never pay twice. The audit log reconciles the action when the webhook or callback arrives.
 3. A merchant can approve or deny a held action with one tap on their phone, and only that exact intent executes. Approvals are hash-bound, single-use and expire after 15 minutes; an unanswered card means deny.
 4. Every decision shows two columns, "What the message claims" and "What the records say", on the phone card, in the console and in the agent's trace. Each fact names its source call and sandbox ID.
 5. A merchant can see every proposal, decision, verifier trace and rail response in a tamper-evident audit log, check the hash chain, and export it as dispute evidence.
 6. A customer can get help from Resolve by email or in the simulated chat, and Resolve acts on money only through Countersign. A judge can switch Resolve to baseline mode and watch the same agent wired straight to PayPal's tools.
-7. A shopper can buy on the Kikapu storefront (JS SDK v6). A seed script creates about 30 real sandbox orders with captures and trackers, plus simulated M-Pesa C2B payments.
+7. A shopper can buy on the Kikapu storefront (JS SDK v6). A seed script creates about 30 real sandbox orders with captures and trackers, plus simulated M-Pesa C2B payments once item 14 is built.
 8. A judge can open the hosted URL, follow a 60-second guide, run the main scenarios from a scenario launcher, open the approvals page on their phone through a QR code, and reset the demo to the seed state.
 9. A judge can try to break it: write any message to Resolve as any sender, then see the agent's proposal, the verifier trace and the decision. A running counter beside it shows money moved by visitors. Each session is rate-limited, and AI spend has a daily cap.
 10. A judge or developer can read the bench results and rerun a slice with one command. The results cover ≥ 60 attack and ≥ 50 genuine cases, baseline vs protected, with the held-out slice reported separately.
 11. A merchant can watch risk in an AG Studio "Risk desk". It has custom widgets (money protected, decisions by reason code, hash-chain status, refund-spike alert) and an AG Studio theme built from the Graphite tokens. An analyst agent built on the Studio Agent Framework answers questions like "denied refunds by reason this week" by building widgets.
 12. A merchant can write rules in plain English, then see the compiled rules read back, the diff, and the bench cases the change would flip, before signing a new version.
 13. A merchant can answer a dispute. When the dispute webhook arrives, the agent drafts evidence from the audit log and tracking, the owner approves it, and it's submitted with `provide-evidence`.
-14. A Kenyan merchant's agent can mark an M-Pesa order paid only on a verified, matching, unused receipt. It refunds genuine overpayments up to KSh 2,000 through B2C automatically, steps up above that, and never reverses without approval.
+14. **Secondary, built last.** A Kenyan merchant's agent can mark an M-Pesa order paid only on a verified, matching, unused receipt. It refunds genuine overpayments up to KSh 2,000 through B2C automatically, steps up above that, and never reverses without approval.
 15. An ops agent can pay a supplier through PayPal Payouts, but only to an allowlisted payee and only with step-up. The support agent can never pay out.
 16. The demo mandate's limits come from real merchant interviews, logged with consent, and their quotes appear in the video.
 17. A judge can understand and check the project from the Devpost page, README and video alone. That covers the README sections, a public licensed repo, the video, the Devpost text, gallery images and the AG Grid tick-box.
@@ -118,7 +119,7 @@ In priority order; the roadmap refers to these numbers. Nothing is cut to save b
 | Trigger | Fallback |
 |---|---|
 | Spike S3 fails (sandbox disputes) | Item 13 becomes the evidence pack plus a recorded sandbox submission, labeled |
-| Spike S6 or gate G2 fails (Daraja) | Item 14 becomes a documented adapter plus a recorded sandbox run, labeled |
+| The Daraja sandbox is still unreliable when item 14 is built, or item 14 isn't done by the freeze | Item 14 becomes a documented adapter plus a recorded sandbox run, labeled |
 | AG Studio licence problem | Item 11 falls back to AG Grid Community grids, and we ask the AG Grid team on the PayPal Discord |
 | Daraja callbacks flaky during judging | The judge path uses recorded receipts, labeled |
 
@@ -357,7 +358,7 @@ From original §19. Each phase ends at a gate. If a gate is missed, the cut it n
 | **0. Spikes** | Fri 16 – Sun 18 Oct | S1–S9 below | All pass, or a fallback is chosen |
 | **1. Core** | Mon 19 – Sun 25 Oct | Mandate schema and evaluator; PayPal verifiers; executor with idempotency; audit log + integrity check; gate MCP server; storefront + seed; unit tests | **G1:** a refund intent gets allow / step-up / deny from the CLI; the audit log verifies |
 | **2. Product** | Mon 26 Oct – Sun 1 Nov | Resolve agent (both modes); approvals page; console; claims-vs-records card; dispute evidence flow; deploy on Render; request the AG Studio trial licence (Sun 1 Nov) | **G2:** the full PayPal demo path works end-to-end on the hosted URL. If missed, **M-Pesa moves to the roadmap** |
-| **3. Depth** | Mon 2 – Thu 5 Nov | M-Pesa rail; mandate compiler + diff + bench check; Risk desk; "Attack it yourself"; full bench run; interviews wrapped | **G3:** feature freeze, Thu 5 Nov |
+| **3. Depth** | Mon 2 – Thu 5 Nov | Mandate compiler + diff + bench check; Risk desk; "Attack it yourself"; full bench run; interviews wrapped; then the M-Pesa rail (secondary) | **G3:** feature freeze, Thu 5 Nov |
 | **4. Polish** | Fri 6 – Mon 9 Nov | Hardening; demo reset; smoke test and uptime monitor; README (integration map, AI table, bench summary, judge guide); architecture diagram; threat model doc | README reviewed by someone who hasn't seen the project |
 | **5. Ship** | Tue 10 – Wed 11 Nov | Video recorded and edited; comprehension check; Devpost text and gallery; **submit Wed 11 Nov** | Submitted |
 | Buffer | Thu 12 Nov | Fixes only | Deadline 12:00 PT |
@@ -369,7 +370,7 @@ From original §19. Each phase ends at a gate. If a gate is missed, the cut it n
 | S3 | Disputes | A dispute is opened as the sandbox buyer; the `CUSTOMER.DISPUTE.CREATED` webhook arrives on Render; `require-evidence`, then `provide-evidence` with a PDF, then `adjudicate` all work. **If not:** beat 7 becomes "evidence pack + recorded sandbox submission" |
 | S4 | Baseline agent | The Resolve harness on Gemini calls `create_refund` on PayPal's MCP server (`@paypal/mcp`, built on `@paypal/agent-toolkit`) |
 | S5 | Gate skeleton | Agent → Countersign MCP → PayPal REST works for one tool |
-| S6 | Daraja | App created; OAuth works; C2B register + simulate; confirmation callback received; Transaction Status result received, **and it echoes the simulated amount**; B2C result received; **masked-field behavior noted**. **If not by Sun 25 Oct:** M-Pesa moves to the roadmap |
+| S6 | Daraja | App created; OAuth works; C2B register + simulate; confirmation callback received; Transaction Status result received, **and it echoes the simulated amount**; B2C result received; **masked-field behavior noted**. Partly proven on 16 Oct (`docs/spikes.md`). The rest is retried when the M-Pesa rail is built, and no longer gates anything earlier |
 | S7 | Hosting | Render paid service + Postgres + a public HTTPS URL receiving webhooks and callbacks |
 | S8 | Gemini API | A `gemini-3.8-flash` call with a VALIDATED function declaration and a structured output; the finish-reason and block-reason check is in place; the project's AI Studio rate limits are recorded |
 | S9 | AG Studio | The boilerplate runs. One custom widget and a theme render. A Studio Agent Framework agent backed by Gemini, through an adapter that calls a server-side route so the key never reaches the browser, builds a widget from a question. The licence key removes the watermark |

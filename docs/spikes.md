@@ -9,7 +9,7 @@ Findings from roadmap phase 2 (brief §13, spikes S1–S9). Each spike passes or
 | S3 Disputes | Not started | |
 | S4 Baseline agent | Not started | |
 | S5 Gate skeleton | Not started | |
-| S6 Daraja | Mostly passing; retry the payment callback | OAuth, B2C, Transaction Status (echoes the amount), C2B register and STK Push results work. No C2B confirmation or successful STK payment yet |
+| S6 Daraja | Partly done; the rest moves to roadmap phase 18 | OAuth, B2C, Transaction Status (echoes the amount), C2B register and STK Push results work. No C2B confirmation or successful STK payment yet |
 | S7 Hosting | Not started | |
 | S8 Gemini API | Not started | |
 | S9 AG Studio | Not started | |
@@ -88,4 +88,4 @@ More findings:
 - **A cancelled or failed payment carries no receipt.** The rail must treat result codes such as 1032 as "no payment" and fail closed.
 - **The sandbox is erratic for customer payments.** C2B confirmations never came, and STK outcomes varied between attempts. B2C and Transaction Status were reliable.
 
-Still to prove before the S6 cut line (Sun 25 Oct): one customer payment with a receipt (C2B confirmation or successful STK result), what it masks, and Transaction Status on that receipt. Retry at a different time of day. If it never works, phase 14 verifies receipts with Transaction Status only and labels the customer-payment step as a recorded run.
+Still to prove, now at the start of roadmap phase 18 (M-Pesa became secondary in brief v1.2): one customer payment with a receipt (C2B confirmation or successful STK result), what it masks, and Transaction Status on that receipt. Retry at a different time of day. If it never works, phase 18 verifies receipts with Transaction Status only and labels the customer-payment step as a recorded run.

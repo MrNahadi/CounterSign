@@ -5,7 +5,7 @@ Each phase is one user-visible feature, built on its own `feature/NN-slug` branc
 ## Core: Fri 16 – Sun 25 Oct
 
 - [x] **1. Scaffold** *(interactive, spec-ralph Phase 2).* The monorepo runs. Every app and package exists as a stub. A console page renders with Graphite tokens in light and dark. One Vitest test passes. All Feedback commands pass from the repo root, including the Graphite design check.
-- [ ] **2. Integration spikes S1–S9** *(interactive).* Each spike in brief §13 passes or has a chosen fallback. Findings go in `docs/spikes.md`, and anything that sets direction becomes an ADR. Credentials live only in local env files and Render. Spike S6 goes first, because Daraja is the riskiest outside dependency; it uses a cloudflared quick tunnel for callbacks.
+- [ ] **2. Integration spikes S1–S9** *(interactive).* Each spike in brief §13 passes or has a chosen fallback. Findings go in `docs/spikes.md`, and anything that sets direction becomes an ADR. Credentials live only in local env files and Render. Spike S6 ran first on 16 Oct and is partly done. Its remaining checks move to phase 18, because M-Pesa is now secondary (brief v1.2).
 
 Additions from the ADRs:
 - S4 runs through the shared Resolve harness: an MCP client against PayPal's own MCP server (ADR 0011), driven by our own Gemini function-calling loop (ADR 0014).
@@ -25,15 +25,15 @@ Additions from the ADRs:
 - [ ] **10. Claims vs records, and the audit console** [4, 5]. Every decision shows what the message claims beside what the records say, each fact with its source and sandbox ID. The console lists every intent with its trace and rail response, checks the chain, and exports evidence.
 - [ ] **11. Dispute evidence** [13]. When a dispute webhook arrives, the agent drafts an evidence pack from the audit log and tracking. The merchant approves it, and it's submitted with `provide-evidence`. Cut line: if S3 failed, this becomes a recorded sandbox submission.
 - [ ] **12. Ops-agent supplier payouts** [15]. An ops agent pays an allowlisted supplier through PayPal Payouts, always with step-up. The support agent's payout attempts are denied.
-- [ ] **13. The hosted judge path** [8, 18]. The demo runs on Render (paid plans). A 60-second guide, a scenario launcher and a reset button that restores the seed state in ≤ 60 seconds work on the hosted URL. **Gate G2 (Sun 1 Nov): the full PayPal demo path works end to end on the hosted URL. If missed, phase 14 becomes a documented adapter.**
+- [ ] **13. The hosted judge path** [8, 18]. The demo runs on Render (paid plans). A 60-second guide, a scenario launcher and a reset button that restores the seed state in ≤ 60 seconds work on the hosted URL. **Gate G2 (Sun 1 Nov): the full PayPal demo path works end to end on the hosted URL.**
 
 ## Depth: Mon 2 – Thu 5 Nov
 
-- [ ] **14. The M-Pesa rail** [14]. Orders paid by M-Pesa are marked paid only on a verified, matching, unused receipt. Genuine overpayments up to KSh 2,000 refund through B2C, and reversals always step up. Cut line: if Daraja is blocked, this becomes a documented adapter plus a labeled recorded run.
-- [ ] **15. Bench v1** [10]. Case sets of ≥ 60 attack and ≥ 50 genuine cases are frozen and tagged with a fixed genuine mix, plus a hold-out slice. One command runs baseline vs protected, writes `bench/results/<date>.json`, and reruns any slice.
-- [ ] **16. "Attack it yourself"** [9]. A visitor writes any message as any sender and watches the proposal, trace and decision. A counter shows money moved by visitors. Rate limit and daily spend cap are in force.
-- [ ] **17. The Risk desk** [11]. An AG Studio dashboard themed with Graphite, with custom widgets for money protected, decisions by reason code, chain status and refund-spike alerts. A Gemini-backed analyst agent, called through a console server route, builds widgets from questions.
-- [ ] **18. The mandate compiler** [12]. The merchant writes rules in plain English, sees them compiled and read back, the diff, and the bench cases the change would flip, then signs version N+1. **Gate G3: feature freeze (Thu 5 Nov).**
+- [ ] **14. Bench v1** [10]. Case sets of ≥ 60 attack and ≥ 50 genuine cases are frozen and tagged with a fixed genuine mix, plus a hold-out slice. One command runs baseline vs protected, writes `bench/results/<date>.json`, and reruns any slice. The M-Pesa slice joins in phase 18.
+- [ ] **15. "Attack it yourself"** [9]. A visitor writes any message as any sender and watches the proposal, trace and decision. A counter shows money moved by visitors. Rate limit and daily spend cap are in force.
+- [ ] **16. The Risk desk** [11]. An AG Studio dashboard themed with Graphite, with custom widgets for money protected, decisions by reason code, chain status and refund-spike alerts. A Gemini-backed analyst agent, called through a console server route, builds widgets from questions.
+- [ ] **17. The mandate compiler** [12]. The merchant writes rules in plain English, sees them compiled and read back, the diff, and the bench cases the change would flip, then signs version N+1.
+- [ ] **18. The M-Pesa rail** [14] *(secondary, built last)*. It starts by finishing spike S6: one customer payment with a receipt, and what that receipt masks. Orders paid by M-Pesa are marked paid only on a verified, matching, unused receipt. Genuine overpayments up to KSh 2,000 refund through B2C, and reversals always step up. The M-Pesa bench cases join here. Cut line: if the Daraja sandbox is still unreliable, or time runs out before the freeze, this becomes a documented adapter plus a labeled recorded run. **Gate G3: feature freeze (Thu 5 Nov).**
 
 ## Polish and ship: Fri 6 – Wed 11 Nov
 
