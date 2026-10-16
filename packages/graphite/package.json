@@ -6,7 +6,8 @@
   "exports": {
     "./tokens.css": "./graphite-tokens.css",
     "./tailwind.css": "./tailwind.css",
-    "./theme-script": "./src/theme-script.ts"
+    "./theme-script": "./src/theme-script.ts",
+    "./ag-theme": "./src/ag-theme.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -15,5 +16,8 @@
     "@types/node": "26.6.5",
     "typescript": "5.9.3",
     "vitest": "4.1.12"
+  },
+  "dependencies": {
+    "ag-studio": "3.0.0"
   }
 }

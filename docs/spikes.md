@@ -12,7 +12,7 @@ Findings from roadmap phase 2 (brief §13, spikes S1–S9). Each spike passes or
 | S6 Daraja | Partly done; the rest moves to roadmap phase 18 | OAuth, B2C, Transaction Status (echoes the amount), C2B register and STK Push results work. No C2B confirmation or successful STK payment yet |
 | S7 Hosting | Not started | |
 | S8 Gemini API | Passes; rate limits to record | Tool loop, thought signatures, structured output and the fail-closed check work on Flash and Flash-Lite. Default model is now Flash-Lite, set by `GEMINI_MODEL` |
-| S9 AG Studio | Not started | |
+| S9 AG Studio | Mostly passes | Studio renders with the Graphite theme (both themes) and a custom widget. The Gemini analyst built a widget through the server-side route. Still to do: the licence key, the client-bundle key check, and better answers |
 
 ## S4 Baseline agent
 
@@ -77,6 +77,31 @@ Findings:
 - **The owner made Flash-Lite the default** and asked for a switch in the env file. `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` are in `.env.example`, and exact IDs are enforced (ADR 0017).
 
 Still to record: the project's real free-tier limits from the AI Studio rate-limit page.
+
+## S9 AG Studio
+
+Code: `apps/console/app/spike/risk-desk/` (page at `/spike/risk-desk`, not linked from the console) and `apps/console/app/api/risk-desk/turn/route.ts`. The Graphite theme is `packages/graphite/src/ag-theme.ts`. Packages: `ag-studio` and `ag-studio-react` 3.0.0, `ag-grid-community` and `ag-grid-react` 36.2.0, on Next 16.4.2 and React 19.3.1.
+
+Live run, 16 Oct 2026, `gemini-3.5-flash-lite`, no licence key:
+
+| ADR 0016 check | Result |
+|---|---|
+| 1. Studio runs, one custom widget and the Graphite theme render, no watermark | Renders in light and dark. The custom "Money protected" widget reads its data through `widgetApi.getData`. No key yet, so Studio runs in trial mode with a watermark notice in the console |
+| 2. The analyst builds a widget from a typed question over 3+ turns, no thought-signature 400s | Passes. "Add a chart of denied refunds by reason code": Studio's agent delegated to its Page and Widget agents, and over 15 successful turns turned the chart into "Denied refunds by reason code". No 400s |
+| 3. Every built-in Studio tool schema is accepted after sanitizing | Passes: 8 tools for the main agent, 7 for the delegates |
+| 4. A JSON-format turn with tools | Not observed. The route doesn't log the response format yet |
+| 5. A failure surfaces as failed with no tool calls | Passes, by accident: two free-tier 503s, after the SDK's three retries, reached Studio as errors and ran no tools. Studio shows the raw JSON error, which needs a plain message |
+| 6. The production client bundle has no Gemini key | To do: needs a production build |
+| 7. Model calls per question | One question took 15 successful calls plus 2 failed ones, about 181,000 input tokens (12,000 a call on average, 16,000 inside the delegates). One call took 101 s with retries |
+
+Findings:
+
+- **The ADR 0016 split works.** The browser adapter holds no key, and the route translates Studio's conversation to Gemini and back. Keeping each step's original model content by call ID keeps thought signatures valid through Studio's history.
+- **Flash-Lite's answers are weak.** It replaced the existing chart instead of adding one, and titled it "denied refunds" without filtering to denials or refunds. Phase 16 should try a larger model through `GEMINI_MODEL`, and give the agent better field descriptions.
+- **A question is expensive in calls.** About 15 calls per question means the free tier (about 500 Flash-Lite calls a day, reported) allows roughly 30 questions a day, shared with everything else. On paid Flash-Lite that's about $0.06 a question.
+- **Studio's editing UI isn't Graphite.** Theme parameters color it, but its panels, palette icons and chat keep AG's own layout. Phase 16 should open in view mode, with editing behind a toggle.
+- **Next 16.4 writes `AGENTS.md`** into each app folder on `next dev`, pointing agents at the bundled Next docs. It's committed so the tree stays clean.
+- **The console reads the repo-root `.env.local`** through `process.loadEnvFile` in `next.config.ts`, because Next only reads env files from its own folder.
 
 ## S1 PayPal order, capture, refund
 
