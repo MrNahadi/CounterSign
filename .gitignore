@@ -26,3 +26,6 @@ Thumbs.db
 
 # Next.js generated types
 next-env.d.ts
+
+# Spike output (callback captures, raw responses)
+spikes/out/
