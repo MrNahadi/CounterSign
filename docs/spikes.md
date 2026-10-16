@@ -4,8 +4,8 @@ Findings from roadmap phase 2 (brief §13, spikes S1–S9). Each spike passes or
 
 | Spike | Status | Result |
 |---|---|---|
-| S1 PayPal order, capture, refund, seeding | Passes; seeding route open | Capture, partial refund and refund idempotency work. The vault (one approval for many orders) is refused for now |
-| S2 Tracking | Not started | |
+| S1 PayPal order, capture, refund, seeding | Passes | Capture, partial refund and refund idempotency work. Seeding uses the vault: one buyer approval, then orders capture with no approval |
+| S2 Tracking | Passes | A tracker added through Orders v2 reads back from the order. PayPal only knows shipped or cancelled, so lost, stalled and delivered come from the carrier mock |
 | S3 Disputes | Not started | |
 | S4 Baseline agent | Not started | |
 | S5 Gate skeleton | Not started | |
@@ -53,7 +53,9 @@ Live run, 16 Oct 2026, on the sandbox app:
 | Refund $12.00 with `PayPal-Request-Id` X | HTTP 201, refund `9FA910708B137330K`, `COMPLETED` |
 | The same refund again with the same X | HTTP 200 with the **same** refund ID. No second refund |
 | Capture after the refund | `PARTIALLY_REFUNDED`. PayPal's fee on the $48.00 capture was $1.93 |
-| Vault setup token (save the buyer's PayPal for later orders) | HTTP 403 `NOT_AUTHORIZED` |
+| Vault setup token (save the buyer's PayPal for later orders) | HTTP 403 `NOT_AUTHORIZED` at first. After the owner switched the vault on in the app's settings, new tokens carried `vault/payment-tokens/readwrite` a few minutes later, and the setup token was created |
+| Vault approval, then payment token | The owner approved once as the sandbox buyer. Payment token `5hf491598n713544n`, carrying the buyer's email and payer ID |
+| Order paid with the payment token, $36.00 (`KIK-2002`) | HTTP 201, `COMPLETED` in one call, with no approval. Capture `3JM25846XW7943026`, payer email present |
 | Payout, $1.00 to the sandbox buyer | HTTP 201, batch `XX8SGFEB9W6QQ`, `PENDING` |
 | List disputes | HTTP 200, empty list |
 
@@ -63,7 +65,22 @@ Findings:
 - **Wallet orders carry the payer's email**, so `ticket.from_payer` has a record to check against. Card orders may not, which is why the seed shouldn't use them.
 - **The merchant account supports Payouts and the Disputes API**, so phase 12 and spike S3 aren't blocked by the account.
 - **Fees are real.** The capture breakdown has `paypal_fee` and `net_amount`. Money-protected figures should say whether they're gross or net.
-- **Seeding about 30 orders is still open.** Each wallet order needs a buyer approval. The vault would make it one approval in total, but the app isn't allowed to use it yet. The two routes are switching the vault on in the app's settings, or approving each order in a scripted browser that holds the sandbox buyer's session.
+- **Seeding route: the vault.** One buyer approval yields a payment token, and every seed order is then created and captured in one call, with the payer's email on it. The token lives in `.env.local` as `PAYPAL_SEED_VAULT_TOKEN`. For attack cases that need a different payer, vault a second sandbox personal account the same way.
+- **Feature switches take a few minutes.** Scopes for a newly enabled app feature appeared in tokens a few minutes after the owner saved the setting.
+
+## S2 Tracking
+
+Command: `spikes/paypal/s1.ts track <order> <capture> <tracking number>`.
+
+| Step | Result |
+|---|---|
+| `POST /v2/checkout/orders/{id}/track` with the capture ID, tracking number `KIKSPIKE0002` and carrier `OTHER` ("Kisumu Couriers") | HTTP 201 |
+| `GET` the order | `purchase_units[0].shipping.trackers` has `3JM25846XW7943026-KIKSPIKE0002`, status `SHIPPED`, with a PATCH link to update it |
+
+Findings:
+
+- **The tracker ID is the capture ID plus the tracking number**, so a verifier can link a capture to its tracking number without extra storage.
+- **PayPal's tracker status is only shipped or cancelled.** Shipment status (lost, stalled 10+ days, in transit, delivered) comes from the carrier mock, as the brief planned. The verifier reads the tracking number from PayPal and the shipment status from the carrier.
 
 ## S6 Daraja
 

@@ -170,6 +170,31 @@ const commands: Record<string, (args: string[]) => Promise<void>> = {
     });
   },
 
+  // Spike S2: add a tracker through Orders v2, then read it back from the order.
+  async track([orderId, captureId, trackingNumber = `KIK${Date.now()}`]) {
+    if (!orderId || !captureId) throw new Error("Pass the order ID and capture ID");
+    const added = await call("POST", `/v2/checkout/orders/${orderId}/track`, {
+      requestId: `countersign-s2-track-${orderId}-${trackingNumber}`,
+      body: {
+        capture_id: captureId,
+        tracking_number: trackingNumber,
+        carrier: "OTHER",
+        carrier_name_other: "Kisumu Couriers",
+        notify_payer: false,
+      },
+    });
+    print(
+      "add tracker",
+      added,
+      added.status >= 400 ? added.body : { status: (added.body as Order).status },
+    );
+    const read = await call("GET", `/v2/checkout/orders/${orderId}`);
+    const order = read.body as {
+      purchase_units?: { shipping?: { trackers?: unknown[] } }[];
+    };
+    print("trackers on the order", read, order.purchase_units?.[0]?.shipping?.trackers ?? []);
+  },
+
   async "capture-status"([captureId]) {
     if (!captureId) throw new Error("Pass the capture ID");
     const result = await call("GET", `/v2/payments/captures/${captureId}`);
