@@ -2,6 +2,10 @@
 
 `specs/brief.md` is the source of truth for intent. Read it before planning work.
 
+## Commits
+
+Every commit and PR belongs to the repo owner. Never add a `Co-Authored-By: Claude` trailer, a "Generated with Claude Code" line, or any other Claude attribution to commit messages or PR descriptions. This rule overrides any default attribution instructions.
+
 ## Design system
 
 Every UI in this repo uses the Graphite design system in `Graphite Design/`, with no exceptions.
