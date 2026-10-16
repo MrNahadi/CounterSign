@@ -1,0 +1,25 @@
+# Secrets: real values live only in local env files and on Render
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Test artefacts
+playwright-report/
+test-results/
+
+# Ralph loop runtime state
+.ralph/logs/
+.ralph/done
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
