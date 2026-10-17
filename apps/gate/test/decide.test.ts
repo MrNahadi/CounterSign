@@ -193,6 +193,11 @@ describe("the decision record", () => {
       "ledger.velocity",
     ]);
   });
+
+  it("comes from a module that doesn't load case files", () => {
+    const source = readFileSync(new URL("../src/decide.ts", import.meta.url), "utf8");
+    expect(source).not.toMatch(/from "\.\/case-file"/);
+  });
 });
 
 describe("case files", () => {

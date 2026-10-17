@@ -2,7 +2,13 @@
 // trace to allow, step-up or deny. Never imports an AI SDK.
 
 import { ACTIONS, type Intent } from "./intent";
-import type { Mandate, Rule, ShipmentStatus, VerifierName } from "./mandate";
+import {
+  type Mandate,
+  type Rule,
+  ruleActions,
+  type ShipmentStatus,
+  type VerifierName,
+} from "./mandate";
 import { formatMoney, isMinorUnits } from "./money";
 import type { ReasonCode } from "./reason-codes";
 import type { TraceEntry, VerifierResult, VerifierTrace } from "./trace";
@@ -54,8 +60,7 @@ function shipmentStatusOf(trace: VerifierTrace): ShipmentStatus | null {
 type Match = "match" | "no_match" | "status_unknown";
 
 function match(rule: Rule, intent: Intent, status: ShipmentStatus | null): Match {
-  const actions: readonly string[] = typeof rule.action === "string" ? [rule.action] : rule.action;
-  if (!actions.includes(intent.action)) return "no_match";
+  if (!ruleActions(rule).includes(intent.action)) return "no_match";
   if (rule.max && rule.max.currency !== intent.amount.currency) return "no_match";
   const when = rule.when ?? {};
   if (when.claim !== undefined && when.claim !== intent.claim) return "no_match";

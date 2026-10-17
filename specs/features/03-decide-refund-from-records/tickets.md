@@ -214,15 +214,15 @@ Notes: Found by the phase 3 spec review: "Each reason in a decision carries a `d
 
 ## T-017: Validate the tool with zod, and put the mandate's helpers in the mandate package
 
-Status: open
+Status: done
 Blocked by: T-014, T-016
 Slice: The proposal's tool name is read through zod. The helpers that walk a mandate's rules live in `@countersign/mandate`, so the decision module no longer imports the case-file loader.
 Test seam: the proposal normalization and `decide` functions in `apps/gate/src/`, and the mandate package's exports
 Acceptance:
-- [ ] The proposal's `tool` is read through a zod pre-parse, never by reading the raw object. Behaviour is unchanged: any other string tool is `UNKNOWN_ACTION`, and a missing or non-string tool is `INVALID_PROPOSAL`
-- [ ] `ReasonCodeSchema` moves beside the reason catalog in `@countersign/mandate`, and `apps/gate/src/decide.ts` no longer imports `./case-file`
-- [ ] `@countersign/mandate` exports a rule's action list and the verifiers a mandate's rules require for an action. `evaluate` and `decide` both use them, so the "one action or a list" switch is written once
-- [ ] All tests pass unchanged apart from import paths
+- [x] The proposal's `tool` is read through a zod pre-parse, never by reading the raw object. Behaviour is unchanged: any other string tool is `UNKNOWN_ACTION`, and a missing or non-string tool is `INVALID_PROPOSAL`
+- [x] `ReasonCodeSchema` moves beside the reason catalog in `@countersign/mandate`, and `apps/gate/src/decide.ts` no longer imports `./case-file`
+- [x] `@countersign/mandate` exports a rule's action list and the verifiers a mandate's rules require for an action. `evaluate` and `decide` both use them, so the "one action or a list" switch is written once
+- [x] All tests pass unchanged apart from import paths
 Notes: From the phase 3 standards review: "validate every external input with zod 4", plus Feature Envy and a misplaced dependency.
 
 ## T-018: Names from the glossary, and one copy of each helper

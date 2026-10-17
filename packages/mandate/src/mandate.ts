@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { type CanonicalHash, type JsonValue, sha256Canonical } from "./canonical-json";
-import { ACTIONS, CLAIMS, RAILS } from "./intent";
+import { ACTIONS, type Action as ActionName, CLAIMS, RAILS } from "./intent";
 import { CURRENCIES } from "./money";
 import { RULE_REASON_CODES, type RuleReasonCode } from "./reason-codes";
 
@@ -120,6 +120,17 @@ export const MandateSchema = z
 
 export type Mandate = z.infer<typeof MandateSchema>;
 export type Rule = Mandate["rules"][number];
+
+// A rule names one action or a list of them.
+export function ruleActions(rule: Rule): readonly ActionName[] {
+  return typeof rule.action === "string" ? [rule.action] : rule.action;
+}
+
+// The verifiers the mandate's rules for an action require, once each, in rule order.
+export function requiredVerifiers(mandate: Mandate, action: ActionName): VerifierName[] {
+  const rules = mandate.rules.filter((rule) => ruleActions(rule).includes(action));
+  return [...new Set(rules.flatMap((rule) => rule.require ?? []))];
+}
 
 export type MandateIssue = { path: (string | number)[]; message: string };
 export type MandateParse =

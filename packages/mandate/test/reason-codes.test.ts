@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REASON_CODES, REASONS, RULE_REASON_CODES } from "../src/index";
+import { REASON_CODES, REASONS, ReasonCodeSchema, RULE_REASON_CODES } from "../src/index";
 
 // Copied from requirements.md, Reason codes. null where the table says "None (step-up only)".
 const table: [string, string, string | null][] = [
@@ -108,5 +108,12 @@ describe("the reason-code catalog", () => {
       "SHIPMENT_DELIVERED",
     ]);
     for (const code of RULE_REASON_CODES) expect(REASON_CODES).toContain(code);
+  });
+
+  it("reads exactly its own codes through ReasonCodeSchema", () => {
+    for (const code of REASON_CODES) expect(ReasonCodeSchema.safeParse(code).success).toBe(true);
+    for (const value of ["NOT_A_CODE", "toString", "", 1, null]) {
+      expect(ReasonCodeSchema.safeParse(value).success).toBe(false);
+    }
   });
 });

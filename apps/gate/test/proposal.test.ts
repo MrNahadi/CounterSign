@@ -165,12 +165,19 @@ describe("normalizeProposal", () => {
     expect(deniedCode({ ...proposal, justification: undefined })).toBe("INVALID_PROPOSAL");
   });
 
-  it.each([["create_payout"], ["accept_dispute_claim"], ["CREATE_REFUND"], [""]])(
+  it.each([["create_payout"], ["accept_dispute_claim"], ["CREATE_REFUND"], [""], ["toString"]])(
     "denies the unknown tool %j as UNKNOWN_ACTION",
     (tool) => {
       expect(deniedCode({ ...proposal, tool })).toBe("UNKNOWN_ACTION");
     },
   );
+
+  it("denies an unknown tool as UNKNOWN_ACTION whatever else is wrong", () => {
+    expect(deniedCode({ tool: "create_payout" })).toBe("UNKNOWN_ACTION");
+    expect(deniedCode({ tool: "create_payout", args: 7, principal: "admin" })).toBe(
+      "UNKNOWN_ACTION",
+    );
+  });
 
   it("says what was wrong in the reason's detail", () => {
     const result = normalize(withArgs({ amount: { value: "1,000.00", currency_code: "USD" } }));

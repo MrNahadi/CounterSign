@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { hashMandate, parseMandate } from "../src/index";
+import { hashMandate, parseMandate, requiredVerifiers, ruleActions } from "../src/index";
 
 const fixture = JSON.parse(
   readFileSync(new URL("../fixtures/kikapu-studio-v3.json", import.meta.url), "utf8"),
@@ -77,6 +77,41 @@ describe("the fixture mandate", () => {
     const loosened = structuredClone(fixture);
     loosened.rules[0].max.amount = 8001;
     expect(hashMandate(mustParse(loosened)).hash).not.toBe(hashMandate(mustParse(fixture)).hash);
+  });
+});
+
+describe("a mandate's rules", () => {
+  it("list one action or several the same way", () => {
+    const [lostParcel, , , , disputes] = mustParse(fixture).rules;
+    if (!lostParcel || !disputes) throw new Error("The fixture lost a rule");
+    expect(ruleActions(lostParcel)).toEqual(["paypal.refund"]);
+    expect(ruleActions(disputes)).toEqual([
+      "paypal.dispute.accept_claim",
+      "paypal.dispute.provide_evidence",
+      "paypal.dispute.make_offer",
+      "paypal.invoice.send",
+    ]);
+  });
+
+  it("name the verifiers they require for an action, once each, in rule order", () => {
+    const mandate = mustParse(fixture);
+    expect(requiredVerifiers(mandate, "paypal.refund")).toEqual([
+      "ticket.from_payer",
+      "capture.refundable",
+      "dispute.none_open",
+      "ledger.not_duplicate",
+      "evidence.photo_present",
+    ]);
+    expect(requiredVerifiers(mandate, "paypal.invoice.send")).toEqual([]);
+    expect(requiredVerifiers(mandate, "mpesa.b2c")).toEqual([]);
+  });
+
+  it("require verifiers from a rule that lists several actions", () => {
+    const mandate = structuredClone(fixture);
+    mandate.rules[4].require = ["payee.allowlisted"];
+    expect(requiredVerifiers(mustParse(mandate), "paypal.invoice.send")).toEqual([
+      "payee.allowlisted",
+    ]);
   });
 });
 

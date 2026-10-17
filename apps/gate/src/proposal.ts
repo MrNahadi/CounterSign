@@ -59,14 +59,15 @@ function describePath(path: PropertyKey[]): string {
   return path.map((key) => (typeof key === "number" ? `[${key}]` : `.${String(key)}`)).join("");
 }
 
-function toolOf(proposal: unknown): unknown {
-  return typeof proposal === "object" && proposal !== null ? Reflect.get(proposal, "tool") : null;
-}
+// Read first, alone, so an unknown tool is UNKNOWN_ACTION whatever else is wrong. A missing or
+// non-string tool falls through to the full parse, which calls it invalid.
+const NamedTool = z.object({ tool: z.string() });
 
 export function normalizeProposal(input: ProposalInput): Normalized {
-  const tool = toolOf(input.proposal);
-  if (typeof tool === "string" && !Object.hasOwn(TOOLS, tool)) {
-    return { ok: false, reason: { code: "UNKNOWN_ACTION", detail: `Unknown tool ${tool}` } };
+  const named = NamedTool.safeParse(input.proposal);
+  if (named.success && !Object.hasOwn(TOOLS, named.data.tool)) {
+    const detail = `Unknown tool ${named.data.tool}`;
+    return { ok: false, reason: { code: "UNKNOWN_ACTION", detail } };
   }
 
   const parsed = CreateRefundProposal.safeParse(input.proposal);

@@ -10,12 +10,13 @@ import {
   type Outcome,
   REASONS,
   type Reason,
+  ReasonCodeSchema,
+  requiredVerifiers,
   type Usage,
   type VerifierTrace,
 } from "@countersign/mandate";
 import { type RecordSnapshots, runVerifiers, todaysUsage } from "@countersign/verifiers";
 import { z } from "zod";
-import { ReasonCodeSchema } from "./case-file";
 import { normalizeProposal } from "./proposal";
 
 // How long a step-up waits for the merchant before it expires as a deny.
@@ -91,15 +92,6 @@ function denied(intentId: string | null, reasons: Reason[]): AgentResponse {
   };
 }
 
-// The verifiers this mandate's rules for the action require, beyond the action's own set.
-function requiredBy(mandate: Mandate, intent: Intent) {
-  return mandate.rules
-    .filter((rule) =>
-      (typeof rule.action === "string" ? [rule.action] : rule.action).includes(intent.action),
-    )
-    .flatMap((rule) => rule.require ?? []);
-}
-
 export function decide(input: DecideInput): Decided {
   const { mandate, principal, records, now } = input;
   const decidedAt = now.toISOString();
@@ -136,7 +128,8 @@ export function decide(input: DecideInput): Decided {
 
   const { intent } = normalized;
   const { hash, id, canonical } = hashIntent(intent);
-  const trace = runVerifiers(intent, records, requiredBy(mandate, intent));
+  // The mandate's rules may require verifiers beyond the action's own set.
+  const trace = runVerifiers(intent, records, requiredVerifiers(mandate, intent.action));
   const { outcome, reasons, matchedRules } = evaluate({ mandate, intent, trace, usage });
   const record: DecisionRecord = {
     ...base,

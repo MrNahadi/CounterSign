@@ -9,8 +9,7 @@ import {
   type Mandate,
   OUTCOMES,
   parseMandate,
-  REASONS,
-  type ReasonCode,
+  ReasonCodeSchema,
   SHIPMENT_STATUSES,
   TimestampSchema,
 } from "@countersign/mandate";
@@ -23,11 +22,6 @@ const Money = z.strictObject({
   minor: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
   currency: z.enum(CURRENCIES),
 });
-
-export const ReasonCodeSchema = z.custom<ReasonCode>(
-  (value) => typeof value === "string" && Object.hasOwn(REASONS, value),
-  "Must be a known reason code",
-);
 
 // Each snapshot names the call it came from, filled in here so a case file can't misstate it.
 function from<Shape extends z.ZodRawShape>(call: string, shape: Shape) {

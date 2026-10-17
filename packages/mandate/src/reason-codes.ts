@@ -1,5 +1,7 @@
 // Reason codes: why a decision came out as it did. Codes never change once used.
 
+import { z } from "zod";
+
 export type ReasonText = {
   // Words for the merchant.
   words: string;
@@ -89,6 +91,11 @@ export const REASONS = {
 
 export type ReasonCode = keyof typeof REASONS;
 export const REASON_CODES = Object.keys(REASONS) as readonly ReasonCode[];
+
+export const ReasonCodeSchema = z.custom<ReasonCode>(
+  (value) => typeof value === "string" && Object.hasOwn(REASONS, value),
+  "Must be a known reason code",
+);
 
 // The only codes a mandate rule may name as its reason.
 export const RULE_REASON_CODES = [
