@@ -15,17 +15,17 @@ Notes: Found while planning phase 4. `canonicalJson` throws on lone surrogates (
 
 ## T-002: The audit_log table, its migration and the database clients
 
-Status: open
+Status: done
 Tier: standard
 Blocked by:
 Slice: A fresh in-memory PGlite gets the `audit_log` table from the committed migration, and the table refuses a forked row, a repeated `seq`, and any UPDATE or DELETE.
 Test seam: the exports of `@countersign/db`: the schema, the test-database factory, and the open-and-migrate function
 Acceptance:
-- [ ] The Drizzle schema has `audit_log` with the columns, primary key and UNIQUE constraints in requirements.md. `payload` and `at` are text, and `seq` is a bigint in number mode
-- [ ] `packages/db/drizzle.config.ts` and a root `db:generate` script exist. The first migration was generated with `npm run db:generate`, and is committed with its meta files
-- [ ] The first migration ends with hand-added SQL: a trigger function and a `BEFORE UPDATE OR DELETE ... FOR EACH ROW` trigger on `audit_log` that raise "audit_log is append-only". Running `npm run db:generate` again reports no changes
-- [ ] The package exports a factory for a migrated in-memory PGlite, a client for a PGlite directory, and a postgres.js client for a connection string, all as Drizzle databases of one type
-- [ ] Tests on a fresh PGlite show that a repeated `seq` fails, a repeated `prev_hash` fails, UPDATE and DELETE fail with the trigger's message, and TRUNCATE works
+- [x] The Drizzle schema has `audit_log` with the columns, primary key and UNIQUE constraints in requirements.md. `payload` and `at` are text, and `seq` is a bigint in number mode
+- [x] `packages/db/drizzle.config.ts` and a root `db:generate` script exist. The first migration was generated with `npm run db:generate`, and is committed with its meta files
+- [x] The first migration ends with hand-added SQL: a trigger function and a `BEFORE UPDATE OR DELETE ... FOR EACH ROW` trigger on `audit_log` that raise "audit_log is append-only". Running `npm run db:generate` again reports no changes
+- [x] The package exports a factory for a migrated in-memory PGlite, a client for a PGlite directory, and a postgres.js client for a connection string, all as Drizzle databases of one type
+- [x] Tests on a fresh PGlite show that a repeated `seq` fails, a repeated `prev_hash` fails, UPDATE and DELETE fail with the trigger's message, and TRUNCATE works
 Notes:
 
 ## T-003: The chain itself: entry hash, payload preparation and verifyChain

@@ -17,7 +17,8 @@
     "format": "biome check --write .",
     "test": "vitest run",
     "build": "npm run build --workspaces --if-present",
-    "decide": "tsx apps/gate/src/decide-main.ts"
+    "decide": "tsx apps/gate/src/decide-main.ts",
+    "db:generate": "npm run db:generate --workspace @countersign/db"
   },
   "dependencies": {
     "zod": "4.6.7"
