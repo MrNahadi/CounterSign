@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { hashMandate, parseMandate, requiredVerifiers, ruleActions } from "../src/index";
+import { hashMandate, IdSchema, parseMandate, requiredVerifiers, ruleActions } from "../src/index";
 
 const fixture = JSON.parse(
   readFileSync(new URL("../fixtures/kikapu-studio-v3.json", import.meta.url), "utf8"),
@@ -299,5 +299,28 @@ describe("parseMandate rejects", () => {
     if (result.ok) return;
     expect(result.error).toMatch(/^Mandate \(rules\[0\]\.max\.amount\): /);
     expect(result.error).not.toContain("\n");
+  });
+});
+
+describe("the shared ID rule", () => {
+  // Built with fromCharCode: the Write tool decodes \u escapes in source text.
+  const lone = String.fromCharCode(0xd800);
+  const pair = String.fromCharCode(0xd83d, 0xde00);
+
+  it("rejects an ID that isn't well-formed UTF-16, and says so", () => {
+    for (const id of [`a${lone}b`, lone, `a${String.fromCharCode(0xdc00)}`]) {
+      const result = IdSchema.safeParse(id);
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toMatch(/well-formed/);
+    }
+  });
+
+  it("accepts an ID with a full surrogate pair", () => {
+    expect(IdSchema.safeParse(`a${pair}b`).success).toBe(true);
+  });
+
+  it("makes a mandate with such an ID invalid", () => {
+    const bad = { ...(fixture as Record<string, unknown>), id: `kikapu${lone}` };
+    expect(parseMandate(bad).ok).toBe(false);
   });
 });

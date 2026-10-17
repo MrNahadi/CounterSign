@@ -3,10 +3,12 @@
 
 import { z } from "zod";
 
-// An ID with no blank and no leading or trailing spaces. Rejected, never trimmed.
+// An ID with no blank and no leading or trailing spaces, and no lone surrogate (canonical JSON
+// can't hold one, RFC 8785). Rejected, never trimmed or repaired.
 export const IdSchema = z
   .string()
-  .regex(/^\S(?:.*\S)?$/, "Must be a non-blank ID without outer spaces");
+  .regex(/^\S(?:.*\S)?$/, "Must be a non-blank ID without outer spaces")
+  .refine((id) => id.isWellFormed(), "Must be well-formed UTF-16, with no lone surrogate");
 
 export type ParseIssue = { path: (string | number)[]; message: string };
 

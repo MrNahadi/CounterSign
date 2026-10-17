@@ -2,15 +2,15 @@
 
 ## T-001: IDs with a lone surrogate are invalid, so decide never throws
 
-Status: open
+Status: done
 Tier: simple
 Blocked by:
 Slice: A `create_refund` proposal whose capture ID or ticket ID holds a lone surrogate is denied `INVALID_PROPOSAL`, instead of `hashIntent` throwing inside `decide`.
 Test seam: `IdSchema` in `@countersign/mandate`, and the `decide` function in `apps/gate/src/`
 Acceptance:
-- [ ] The shared ID rule rejects a string that isn't well-formed UTF-16, with a message that says so. Every parser that uses the shared ID schema (mandate, case file, proposal) gets the check with no change of its own
-- [ ] `decide` on a proposal whose `ticket_id` or `capture_id` holds a lone surrogate returns a denial `INVALID_PROPOSAL` and doesn't throw. Build the string with `String.fromCharCode(0xd800)` (phase 3 gotcha: the Write tool decodes `\u` escapes)
-- [ ] Every existing test passes unchanged
+- [x] The shared ID rule rejects a string that isn't well-formed UTF-16, with a message that says so. Every parser that uses the shared ID schema (mandate, case file, proposal) gets the check with no change of its own
+- [x] `decide` on a proposal whose `ticket_id` or `capture_id` holds a lone surrogate returns a denial `INVALID_PROPOSAL` and doesn't throw. Build the string with `String.fromCharCode(0xd800)` (phase 3 gotcha: the Write tool decodes `\u` escapes)
+- [x] Every existing test passes unchanged
 Notes: Found while planning phase 4. `canonicalJson` throws on lone surrogates (RFC 8785 requires I-JSON), and `IdSchema` let them through, which broke phase 3's "decide never throws on input that passed its schemas".
 
 ## T-002: The audit_log table, its migration and the database clients

@@ -313,3 +313,26 @@ describe("case files", () => {
     });
   });
 });
+
+describe("an ID that isn't well-formed UTF-16", () => {
+  // Built with fromCharCode: the Write tool decodes \u escapes in source text.
+  const lone = String.fromCharCode(0xd800);
+  const decisionCase = load("beat-4-stalled-parcel.json");
+  const base = decisionCase.proposals[0]?.proposal as {
+    args: Record<string, unknown>;
+    justification: Record<string, unknown>;
+  };
+
+  it.each([
+    ["ticket_id", { ...base, justification: { ...base.justification, ticket_id: `T-${lone}` } }],
+    ["capture_id", { ...base, args: { ...base.args, capture_id: `cap_${lone}` } }],
+  ])("in %s is denied INVALID_PROPOSAL and never throws", (_field, proposal) => {
+    const { mandate, principal, records, now } = decisionCase;
+    const decided = () => decide({ mandate, principal, proposal, records, now });
+    expect(decided).not.toThrow();
+    const { record, response } = decided();
+    expect(record.decision).toBe("deny");
+    expect(record.reasons.map((reason) => reason.code)).toEqual(["INVALID_PROPOSAL"]);
+    expect(response.decision).toBe("denied");
+  });
+});
