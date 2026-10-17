@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 // or import, an AI SDK.
 
 const repo = join(import.meta.dirname, "..");
-const decisionPackages = ["mandate", "verifiers", "ledger"];
+const decisionPackages = ["mandate", "verifiers", "ledger", "db"];
 const aiModule =
   /^(?:@anthropic-ai\/|@google\/genai|@google\/generative-ai|@google-cloud\/vertexai|openai$|ai$|@ai-sdk\/|langchain|@langchain\/|ollama|cohere-ai|@mistralai\/|groq-sdk)/;
 const importSpecifier = /(?:from\s+|import\s*\(\s*|require\s*\(\s*|import\s+)["']([^"']+)["']/g;
