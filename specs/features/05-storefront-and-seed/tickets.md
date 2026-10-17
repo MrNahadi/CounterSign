@@ -33,15 +33,15 @@ Notes:
 
 ## T-003: The carrier_shipments and seed_orders tables
 
-Status: open
+Status: done
 Tier: simple
 Blocked by:
 Slice: A fresh PGlite gets both tables from a new committed migration, and they reject bad statuses and duplicate PayPal IDs.
 Test seam: the schema exports of `@countersign/db` and its migrated test-database factory
 Acceptance:
-- [ ] `carrier_shipments` and `seed_orders` have the columns, keys, UNIQUE constraints and the status CHECK in requirements.md. The migration was made with `npm run db:generate`, and a second run reports no changes
-- [ ] Tests on a fresh PGlite show a status outside the four fails, a repeated PayPal order ID or capture ID fails, and `audit_log` still rejects UPDATE
-- [ ] Phase 4's db and ledger tests pass unchanged
+- [x] `carrier_shipments` and `seed_orders` have the columns, keys, UNIQUE constraints and the status CHECK in requirements.md. The migration was made with `npm run db:generate`, and a second run reports no changes
+- [x] Tests on a fresh PGlite show a status outside the four fails, a repeated PayPal order ID or capture ID fails, and `audit_log` still rejects UPDATE
+- [x] Phase 4's db and ledger tests pass unchanged
 Notes:
 
 ## T-004: The carrier mock reports lost, stalled, in transit and delivered
