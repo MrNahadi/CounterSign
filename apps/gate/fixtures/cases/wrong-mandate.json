@@ -1,0 +1,30 @@
+{
+  "description": "An agent this mandate doesn't cover proposes a refund the support agent would be asked about. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "ops-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2180",
+        "orderId": "ORD-2180",
+        "status": "COMPLETED",
+        "amount": { "minor": 3500, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [{ "id": "ORD-2180", "payerEmail": "neema.r@example.com", "trackers": [] }],
+    "ticket": { "id": "TKT-2180", "senderEmail": "neema.r@example.com", "attachments": [] },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2180" },
+        "justification": { "ticket_id": "TKT-2180", "claim": "wrong_item" }
+      },
+      "expect": { "decision": "deny", "reasons": ["WRONG_MANDATE"] }
+    }
+  ]
+}

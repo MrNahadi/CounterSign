@@ -1,0 +1,32 @@
+{
+  "id": "edge-rules",
+  "version": 1,
+  "principal": "support-agent",
+  "time_zone": "Africa/Nairobi",
+  "fallback": "deny",
+  "limits": [{ "currency": "USD", "per_day_total": 30000, "per_day_count": 5 }],
+  "rules": [
+    {
+      "id": "refund-lost-no-history-check",
+      "action": "paypal.refund",
+      "when": { "claim": "not_received", "shipment.status": ["lost", "stalled_10d"] },
+      "require": ["ticket.from_payer", "capture.refundable"],
+      "max": { "amount": 8000, "currency": "USD" },
+      "decide": "allow"
+    },
+    {
+      "id": "refund-damaged-velocity",
+      "action": "paypal.refund",
+      "when": { "claim": "damaged" },
+      "require": ["ledger.velocity"],
+      "decide": "allow"
+    },
+    {
+      "id": "refund-wrong-item-never",
+      "action": "paypal.refund",
+      "when": { "claim": "wrong_item" },
+      "decide": "deny",
+      "reason": "RULE_DENIES"
+    }
+  ]
+}

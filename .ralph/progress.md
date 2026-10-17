@@ -115,3 +115,16 @@ Gotchas for the next iteration:
 - The tool check runs first: any string `tool` other than `create_refund` is `UNKNOWN_ACTION`, whatever else is wrong. A missing or non-string tool is `INVALID_PROPOSAL`.
 - IDs must be non-blank with no outer spaces. They're rejected, not trimmed.
 - With no amount, a capture with nothing left (or malformed amounts) is `INVALID_PROPOSAL`, since an intent's amount must be greater than zero. With an explicit amount and no capture record, the intent is valid with `orderId: null` (see the T-001 note for the human).
+
+## T-009: done
+
+`apps/gate/src/decide.ts` exports `decide({ mandate, principal, proposal, records, now: Date })` → `{ record: DecisionRecord, response: AgentResponse }`, plus `AgentResponseSchema` and `APPROVAL_WINDOW_MS`. `apps/gate/src/case-file.ts` exports `CaseFileSchema`, `ReasonCodeSchema` and `loadCase(path)` → `{ ok: true, decisionCase }` or `{ ok: false, error }`, never throwing. 18 case files in `apps/gate/fixtures/cases/` reach all 22 reason codes; the suite test fails if a code goes unreached.
+
+Gotchas for the next iteration:
+- Case file keys: `description`, `now` (ISO with offset), `mandate` (a path relative to the case file), `principal` (the proposing agent), `records`, `proposals: [{ proposal, expect: { decision: allow|step_up|deny, reasons: [codes] } }]`. Records use the snapshot types' camelCase keys without `call`; the schema fills `call` from `CALLS`, and a stated `call` is rejected.
+- `apps/gate/fixtures/mandates/edge-rules.json` is a test mandate whose rules reach `DAILY_LIMIT_UNKNOWN`, `VERIFIER_UNAVAILABLE` and `RULE_DENIES`, which the fixture mandate can't.
+- `DecisionRecord` fields: `intent`, `intentId`, `intentHash` (all null for an invalid or unknown-tool proposal), `mandate: { id, version, hash }`, `trace`, `usage`, `matchedRules`, `decision`, `reasons`, `decidedAt` (ISO string of `now`). Usage is computed even when the proposal is invalid.
+- Responses: `allowed { intent_id, intent_hash }`, `pending_approval { intent_id, reasons, expires_at }`, `denied { intent_id | null, reasons, safe_reply_hint }`. The hint is the first reason's; a denial whose first reason has none falls back to the next one with a hint, then to `NO_MATCHING_RULE`'s.
+- `decide` passes the `require` lists of every rule for the intent's action to `runVerifiers`, so an unbuilt verifier shows up in the trace.
+- `decide` calls `now.toISOString()`, which throws on an invalid Date. `loadCase` validates `now`; T-010's CLI should go through `loadCase`.
+- CONTEXT.md gained Decision record, Record snapshot and Today's usage.

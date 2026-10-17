@@ -1,0 +1,111 @@
+{
+  "description": "Lost parcels on a busy day: five refunds totalling $260 already made today in Nairobi, one of them just after midnight local time. Yesterday's refund and another agent's don't count. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2150",
+        "orderId": "ORD-2150",
+        "status": "COMPLETED",
+        "amount": { "minor": 5000, "currency": "USD" },
+        "refundedMinor": 0
+      },
+      {
+        "id": "CAP-2151",
+        "orderId": "ORD-2151",
+        "status": "COMPLETED",
+        "amount": { "minor": 3000, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [
+      {
+        "id": "ORD-2150",
+        "payerEmail": "imani.w@example.com",
+        "trackers": [{ "id": "CAP-2150-TRK2150", "trackingNumber": "TRK2150", "status": "SHIPPED" }]
+      },
+      {
+        "id": "ORD-2151",
+        "payerEmail": "imani.w@example.com",
+        "trackers": [{ "id": "CAP-2151-TRK2151", "trackingNumber": "TRK2151", "status": "SHIPPED" }]
+      }
+    ],
+    "disputes": [{ "id": "CAP-2150", "disputes": [] }, { "id": "CAP-2151", "disputes": [] }],
+    "shipments": [
+      { "id": "TRK2150", "status": "lost" },
+      { "id": "TRK2151", "status": "stalled_10d" }
+    ],
+    "ticket": { "id": "TKT-2150", "senderEmail": "imani.w@example.com", "attachments": [] },
+    "executions": [
+      {
+        "id": "EXE-1001",
+        "principal": "support-agent",
+        "captureId": "CAP-3001",
+        "amount": { "minor": 6000, "currency": "USD" },
+        "executedAt": "2026-10-16T22:30:00Z"
+      },
+      {
+        "id": "EXE-1002",
+        "principal": "support-agent",
+        "captureId": "CAP-3002",
+        "amount": { "minor": 5000, "currency": "USD" },
+        "executedAt": "2026-10-17T04:00:00Z"
+      },
+      {
+        "id": "EXE-1003",
+        "principal": "support-agent",
+        "captureId": "CAP-3003",
+        "amount": { "minor": 5000, "currency": "USD" },
+        "executedAt": "2026-10-17T05:00:00+03:00"
+      },
+      {
+        "id": "EXE-1004",
+        "principal": "support-agent",
+        "captureId": "CAP-3004",
+        "amount": { "minor": 5000, "currency": "USD" },
+        "executedAt": "2026-10-17T05:30:00Z"
+      },
+      {
+        "id": "EXE-1005",
+        "principal": "support-agent",
+        "captureId": "CAP-3005",
+        "amount": { "minor": 5000, "currency": "USD" },
+        "executedAt": "2026-10-17T05:45:00Z"
+      },
+      {
+        "id": "EXE-1006",
+        "principal": "support-agent",
+        "captureId": "CAP-3006",
+        "amount": { "minor": 9000, "currency": "USD" },
+        "executedAt": "2026-10-16T20:30:00Z"
+      },
+      {
+        "id": "EXE-1007",
+        "principal": "ops-agent",
+        "captureId": "CAP-3007",
+        "amount": { "minor": 9000, "currency": "USD" },
+        "executedAt": "2026-10-17T05:50:00Z"
+      }
+    ]
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2150" },
+        "justification": { "ticket_id": "TKT-2150", "claim": "not_received" }
+      },
+      "expect": { "decision": "step_up", "reasons": ["DAILY_LIMIT_REACHED", "DAILY_LIMIT_REACHED"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2151" },
+        "justification": { "ticket_id": "TKT-2150", "claim": "not_received" }
+      },
+      "expect": { "decision": "step_up", "reasons": ["DAILY_LIMIT_REACHED"] }
+    }
+  ]
+}

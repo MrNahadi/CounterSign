@@ -1,0 +1,52 @@
+{
+  "description": "No rule matches: a never-arrived claim while the carrier shows the parcel in transit, and a proposal with no claim at all. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2080",
+        "orderId": "ORD-2080",
+        "status": "COMPLETED",
+        "amount": { "minor": 2500, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [
+      {
+        "id": "ORD-2080",
+        "payerEmail": "kamau.j@example.com",
+        "trackers": [{ "id": "CAP-2080-TRK2080", "trackingNumber": "TRK2080", "status": "SHIPPED" }]
+      }
+    ],
+    "disputes": [{ "id": "CAP-2080", "disputes": [] }],
+    "shipments": [{ "id": "TRK2080", "status": "in_transit" }],
+    "ticket": { "id": "TKT-2080", "senderEmail": "kamau.j@example.com", "attachments": [] },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2080",
+          "amount": { "value": "25.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2080", "claim": "not_received" }
+      },
+      "expect": { "decision": "deny", "reasons": ["NO_MATCHING_RULE"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2080",
+          "amount": { "value": "25.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2080" }
+      },
+      "expect": { "decision": "deny", "reasons": ["NO_MATCHING_RULE"] }
+    }
+  ]
+}

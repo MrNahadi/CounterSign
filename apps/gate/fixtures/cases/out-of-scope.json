@@ -1,0 +1,53 @@
+{
+  "description": "Proposals the gate refuses before reading any record: a tool it doesn't know, an amount with three decimals, and a proposal that tries to name its own principal. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2170",
+        "orderId": "ORD-2170",
+        "status": "COMPLETED",
+        "amount": { "minor": 4000, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [{ "id": "ORD-2170", "payerEmail": "musa.h@example.com", "trackers": [] }],
+    "ticket": { "id": "TKT-2170", "senderEmail": "musa.h@example.com", "attachments": [] },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_payout",
+        "args": {
+          "receiver": "musa.h@example.com",
+          "amount": { "value": "500.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2170" }
+      },
+      "expect": { "decision": "deny", "reasons": ["UNKNOWN_ACTION"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2170",
+          "amount": { "value": "12.345", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2170", "claim": "wrong_item" }
+      },
+      "expect": { "decision": "deny", "reasons": ["INVALID_PROPOSAL"] }
+    },
+    {
+      "proposal": {
+        "principal": "ops-agent",
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2170" },
+        "justification": { "ticket_id": "TKT-2170", "claim": "wrong_item" }
+      },
+      "expect": { "decision": "deny", "reasons": ["INVALID_PROPOSAL"] }
+    }
+  ]
+}

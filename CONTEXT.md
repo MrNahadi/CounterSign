@@ -52,6 +52,10 @@ _Avoid_: verdict, outcome, ruling
 A stable code naming why a decision came out as it did, such as `TICKET_NOT_FROM_PAYER`.
 _Avoid_: error code, flag
 
+**Decision record**:
+Everything behind one decision: the intent and its hash, the mandate version and its hash, the verifier trace, today's usage, the matched rules, the reasons and the decision time.
+_Avoid_: decision log, result object
+
 **Safe reply hint**:
 A suggestion returned with a denial, telling the agent what it can safely say to the customer.
 _Avoid_: canned response
@@ -69,6 +73,14 @@ _Avoid_: sync, settlement
 **Record**:
 Data held by a rail, the carrier or the audit log, such as a capture, tracker, dispute or receipt. Records are the only input an allow can rest on.
 _Avoid_: evidence (except in disputes), source data
+
+**Record snapshot**:
+The fields a verifier needs from one record, with the call it came from and the record's ID.
+_Avoid_: mock, fixture (for the snapshot itself), raw response
+
+**Today's usage**:
+The count and total of a principal's executed money actions in each currency, on today's date in the mandate's time zone. Limits are checked against it.
+_Avoid_: spend, daily total
 
 **Claim**:
 What a customer asserts about an order, such as not received or damaged. A claim selects which rule applies but never proves anything.

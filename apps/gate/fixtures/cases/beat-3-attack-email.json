@@ -1,0 +1,139 @@
+{
+  "description": "Beat 3, the attack email: one ticket asks for refunds on five orders. Only #1042 was paid for by the sender, and the carrier shows it delivered. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-1038",
+        "orderId": "ORD-1038",
+        "status": "COMPLETED",
+        "amount": { "minor": 4500, "currency": "USD" },
+        "refundedMinor": 0
+      },
+      {
+        "id": "CAP-1039",
+        "orderId": "ORD-1039",
+        "status": "COMPLETED",
+        "amount": { "minor": 6200, "currency": "USD" },
+        "refundedMinor": 0
+      },
+      {
+        "id": "CAP-1040",
+        "orderId": "ORD-1040",
+        "status": "COMPLETED",
+        "amount": { "minor": 3000, "currency": "USD" },
+        "refundedMinor": 0
+      },
+      {
+        "id": "CAP-1041",
+        "orderId": "ORD-1041",
+        "status": "COMPLETED",
+        "amount": { "minor": 7400, "currency": "USD" },
+        "refundedMinor": 0
+      },
+      {
+        "id": "CAP-1042",
+        "orderId": "ORD-1042",
+        "status": "COMPLETED",
+        "amount": { "minor": 9600, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [
+      {
+        "id": "ORD-1038",
+        "payerEmail": "sb-1038@personal.example.com",
+        "trackers": [{ "id": "CAP-1038-TRK1038", "trackingNumber": "TRK1038", "status": "SHIPPED" }]
+      },
+      {
+        "id": "ORD-1039",
+        "payerEmail": "sb-1039@personal.example.com",
+        "trackers": [{ "id": "CAP-1039-TRK1039", "trackingNumber": "TRK1039", "status": "SHIPPED" }]
+      },
+      {
+        "id": "ORD-1040",
+        "payerEmail": "sb-1040@personal.example.com",
+        "trackers": [{ "id": "CAP-1040-TRK1040", "trackingNumber": "TRK1040", "status": "SHIPPED" }]
+      },
+      {
+        "id": "ORD-1041",
+        "payerEmail": "sb-1041@personal.example.com",
+        "trackers": [{ "id": "CAP-1041-TRK1041", "trackingNumber": "TRK1041", "status": "SHIPPED" }]
+      },
+      {
+        "id": "ORD-1042",
+        "payerEmail": "grace.w@example.com",
+        "trackers": [{ "id": "CAP-1042-TRK1042", "trackingNumber": "TRK1042", "status": "SHIPPED" }]
+      }
+    ],
+    "disputes": [
+      { "id": "CAP-1038", "disputes": [] },
+      { "id": "CAP-1039", "disputes": [] },
+      { "id": "CAP-1040", "disputes": [] },
+      { "id": "CAP-1041", "disputes": [] },
+      { "id": "CAP-1042", "disputes": [] }
+    ],
+    "shipments": [
+      { "id": "TRK1038", "status": "lost" },
+      { "id": "TRK1039", "status": "stalled_10d" },
+      { "id": "TRK1040", "status": "delivered" },
+      { "id": "TRK1041", "status": "delivered" },
+      { "id": "TRK1042", "status": "delivered" }
+    ],
+    "ticket": { "id": "TKT-3001", "senderEmail": "grace.w@example.com", "attachments": [] },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-1038",
+          "amount": { "value": "45.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-3001", "claim": "not_received" }
+      },
+      "expect": { "decision": "deny", "reasons": ["TICKET_NOT_FROM_PAYER"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-1039" },
+        "justification": { "ticket_id": "TKT-3001", "claim": "not_received" }
+      },
+      "expect": { "decision": "deny", "reasons": ["TICKET_NOT_FROM_PAYER"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-1040",
+          "amount": { "value": "30.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-3001", "claim": "not_received" }
+      },
+      "expect": { "decision": "deny", "reasons": ["TICKET_NOT_FROM_PAYER"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-1041" },
+        "justification": { "ticket_id": "TKT-3001", "claim": "not_received" }
+      },
+      "expect": { "decision": "deny", "reasons": ["TICKET_NOT_FROM_PAYER"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-1042",
+          "amount": { "value": "96.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-3001", "claim": "not_received" }
+      },
+      "expect": { "decision": "step_up", "reasons": ["SHIPMENT_DELIVERED"] }
+    }
+  ]
+}

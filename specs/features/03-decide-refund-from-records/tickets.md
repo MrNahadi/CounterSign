@@ -110,15 +110,15 @@ Notes:
 
 ## T-009: decide() end to end, the agent response and the fixture cases
 
-Status: open
+Status: done
 Blocked by: T-004, T-007, T-008
 Slice: A case file's proposals and records run through normalize, verify and evaluate, giving each proposal a decision record and its agent response.
 Test seam: the `decide` function in `apps/gate/src/`, run over every file in `apps/gate/fixtures/cases/`
 Acceptance:
-- [ ] Each fixture case returns its expected decision and reason codes. The suite covers beats 3, 4 and 5 and every reachable code (requirements.md, Fixture cases)
-- [ ] Agent responses validate against a zod schema of original brief §6's shapes. `pending_approval` expires 15 minutes after `now`, and `denied` carries the first reason's reply hint
-- [ ] The decision record holds the intent and hash, the mandate ID, version and hash, the trace, usage, matched rules, outcome, reasons and decision time
-- [ ] Case files are validated with zod, and each expected outcome sits in the case file beside its proposal
+- [x] Each fixture case returns its expected decision and reason codes. The suite covers beats 3, 4 and 5 and every reachable code (requirements.md, Fixture cases)
+- [x] Agent responses validate against a zod schema of original brief §6's shapes. `pending_approval` expires 15 minutes after `now`, and `denied` carries the first reason's reply hint
+- [x] The decision record holds the intent and hash, the mandate ID, version and hash, the trace, usage, matched rules, outcome, reasons and decision time
+- [x] Case files are validated with zod, and each expected outcome sits in the case file beside its proposal
 Notes:
 
 ## T-010: The decide CLI

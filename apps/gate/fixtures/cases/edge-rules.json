@@ -1,0 +1,72 @@
+{
+  "description": "A test mandate whose rules reach the remaining codes: an allow rule that doesn't check history, with no history to count today's refunds; a rule requiring a verifier that isn't built yet; and a rule that denies. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../mandates/edge-rules.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2160",
+        "orderId": "ORD-2160",
+        "status": "COMPLETED",
+        "amount": { "minor": 4000, "currency": "USD" },
+        "refundedMinor": 0
+      },
+      {
+        "id": "CAP-2161",
+        "orderId": "ORD-2161",
+        "status": "COMPLETED",
+        "amount": { "minor": 4000, "currency": "USD" },
+        "refundedMinor": 0
+      },
+      {
+        "id": "CAP-2162",
+        "orderId": "ORD-2162",
+        "status": "COMPLETED",
+        "amount": { "minor": 4000, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [
+      {
+        "id": "ORD-2160",
+        "payerEmail": "faith.a@example.com",
+        "trackers": [{ "id": "CAP-2160-TRK2160", "trackingNumber": "TRK2160", "status": "SHIPPED" }]
+      },
+      { "id": "ORD-2161", "payerEmail": "faith.a@example.com", "trackers": [] },
+      { "id": "ORD-2162", "payerEmail": "faith.a@example.com", "trackers": [] }
+    ],
+    "shipments": [{ "id": "TRK2160", "status": "lost" }],
+    "ticket": {
+      "id": "TKT-2160",
+      "senderEmail": "faith.a@example.com",
+      "attachments": [{ "id": "ATT-3", "contentType": "image/png" }]
+    }
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2160" },
+        "justification": { "ticket_id": "TKT-2160", "claim": "not_received" }
+      },
+      "expect": { "decision": "step_up", "reasons": ["DAILY_LIMIT_UNKNOWN"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2161" },
+        "justification": { "ticket_id": "TKT-2160", "claim": "damaged" }
+      },
+      "expect": { "decision": "deny", "reasons": ["VERIFIER_UNAVAILABLE"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2162" },
+        "justification": { "ticket_id": "TKT-2160", "claim": "wrong_item" }
+      },
+      "expect": { "decision": "deny", "reasons": ["RULE_DENIES"] }
+    }
+  ]
+}

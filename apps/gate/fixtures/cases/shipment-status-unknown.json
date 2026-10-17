@@ -1,0 +1,54 @@
+{
+  "description": "A never-arrived claim with no shipment status to match: one order has no tracker, and the other's tracking number has no carrier record. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2090",
+        "orderId": "ORD-2090",
+        "status": "COMPLETED",
+        "amount": { "minor": 4000, "currency": "USD" },
+        "refundedMinor": 0
+      },
+      {
+        "id": "CAP-2091",
+        "orderId": "ORD-2091",
+        "status": "COMPLETED",
+        "amount": { "minor": 4000, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [
+      { "id": "ORD-2090", "payerEmail": "achieng.o@example.com", "trackers": [] },
+      {
+        "id": "ORD-2091",
+        "payerEmail": "achieng.o@example.com",
+        "trackers": [{ "id": "CAP-2091-TRK2091", "trackingNumber": "TRK2091", "status": "SHIPPED" }]
+      }
+    ],
+    "disputes": [{ "id": "CAP-2090", "disputes": [] }, { "id": "CAP-2091", "disputes": [] }],
+    "shipments": [],
+    "ticket": { "id": "TKT-2090", "senderEmail": "achieng.o@example.com", "attachments": [] },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2090" },
+        "justification": { "ticket_id": "TKT-2090", "claim": "not_received" }
+      },
+      "expect": { "decision": "deny", "reasons": ["NO_MATCHING_RULE", "SHIPMENT_STATUS_UNKNOWN"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2091" },
+        "justification": { "ticket_id": "TKT-2090", "claim": "not_received" }
+      },
+      "expect": { "decision": "deny", "reasons": ["NO_MATCHING_RULE", "SHIPMENT_STATUS_UNKNOWN"] }
+    }
+  ]
+}

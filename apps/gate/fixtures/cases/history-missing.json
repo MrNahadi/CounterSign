@@ -1,0 +1,37 @@
+{
+  "description": "A lost parcel with no execution history to check for an earlier refund. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2140",
+        "orderId": "ORD-2140",
+        "status": "COMPLETED",
+        "amount": { "minor": 4000, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [
+      {
+        "id": "ORD-2140",
+        "payerEmail": "zawadi.m@example.com",
+        "trackers": [{ "id": "CAP-2140-TRK2140", "trackingNumber": "TRK2140", "status": "SHIPPED" }]
+      }
+    ],
+    "disputes": [{ "id": "CAP-2140", "disputes": [] }],
+    "shipments": [{ "id": "TRK2140", "status": "lost" }],
+    "ticket": { "id": "TKT-2140", "senderEmail": "zawadi.m@example.com", "attachments": [] }
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2140" },
+        "justification": { "ticket_id": "TKT-2140", "claim": "not_received" }
+      },
+      "expect": { "decision": "deny", "reasons": ["HISTORY_UNKNOWN"] }
+    }
+  ]
+}

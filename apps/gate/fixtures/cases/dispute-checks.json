@@ -1,0 +1,60 @@
+{
+  "description": "Lost parcels the gate can't refund automatically: one has an open PayPal dispute, and the other's disputes lookup didn't run. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2120",
+        "orderId": "ORD-2120",
+        "status": "COMPLETED",
+        "amount": { "minor": 4000, "currency": "USD" },
+        "refundedMinor": 0
+      },
+      {
+        "id": "CAP-2121",
+        "orderId": "ORD-2121",
+        "status": "COMPLETED",
+        "amount": { "minor": 4000, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [
+      {
+        "id": "ORD-2120",
+        "payerEmail": "njeri.k@example.com",
+        "trackers": [{ "id": "CAP-2120-TRK2120", "trackingNumber": "TRK2120", "status": "SHIPPED" }]
+      },
+      {
+        "id": "ORD-2121",
+        "payerEmail": "njeri.k@example.com",
+        "trackers": [{ "id": "CAP-2121-TRK2121", "trackingNumber": "TRK2121", "status": "SHIPPED" }]
+      }
+    ],
+    "disputes": [
+      { "id": "CAP-2120", "disputes": [{ "id": "PP-D-2120", "status": "UNDER_REVIEW" }] }
+    ],
+    "shipments": [{ "id": "TRK2120", "status": "lost" }, { "id": "TRK2121", "status": "lost" }],
+    "ticket": { "id": "TKT-2120", "senderEmail": "njeri.k@example.com", "attachments": [] },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2120" },
+        "justification": { "ticket_id": "TKT-2120", "claim": "not_received" }
+      },
+      "expect": { "decision": "deny", "reasons": ["DISPUTE_OPEN"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2121" },
+        "justification": { "ticket_id": "TKT-2120", "claim": "not_received" }
+      },
+      "expect": { "decision": "deny", "reasons": ["DISPUTES_UNKNOWN"] }
+    }
+  ]
+}

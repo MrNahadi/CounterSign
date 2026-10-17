@@ -1,0 +1,45 @@
+{
+  "description": "Beat 5: a $240 item arrived damaged and the payer sent a photo. Over the $50 damaged-item cap, so you're asked first. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2050",
+        "orderId": "ORD-2050",
+        "status": "COMPLETED",
+        "amount": { "minor": 24000, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [
+      {
+        "id": "ORD-2050",
+        "payerEmail": "joseph.m@example.com",
+        "trackers": [{ "id": "CAP-2050-TRK2050", "trackingNumber": "TRK2050", "status": "SHIPPED" }]
+      }
+    ],
+    "disputes": [{ "id": "CAP-2050", "disputes": [] }],
+    "shipments": [{ "id": "TRK2050", "status": "delivered" }],
+    "ticket": {
+      "id": "TKT-2050",
+      "senderEmail": "joseph.m@example.com",
+      "attachments": [{ "id": "ATT-1", "contentType": "image/jpeg" }]
+    },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2050",
+          "amount": { "value": "240.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2050", "claim": "damaged" }
+      },
+      "expect": { "decision": "step_up", "reasons": ["ABOVE_AUTO_LIMIT"] }
+    }
+  ]
+}

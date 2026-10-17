@@ -1,0 +1,33 @@
+{
+  "description": "A wrong-item claim on an order with no payer email, so the sender can't be checked. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2100",
+        "orderId": "ORD-2100",
+        "status": "COMPLETED",
+        "amount": { "minor": 2000, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [{ "id": "ORD-2100", "payerEmail": null, "trackers": [] }],
+    "ticket": { "id": "TKT-2100", "senderEmail": "mwangi.p@example.com", "attachments": [] },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2100",
+          "amount": { "value": "20.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2100", "claim": "wrong_item" }
+      },
+      "expect": { "decision": "deny", "reasons": ["PAYER_UNKNOWN"] }
+    }
+  ]
+}

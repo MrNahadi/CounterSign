@@ -1,0 +1,33 @@
+{
+  "description": "A wrong-item claim from the payer, whose email differs only in case and outer spaces. Your rules always ask you first. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2070",
+        "orderId": "ORD-2070",
+        "status": "COMPLETED",
+        "amount": { "minor": 3500, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [{ "id": "ORD-2070", "payerEmail": "wanjiru.n@example.com", "trackers": [] }],
+    "ticket": { "id": "TKT-2070", "senderEmail": " Wanjiru.N@Example.com ", "attachments": [] },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2070",
+          "amount": { "value": "35.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2070", "claim": "wrong_item" }
+      },
+      "expect": { "decision": "step_up", "reasons": ["ALWAYS_NEEDS_APPROVAL"] }
+    }
+  ]
+}

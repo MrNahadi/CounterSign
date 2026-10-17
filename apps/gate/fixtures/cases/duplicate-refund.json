@@ -1,0 +1,49 @@
+{
+  "description": "A lost parcel the gate already refunded five days ago. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2130",
+        "orderId": "ORD-2130",
+        "status": "PARTIALLY_REFUNDED",
+        "amount": { "minor": 8000, "currency": "USD" },
+        "refundedMinor": 4000
+      }
+    ],
+    "orders": [
+      {
+        "id": "ORD-2130",
+        "payerEmail": "baraka.o@example.com",
+        "trackers": [{ "id": "CAP-2130-TRK2130", "trackingNumber": "TRK2130", "status": "SHIPPED" }]
+      }
+    ],
+    "disputes": [{ "id": "CAP-2130", "disputes": [] }],
+    "shipments": [{ "id": "TRK2130", "status": "lost" }],
+    "ticket": { "id": "TKT-2130", "senderEmail": "baraka.o@example.com", "attachments": [] },
+    "executions": [
+      {
+        "id": "EXE-0812",
+        "principal": "support-agent",
+        "captureId": "CAP-2130",
+        "amount": { "minor": 4000, "currency": "USD" },
+        "executedAt": "2026-10-12T10:00:00Z"
+      }
+    ]
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2130",
+          "amount": { "value": "40.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2130", "claim": "not_received" }
+      },
+      "expect": { "decision": "deny", "reasons": ["DUPLICATE_REFUND"] }
+    }
+  ]
+}

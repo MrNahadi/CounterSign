@@ -1,0 +1,38 @@
+{
+  "description": "A lost parcel, refunded in full for what's left on the capture, under the $80 cap. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2060",
+        "orderId": "ORD-2060",
+        "status": "COMPLETED",
+        "amount": { "minor": 6400, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [
+      {
+        "id": "ORD-2060",
+        "payerEmail": "otieno.b@example.com",
+        "trackers": [{ "id": "CAP-2060-TRK2060", "trackingNumber": "TRK2060", "status": "SHIPPED" }]
+      }
+    ],
+    "disputes": [{ "id": "CAP-2060", "disputes": [{ "id": "PP-D-2060", "status": "RESOLVED" }] }],
+    "shipments": [{ "id": "TRK2060", "status": "lost" }],
+    "ticket": { "id": "TKT-2060", "senderEmail": "otieno.b@example.com", "attachments": [] },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2060" },
+        "justification": { "ticket_id": "TKT-2060", "claim": "not_received" }
+      },
+      "expect": { "decision": "allow", "reasons": [] }
+    }
+  ]
+}

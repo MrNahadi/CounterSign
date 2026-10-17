@@ -1,0 +1,32 @@
+{
+  "description": "A damaged-item claim citing a ticket the gate has no record of, so neither the sender nor the photo can be checked. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2126",
+        "orderId": "ORD-2126",
+        "status": "COMPLETED",
+        "amount": { "minor": 3000, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [{ "id": "ORD-2126", "payerEmail": "halima.s@example.com", "trackers": [] }],
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2126",
+          "amount": { "value": "30.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2126", "claim": "damaged" }
+      },
+      "expect": { "decision": "deny", "reasons": ["PAYER_UNKNOWN", "TICKET_UNKNOWN"] }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "description": "A damaged-item claim whose only attachment is a PDF, not a photo. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2125",
+        "orderId": "ORD-2125",
+        "status": "COMPLETED",
+        "amount": { "minor": 3000, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [{ "id": "ORD-2125", "payerEmail": "halima.s@example.com", "trackers": [] }],
+    "ticket": {
+      "id": "TKT-2125",
+      "senderEmail": "halima.s@example.com",
+      "attachments": [{ "id": "ATT-2", "contentType": "application/pdf" }]
+    },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2125",
+          "amount": { "value": "30.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2125", "claim": "damaged" }
+      },
+      "expect": { "decision": "deny", "reasons": ["NO_PHOTO_EVIDENCE"] }
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "description": "Wrong-item refunds the capture can't cover: too much, the wrong currency, and a capture with no record, with and without an amount. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2110",
+        "orderId": "ORD-2110",
+        "status": "COMPLETED",
+        "amount": { "minor": 4000, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [{ "id": "ORD-2110", "payerEmail": "li.w@example.com", "trackers": [] }],
+    "ticket": { "id": "TKT-2110", "senderEmail": "li.w@example.com", "attachments": [] },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2110",
+          "amount": { "value": "50.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2110", "claim": "wrong_item" }
+      },
+      "expect": { "decision": "deny", "reasons": ["CAPTURE_NOT_REFUNDABLE"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2110", "amount": { "value": "4500", "currency_code": "KES" } },
+        "justification": { "ticket_id": "TKT-2110", "claim": "wrong_item" }
+      },
+      "expect": { "decision": "deny", "reasons": ["CAPTURE_NOT_REFUNDABLE"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-9999",
+          "amount": { "value": "20.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2110", "claim": "wrong_item" }
+      },
+      "expect": { "decision": "deny", "reasons": ["PAYER_UNKNOWN", "CAPTURE_UNKNOWN"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-9999" },
+        "justification": { "ticket_id": "TKT-2110", "claim": "wrong_item" }
+      },
+      "expect": { "decision": "deny", "reasons": ["INVALID_PROPOSAL"] }
+    }
+  ]
+}
