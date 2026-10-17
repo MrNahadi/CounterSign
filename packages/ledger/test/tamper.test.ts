@@ -70,6 +70,8 @@ const failureText = async (attempt: Promise<unknown>): Promise<string> => {
 type Tamper = {
   name: string;
   touches: number[];
+  // Rows the tamper adds, which the restore removes.
+  adds?: number[];
   tamper: (db: Database, original: readonly ChainRow[]) => Promise<unknown>;
   expected: [number, ChainProblemCode][];
 };
@@ -131,6 +133,27 @@ const tampers: Tamper[] = [
     },
     expected: [[3, "NOT_CANONICAL"]],
   },
+  {
+    name: "a row slipped in before the first, at seq 0, is SEQ_GAP and BROKEN_LINK",
+    touches: [],
+    adds: [0],
+    tamper: (db) => {
+      const forged = {
+        seq: 0,
+        entryType: "decision",
+        refId: "int_0",
+        at: AT,
+        prevHash: "f".repeat(64),
+      };
+      const hash = entryHash({ ...forged, payload: payloadOf(0) });
+      return db.insert(auditLog).values({ ...forged, payload: canonicalJson(payloadOf(0)), hash });
+    },
+    expected: [
+      [0, "SEQ_GAP"],
+      [0, "BROKEN_LINK"],
+      [1, "BROKEN_LINK"],
+    ],
+  },
 ];
 
 describe("the tamper test: verifyLog on a table edited with raw SQL", () => {
@@ -165,7 +188,7 @@ describe("the tamper test: verifyLog on a table edited with raw SQL", () => {
     expect(await failureText(setPayload(db, 3, "{}"))).toMatch(/audit_log is append-only/);
   });
 
-  it.each(tampers)("$name", async ({ touches, tamper, expected }) => {
+  it.each(tampers)("$name", async ({ touches, adds = [], tamper, expected }) => {
     await disableTrigger(db);
     await tamper(db, original);
     expect(await storedRows(db)).not.toEqual(original);
@@ -181,6 +204,7 @@ describe("the tamper test: verifyLog on a table edited with raw SQL", () => {
       await db.execute(sql`DELETE FROM audit_log WHERE seq = ${seq}`);
       await db.insert(auditLog).values(rowAt(original, seq));
     }
+    for (const seq of adds) await db.execute(sql`DELETE FROM audit_log WHERE seq = ${seq}`);
     await enableTrigger(db);
 
     expect(await storedRows(db)).toEqual(original);

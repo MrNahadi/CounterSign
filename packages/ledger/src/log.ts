@@ -225,12 +225,13 @@ export async function verifyLog(
 ): Promise<ChainVerdict> {
   const { pageSize } = VerifyOptionsSchema.parse(options);
   const verifier = createChainVerifier();
-  let after = 0;
+  // The first page has no lower bound, so a row slipped in at seq 0 or below is checked too.
+  let after: number | undefined;
   for (;;) {
     const page: Record<string, unknown>[] = await db
       .select()
       .from(auditLog)
-      .where(gt(auditLog.seq, after))
+      .where(after === undefined ? undefined : gt(auditLog.seq, after))
       .orderBy(asc(auditLog.seq))
       .limit(pageSize);
     for (const raw of page) verifier.add(asChainRow(raw));
