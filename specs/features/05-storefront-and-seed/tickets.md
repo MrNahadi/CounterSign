@@ -118,17 +118,17 @@ Notes:
 
 ## T-009: The shop pages and the JS SDK v6 PayPal button
 
-Status: open
+Status: done
 Tier: standard
 Blocked by: T-008
 Slice: A shopper sees the products, opens one, pays with the v6 PayPal button, and sees "Paid" with the real order and capture IDs, in Graphite, in light and dark.
 Test seam: the pages under `apps/storefront/app/`, checked by `npm run build`, the design check, and a test of the server-side props that reach the client
 Acceptance:
-- [ ] The shop lists every product with name, description and price (mono font), each linking to its product page. Cards and buttons follow the Graphite Card and Button specs, with semantic tokens only and Lucide icons only
-- [ ] The product page loads the SDK in a client component through `loadCoreSdkScript({ environment: "sandbox" })`, creates the instance with the client ID only, shows the button when PayPal is eligible, and calls the T-008 routes
-- [ ] After payment it shows "Paid" with the order ID, capture ID and amount, or "Payment not completed" with PayPal's status. With the PayPal variables missing it shows the not-set-up message instead of the button
-- [ ] Every page shows the illustrative-shop line. Pages read the environment at request time, `npm run build` passes with no PayPal variables, and the only value passed to the client is the client ID
-- [ ] `next.config.ts` loads the repo-root `.env.local` like the console's and lists the workspace packages its pages import in `transpilePackages`
+- [x] The shop lists every product with name, description and price (mono font), each linking to its product page. Cards and buttons follow the Graphite Card and Button specs, with semantic tokens only and Lucide icons only
+- [x] The product page loads the SDK in a client component through `loadCoreSdkScript({ environment: "sandbox" })`, creates the instance with the client ID only, shows the button when PayPal is eligible, and calls the T-008 routes
+- [x] After payment it shows "Paid" with the order ID, capture ID and amount, or "Payment not completed" with PayPal's status. With the PayPal variables missing it shows the not-set-up message instead of the button
+- [x] Every page shows the illustrative-shop line. Pages read the environment at request time, `npm run build` passes with no PayPal variables, and the only value passed to the client is the client ID
+- [x] `next.config.ts` loads the repo-root `.env.local` like the console's and lists the workspace packages its pages import in `transpilePackages`
 Notes: Read `Graphite Design/DESIGN.md` and the Button, Card, Badge and Spinner specs first.
 
 ## T-010: Live checks: client credentials and one vault order

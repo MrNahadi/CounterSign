@@ -40,10 +40,10 @@ export type CreateDeps = CheckoutDeps & {
   newId?: () => string;
 };
 
-const NOT_SET_UP: CheckoutResult<never> = {
-  status: 503,
-  body: { error: "Checkout isn't set up here. Add the PayPal sandbox variables to take payments." },
-};
+export const NOT_SET_UP_MESSAGE =
+  "Checkout isn't set up here. Add the PayPal sandbox variables to take payments.";
+
+const NOT_SET_UP: CheckoutResult<never> = { status: 503, body: { error: NOT_SET_UP_MESSAGE } };
 
 const CreateRequestSchema = z.object({ productId: z.string().min(1).max(64) });
 const CaptureRequestSchema = z.object({ orderId: z.string().regex(/^[A-Z0-9]{10,32}$/) });
