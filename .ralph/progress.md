@@ -91,3 +91,16 @@ Gotchas for the next iteration:
 - `SHIPMENT_STATUS_UNKNOWN` follows `NO_MATCHING_RULE` only when some rule matched on action, currency, claim and rail but its `shipment.status` couldn't be read.
 - Each built verifier maps to its own fail/unknown code in `REQUIREMENT_CODES`. Any other required verifier gives `VERIFIER_UNAVAILABLE`.
 - Step 3 (`max`, daily limits, `DAILY_LIMIT_UNKNOWN`) is not in yet. T-007 should add it inside `ruleOutcome` for allow rules only, and take `Usage` as a new `EvaluateInput` field.
+
+## T-007: done
+
+`evaluate` now takes a required `usage: Usage` and applies step 3 to allow rules whose requirements passed: `ABOVE_AUTO_LIMIT` (amount > `max`), then `DAILY_LIMIT_REACHED` (one reason each for total and count), or `DAILY_LIMIT_UNKNOWN` with the usage's own detail. The seeded property test is `packages/mandate/test/evaluate-property.test.ts` (5,000 runs, its own brief §6 oracle).
+
+Gotchas for the next iteration:
+- T-009's `decide()` must pass `todaysUsage(...)` from `@countersign/verifiers` into `evaluate`.
+- Limits are inclusive: reaching the total or count exactly still allows; only going past escalates.
+- Unknown usage escalates every allow, even when the mandate has no limit for the intent's currency.
+- `evaluate.test.ts` wraps `evaluate` with a default of nothing used today; pass `usage` to test limits.
+
+For the human (outside T-007, raised in review):
+- A mandate with no `limits` entry for the intent's currency applies no daily limit to it (known usage never escalates). The fixture mandate has limits for both USD and KES. Confirm whether a missing limit should instead mean step-up, which would be stricter.

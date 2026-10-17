@@ -84,15 +84,15 @@ Notes:
 
 ## T-007: Escalations, most restrictive wins, and the fail-closed property
 
-Status: open
+Status: done
 Blocked by: T-006, T-005
 Slice: Allowed intents above a cap or past a daily limit become step-ups, the most restrictive matched outcome wins, and a randomized test proves allow only comes from a fully passing allow rule.
 Test seam: the evaluator export of `@countersign/mandate`
 Acceptance:
-- [ ] Step 3: an amount above the rule's `max` escalates allow to step-up `ABOVE_AUTO_LIMIT`. Its detail names both amounts and the rule
-- [ ] Step 3: passing the day's total or count escalates allow to step-up `DAILY_LIMIT_REACHED`. Unknown usage escalates to `DAILY_LIMIT_UNKNOWN`. Escalations never turn a deny into a step-up
-- [ ] Step 4: with several matched rules, deny beats step-up beats allow
-- [ ] A seeded randomized test over at least 1,000 generated mandates, traces and usages finds no allow without a matched allow rule whose requirements all passed and with no escalation
+- [x] Step 3: an amount above the rule's `max` escalates allow to step-up `ABOVE_AUTO_LIMIT`. Its detail names both amounts and the rule
+- [x] Step 3: passing the day's total or count escalates allow to step-up `DAILY_LIMIT_REACHED`. Unknown usage escalates to `DAILY_LIMIT_UNKNOWN`. Escalations never turn a deny into a step-up
+- [x] Step 4: with several matched rules, deny beats step-up beats allow
+- [x] A seeded randomized test over at least 1,000 generated mandates, traces and usages finds no allow without a matched allow rule whose requirements all passed and with no escalation
 Notes:
 
 ## T-008: Normalize a create_refund proposal

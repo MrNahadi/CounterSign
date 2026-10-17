@@ -1,11 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  evaluate,
+  type EvaluateInput,
+  evaluate as evaluateWith,
   type Intent,
   parseMandate,
   type ShipmentStatus,
   type TraceEntry,
+  type Usage,
   type VerifierName,
   type VerifierResult,
 } from "../src/index";
@@ -15,6 +17,23 @@ const parsed = parseMandate(
 );
 if (!parsed.ok) throw new Error(parsed.error);
 const mandate = parsed.mandate;
+
+// Today's usage with the given USD count and total, and nothing in KES.
+function usage(count = 0, totalMinor = 0): Usage {
+  return {
+    known: true,
+    date: "2026-10-17",
+    perCurrency: {
+      USD: { count, total: { minor: totalMinor, currency: "USD" } },
+      KES: { count: 0, total: { minor: 0, currency: "KES" } },
+    },
+  };
+}
+
+// The evaluator, with nothing used today unless a test says otherwise.
+function evaluate(input: Omit<EvaluateInput, "usage"> & { usage?: Usage }) {
+  return evaluateWith({ usage: usage(), ...input });
+}
 
 function refund(change: Partial<Intent> = {}): Intent {
   return {
@@ -254,6 +273,222 @@ describe("step 2: requirements", () => {
     const trace = withResult(passing(), "ticket.from_payer", "fail");
     const result = evaluate({ mandate: withRules(rules), intent: refund(), trace });
     expect(codes(result)).toEqual(["TICKET_NOT_FROM_PAYER"]);
+  });
+});
+
+describe("step 3: escalations", () => {
+  const unknownUsage: Usage = { known: false, detail: "No execution history given" };
+
+  it("holds an amount above the rule's max with ABOVE_AUTO_LIMIT, naming both amounts and the rule", () => {
+    const intent = refund({ amount: { minor: 9600, currency: "USD" } });
+    const result = evaluate({ mandate, intent, trace: passing("lost") });
+    expect(result).toEqual({
+      outcome: "step_up",
+      reasons: [
+        {
+          code: "ABOVE_AUTO_LIMIT",
+          detail: "$96.00 is over the $80.00 cap in rule refund-lost-parcel",
+        },
+      ],
+      matchedRules: ["refund-lost-parcel"],
+    });
+  });
+
+  it("allows an amount exactly at the rule's max", () => {
+    const intent = refund({ amount: { minor: 8000, currency: "USD" } });
+    expect(evaluate({ mandate, intent, trace: passing("lost") }).outcome).toBe("allow");
+  });
+
+  it("holds a $240 damaged item with a photo with ABOVE_AUTO_LIMIT", () => {
+    const intent = refund({ claim: "damaged", amount: { minor: 24000, currency: "USD" } });
+    const result = evaluate({ mandate, intent, trace: passing() });
+    expect(result.outcome).toBe("step_up");
+    expect(result.reasons).toEqual([
+      { code: "ABOVE_AUTO_LIMIT", detail: "$240.00 is over the $50.00 cap in rule refund-damaged" },
+    ]);
+  });
+
+  it("holds an intent that would pass today's total with DAILY_LIMIT_REACHED", () => {
+    const result = evaluate({
+      mandate,
+      intent: refund(),
+      trace: passing(),
+      usage: usage(2, 29000),
+    });
+    expect(result.outcome).toBe("step_up");
+    expect(result.reasons).toEqual([
+      {
+        code: "DAILY_LIMIT_REACHED",
+        detail: "Today's USD total would be $308.00, over the $300.00 daily limit",
+      },
+    ]);
+  });
+
+  it("allows an intent that reaches today's total exactly", () => {
+    const result = evaluate({
+      mandate,
+      intent: refund(),
+      trace: passing(),
+      usage: usage(2, 28200),
+    });
+    expect(result.outcome).toBe("allow");
+  });
+
+  it("holds an intent that would pass today's count with DAILY_LIMIT_REACHED", () => {
+    const result = evaluate({ mandate, intent: refund(), trace: passing(), usage: usage(5, 1000) });
+    expect(result.outcome).toBe("step_up");
+    expect(result.reasons).toEqual([
+      {
+        code: "DAILY_LIMIT_REACHED",
+        detail: "Today's USD count would be 6, over the daily limit of 5",
+      },
+    ]);
+    expect(evaluate({ mandate, intent: refund(), trace: passing(), usage: usage(4) }).outcome).toBe(
+      "allow",
+    );
+  });
+
+  it("checks the limit for the intent's own currency", () => {
+    const rules = [{ id: "any-refund", action: "paypal.refund", decide: "allow" }];
+    const kes = refund({ amount: { minor: 1500000, currency: "KES" } });
+    const atLimit = evaluate({ mandate: withRules(rules), intent: kes, trace: passing() });
+    expect(atLimit.outcome).toBe("allow");
+    const over = refund({ amount: { minor: 1500001, currency: "KES" } });
+    const result = evaluate({ mandate: withRules(rules), intent: over, trace: passing() });
+    expect(codes(result)).toEqual(["DAILY_LIMIT_REACHED"]);
+    expect(result.reasons[0]?.detail).toContain("KSh 15,000");
+  });
+
+  it("names every escalation that applies, the cap first", () => {
+    const intent = refund({ amount: { minor: 9600, currency: "USD" } });
+    const result = evaluate({ mandate, intent, trace: passing(), usage: usage(5, 25000) });
+    expect(result.outcome).toBe("step_up");
+    expect(codes(result)).toEqual([
+      "ABOVE_AUTO_LIMIT",
+      "DAILY_LIMIT_REACHED",
+      "DAILY_LIMIT_REACHED",
+    ]);
+  });
+
+  it("holds an allow when today's usage is unknown with DAILY_LIMIT_UNKNOWN", () => {
+    const result = evaluate({ mandate, intent: refund(), trace: passing(), usage: unknownUsage });
+    expect(result.outcome).toBe("step_up");
+    expect(result.reasons).toEqual([
+      { code: "DAILY_LIMIT_UNKNOWN", detail: "No execution history given" },
+    ]);
+  });
+
+  it("holds an allow on unknown usage even with no limit for the currency", () => {
+    const rules = [{ id: "any-refund", action: "paypal.refund", decide: "allow" }];
+    const lax = withRules(rules);
+    lax.limits = [];
+    const result = evaluate({
+      mandate: lax,
+      intent: refund(),
+      trace: passing(),
+      usage: unknownUsage,
+    });
+    expect(codes(result)).toEqual(["DAILY_LIMIT_UNKNOWN"]);
+  });
+
+  it("never turns a deny into a step-up", () => {
+    const intent = refund({ amount: { minor: 9600, currency: "USD" } });
+    const trace = withResult(passing("lost"), "ticket.from_payer", "fail");
+    for (const today of [usage(5, 30000), unknownUsage]) {
+      const result = evaluate({ mandate, intent, trace, usage: today });
+      expect(result.outcome).toBe("deny");
+      expect(codes(result)).toEqual(["TICKET_NOT_FROM_PAYER"]);
+    }
+    const rules = [
+      { id: "no-refunds", action: "paypal.refund", decide: "deny", reason: "RULE_DENIES" },
+    ];
+    const denied = evaluate({
+      mandate: withRules(rules),
+      intent,
+      trace: passing(),
+      usage: unknownUsage,
+    });
+    expect(codes(denied)).toEqual(["RULE_DENIES"]);
+  });
+
+  it("leaves a step-up rule's own reason alone", () => {
+    const result = evaluate({
+      mandate,
+      intent: refund({ claim: "wrong_item", amount: { minor: 99900, currency: "USD" } }),
+      trace: passing(),
+      usage: unknownUsage,
+    });
+    expect(codes(result)).toEqual(["ALWAYS_NEEDS_APPROVAL"]);
+  });
+});
+
+describe("step 4: most restrictive wins", () => {
+  const allow = { id: "allow-all", action: "paypal.refund", decide: "allow" };
+  const capped = {
+    id: "allow-capped",
+    action: "paypal.refund",
+    max: { amount: 1000, currency: "USD" },
+    decide: "allow",
+  };
+  const stepUp = {
+    id: "ask-first",
+    action: "paypal.refund",
+    decide: "step_up",
+    reason: "ALWAYS_NEEDS_APPROVAL",
+  };
+  const deny = { id: "no-refunds", action: "paypal.refund", decide: "deny", reason: "RULE_DENIES" };
+  const strict = { ...allow, id: "allow-strict", require: ["payee.allowlisted"] };
+
+  it("puts step-up over allow, with the step-up rule's reasons only", () => {
+    const result = evaluate({
+      mandate: withRules([allow, stepUp]),
+      intent: refund(),
+      trace: passing(),
+    });
+    expect(result).toEqual({
+      outcome: "step_up",
+      reasons: [{ code: "ALWAYS_NEEDS_APPROVAL", detail: "Rule ask-first asks you first" }],
+      matchedRules: ["allow-all", "ask-first"],
+    });
+  });
+
+  it("puts deny over step-up and allow, whatever the rule order", () => {
+    const result = evaluate({
+      mandate: withRules([deny, stepUp, allow]),
+      intent: refund(),
+      trace: passing(),
+    });
+    expect(result.outcome).toBe("deny");
+    expect(codes(result)).toEqual(["RULE_DENIES"]);
+  });
+
+  it("puts an escalated allow over a plain allow", () => {
+    const result = evaluate({
+      mandate: withRules([allow, capped]),
+      intent: refund(),
+      trace: passing(),
+    });
+    expect(result.outcome).toBe("step_up");
+    expect(codes(result)).toEqual(["ABOVE_AUTO_LIMIT"]);
+  });
+
+  it("collects the reasons of every rule with the winning outcome", () => {
+    const result = evaluate({
+      mandate: withRules([capped, stepUp]),
+      intent: refund(),
+      trace: passing(),
+    });
+    expect(codes(result)).toEqual(["ABOVE_AUTO_LIMIT", "ALWAYS_NEEDS_APPROVAL"]);
+  });
+
+  it("puts a rule denied by its requirements over a step-up", () => {
+    const result = evaluate({
+      mandate: withRules([stepUp, strict]),
+      intent: refund(),
+      trace: passing(),
+    });
+    expect(result.outcome).toBe("deny");
+    expect(codes(result)).toEqual(["VERIFIER_UNAVAILABLE"]);
   });
 });
 

@@ -3,8 +3,10 @@
 
 import { ACTIONS, type Intent } from "./intent";
 import type { Mandate, Rule, ShipmentStatus, VerifierName } from "./mandate";
+import { formatMoney } from "./money";
 import type { ReasonCode } from "./reason-codes";
 import type { TraceEntry, VerifierResult, VerifierTrace } from "./trace";
+import type { Usage } from "./usage";
 
 export const OUTCOMES = ["allow", "step_up", "deny"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
@@ -19,7 +21,13 @@ export type Evaluation = {
   matchedRules: string[];
 };
 
-export type EvaluateInput = { mandate: Mandate; intent: Intent; trace: VerifierTrace };
+// `usage` is today's usage for the intent's principal (step 3's daily limits).
+export type EvaluateInput = {
+  mandate: Mandate;
+  intent: Intent;
+  trace: VerifierTrace;
+  usage: Usage;
+};
 
 // A verifier's entries in the trace. A trace that names one verifier twice with different results
 // is never read as `pass`.
@@ -106,12 +114,59 @@ function unmetRequirements(rule: Rule, trace: VerifierTrace): Reason[] {
   });
 }
 
+// Step 3's daily limits: an intent that would take today's total or count for its currency past
+// the mandate's limit. Unknown usage always escalates, whatever the limits say.
+function dailyLimitReasons({ mandate, intent, usage }: EvaluateInput): Reason[] {
+  if (!usage.known) return [{ code: "DAILY_LIMIT_UNKNOWN", detail: usage.detail }];
+  const { currency } = intent.amount;
+  const limit = mandate.limits.find((each) => each.currency === currency);
+  if (!limit) return [];
+  const today = usage.perCurrency[currency];
+  const reasons: Reason[] = [];
+  const total = today.total.minor + intent.amount.minor;
+  if (limit.per_day_total !== undefined && total > limit.per_day_total) {
+    const after = formatMoney({ minor: total, currency });
+    const cap = formatMoney({ minor: limit.per_day_total, currency });
+    reasons.push({
+      code: "DAILY_LIMIT_REACHED",
+      detail: `Today's ${currency} total would be ${after}, over the ${cap} daily limit`,
+    });
+  }
+  const count = today.count + 1;
+  if (limit.per_day_count !== undefined && count > limit.per_day_count) {
+    reasons.push({
+      code: "DAILY_LIMIT_REACHED",
+      detail: `Today's ${currency} count would be ${count}, over the daily limit of ${limit.per_day_count}`,
+    });
+  }
+  return reasons;
+}
+
+// Step 3: what turns an allow into a step-up. The amount above the rule's cap, then the daily
+// limits.
+function escalations(rule: Rule, input: EvaluateInput): Reason[] {
+  const { amount } = input.intent;
+  const reasons: Reason[] = [];
+  if (rule.max && amount.minor > rule.max.amount) {
+    const cap = formatMoney({ minor: rule.max.amount, currency: rule.max.currency });
+    reasons.push({
+      code: "ABOVE_AUTO_LIMIT",
+      detail: `${formatMoney(amount)} is over the ${cap} cap in rule ${rule.id}`,
+    });
+  }
+  return [...reasons, ...dailyLimitReasons(input)];
+}
+
 type RuleOutcome = { outcome: Outcome; reasons: Reason[] };
 
-function ruleOutcome(rule: Rule, trace: VerifierTrace): RuleOutcome {
-  const unmet = unmetRequirements(rule, trace);
+function ruleOutcome(rule: Rule, input: EvaluateInput): RuleOutcome {
+  const unmet = unmetRequirements(rule, input.trace);
   if (unmet.length > 0) return { outcome: "deny", reasons: unmet };
-  if (rule.decide === "allow") return { outcome: "allow", reasons: [] };
+  if (rule.decide === "allow") {
+    const escalated = escalations(rule, input);
+    if (escalated.length > 0) return { outcome: "step_up", reasons: escalated };
+    return { outcome: "allow", reasons: [] };
+  }
   const detail =
     rule.decide === "step_up" ? `Rule ${rule.id} asks you first` : `Rule ${rule.id} denies this`;
   return { outcome: rule.decide, reasons: [{ code: rule.reason, detail }] };
@@ -147,7 +202,7 @@ export function evaluate(input: EvaluateInput): Evaluation {
     const statusKeptOut = matches.includes("status_unknown");
     return { outcome: "deny", reasons: fallback(input, statusKeptOut), matchedRules };
   }
-  const outcomes = matched.map((rule) => ruleOutcome(rule, trace));
+  const outcomes = matched.map((rule) => ruleOutcome(rule, input));
   const outcome = outcomes.reduce<Outcome>(
     (worst, each) =>
       RESTRICTIVENESS[each.outcome] > RESTRICTIVENESS[worst] ? each.outcome : worst,
