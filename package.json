@@ -18,7 +18,9 @@
     "test": "vitest run",
     "build": "npm run build --workspaces --if-present",
     "decide": "tsx apps/gate/src/decide-main.ts",
-    "db:generate": "npm run db:generate --workspace @countersign/db"
+    "db:generate": "npm run db:generate --workspace @countersign/db",
+    "db:migrate": "tsx --env-file-if-exists=.env.local packages/db/src/migrate-main.ts",
+    "ledger": "tsx --env-file-if-exists=.env.local packages/ledger/src/ledger-main.ts"
   },
   "dependencies": {
     "zod": "4.6.7"

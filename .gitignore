@@ -10,6 +10,9 @@ dist/
 coverage/
 *.tsbuildinfo
 
+# Local PGlite database the CLIs open when DATABASE_URL isn't set
+.countersign/
+
 # Test artefacts
 playwright-report/
 test-results/

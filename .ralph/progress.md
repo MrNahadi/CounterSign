@@ -33,3 +33,11 @@ Gotchas: the proposal text is JSON.stringify of the parsed proposal (so a lone s
 ### For the human
 - T-006: a proposal JSON.stringify can't serialize (BigInt, a cycle, undefined) is recorded as String(proposal), or "" if that throws too, so recording never fails on content. Proposals reach the gate as parsed JSON, so this shouldn't happen in practice.
 - T-006: recordDecision throws (a programming error, not a reported problem) when the mandate passed in isn't the one in the decision record (id, version or hash differ).
+
+## T-007
+packages/ledger/src/cli.ts runLedgerCli(args, env) -> { exitCode, stdout, stderr } (verify: 0 intact / 1 broken / 2 no database; tail [count]), entry ledger-main.ts. packages/db/src/target.ts: DEFAULT_PGLITE_DIR, resolveDatabaseTarget(env, pgliteDir), takePgliteOption(args), targetName, redactSecrets, failureReason, openFailure ("Couldn't open the database at DATABASE_URL: <reason>"). packages/db/src/migrate-cli.ts runMigrateCli(args, env), entry migrate-main.ts. client.ts gains hasAuditLogTable(db) and openPgliteDirectory/openDatabase(target, { migrate?: false }). Root scripts ledger and db:migrate; .countersign/ ignored.
+Gotchas: tests must pass env explicitly ({} or a copy of process.env without DATABASE_URL), since a cloud session may have DATABASE_URL set. For T-008, reuse takePgliteOption/resolveDatabaseTarget/openFailure/redactSecrets from @countersign/db so decide --record opens the same database and scrubs errors the same way. Node prints ".env.local not found. Continuing without it." on stderr under --env-file-if-exists when the file is missing; that's Node, not our output. An empty DATABASE_URL counts as unset.
+
+### For the human
+- T-007: CLI counts are pluralised ("1 entry", "1 problem", "Applied 1 migration."), otherwise the wording is exactly the requirements'. `tail` prints a heading "Last N entries of M." and "The audit log has no entries." on an empty log; the requirements don't fix tail's wording.
+- T-007: DATABASE_URL wins even when `--pglite <dir>` is also given (the requirements' order), so `--pglite` is silently ignored then. Overturn if you'd rather refuse both together.

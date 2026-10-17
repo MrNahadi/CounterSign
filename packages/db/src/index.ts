@@ -4,3 +4,4 @@
 export { and, asc, desc, eq, gt, sql } from "drizzle-orm";
 export * from "./client";
 export * from "./schema";
+export * from "./target";

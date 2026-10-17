@@ -1,12 +1,14 @@
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
+import { sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 import { drizzle as drizzlePostgres } from "drizzle-orm/postgres-js";
 import { migrate as migratePostgres } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { z } from "zod";
 import * as schema from "./schema";
 
 /** One Drizzle database type, whichever client opened it. */
@@ -67,14 +69,24 @@ export const createTestDatabase = async (): Promise<DatabaseHandle> => {
   return handle;
 };
 
+export type OpenOptions = {
+  /** Runs the migrations on open (default true). `db:migrate` turns it off to count them. */
+  readonly migrate?: boolean;
+};
+
 /** A PGlite database kept in a directory, created if missing. Opening it runs the migrations. */
-export const openPgliteDirectory = async (dir: string): Promise<DatabaseHandle> => {
+export const openPgliteDirectory = async (
+  dir: string,
+  options: OpenOptions = {},
+): Promise<DatabaseHandle> => {
   mkdirSync(dir, { recursive: true });
-  const handle = pgliteHandle(new PGlite(dir));
+  const client = new PGlite(dir);
+  const handle = pgliteHandle(client);
   try {
-    await handle.migrate();
+    await client.waitReady;
+    if (options.migrate !== false) await handle.migrate();
   } catch (error) {
-    await handle.close();
+    await handle.close().catch(() => {});
     throw error;
   }
   return handle;
@@ -102,5 +114,22 @@ export const openPostgres = (url: string): DatabaseHandle => {
 };
 
 /** Opens whichever database a target names. A PGlite directory is migrated on open. */
-export const openDatabase = async (target: DatabaseTarget): Promise<DatabaseHandle> =>
-  target.kind === "pglite" ? openPgliteDirectory(target.dir) : openPostgres(target.url);
+export const openDatabase = async (
+  target: DatabaseTarget,
+  options: OpenOptions = {},
+): Promise<DatabaseHandle> =>
+  target.kind === "pglite" ? openPgliteDirectory(target.dir, options) : openPostgres(target.url);
+
+const TableSchema = z.array(z.object({ present: z.boolean() })).length(1);
+
+/**
+ * Whether `audit_log` exists where the database's search path looks. It is also the CLIs'
+ * first query, so a database that can't be reached fails here.
+ */
+export const hasAuditLogTable = async (db: Database): Promise<boolean> => {
+  const rows = await db
+    .select({ present: sql<boolean>`to_regclass('audit_log') IS NOT NULL` })
+    .from(sql`(VALUES (1)) AS probe (n)`);
+  const [row] = TableSchema.parse(rows);
+  return row?.present === true;
+};

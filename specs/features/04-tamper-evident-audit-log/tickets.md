@@ -90,17 +90,17 @@ Notes:
 
 ## T-007: The ledger CLI and db:migrate
 
-Status: open
+Status: done
 Tier: standard
 Blocked by: T-004
 Slice: `npm run ledger -- verify` says whether the audit log is intact and prints its head, or lists every problem. `npm run ledger -- tail` shows the last entries. `npm run db:migrate` prepares the database the CLIs open.
 Test seam: the ledger CLI's exported run function, plus one child-process run of the real entry point with `node --import tsx`
 Acceptance:
-- [ ] `verify` exits 0 with "Audit log intact: N entries. Head #N <hash>." on an intact log, including an empty one. It exits 1 with "Audit log broken: K problems in N entries." and one `#<seq> <PROBLEM> <detail>` line per problem after a tamper. It exits 2 when the database can't be opened or has no `audit_log` table
-- [ ] `tail [count]` prints the last entries (10 by default) with `seq`, time, entry type, ref and a 12-character hash prefix
-- [ ] The database is `DATABASE_URL` when it's set, otherwise `--pglite <dir>` or `.countersign/pglite`. Opening a PGlite directory migrates it. `.countersign/` is in `.gitignore`
-- [ ] Root scripts `ledger` and `db:migrate` exist and load env with `--env-file-if-exists=.env.local`. `db:migrate` reports how many migrations it applied
-- [ ] With `DATABASE_URL` set to an unreachable dummy URL that holds a password, the CLI exits 2, and neither stdout nor stderr contains the URL or the password
+- [x] `verify` exits 0 with "Audit log intact: N entries. Head #N <hash>." on an intact log, including an empty one. It exits 1 with "Audit log broken: K problems in N entries." and one `#<seq> <PROBLEM> <detail>` line per problem after a tamper. It exits 2 when the database can't be opened or has no `audit_log` table
+- [x] `tail [count]` prints the last entries (10 by default) with `seq`, time, entry type, ref and a 12-character hash prefix
+- [x] The database is `DATABASE_URL` when it's set, otherwise `--pglite <dir>` or `.countersign/pglite`. Opening a PGlite directory migrates it. `.countersign/` is in `.gitignore`
+- [x] Root scripts `ledger` and `db:migrate` exist and load env with `--env-file-if-exists=.env.local`. `db:migrate` reports how many migrations it applied
+- [x] With `DATABASE_URL` set to an unreachable dummy URL that holds a password, the CLI exits 2, and neither stdout nor stderr contains the URL or the password
 Notes:
 
 ## T-008: decide --record, and the README
