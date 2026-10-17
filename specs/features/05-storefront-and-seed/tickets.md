@@ -73,17 +73,17 @@ Notes:
 
 ## T-006: A seed run creates, tracks, checks and records every demo order
 
-Status: open
+Status: done
 Tier: standard
 Blocked by: T-002, T-004, T-005
 Slice: Against a fake PayPal and a PGlite database, one seed run creates all 30 orders with the right buyer, adds each tracker, reads each order back, and records the shipments and seed rows; a rerun of the same run changes nothing.
 Test seam: the seed run function in `apps/storefront/`, given a PayPal client over a fake `fetch`, a database, the catalog, a run ID, the two vault tokens and a clock
 Acceptance:
-- [ ] A full run writes 30 `seed_orders` rows and 30 shipments, and each fake order has one `SHIPPED` tracker whose ID is the capture ID and tracking number. The report counts 16 delivered, 6 in transit, 4 stalled, 4 lost
-- [ ] Request IDs are `countersign-seed-<run>-<order>-<step>`. Reference, custom and invoice IDs are as in requirements.md. At most 3 orders are in flight at once
-- [ ] Running the same run again creates no order, tracker or row. A run where 2 orders fail seeds the other 28 and reports the 2 with their call, reason and debug ID; rerunning completes them
-- [ ] An order that comes back without a payer email, or with a capture that isn't `COMPLETED` for the price, fails and gets no tracker. Shipment and seed row are written in one transaction after the read-back
-- [ ] Buyers A and B coming back with the same payer email fail the run with "Buyers A and B are the same PayPal account"
+- [x] A full run writes 30 `seed_orders` rows and 30 shipments, and each fake order has one `SHIPPED` tracker whose ID is the capture ID and tracking number. The report counts 16 delivered, 6 in transit, 4 stalled, 4 lost
+- [x] Request IDs are `countersign-seed-<run>-<order>-<step>`. Reference, custom and invoice IDs are as in requirements.md. At most 3 orders are in flight at once
+- [x] Running the same run again creates no order, tracker or row. A run where 2 orders fail seeds the other 28 and reports the 2 with their call, reason and debug ID; rerunning completes them
+- [x] An order that comes back without a payer email, or with a capture that isn't `COMPLETED` for the price, fails and gets no tracker. Shipment and seed row are written in one transaction after the read-back
+- [x] Buyers A and B coming back with the same payer email fail the run with "Buyers A and B are the same PayPal account"
 Notes:
 
 ## T-007: npm run seed, with --dry-run, --run and list, and the README
