@@ -82,6 +82,8 @@ describe("the fixture suite", () => {
   it("reaches every reason code", () => {
     const reached = new Set(expected.flatMap((each) => each.reasons));
     expect(REASON_CODES.filter((code) => !reached.has(code))).toEqual([]);
+    expect(REASON_CODES).toHaveLength(23);
+    expect(reached).toContain("NO_DAILY_LIMIT");
   });
 
   it("covers beats 3, 4 and 5", () => {

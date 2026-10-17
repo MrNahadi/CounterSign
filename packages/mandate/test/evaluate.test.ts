@@ -404,6 +404,44 @@ describe("step 3: escalations", () => {
     expect(codes(result)).toEqual(["DAILY_LIMIT_UNKNOWN"]);
   });
 
+  it("holds an allow in a currency with no daily limit with NO_DAILY_LIMIT", () => {
+    const rules = [{ id: "any-refund", action: "paypal.refund", decide: "allow" }];
+    const usdOnly = withRules(rules);
+    usdOnly.limits = usdOnly.limits.filter((limit) => limit.currency === "USD");
+    const kes = refund({ amount: { minor: 450000, currency: "KES" } });
+    const result = evaluate({ mandate: usdOnly, intent: kes, trace: passing() });
+    expect(result.outcome).toBe("step_up");
+    expect(result.reasons).toEqual([
+      { code: "NO_DAILY_LIMIT", detail: "Your mandate sets no KES daily limit" },
+    ]);
+    expect(evaluate({ mandate: usdOnly, intent: refund(), trace: passing() }).outcome).toBe(
+      "allow",
+    );
+  });
+
+  it("names NO_DAILY_LIMIT after the cap", () => {
+    const lax = structuredClone(mandate);
+    lax.limits = [];
+    const intent = refund({ amount: { minor: 9600, currency: "USD" } });
+    const result = evaluate({ mandate: lax, intent, trace: passing("lost") });
+    expect(codes(result)).toEqual(["ABOVE_AUTO_LIMIT", "NO_DAILY_LIMIT"]);
+  });
+
+  it("never turns a deny or a step-up rule's own reason into NO_DAILY_LIMIT", () => {
+    const lax = structuredClone(mandate);
+    lax.limits = [];
+    const denied = evaluate({
+      mandate: lax,
+      intent: refund(),
+      trace: withResult(passing("lost"), "ticket.from_payer", "fail"),
+    });
+    expect(denied.outcome).toBe("deny");
+    expect(codes(denied)).toEqual(["TICKET_NOT_FROM_PAYER"]);
+    const held = evaluate({ mandate: lax, intent: refund(), trace: passing("delivered") });
+    expect(held.outcome).toBe("step_up");
+    expect(codes(held)).toEqual(["SHIPMENT_DELIVERED"]);
+  });
+
   it("never turns a deny into a step-up", () => {
     const intent = refund({ amount: { minor: 9600, currency: "USD" } });
     const trace = withResult(passing("lost"), "ticket.from_payer", "fail");

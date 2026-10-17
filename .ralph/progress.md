@@ -166,3 +166,10 @@ The intent hash's target is `{ captureId }` alone; `orderId` stays on the intent
 Gotchas for the next iteration:
 - `hashMandate(...)` is now an object: use `.hash` where a string is needed (`decide.ts` does).
 - No fixture or CLI test pins a hash value; tests compare against `hashIntent` instead.
+
+## T-015: done
+
+The catalog gains `NO_DAILY_LIMIT` (23 codes, step-up only, not a rule reason). `evaluate`'s daily-limit step returns it ("Your mandate sets no KES daily limit") for an allow in a currency with no `limits` entry, after the unknown-usage and safe-integer checks and after `ABOVE_AUTO_LIMIT`. New test mandate `apps/gate/fixtures/mandates/usd-limits-only.json` and case `no-daily-limit.json` (USD allowed, KES held).
+
+Gotchas for the next iteration:
+- Any test mandate built with `limits = []` or missing a currency now steps up its allows in that currency. The property test's oracle treats a missing limit as not a clean allow. Its generator now gives each currency a limit 85% of the time and never a zero total or count limit, to keep enough allows (over 2% of runs) and enough missing limits (over 10%).

@@ -116,7 +116,8 @@ function unmetRequirements(rule: Rule, trace: VerifierTrace): Reason[] {
 
 // Step 3's daily limits: an intent that would take today's total or count for its currency past
 // the mandate's limit. Unknown usage always escalates, whatever the limits say, and so does a
-// total past the safe-integer range, which can't be counted.
+// total past the safe-integer range, which can't be counted. A currency with no limit escalates
+// too (ADR 0020).
 function dailyLimitReasons({ mandate, intent, usage }: EvaluateInput): Reason[] {
   if (!usage.known) return [{ code: "DAILY_LIMIT_UNKNOWN", detail: usage.detail }];
   const { currency } = intent.amount;
@@ -132,7 +133,9 @@ function dailyLimitReasons({ mandate, intent, usage }: EvaluateInput): Reason[] 
     ];
   }
   const limit = mandate.limits.find((each) => each.currency === currency);
-  if (!limit) return [];
+  if (!limit) {
+    return [{ code: "NO_DAILY_LIMIT", detail: `Your mandate sets no ${currency} daily limit` }];
+  }
   const reasons: Reason[] = [];
   if (limit.per_day_total !== undefined && total > limit.per_day_total) {
     const after = formatMoney({ minor: total, currency });

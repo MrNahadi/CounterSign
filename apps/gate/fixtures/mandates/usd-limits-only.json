@@ -1,0 +1,22 @@
+{
+  "id": "usd-limits-only",
+  "version": 1,
+  "principal": "support-agent",
+  "time_zone": "Africa/Nairobi",
+  "fallback": "deny",
+  "limits": [{ "currency": "USD", "per_day_total": 30000, "per_day_count": 5 }],
+  "rules": [
+    {
+      "id": "refund-lost-parcel-any-currency",
+      "action": "paypal.refund",
+      "when": { "claim": "not_received", "shipment.status": ["lost", "stalled_10d"] },
+      "require": [
+        "ticket.from_payer",
+        "capture.refundable",
+        "dispute.none_open",
+        "ledger.not_duplicate"
+      ],
+      "decide": "allow"
+    }
+  ]
+}

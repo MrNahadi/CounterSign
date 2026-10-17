@@ -62,6 +62,7 @@ const table: [string, string, string | null][] = [
   ["ABOVE_AUTO_LIMIT", "It's over your auto-refund cap.", null],
   ["DAILY_LIMIT_REACHED", "It would pass your daily refund limit.", null],
   ["DAILY_LIMIT_UNKNOWN", "Countersign couldn't count today's refunds.", null],
+  ["NO_DAILY_LIMIT", "Your rules set no daily limit for this currency.", null],
   [
     "SHIPMENT_DELIVERED",
     "The carrier shows the parcel delivered.",

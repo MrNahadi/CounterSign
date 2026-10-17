@@ -59,6 +59,7 @@ export const REASONS = {
   ABOVE_AUTO_LIMIT: { words: "It's over your auto-refund cap.", hint: null },
   DAILY_LIMIT_REACHED: { words: "It would pass your daily refund limit.", hint: null },
   DAILY_LIMIT_UNKNOWN: { words: "Countersign couldn't count today's refunds.", hint: null },
+  NO_DAILY_LIMIT: { words: "Your rules set no daily limit for this currency.", hint: null },
   SHIPMENT_DELIVERED: {
     words: "The carrier shows the parcel delivered.",
     hint: "Our carrier shows this order as delivered. Suggest they check with neighbours or their building's front desk.",

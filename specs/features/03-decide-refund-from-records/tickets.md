@@ -188,15 +188,15 @@ Notes: ADR 0020, which amends ADR 0019. A refund executes as `POST /v2/payments/
 
 ## T-015: No daily limit for a currency means step-up
 
-Status: open
+Status: done
 Blocked by: T-011
 Slice: An intent the rules would allow, in a currency the mandate sets no daily limit for, escalates to step-up `NO_DAILY_LIMIT`.
 Test seam: `evaluate` and the reason-code catalog in `@countersign/mandate`
 Acceptance:
-- [ ] The catalog gains `NO_DAILY_LIMIT` with the words "Your rules set no daily limit for this currency." and no reply hint. It's step-up only, and not a rule reason
-- [ ] With no `limits` entry for the intent's currency, an allow escalates to step-up `NO_DAILY_LIMIT`. A deny stays a deny
-- [ ] The seeded fail-closed property test also generates mandates with missing limits, and still finds no allow without a matched, fully passing allow rule and no escalation
-- [ ] A fixture case reaches `NO_DAILY_LIMIT`, and the suite's "every code is reached" test covers it. That makes 23 codes
+- [x] The catalog gains `NO_DAILY_LIMIT` with the words "Your rules set no daily limit for this currency." and no reply hint. It's step-up only, and not a rule reason
+- [x] With no `limits` entry for the intent's currency, an allow escalates to step-up `NO_DAILY_LIMIT`. A deny stays a deny
+- [x] The seeded fail-closed property test also generates mandates with missing limits, and still finds no allow without a matched, fully passing allow rule and no escalation
+- [x] A fixture case reaches `NO_DAILY_LIMIT`, and the suite's "every code is reached" test covers it. That makes 23 codes
 Notes: ADR 0020.
 
 ## T-016: Rule reasons say what the records showed

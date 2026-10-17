@@ -1,0 +1,64 @@
+{
+  "description": "A test mandate that sets a daily limit for USD only. A lost parcel paid in USD is allowed. The same claim on a parcel paid in KES is held, because the mandate sets no KES daily limit. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../mandates/usd-limits-only.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2210",
+        "orderId": "ORD-2210",
+        "status": "COMPLETED",
+        "amount": { "minor": 1800, "currency": "USD" },
+        "refundedMinor": 0
+      },
+      {
+        "id": "CAP-2211",
+        "orderId": "ORD-2211",
+        "status": "COMPLETED",
+        "amount": { "minor": 450000, "currency": "KES" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [
+      {
+        "id": "ORD-2210",
+        "payerEmail": "wanjiru.m@example.com",
+        "trackers": [{ "id": "CAP-2210-TRK2210", "trackingNumber": "TRK2210", "status": "SHIPPED" }]
+      },
+      {
+        "id": "ORD-2211",
+        "payerEmail": "wanjiru.m@example.com",
+        "trackers": [{ "id": "CAP-2211-TRK2211", "trackingNumber": "TRK2211", "status": "SHIPPED" }]
+      }
+    ],
+    "disputes": [{ "id": "CAP-2210", "disputes": [] }, { "id": "CAP-2211", "disputes": [] }],
+    "shipments": [{ "id": "TRK2210", "status": "lost" }, { "id": "TRK2211", "status": "lost" }],
+    "ticket": { "id": "TKT-2210", "senderEmail": "wanjiru.m@example.com", "attachments": [] },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2210",
+          "amount": { "value": "18.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-2210", "claim": "not_received" }
+      },
+      "expect": { "decision": "allow", "reasons": [] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2211",
+          "amount": { "value": "4500.00", "currency_code": "KES" }
+        },
+        "justification": { "ticket_id": "TKT-2210", "claim": "not_received" }
+      },
+      "expect": { "decision": "step_up", "reasons": ["NO_DAILY_LIMIT"] }
+    }
+  ]
+}

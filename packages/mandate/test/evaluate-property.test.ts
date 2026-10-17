@@ -66,10 +66,11 @@ function randomRule(random: Random, index: number): unknown {
 }
 
 function randomMandate(random: Random): Mandate {
-  const limits = CURRENCIES.filter(() => random.chance(0.7)).map((currency) => ({
+  // Most mandates set a limit for each currency. The rest test NO_DAILY_LIMIT.
+  const limits = CURRENCIES.filter(() => random.chance(0.85)).map((currency) => ({
     currency,
-    ...(random.chance(0.8) ? { per_day_total: random.pick(amounts) * random.int(5) } : {}),
-    per_day_count: random.int(10),
+    ...(random.chance(0.8) ? { per_day_total: random.pick(amounts) * (1 + random.int(5)) } : {}),
+    per_day_count: 1 + random.int(10),
   }));
   const rules = Array.from({ length: 1 + random.int(2) }, (_, index) => randomRule(random, index));
   const parsed = parseMandate({
@@ -135,7 +136,8 @@ function randomUsage(random: Random): Usage {
 
 // The oracle: brief §6 written out independently of the evaluator. A rule can only allow if it
 // matches the intent, its decide is allow, every requirement is in the trace and passes, the
-// amount is within its max, usage is known and today's limits hold.
+// amount is within its max, usage is known, the mandate sets a limit for the currency and today's
+// limits hold.
 function passes(trace: TraceEntry[], verifier: string): boolean {
   const entries = trace.filter((item) => item.verifier === verifier);
   return entries.length > 0 && entries.every((item) => item.result === "pass");
@@ -169,15 +171,20 @@ function cleanAllow(
   if (!(rule.require ?? []).every((verifier) => passes(trace, verifier))) return false;
   if (rule.max && intent.amount.minor > rule.max.amount) return false;
   if (!usage.known) return false;
-  const limit = mandate.limits.find((each) => each.currency === intent.amount.currency);
+  const limit = limitFor(mandate, intent);
+  if (!limit) return false;
   const today = usage.perCurrency[intent.amount.currency];
   if (
-    limit?.per_day_total !== undefined &&
+    limit.per_day_total !== undefined &&
     today.total.minor + intent.amount.minor > limit.per_day_total
   )
     return false;
-  if (limit?.per_day_count !== undefined && today.count + 1 > limit.per_day_count) return false;
+  if (limit.per_day_count !== undefined && today.count + 1 > limit.per_day_count) return false;
   return true;
+}
+
+function limitFor(mandate: Mandate, intent: Intent) {
+  return mandate.limits.find((each) => each.currency === intent.amount.currency);
 }
 
 describe("the fail-closed property", () => {
@@ -185,12 +192,14 @@ describe("the fail-closed property", () => {
     const random = generator(20261017);
     const runs = 5000;
     let allowed = 0;
+    let noLimit = 0;
     for (let run = 0; run < runs; run++) {
       const mandate = randomMandate(random);
       const intent = randomIntent(random);
       const trace = randomTrace(random);
       const usage = randomUsage(random);
       const result = evaluate({ mandate, intent, trace, usage });
+      if (!limitFor(mandate, intent)) noLimit++;
       if (result.outcome !== "allow") continue;
       allowed++;
       const context = { run, mandate, intent, trace, usage, result };
@@ -208,5 +217,7 @@ describe("the fail-closed property", () => {
     }
     // The generator must reach allow often enough for the property to mean something.
     expect(allowed).toBeGreaterThan(runs / 50);
+    // And it must leave the intent's currency without a limit often enough to test NO_DAILY_LIMIT.
+    expect(noLimit).toBeGreaterThan(runs / 10);
   });
 });
