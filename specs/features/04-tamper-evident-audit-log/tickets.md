@@ -105,17 +105,17 @@ Notes:
 
 ## T-008: decide --record, and the README
 
-Status: open
+Status: done
 Tier: simple
 Blocked by: T-006, T-007
 Slice: `npm run decide -- <case> --record` decides and then records every proposal. The README shows how to record a decision and check the log, and says what the chain can't show.
 Test seam: the decide CLI's exported run function with `--record` and a temporary `--pglite` directory, then the ledger CLI's run function on the same directory
 Acceptance:
-- [ ] `--record` on beat 3, into an empty directory, prints phase 3's output and then "Recorded 6 entries. Head #6 <hash>.", and `ledger verify` on that directory exits 0
-- [ ] With `--record --json`, stdout is still valid JSON, and the summary goes to stderr
-- [ ] A `MANDATE_VERSION_CONFLICT` exits 2 with one line naming it, and nothing from that case file is recorded
-- [ ] Phase 3's decide CLI tests pass unchanged without `--record`
-- [ ] The README gains a "Check the audit log" section (record, tail, verify, and plain words on cut-off tails) and `DATABASE_URL` in its environment table
+- [x] `--record` on beat 3, into an empty directory, prints phase 3's output and then "Recorded 6 entries. Head #6 <hash>.", and `ledger verify` on that directory exits 0
+- [x] With `--record --json`, stdout is still valid JSON, and the summary goes to stderr
+- [x] A `MANDATE_VERSION_CONFLICT` exits 2 with one line naming it, and nothing from that case file is recorded
+- [x] Phase 3's decide CLI tests pass unchanged without `--record`
+- [x] The README gains a "Check the audit log" section (record, tail, verify, and plain words on cut-off tails) and `DATABASE_URL` in its environment table
 Notes:
 
 ## T-009: Live check: concurrent appends on real Postgres

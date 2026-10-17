@@ -101,6 +101,7 @@ Unit tests and the decide CLI need no secrets. The integration spikes and the AI
 | Gemini | `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.5-flash-lite`) |
 | Daraja sandbox | `DARAJA_CONSUMER_KEY`, `DARAJA_CONSUMER_SECRET`, `DARAJA_BASE_URL` and the shortcode settings |
 | AG Studio | `AG_STUDIO_LICENSE_KEY` |
+| Audit log | `DATABASE_URL`, a Postgres connection string. Optional: without it the CLIs use a local folder, `.countersign/pglite` |
 
 Copy `.env.example` to `.env.local` and fill in your own sandbox values. Never commit real ones.
 
@@ -162,6 +163,26 @@ Add `--json` to print the agent response instead: `allowed`, `pending_approval` 
 | Fallback | Anything else | | Deny |
 
 Daily limits are $300 or 5 refunds in USD, and KSh 15,000 in KES, counted in the Africa/Nairobi time zone.
+
+## Check the audit log
+
+Every decision can be written to a hash-chained audit log. Each entry holds the hash of the one before it, so an edited or removed row shows up when the log is checked.
+
+Without `DATABASE_URL`, the log lives in a local PGlite folder, `.countersign/pglite`, which git ignores. Add `--pglite <dir>` to use another folder. With `DATABASE_URL` set, the same commands use that Postgres database, and `npm run db:migrate` creates its tables first.
+
+```bash
+npm run decide -- apps/gate/fixtures/cases/beat-3-attack-email.json --record   # decide, then record every proposal
+npm run ledger -- tail                                                          # the last 10 entries
+npm run ledger -- verify                                                        # check the whole chain
+```
+
+`--record` prints the usual output, then `Recorded 6 entries. Head #6 <hash>.` for beat 3: the mandate's version entry and five decisions. With `--json`, the summary goes to stderr so stdout stays valid JSON. The mandate's entry is written once per version. If a mandate version is already logged with different contents, nothing is recorded and the command exits 2, since a signed version never changes.
+
+`ledger verify` exits 0 and prints `Audit log intact: N entries. Head #N <hash>.` when the chain holds. It exits 1 and lists each bad row by number and problem when it doesn't. It exits 2 when the database can't be opened. `ledger tail 25` shows the last 25 entries instead of 10.
+
+### What the chain can't show
+
+A hash chain proves that no row was changed, removed from the middle, or reordered. It can't prove that rows were cut off the end, because the shorter log is still a valid chain. To catch that, keep a copy of the head (the last number and hash that `verify` prints) somewhere else, and compare it with the head later. If the log's head has moved back or its hash differs from your copy at the same number, rows were removed.
 
 ## Project status
 

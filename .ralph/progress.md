@@ -41,3 +41,11 @@ Gotchas: tests must pass env explicitly ({} or a copy of process.env without DAT
 ### For the human
 - T-007: CLI counts are pluralised ("1 entry", "1 problem", "Applied 1 migration."), otherwise the wording is exactly the requirements'. `tail` prints a heading "Last N entries of M." and "The audit log has no entries." on an empty log; the requirements don't fix tail's wording.
 - T-007: DATABASE_URL wins even when `--pglite <dir>` is also given (the requirements' order), so `--pglite` is silently ignored then. Overturn if you'd rather refuse both together.
+
+## T-008
+apps/gate/src/decide-cli.ts: runDecide(args, env) async; without --record it is runDecideCli (still sync, unchanged output), with --record it decides, then recordDecision per proposal on the database from takePgliteOption/resolveDatabaseTarget, and appends "Recorded N entries. Head #S <hash>." (stdout, or stderr with --json). decide-main.ts uses runDecide. @countersign/ledger's index now also exports the ledger CLI (runLedgerCli) so gate tests can verify through the package name. README gains "Check the audit log" and a DATABASE_URL row.
+Gotchas: phase 3's test pins the root `decide` script to `tsx apps/gate/src/decide-main.ts`, so the script has no --env-file-if-exists; decide-main loads .env.local itself (process.loadEnvFile, only with --record, never overriding set variables). Failure to record proposal i (conflict or rejection) exits 2 with one stderr line and empty stdout; a conflict is always on proposal 1, so nothing is written. The head in the summary is the last decision entry this run wrote.
+
+### For the human
+- T-008: the requirements say root scripts load env with `--env-file-if-exists=.env.local`, but a phase 3 test fixes `decide` at `tsx apps/gate/src/decide-main.ts` and the ticket says it must pass unchanged. Env loading for `--record` is done in decide-main.ts instead. Update the test and the script together if you'd rather match the other scripts.
+- T-008: README project status table still says phase 4 is "Next"; left for validation.
