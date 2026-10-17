@@ -120,14 +120,14 @@ Notes:
 
 ## T-009: Live check: concurrent appends on real Postgres
 
-Status: open
+Status: done
 Tier: standard
 Blocked by: T-005
 Slice: Under `LIVE=1` with `DATABASE_URL` set, 20 concurrent appends over a real connection pool chain without a gap, which proves ADR 0003's advisory lock where PGlite can't.
 Test seam: the append and `verifyLog` exports of `@countersign/ledger`, over `@countersign/db`'s postgres.js client
 Acceptance:
-- [ ] The test is skipped unless `LIVE=1` and `DATABASE_URL` are both set, so `npm test` never runs it
-- [ ] It creates a throwaway schema with a random name, runs the migrations into it (Drizzle's migrations table included), and drops it afterwards, even when the test fails. It never touches existing tables
-- [ ] Twenty concurrent appends over a pool of at least 5 connections give `seq` 1 to 20 with no gap, and `verifyLog` passes
-- [ ] The test prints no connection string, and the skip message names only the variables it needs
+- [x] The test is skipped unless `LIVE=1` and `DATABASE_URL` are both set, so `npm test` never runs it
+- [x] It creates a throwaway schema with a random name, runs the migrations into it (Drizzle's migrations table included), and drops it afterwards, even when the test fails. It never touches existing tables
+- [x] Twenty concurrent appends over a pool of at least 5 connections give `seq` 1 to 20 with no gap, and `verifyLog` passes
+- [x] The test prints no connection string, and the skip message names only the variables it needs
 Notes: The live run waits for the Render database (`.ralph/human.md`). The build is complete when the test is written, skips cleanly, and typechecks.

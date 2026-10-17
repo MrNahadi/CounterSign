@@ -92,23 +92,53 @@ export const openPgliteDirectory = async (
   return handle;
 };
 
+// A plain lowercase identifier, so it never needs escaping inside double quotes.
+const SchemaNameSchema = z.string().regex(/^[a-z_][a-z0-9_]{0,62}$/);
+
+const PostgresOptionsSchema = z.object({
+  schema: SchemaNameSchema.optional(),
+  max: z.number().int().min(1).max(100).optional(),
+});
+
+export type PostgresOptions = {
+  /**
+   * A schema that already exists. Every connection's search path is set to it alone, and the
+   * migrations, Drizzle's migrations table included, go into it. For the live test's throwaway
+   * schema; the app itself uses the default search path.
+   */
+  readonly schema?: string;
+  /** The most connections the pool opens (postgres.js's default is 10). */
+  readonly max?: number;
+};
+
 /**
  * A postgres.js database for a connection string. It connects on first use and is never
  * migrated on open: only `npm run db:migrate` migrates it.
  */
-export const openPostgres = (url: string): DatabaseHandle => {
-  const client = postgres(url, { onnotice: () => {} });
+export const openPostgres = (url: string, options: PostgresOptions = {}): DatabaseHandle => {
+  const { schema: searchPath, max } = PostgresOptionsSchema.parse(options);
+  const client = postgres(url, {
+    onnotice: () => {},
+    ...(max === undefined ? {} : { max }),
+    ...(searchPath === undefined ? {} : { connection: { search_path: searchPath } }),
+  });
   const db = drizzlePostgres({ client, schema });
+  const migrationsSchema = searchPath ?? "drizzle";
   const count = async () => {
-    const table = await client.unsafe<{ present: boolean }[]>(MIGRATIONS_TABLE_SQL);
+    const table = await client.unsafe<{ present: boolean }[]>(
+      `SELECT to_regclass('"${migrationsSchema}".__drizzle_migrations') IS NOT NULL AS present`,
+    );
     if (table[0]?.present !== true) return 0;
-    const rows = await client.unsafe<{ n: number }[]>(APPLIED_COUNT_SQL);
+    const rows = await client.unsafe<{ n: number }[]>(
+      `SELECT count(*)::int AS n FROM "${migrationsSchema}".__drizzle_migrations`,
+    );
     return rows[0]?.n ?? 0;
   };
   return {
     kind: "postgres",
     db,
-    migrate: () => countDifference(count, () => migratePostgres(db, { migrationsFolder })),
+    migrate: () =>
+      countDifference(count, () => migratePostgres(db, { migrationsFolder, migrationsSchema })),
     close: () => client.end(),
   };
 };

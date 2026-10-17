@@ -49,3 +49,7 @@ Gotchas: phase 3's test pins the root `decide` script to `tsx apps/gate/src/deci
 ### For the human
 - T-008: the requirements say root scripts load env with `--env-file-if-exists=.env.local`, but a phase 3 test fixes `decide` at `tsx apps/gate/src/decide-main.ts` and the ticket says it must pass unchanged. Env loading for `--record` is done in decide-main.ts instead. Update the test and the script together if you'd rather match the other scripts.
 - T-008: README project status table still says phase 4 is "Next"; left for validation.
+
+## T-009
+packages/ledger/test/live-postgres.test.ts: under LIVE=1 with DATABASE_URL, creates schema countersign_live_<random hex>, opens a pool of 8 with openPostgres(url, { schema, max }), migrates into it, runs 20 concurrent appendEntry calls, checks seq 1..20 and verifyLog, then drops the schema even on failure (a failed drop fails the test). Driver errors are rethrown through failureReason so no URL is printed. openPostgres gains options { schema?, max? } (zod-validated; schema sets every connection's search_path and Drizzle's migrationsSchema); unit-tested in packages/db/test/postgres-options.test.ts.
+Gotcha: the live test has not run yet; it waits for the Render database (.ralph/human.md). Run it with `LIVE=1 npm test -- packages/ledger/test/live-postgres.test.ts`.
