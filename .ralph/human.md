@@ -17,5 +17,11 @@ The autopilot builds everything it can and lists here what only you can do, or w
 ## Decided for you
 
 - **Phase 4, audit-log format (ADR 0022):** one `audit_log` table, payloads stored as their hashed canonical text, an envelope hash, an append-only trigger (TRUNCATE allowed for the demo reset), raw proposals kept as JSON text, and `mandate.version` entries written once per version. A hash chain can't detect a cut-off tail, so `ledger verify` prints the head.
+- **Phase 4, chain link rule:** a row's `prev_hash` passes if it matches the previous row's stored hash or, when that stored hash was edited, the hash recomputed from the previous row, so an edited row is reported once at its own `seq`. Overturn to link to the stored hash only.
+- **Phase 4, append rejections:** besides the spec's codes, appends reject `BAD_REF` (a ref with a lone surrogate, a fail-closed backstop since IDs can't hold one) and `BAD_INPUT` (an entry of the wrong shape).
+- **Phase 4, proposal text fallback:** a proposal `JSON.stringify` can't serialize is recorded as `String(proposal)`, or `""` if that throws too, so recording never fails on content; `recordDecision` throws on a mandate that differs from the decided one.
+- **Phase 4, CLI wording:** counts are pluralised ("1 entry", "1 problem", "Applied 1 migration."), and `tail` prints "Last N entries of M." or "The audit log has no entries.".
+- **Phase 4, database precedence:** `DATABASE_URL` wins over `--pglite <dir>` when both are given, and `--pglite` is then ignored silently. Overturn to refuse both together.
+- **Phase 4, decide env loading:** `decide-main.ts` loads `.env.local` itself (only with `--record`, never overriding set variables), because a phase 3 test pins the `decide` script without `--env-file-if-exists`. Change the test and script together to match the other scripts.
 
 ## Done
