@@ -149,14 +149,14 @@ Notes: Found by the phase 3 spec review (ADR 0020). It reproduced "THREW Can't f
 
 ## T-012: One timestamp rule, shared
 
-Status: open
+Status: done
 Blocked by:
 Slice: Case files, execution history and usage all check timestamps with one shared zod schema, so `2026-02-31T10:00:00Z` is rejected everywhere instead of rolling over to 3 March.
 Test seam: a timestamp schema exported from `@countersign/mandate`, `loadCase` in `apps/gate/src/case-file.ts`, and `todaysUsage`
 Acceptance:
-- [ ] `@countersign/mandate` exports one timestamp schema built on `z.iso.datetime({ offset: true })`. It rejects `2026-02-31T10:00:00Z`, `2026-02-29T10:00:00Z`, a timestamp with no seconds and one with no offset. It accepts `2028-02-29T10:00:00Z` and `2026-10-17T06:00:00.123+03:00`
-- [ ] The case-file schema uses it for `now` and every `executedAt`. A case file with `2026-02-31` gives exit code 2 and names the bad field's path
-- [ ] `todaysUsage` uses the same rule. The hand-written pattern and calendar check in `packages/verifiers/src/usage.ts` and the regex in `case-file.ts` are gone, so the rule lives in one place
+- [x] `@countersign/mandate` exports one timestamp schema built on `z.iso.datetime({ offset: true })`. It rejects `2026-02-31T10:00:00Z`, `2026-02-29T10:00:00Z`, a timestamp with no seconds and one with no offset. It accepts `2028-02-29T10:00:00Z` and `2026-10-17T06:00:00.123+03:00`
+- [x] The case-file schema uses it for `now` and every `executedAt`. A case file with `2026-02-31` gives exit code 2 and names the bad field's path
+- [x] `todaysUsage` uses the same rule. The hand-written pattern and calendar check in `packages/verifiers/src/usage.ts` and the regex in `case-file.ts` are gone, so the rule lives in one place
 Notes: zod 4.6.7's `z.iso.datetime({ offset: true })` rejects calendar rollovers (tested 17 Oct, ADR 0020).
 
 ## T-013: Record lookups fail closed

@@ -144,3 +144,10 @@ Gotchas for the next iteration:
 
 Gotchas for the next iteration:
 - The unsafe-total check runs before the limit lookup, so it escalates even for a currency with no limit. T-015 adds `NO_DAILY_LIMIT` after it, in the same function.
+
+## T-012: done
+
+`@countersign/mandate` exports `TimestampSchema` (`src/timestamp.ts`, `z.iso.datetime({ offset: true })`). The case-file schema uses it for `now` and `executedAt`, and `todaysUsage`'s `readTime` checks it before `new Date`. The hand-written regexes and calendar check are gone. New CLI tests: a `2026-02-31` `now` or `executedAt` exits 2 naming the path.
+
+Gotchas for the next iteration:
+- The rule now accepts any number of fractional-second digits (the old regexes allowed at most three), as zod does.

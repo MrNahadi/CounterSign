@@ -7,6 +7,7 @@ import {
   type CurrencyUsage,
   isCurrency,
   isMinorUnits,
+  TimestampSchema,
   type Usage,
 } from "@countersign/mandate";
 import type { RecordSnapshots } from "./snapshots";
@@ -14,18 +15,9 @@ import type { RecordSnapshots } from "./snapshots";
 // Whose usage, the mandate's IANA time zone, and the moment that says which day is today.
 export type UsageScope = { principal: string; timeZone: string; now: Date };
 
-// An ISO 8601 timestamp with an offset. Without one, the day would depend on the server's zone.
-const TIMESTAMP =
-  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
-
-// Date parsing rolls 31 Feb over to 3 Mar, so the calendar fields are checked first.
+// The shared timestamp rule, checked before parsing, since date parsing rolls 31 Feb over to 3 Mar.
 function readTime(value: string): Date | null {
-  const match = TIMESTAMP.exec(value);
-  if (!match) return null;
-  const [year, month, day, hour, minute, second] = match.slice(1).map(Number) as number[];
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const validDay = month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth;
-  if (!validDay || hour > 23 || minute > 59 || second > 59) return null;
+  if (!TimestampSchema.safeParse(value).success) return null;
   const time = new Date(value);
   return Number.isNaN(time.getTime()) ? null : time;
 }

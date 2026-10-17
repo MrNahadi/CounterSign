@@ -12,20 +12,12 @@ import {
   REASONS,
   type ReasonCode,
   SHIPMENT_STATUSES,
+  TimestampSchema,
 } from "@countersign/mandate";
 import { CALLS, type RecordSnapshots } from "@countersign/verifiers";
 import { z } from "zod";
 
 const Id = z.string().regex(/^\S(?:.*\S)?$/, "Must be a non-blank ID without outer spaces");
-
-// An ISO 8601 timestamp with seconds and an offset, so the day never depends on the server's zone.
-const Timestamp = z
-  .string()
-  .regex(
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/,
-    "Must be an ISO 8601 timestamp with seconds and an offset",
-  )
-  .refine((value) => !Number.isNaN(new Date(value).getTime()), "Must be a real time");
 
 const Money = z.strictObject({
   minor: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
@@ -80,7 +72,7 @@ const Records = z.strictObject({
         principal: Id,
         captureId: Id.nullable(),
         amount: Money,
-        executedAt: Timestamp,
+        executedAt: TimestampSchema,
       }),
     )
     .optional(),
@@ -88,7 +80,7 @@ const Records = z.strictObject({
 
 export const CaseFileSchema = z.strictObject({
   description: z.string().min(1),
-  now: Timestamp,
+  now: TimestampSchema,
   // The mandate file, relative to the case file.
   mandate: z.string().min(1),
   // The agent identity proposing, as its credentials would say.

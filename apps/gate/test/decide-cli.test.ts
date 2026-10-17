@@ -12,6 +12,7 @@ import { EXIT_BAD_INPUT, EXIT_DECIDED, runDecideCli, USAGE } from "../src/decide
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const casesDir = fileURLToPath(new URL("../fixtures/cases/", import.meta.url));
 const beat3 = join(casesDir, "beat-3-attack-email.json");
+const beat4 = JSON.parse(readFileSync(join(casesDir, "beat-4-stalled-parcel.json"), "utf8"));
 const entry = fileURLToPath(new URL("../src/decide-main.ts", import.meta.url));
 
 function blocks(stdout: string): string[] {
@@ -126,6 +127,26 @@ describe("the decide CLI on a case file it can't use", () => {
       "a file that fails the schema",
       [tempCase(JSON.stringify({ description: "x" }))],
       /^Case file\.now: .+\n$/,
+    ],
+    [
+      "a now that isn't a calendar date",
+      [tempCase(JSON.stringify({ ...beat4, now: "2026-02-31T10:00:00Z" }))],
+      /^Case file\.now: .+\n$/,
+    ],
+    [
+      "an execution time that isn't a calendar date",
+      [
+        tempCase(
+          JSON.stringify({
+            ...beat4,
+            records: {
+              ...beat4.records,
+              executions: [{ ...beat4.records.executions[0], executedAt: "2026-02-31T10:00:00Z" }],
+            },
+          }),
+        ),
+      ],
+      /^Case file\.records\.executions\[0\]\.executedAt: .+\n$/,
     ],
     ["no case file", [], new RegExp(`^${USAGE.replace(/[[\]]/g, "\\$&")}\n$`)],
     ["two case files", [beat3, beat3], /^Usage: .+\n$/],
