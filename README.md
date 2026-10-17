@@ -193,8 +193,9 @@ Countersign is mid-build. The roadmap runs from 16 October to submission on 11 N
 | 1 | Scaffold: monorepo, Graphite tokens, Feedback commands | Done |
 | 2 | Integration spikes S1 to S9 | Mostly done; see below |
 | 3 | Decide a refund from records: mandate schema, evaluator, PayPal verifiers, decide CLI | Done |
-| 4 | Tamper-evident audit log and `ledger verify` | Next |
-| 5 to 13 | Storefront and seed, live execution, the gate over MCP, Resolve, phone approvals, claims vs records, disputes, payouts, the hosted judge path | Planned |
+| 4 | Tamper-evident audit log and `ledger verify` | Done |
+| 5 | Kikapu storefront and seed | Next |
+| 6 to 13 | Live execution, the gate over MCP, Resolve, phone approvals, claims vs records, disputes, payouts, the hosted judge path | Planned |
 | 14 to 18 | Bench, "Attack it yourself", the AG Studio Risk desk, the mandate compiler, the M-Pesa rail | Planned |
 | 19 to 20 | Smoke tests, monitoring and submission | Planned |
 
@@ -226,7 +227,7 @@ These were run by hand against live sandboxes on 16 October 2026. Findings are i
 
 ```text
 apps/
-  gate/                 The gate: decide CLI today; MCP server, approvals and webhooks to come
+  gate/                 The gate: decide CLI and audit-log recording today; MCP server, approvals and webhooks to come
   console/              Next.js merchant console and the AG Studio Risk desk spike
   resolve-agent/        Gemini support-agent harness (protected and baseline modes)
   baseline-paypal-mcp/  PayPal's own MCP server, isolated, for baseline comparison only
@@ -235,10 +236,12 @@ packages/
   mandate/              Money, canonical JSON, intent hash, mandate schema, rule evaluator, reason codes
   verifiers/            Pure verifier functions over record snapshots, and today's usage
   graphite/             Graphite tokens, Tailwind theme, AG Studio theme and the design check
-  ledger/  db/  rail-paypal/  rail-mpesa/  carrier-mock/   Stubs for upcoming phases
+  ledger/               The hash-chained audit log: append, verify, and the ledger CLI
+  db/                   The audit_log schema, its migrations and the database clients
+  rail-paypal/  rail-mpesa/  carrier-mock/   Stubs for upcoming phases
 spikes/                 Integration spike scripts (S1, S4, S5, S6, S8, S9)
 specs/                  Brief, mission, tech stack, roadmap and feature specs
-docs/adr/               Architecture decision records 0001 to 0020
+docs/adr/               Architecture decision records 0001 to 0022
 Graphite Design/        The design system every screen follows
 ```
 
