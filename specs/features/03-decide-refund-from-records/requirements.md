@@ -60,7 +60,7 @@ Rule evaluation follows brief §6 exactly:
 
 ### Reason codes
 
-Each code has stable words for the merchant and, for denials, a reply hint the agent can safely use with the customer. Codes never change once used. Rule reasons (`SHIPMENT_DELIVERED`, `ALWAYS_NEEDS_APPROVAL`, `RULE_DENIES`) are the only codes a mandate rule may name. A deny rule may name only the two that have a reply hint (`SHIPMENT_DELIVERED`, `RULE_DENIES`), so every denial has one.
+Each code has stable words for the merchant and, for denials, a reply hint the agent can safely use with the customer. Codes never change once used. Rule reasons (`SHIPMENT_DELIVERED`, `ALWAYS_NEEDS_APPROVAL`, `RULE_DENIES`) are the only codes a mandate rule may name. A deny rule may name only the two that have a reply hint (`SHIPMENT_DELIVERED`, `RULE_DENIES`), so every denial has one. A step-up rule may name only the two whose words fit a hold (`SHIPMENT_DELIVERED`, `ALWAYS_NEEDS_APPROVAL`). A rule reason's detail uses a verb that matches the rule's decision ("asks you first" or "denies"). `SHIPMENT_DELIVERED` claims a delivery only when the carrier's reading says delivered; otherwise its detail gives the actual reading.
 
 | Code | Raised when | Words for the merchant | Safe reply hint |
 |---|---|---|---|
@@ -116,6 +116,7 @@ Details show emails in full, because the CLI and the decision record are merchan
   - the amount, the intent ID and the intent hash.
 
   `--json` prints the agent response for each proposal instead. The exit code is 0 for a decision of any kind, and 2 for an unreadable or invalid case file.
+- Every parser reports its first problem as one line in the same shape: what was parsed, the field's path in brackets, then the message. For example, "Case file (now): Invalid ISO datetime" or "Mandate (rules[0].max.amount): …". A problem at the root reads "Mandate: …".
 
 ### Fixture cases
 
@@ -143,6 +144,7 @@ Details show emails in full, because the CLI and the decision record are merchan
 - The mandate schema:
   - allows only `deny` as the fallback;
   - rejects unknown actions, unknown verifier names, unknown `when` keys and non-integer amounts;
+  - holds the mandate's ID, its principal and every rule ID to the shared ID rule: not blank, and no leading or trailing spaces, rejected rather than trimmed;
   - rejects a `step_up` or `deny` rule without a rule reason code.
 
   Mandate amounts are minor units (a $80 cap is `8000`).

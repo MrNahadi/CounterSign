@@ -12,6 +12,7 @@ import {
   type Reason,
   ReasonCodeSchema,
   requiredVerifiers,
+  TimestampSchema,
   type Usage,
   type VerifierTrace,
 } from "@countersign/mandate";
@@ -36,7 +37,7 @@ export const AgentResponseSchema = z.discriminatedUnion("decision", [
     decision: z.literal("pending_approval"),
     intent_id: IntentId,
     reasons: z.array(ReasonSchema).min(1),
-    expires_at: z.iso.datetime(),
+    expires_at: TimestampSchema,
   }),
   z.strictObject({
     decision: z.literal("denied"),

@@ -7,6 +7,7 @@ import {
   type OrderSnapshot,
   type RecordSnapshots,
   recordRef,
+  recordRefOr,
   type TicketSnapshot,
 } from "./snapshots";
 
@@ -46,5 +47,5 @@ export function ticketFor(
   records: RecordSnapshots,
 ): { ticket: TicketSnapshot | null; ref: RecordRef } {
   const ticket = records.ticket?.id === intent.ticketId ? records.ticket : null;
-  return { ticket, ref: ticket ? recordRef(ticket) : { call: CALLS.ticket, id: intent.ticketId } };
+  return { ticket, ref: recordRefOr(ticket, { call: CALLS.ticket, id: intent.ticketId }) };
 }

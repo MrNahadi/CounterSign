@@ -238,3 +238,14 @@ Acceptance:
 - [x] The snapshot schema builder `from()` is renamed `snapshotSchema`, and `runVerifiers`' `also` parameter becomes `requiredVerifiers`
 - [x] No behaviour changes. Every test passes, with only renames in the tests
 Notes: Phase 3 standards review: Mysterious Name, Duplicated Code, and CONTEXT.md's _Avoid_ list for Decision.
+Fix-review follow-up (17 Oct, done in validation, not by the loop): sharing the ID schema did change behaviour in two ways the "no behaviour changes" line missed.
+- The mandate's ID, its principal and every rule ID now reject outer spaces.
+- Parse-error wording changed.
+
+Both changes are now recorded in requirements.md. The same follow-up also:
+- gave parse errors one shape, "Case file (now): …";
+- stopped step-up rules from naming `RULE_DENIES`;
+- made rule-reason verbs follow the rule's decision;
+- made `SHIPMENT_DELIVERED` report the actual carrier reading when it isn't delivered;
+- put `expires_at` on the shared timestamp schema;
+- gave each trace entry its own copy of its records, plus one `recordRefOr` helper.

@@ -99,3 +99,12 @@ export type RecordSnapshots = {
 export function recordRef(snapshot: SnapshotSource): RecordRef {
   return { call: snapshot.call, id: snapshot.id };
 }
+
+// The trace's reference to the snapshot a verifier read or, when it's missing, to the call and ID
+// it looked for, so an unknown result still names the record that wasn't there.
+export function recordRefOr(
+  snapshot: SnapshotSource | null | undefined,
+  sought: RecordRef,
+): RecordRef {
+  return snapshot ? recordRef(snapshot) : sought;
+}

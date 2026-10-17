@@ -57,6 +57,25 @@ describe.each(caseFiles)("case %s", (name) => {
   );
 });
 
+describe("the agent response schema", () => {
+  it("holds expires_at to the shared timestamp rule, so an impossible date is rejected", () => {
+    const pending = {
+      decision: "pending_approval",
+      intent_id: "int_0123456789abcdef01234567",
+      reasons: [{ code: "ABOVE_AUTO_LIMIT", detail: "$96.00 is over the $80.00 cap" }],
+    };
+    expect(
+      AgentResponseSchema.safeParse({ ...pending, expires_at: "2026-10-17T06:15:00.000Z" }).success,
+    ).toBe(true);
+    expect(
+      AgentResponseSchema.safeParse({ ...pending, expires_at: "2026-02-31T06:15:00Z" }).success,
+    ).toBe(false);
+    expect(
+      AgentResponseSchema.safeParse({ ...pending, expires_at: "2026-10-17T06:15:00" }).success,
+    ).toBe(false);
+  });
+});
+
 describe("the fixture suite", () => {
   const expected = caseFiles.flatMap((name) =>
     load(name).proposals.map((entry) => ({ name, ...entry.expect })),
@@ -288,6 +307,9 @@ describe("case files", () => {
     const badMandate = write("bad.json", JSON.stringify({ ...valid, mandate: "bad-mandate.json" }));
     expect(badMandate).toMatchObject({ ok: false });
     const invalid = write("invalid.json", JSON.stringify({ ...valid, now: "today" }));
-    expect(invalid).toMatchObject({ ok: false, error: expect.stringContaining("Case file.now") });
+    expect(invalid).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("Case file (now): "),
+    });
   });
 });

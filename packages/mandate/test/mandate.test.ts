@@ -268,6 +268,22 @@ describe("parseMandate rejects", () => {
     expect(result.issues.map((issue) => issue.path)).toContainEqual(path);
   });
 
+  it("a step-up rule that names RULE_DENIES, whose words refuse rather than hold", () => {
+    const mandate = structuredClone(fixture);
+    mandate.rules[1].reason = "RULE_DENIES";
+    const result = parseMandate(mandate);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues.map((issue) => issue.path)).toContainEqual(["rules", 1, "reason"]);
+  });
+
+  it("with a one-line error that names the whole file when the problem is at its root", () => {
+    const result = parseMandate("not a mandate");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/^Mandate: \S/);
+  });
+
   it("nothing when a deny rule names a reason with a reply hint", () => {
     const mandate = structuredClone(fixture);
     mandate.rules[3].decide = "deny";
@@ -281,7 +297,7 @@ describe("parseMandate rejects", () => {
     const result = parseMandate(mandate);
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error).toMatch(/^Mandate \.rules\[0\]\.max\.amount: /);
+    expect(result.error).toMatch(/^Mandate \(rules\[0\]\.max\.amount\): /);
     expect(result.error).not.toContain("\n");
   });
 });

@@ -9,7 +9,6 @@ import {
   type Mandate,
   parseMandate,
   RAILS,
-  RULE_REASON_CODES,
   type Rule,
   SHIPMENT_STATUSES,
   type TraceEntry,
@@ -60,7 +59,8 @@ function randomRule(random: Random, index: number): unknown {
     rule.max = { amount: random.pick(amounts), currency: random.pick(CURRENCIES) };
   const decide = random.pick(["allow", "allow", "allow", "step_up", "deny"] as const);
   rule.decide = decide;
-  if (decide === "step_up") rule.reason = random.pick(RULE_REASON_CODES);
+  if (decide === "step_up")
+    rule.reason = random.pick(["SHIPMENT_DELIVERED", "ALWAYS_NEEDS_APPROVAL"]);
   if (decide === "deny") rule.reason = random.pick(["SHIPMENT_DELIVERED", "RULE_DENIES"]);
   return rule;
 }

@@ -184,25 +184,30 @@ function matchedFacts(rule: Rule, { intent, trace }: EvaluateInput): string[] {
   return facts;
 }
 
-// A step-up or deny rule's own reason: the facts behind it, then the rule. SHIPMENT_DELIVERED
-// gives the carrier's reading from the shipment.status entry, which names the tracking number.
+// A step-up or deny rule's own reason: the facts behind it, then the rule, with a verb that
+// matches what the rule decided. SHIPMENT_DELIVERED gives the carrier's delivered reading from the
+// shipment.status entry, which names the tracking number. Without one, it says what the carrier
+// did report, so the detail never claims a delivery the records don't show.
 function ruleReason(
   rule: Extract<Rule, { decide: "step_up" | "deny" }>,
   input: EvaluateInput,
 ): Reason {
+  const holds = rule.decide === "step_up";
+  if (rule.reason === "SHIPMENT_DELIVERED") {
+    const shipment = entriesFor(input.trace, "shipment.status")[0];
+    const reading = !shipment
+      ? notInTrace("shipment.status")
+      : shipment.result === "pass" && shipment.value === "delivered"
+        ? shipment.detail
+        : `The carrier reading is ${shipment.value ?? "unknown"}, not delivered`;
+    const verb = holds ? "asks you first" : "denies this";
+    return { code: rule.reason, detail: `${reading}; rule ${rule.id} ${verb}` };
+  }
   const { action } = input.intent;
   const facts = matchedFacts(rule, input);
   const what = facts.length > 0 ? `${action} with ${facts.join(", ")}` : `every ${action}`;
-  if (rule.reason === "SHIPMENT_DELIVERED") {
-    const shipment = entriesFor(input.trace, "shipment.status")[0];
-    const reading = shipment?.detail ?? notInTrace("shipment.status");
-    const verb = rule.decide === "step_up" ? "asks you first" : "denies this";
-    return { code: rule.reason, detail: `${reading}; rule ${rule.id} ${verb}` };
-  }
-  if (rule.reason === "ALWAYS_NEEDS_APPROVAL") {
-    return { code: rule.reason, detail: `Rule ${rule.id} asks you first for ${what}` };
-  }
-  return { code: rule.reason, detail: `Rule ${rule.id} denies ${what}` };
+  const verb = holds ? "asks you first for" : "denies";
+  return { code: rule.reason, detail: `Rule ${rule.id} ${verb} ${what}` };
 }
 
 type RuleDecision = { decision: Decision; reasons: Reason[] };

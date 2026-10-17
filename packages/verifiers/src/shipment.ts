@@ -3,7 +3,7 @@
 import type { Intent, RecordRef, ShipmentStatus, TraceEntry } from "@countersign/mandate";
 import { entryFor } from "./entry";
 import { orderFor } from "./lookups";
-import { CALLS, type RecordSnapshots, recordRef } from "./snapshots";
+import { CALLS, type RecordSnapshots, recordRefOr } from "./snapshots";
 
 // The only tracker status that counts as a live shipment. PayPal's other is CANCELLED.
 const SHIPPED = "SHIPPED";
@@ -29,7 +29,7 @@ export function shipmentStatus(intent: Intent, records: RecordSnapshots): TraceE
   const statuses = new Set<ShipmentStatus>();
   for (const { trackingNumber } of trackers) {
     const shipment = records.shipments?.find((record) => record.id === trackingNumber);
-    recordsRead.push(shipment ? recordRef(shipment) : { call: CALLS.carrier, id: trackingNumber });
+    recordsRead.push(recordRefOr(shipment, { call: CALLS.carrier, id: trackingNumber }));
     if (!shipment) return entry("unknown", `No carrier record for ${trackingNumber}`);
     readings.push(`${trackingNumber} ${shipment.status}`);
     statuses.add(shipment.status);

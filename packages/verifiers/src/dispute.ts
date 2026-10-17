@@ -2,7 +2,7 @@
 
 import type { Intent, TraceEntry } from "@countersign/mandate";
 import { entryFor } from "./entry";
-import { CALLS, type RecordSnapshots, recordRef } from "./snapshots";
+import { CALLS, type RecordSnapshots, recordRefOr } from "./snapshots";
 
 // The only dispute status that isn't open.
 const RESOLVED = "RESOLVED";
@@ -13,7 +13,7 @@ export function disputeNoneOpen(intent: Intent, records: RecordSnapshots): Trace
   const { captureId } = intent.target;
   const lookup = records.disputes?.find((record) => record.id === captureId);
   const entry = entryFor("dispute.none_open", [
-    lookup ? recordRef(lookup) : { call: CALLS.disputes, id: captureId },
+    recordRefOr(lookup, { call: CALLS.disputes, id: captureId }),
   ]);
   if (!lookup) return entry("unknown", `No disputes lookup for capture ${captureId}`);
   const open = lookup.disputes.find((dispute) => dispute.status !== RESOLVED);

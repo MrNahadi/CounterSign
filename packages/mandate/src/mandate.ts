@@ -5,7 +5,7 @@ import { type CanonicalHash, type JsonValue, sha256Canonical } from "./canonical
 import { ACTIONS, type Action as ActionName, CLAIMS, RAILS } from "./intent";
 import { CURRENCIES } from "./money";
 import { firstIssueMessage, IdSchema, type ParseIssue, parseIssues } from "./parsing";
-import { RULE_REASON_CODES, type RuleReasonCode } from "./reason-codes";
+import type { RuleReasonCode } from "./reason-codes";
 
 // Every verifier a rule may name (original brief §8). Ones not built yet return unknown.
 export const VERIFIERS = [
@@ -53,10 +53,21 @@ const DENY_RULE_REASON_CODES = [
   "RULE_DENIES",
 ] as const satisfies readonly RuleReasonCode[];
 
+// The rule reasons whose words fit a hold. RULE_DENIES ("Your rules don't allow this.") refuses,
+// so a step-up rule can't name it.
+const STEP_UP_RULE_REASON_CODES = [
+  "SHIPMENT_DELIVERED",
+  "ALWAYS_NEEDS_APPROVAL",
+] as const satisfies readonly RuleReasonCode[];
+
 // A step-up or deny rule names why it held or refused an intent (ADR 0019).
 const Rule = z.discriminatedUnion("decide", [
   z.strictObject({ ...RuleBase, decide: z.literal("allow") }),
-  z.strictObject({ ...RuleBase, decide: z.literal("step_up"), reason: z.enum(RULE_REASON_CODES) }),
+  z.strictObject({
+    ...RuleBase,
+    decide: z.literal("step_up"),
+    reason: z.enum(STEP_UP_RULE_REASON_CODES),
+  }),
   z.strictObject({
     ...RuleBase,
     decide: z.literal("deny"),
@@ -141,7 +152,7 @@ export type MandateParse =
 export function parseMandate(input: unknown): MandateParse {
   const result = MandateSchema.safeParse(input);
   if (result.success) return { ok: true, mandate: result.data };
-  const error = firstIssueMessage("Mandate ", result.error);
+  const error = firstIssueMessage("Mandate", result.error);
   return { ok: false, error, issues: parseIssues(result.error) };
 }
 

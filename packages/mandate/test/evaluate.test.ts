@@ -85,6 +85,57 @@ function withRules(rules: unknown[]) {
   return result.mandate;
 }
 
+describe("a rule's own reason", () => {
+  it("says the rule asks you first when it holds, and denies when it denies", () => {
+    const holdAll = [
+      { id: "hold-all", action: "paypal.refund", decide: "step_up", reason: "SHIPMENT_DELIVERED" },
+    ];
+    const held = evaluate({
+      mandate: withRules(holdAll),
+      intent: refund(),
+      trace: passing("delivered"),
+    });
+    expect(held.decision).toBe("step_up");
+    expect(held.reasons[0]?.detail).toMatch(/rule hold-all asks you first$/);
+    const denyAll = [
+      { id: "deny-all", action: "paypal.refund", decide: "deny", reason: "SHIPMENT_DELIVERED" },
+    ];
+    const denied = evaluate({
+      mandate: withRules(denyAll),
+      intent: refund(),
+      trace: passing("delivered"),
+    });
+    expect(denied.decision).toBe("deny");
+    expect(denied.reasons[0]?.detail).toMatch(/rule deny-all denies this$/);
+  });
+
+  it.each([
+    ["lost", "lost"],
+    [null, "unknown"],
+  ] as const)(
+    "names the carrier's real reading when SHIPMENT_DELIVERED fires on a %s shipment",
+    (status, shown) => {
+      const rules = [
+        {
+          id: "hold-all",
+          action: "paypal.refund",
+          decide: "step_up",
+          reason: "SHIPMENT_DELIVERED",
+        },
+      ];
+      const result = evaluate({
+        mandate: withRules(rules),
+        intent: refund(),
+        trace: passing(status),
+      });
+      expect(result.reasons[0]).toEqual({
+        code: "SHIPMENT_DELIVERED",
+        detail: `The carrier reading is ${shown}, not delivered; rule hold-all asks you first`,
+      });
+    },
+  );
+});
+
 describe("step 1: matching rules", () => {
   it("allows a lost parcel under the cap through its rule", () => {
     const result = evaluate({ mandate, intent: refund(), trace: passing("lost") });

@@ -3,7 +3,7 @@
 import { formatMoney, type Intent, isMinorUnits, type TraceEntry } from "@countersign/mandate";
 import { entryFor } from "./entry";
 import { captureFor } from "./lookups";
-import { CALLS, type RecordSnapshots, recordRef } from "./snapshots";
+import { CALLS, type RecordSnapshots, recordRefOr } from "./snapshots";
 
 const REFUNDABLE_STATUSES = new Set(["COMPLETED", "PARTIALLY_REFUNDED"]);
 
@@ -12,7 +12,7 @@ export function captureRefundable(intent: Intent, records: RecordSnapshots): Tra
   const { captureId } = intent.target;
   const capture = captureFor(captureId, records);
   const entry = entryFor("capture.refundable", [
-    capture ? recordRef(capture) : { call: CALLS.capture, id: captureId },
+    recordRefOr(capture, { call: CALLS.capture, id: captureId }),
   ]);
   if (!capture) return entry("unknown", `No record of capture ${captureId}`);
   const { amount, refundedMinor } = capture;

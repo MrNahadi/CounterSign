@@ -135,12 +135,12 @@ describe("the decide CLI on a case file it can't use", () => {
     [
       "a file that fails the schema",
       [tempCase(JSON.stringify({ description: "x" }))],
-      /^Case file\.now: .+\n$/,
+      /^Case file \(now\): .+\n$/,
     ],
     [
       "a now that isn't a calendar date",
       [tempCase(JSON.stringify({ ...beat4, now: "2026-02-31T10:00:00Z" }))],
-      /^Case file\.now: .+\n$/,
+      /^Case file \(now\): .+\n$/,
     ],
     [
       "an execution time that isn't a calendar date",
@@ -155,7 +155,7 @@ describe("the decide CLI on a case file it can't use", () => {
           }),
         ),
       ],
-      /^Case file\.records\.executions\[0\]\.executedAt: .+\n$/,
+      /^Case file \(records\.executions\[0\]\.executedAt\): .+\n$/,
     ],
     ["no case file", [], new RegExp(`^${USAGE.replace(/[[\]]/g, "\\$&")}\n$`)],
     ["two case files", [beat3, beat3], /^Usage: .+\n$/],
