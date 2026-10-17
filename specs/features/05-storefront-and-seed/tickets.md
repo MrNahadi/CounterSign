@@ -88,17 +88,17 @@ Notes:
 
 ## T-007: npm run seed, with --dry-run, --run and list, and the README
 
-Status: open
+Status: done
 Tier: standard
 Blocked by: T-006
 Slice: `npm run seed` seeds the database the other CLIs use and prints the summary; `--dry-run` shows the plan with nothing set; `list` shows what's seeded; the README says how to seed and what's simulated.
 Test seam: the seed CLI's exported run function `(args, env)`, plus one child-process run of the entry point with `node --import tsx`
 Acceptance:
-- [ ] A complete run prints "Seeded 30 of 30 orders in run <run>: 16 delivered, 6 in transit, 4 stalled, 4 lost." and exits 0. A partial one prints the failures and "Run npm run seed -- --run <run> to retry them.", and exits 1
-- [ ] `--dry-run` prints one line per order and the totals, needs no variables, and makes no call. `list` prints the seeded rows, or "No seeded orders yet."
-- [ ] Missing PayPal or vault variables exit 2 naming them. The database is chosen by phase 4's rule with `@countersign/db`'s helpers, and an unreachable `DATABASE_URL` holding a password exits 2 with neither in the output
-- [ ] `--run` accepts 4 to 24 lowercase letters and digits; without it a run ID is made from the date and a random suffix. Bad arguments are reported through zod
-- [ ] A root `seed` script loads env with `--env-file-if-exists=.env.local`. The README gains a "Seed the demo" section (both buyers, resuming a run, `list`, and that the carrier is simulated) and the two vault variables in its environment table
+- [x] A complete run prints "Seeded 30 of 30 orders in run <run>: 16 delivered, 6 in transit, 4 stalled, 4 lost." and exits 0. A partial one prints the failures and "Run npm run seed -- --run <run> to retry them.", and exits 1
+- [x] `--dry-run` prints one line per order and the totals, needs no variables, and makes no call. `list` prints the seeded rows, or "No seeded orders yet."
+- [x] Missing PayPal or vault variables exit 2 naming them. The database is chosen by phase 4's rule with `@countersign/db`'s helpers, and an unreachable `DATABASE_URL` holding a password exits 2 with neither in the output
+- [x] `--run` accepts 4 to 24 lowercase letters and digits; without it a run ID is made from the date and a random suffix. Bad arguments are reported through zod
+- [x] A root `seed` script loads env with `--env-file-if-exists=.env.local`. The README gains a "Seed the demo" section (both buyers, resuming a run, `list`, and that the carrier is simulated) and the two vault variables in its environment table
 Notes:
 
 ## T-008: The storefront's create and capture routes

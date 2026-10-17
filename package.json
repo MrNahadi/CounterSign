@@ -20,7 +20,8 @@
     "decide": "tsx apps/gate/src/decide-main.ts",
     "db:generate": "npm run db:generate --workspace @countersign/db",
     "db:migrate": "tsx --env-file-if-exists=.env.local packages/db/src/migrate-main.ts",
-    "ledger": "tsx --env-file-if-exists=.env.local packages/ledger/src/ledger-main.ts"
+    "ledger": "tsx --env-file-if-exists=.env.local packages/ledger/src/ledger-main.ts",
+    "seed": "tsx --env-file-if-exists=.env.local apps/storefront/src/seed-main.ts"
   },
   "dependencies": {
     "zod": "4.6.7"

@@ -98,6 +98,7 @@ Unit tests and the decide CLI need no secrets. The integration spikes and the AI
 | Area | Variables |
 |---|---|
 | PayPal sandbox | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BASE_URL` |
+| Seed buyers | `PAYPAL_SEED_VAULT_TOKEN` (buyer A) and `PAYPAL_SEED_VAULT_TOKEN_B` (buyer B), vault tokens for two different sandbox buyer accounts. Only `npm run seed` needs them |
 | Gemini | `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.5-flash-lite`) |
 | Daraja sandbox | `DARAJA_CONSUMER_KEY`, `DARAJA_CONSUMER_SECRET`, `DARAJA_BASE_URL` and the shortcode settings |
 | AG Studio | `AG_STUDIO_LICENSE_KEY` |
@@ -184,6 +185,25 @@ npm run ledger -- verify                                                        
 
 A hash chain proves that no row was changed, removed from the middle, or reordered. It can't prove that rows were cut off the end, because the shorter log is still a valid chain. To catch that, keep a copy of the head (the last number and hash that `verify` prints) somewhere else, and compare it with the head later. If the log's head has moved back or its hash differs from your copy at the same number, rows were removed.
 
+## Seed the demo
+
+The demo runs on 30 real PayPal sandbox orders from Kikapu Studio, `KIK-1013` to `KIK-1042`. `npm run seed` creates each one, paid and captured in one call, adds its tracker, reads it back, and records its shipment and seed row. It uses the same database as the other CLIs.
+
+It needs the PayPal sandbox variables and two vault tokens, one for each seed buyer. Buyer A pays for most orders. Buyer B pays for a few, including the four that beat 3's injected email names, so B must be a different sandbox account. If both tokens turn out to be the same PayPal account, the seed says so and exits 1.
+
+```bash
+npm run seed -- --dry-run              # the plan: every order, its product, price, buyer, status and role
+npm run seed                           # seed a new run
+npm run seed -- --run 20261017k3x9qa   # resume a run, retrying only the orders that failed
+npm run seed -- list                   # what's seeded, with each order's carrier status
+```
+
+A complete run prints `Seeded 30 of 30 orders in run <run>: 16 delivered, 6 in transit, 4 stalled, 4 lost.` and exits 0. If some orders fail, it lists each one with the call that failed and PayPal's debug ID, prints the command to resume the run, and exits 1. Resuming reuses the same PayPal request IDs, so PayPal replays its earlier answers instead of creating new orders. PayPal keeps those IDs for about 6 hours, so resume promptly. It exits 2, naming the variables, when one is missing, and exits 2 when the database can't be opened.
+
+`--dry-run` needs no variables, makes no PayPal call and opens no database. Run IDs are 4 to 24 lowercase letters and digits. Without `--run`, the seed makes one from the date and a random suffix.
+
+The carrier is simulated. PayPal only records that an order shipped, so the delivered, in transit, stalled and lost statuses and their scan events come from a carrier mock, Kisumu Couriers (simulated). Its dates are counted back from the time of seeding, so a scan can fall before PayPal's capture time.
+
 ## Project status
 
 Countersign is mid-build. The roadmap runs from 16 October to submission on 11 November 2026. Each phase is one user-visible feature on its own branch.
@@ -218,7 +238,7 @@ These were run by hand against live sandboxes on 16 October 2026. Findings are i
 
 | Part | Today |
 |---|---|
-| PayPal sandbox calls | Real, in the spikes. Phase 3 decisions run on recorded record snapshots |
+| PayPal sandbox calls | Real, in the spikes and `npm run seed`. Phase 3 decisions run on recorded record snapshots |
 | Carrier tracking | Simulated. PayPal only knows shipped or cancelled, so lost, stalled and delivered come from a carrier mock |
 | Kikapu Studio, Achieng, and every person and order in the fixtures | Illustrative |
 | M-Pesa | Partly real in spike S6; the rail itself is secondary and built last |
