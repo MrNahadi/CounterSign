@@ -180,3 +180,13 @@ Gotchas for the next iteration:
 
 Gotchas for the next iteration:
 - The tracking number comes from the verifier's detail wording ("Carrier shows <tracking> <status>"), not from a structured field. If T-018 or phase 5 rewords `shipment.status`'s detail, the beat 3 CLI test pins the text and will catch it. The property test's oracle treats a missing limit as not a clean allow. Its generator now gives each currency a limit 85% of the time and never a zero total or count limit, to keep enough allows (over 2% of runs) and enough missing limits (over 10%).
+
+## T-017: done
+
+`@countersign/mandate` now exports `ReasonCodeSchema` (in `reason-codes.ts`), `ruleActions(rule)` and `requiredVerifiers(mandate, action)` (in `mandate.ts`, deduplicated, rule order). `evaluate`'s `match` uses `ruleActions`; `decide` uses `requiredVerifiers` and no longer imports `./case-file`. `normalizeProposal` reads the tool through a non-strict `z.object({ tool: z.string() })` pre-parse.
+
+Gotchas for the next iteration:
+- `mandate.ts` imports intent's `Action` type as `ActionName`, because its local zod schema is already called `Action`.
+- `evaluate-property.test.ts`'s oracle keeps its own "one action or a list" switch on purpose: it's an independent oracle, so it shouldn't share the code it checks.
+- `decide.test.ts` has a source check that `decide.ts` doesn't import `./case-file`.
+
