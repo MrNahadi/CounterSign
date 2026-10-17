@@ -10,11 +10,12 @@ Approved by the owner on 2026-10-16. At approval the owner added the Graphite de
 Version 1.1 (2026-10-16): at the owner's request, every product AI role moves from Anthropic Claude to Google Gemini, because Claude costs more and Gemini has a free tier. The how is in ADRs 0013-0016. The build loop still runs on Claude Code.
 Version 1.2 (2026-10-16): at the owner's request, the M-Pesa rail becomes a secondary feature, built last before the freeze, because the Daraja sandbox's customer-payment callbacks were unreliable in spike S6. PayPal is the main path. We still want M-Pesa before submission.
 Version 1.3 (2026-10-16): at the owner's request, the default model is `gemini-3.5-flash-lite`, and `GEMINI_MODEL` in the env file switches it, for example to a larger model on the paid tier (ADR 0017).
+Version 1.4 (2026-10-17): at the owner's request, the build runs autonomously. The autopilot plans, builds, validates, merges and pushes every feature without per-feature sign-off, and decides escalated questions itself, logging each one for the owner's review. Phase dates are no longer targets; only the Devpost deadline is fixed.
 -->
 
 | Field | Value |
 |---|---|
-| Version | 1.3 (1.0 restructured from countersign.md v1 and approved 2026-10-16; 1.1 moves product AI to Google Gemini; 1.2 makes the M-Pesa rail a secondary feature, built last; 1.3 makes Gemini Flash-Lite the default model, set in the env file; all 2026-10-16) |
+| Version | 1.4 (1.0 restructured from countersign.md v1 and approved 2026-10-16; 1.1 moves product AI to Google Gemini; 1.2 makes the M-Pesa rail a secondary feature, built last; 1.3 makes Gemini Flash-Lite the default model, set in the env file; all 2026-10-16; 1.4 hands the build to the autopilot and drops phase dates, 2026-10-17) |
 | Date | 2026-10-16 |
 | Owner | muigufarid@gmail.com |
 | Project type | Greenfield. There's no code yet, and this folder isn't a git repo yet |
@@ -378,10 +379,16 @@ From original §19. Each phase ends at a gate. If a gate is missed, the cut it n
 
 ## 14. Working agreement with the agent (REQUIRED)
 
-- Feature spec gate: I approve tickets before the loop runs.
+The build runs autonomously (owner decision, 17 Oct 2026). I review the queue in `.ralph/human.md` when I choose to, not as a gate.
+
+- Feature spec gate: none. The autopilot's planner writes and approves each feature's spec and tickets, and installs the exact-pinned dependencies its plan names.
 - Answerer may decide: technical questions and strong inferences from this brief.
-- Loop budget per feature: 30 iterations.
-- Merging to main: the agent may merge after I sign off.
+- Escalated questions: the autopilot decides them using §10's ranked trade-offs. It records each decision as an ADR marked `Decided-by: autopilot (delegated)` and lists it in `.ralph/human.md`, so I can overturn it later.
+- Never delegated: §8's non-negotiables and this brief. The agent never edits either, and never spends money, signs up for a paid plan, or speaks for me to a person.
+- Loop budget per feature: 60 build iterations and 3 validation rounds.
+- Merging to main: the autopilot merges and pushes once a feature passes validation and every Feedback command.
+- Dates: phase dates in §13 and the roadmap are no longer targets; coding agents set the pace. The Devpost deadline (§8) is the one fixed date.
+- Work only a human can do (payment, accounts, real interviews, the video, the submission) goes in `.ralph/human.md`. The autopilot builds everything around it and carries on.
 
 ## 15. Open questions
 
