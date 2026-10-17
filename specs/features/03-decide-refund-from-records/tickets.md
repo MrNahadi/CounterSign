@@ -136,15 +136,15 @@ Notes:
 
 ## T-011: decide never throws on a valid case: safe-integer totals
 
-Status: open
+Status: done
 Blocked by:
 Slice: A case file whose execution history adds up past the safe-integer range gets a decision instead of a crash: usage is unknown, so an allow escalates to step-up `DAILY_LIMIT_UNKNOWN`. The CLI still exits with code 0.
 Test seam: `todaysUsage` in `@countersign/verifiers`, the `decide` function in `apps/gate/src/`, and the CLI's exported run function
 Acceptance:
-- [ ] Usage is unknown, with a detail that says why, when a principal's total for a currency would pass `Number.MAX_SAFE_INTEGER`. The check is `Number.isSafeInteger` on every running total
-- [ ] The evaluator never calls `formatMoney` with a value that isn't a safe non-negative integer. A regression test feeds it the overflowing usage and gets a decision
-- [ ] A new fixture case (one `MAX_SAFE_INTEGER` execution today, plus beat 4's $18 proposal) expects step-up `DAILY_LIMIT_UNKNOWN`. The CLI run on it exits 0 with no stack trace
-- [ ] A test runs `decide` on every fixture case and asserts that none of them throws
+- [x] Usage is unknown, with a detail that says why, when a principal's total for a currency would pass `Number.MAX_SAFE_INTEGER`. The check is `Number.isSafeInteger` on every running total
+- [x] The evaluator never calls `formatMoney` with a value that isn't a safe non-negative integer. A regression test feeds it the overflowing usage and gets a decision
+- [x] A new fixture case (one `MAX_SAFE_INTEGER` execution today, plus beat 4's $18 proposal) expects step-up `DAILY_LIMIT_UNKNOWN`. The CLI run on it exits 0 with no stack trace
+- [x] A test runs `decide` on every fixture case and asserts that none of them throws
 Notes: Found by the phase 3 spec review (ADR 0020). It reproduced "THREW Can't format 9007199254742792 minor units".
 
 ## T-012: One timestamp rule, shared

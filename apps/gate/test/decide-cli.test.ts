@@ -105,6 +105,15 @@ describe("the decide CLI with --json", () => {
   });
 });
 
+describe("the decide CLI on a day whose total can't be counted", () => {
+  it("exits 0 with a step-up for DAILY_LIMIT_UNKNOWN", () => {
+    const result = runDecideCli([join(casesDir, "usage-overflow.json")]);
+    expect(result.exitCode).toBe(EXIT_DECIDED);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain(`${REASONS.DAILY_LIMIT_UNKNOWN.words} (DAILY_LIMIT_UNKNOWN)`);
+  });
+});
+
 describe("the decide CLI on a case file it can't use", () => {
   it.each([
     [
@@ -148,6 +157,14 @@ describe("the decide entry point", () => {
     expect(child.stderr).toBe("");
     expect(child.status).toBe(0);
     expect(AgentResponseSchema.array().parse(JSON.parse(child.stdout))).toHaveLength(5);
+  });
+
+  it("exits 0 with no stack trace as a child process when today's total can't be counted", () => {
+    const child = run(["apps/gate/fixtures/cases/usage-overflow.json", "--json"]);
+    expect(child.stderr).toBe("");
+    expect(child.status).toBe(0);
+    const [response] = AgentResponseSchema.array().parse(JSON.parse(child.stdout));
+    expect(response?.decision).toBe("pending_approval");
   });
 
   it("exits 2 as a child process when the case file can't be read", () => {

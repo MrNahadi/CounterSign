@@ -1,0 +1,50 @@
+{
+  "description": "Beat 4's $18 stalled-parcel refund on a day whose execution history already holds the largest amount Countersign can count. Today's total can't be counted, so the allow is held. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2041",
+        "orderId": "ORD-2041",
+        "status": "COMPLETED",
+        "amount": { "minor": 1800, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [
+      {
+        "id": "ORD-2041",
+        "payerEmail": "amina.k@example.com",
+        "trackers": [{ "id": "CAP-2041-TRK2041", "trackingNumber": "TRK2041", "status": "SHIPPED" }]
+      }
+    ],
+    "disputes": [{ "id": "CAP-2041", "disputes": [] }],
+    "shipments": [{ "id": "TRK2041", "status": "stalled_10d" }],
+    "ticket": { "id": "TKT-2041", "senderEmail": "amina.k@example.com", "attachments": [] },
+    "executions": [
+      {
+        "id": "EXE-0902",
+        "principal": "support-agent",
+        "captureId": "CAP-1991",
+        "amount": { "minor": 9007199254740991, "currency": "USD" },
+        "executedAt": "2026-10-17T05:10:00Z"
+      }
+    ]
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-2041",
+          "amount": { "value": "18.00", "currency_code": "USD" },
+          "note_to_payer": "Sorry your parcel stalled."
+        },
+        "justification": { "ticket_id": "TKT-2041", "claim": "not_received" }
+      },
+      "expect": { "decision": "step_up", "reasons": ["DAILY_LIMIT_UNKNOWN"] }
+    }
+  ]
+}

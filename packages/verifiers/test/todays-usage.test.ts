@@ -122,6 +122,30 @@ describe("todaysUsage", () => {
     });
   });
 
+  it("is unknown when the principal's total for a currency would pass the safe-integer range", () => {
+    const executions = [
+      at("exe_1", "2026-10-17T06:40:00Z", {
+        amount: { minor: Number.MAX_SAFE_INTEGER, currency: "USD" },
+      }),
+      at("exe_2", "2026-10-17T07:00:00Z", { amount: { minor: 1, currency: "USD" } }),
+    ];
+    expect(todaysUsage({ executions }, today)).toEqual({
+      known: false,
+      detail: "Today's USD total is too large to count at execution exe_2",
+    });
+  });
+
+  it("counts a total of exactly the largest safe integer", () => {
+    const executions = [
+      at("exe_1", "2026-10-17T06:40:00Z", {
+        amount: { minor: Number.MAX_SAFE_INTEGER - 1, currency: "USD" },
+      }),
+      at("exe_2", "2026-10-17T07:00:00Z", { amount: { minor: 1, currency: "USD" } }),
+    ];
+    const usage = todaysUsage({ executions }, today);
+    expect(usage.known && usage.perCurrency.USD.total.minor).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
   it("is unknown when now isn't a valid time", () => {
     expect(todaysUsage({ executions: [] }, { ...today, now: new Date(Number.NaN) }).known).toBe(
       false,

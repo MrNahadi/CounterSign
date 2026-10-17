@@ -69,6 +69,13 @@ export function todaysUsage(records: RecordSnapshots, scope: UsageScope): Usage 
     const usage = perCurrency[amount.currency];
     usage.count += 1;
     usage.total.minor += amount.minor;
+    // Past the safe-integer range a sum loses precision, so the day's total can't be trusted.
+    if (!Number.isSafeInteger(usage.total.minor)) {
+      return {
+        known: false,
+        detail: `Today's ${amount.currency} total is too large to count at execution ${execution.id}`,
+      };
+    }
   }
   return { known: true, date, perCurrency };
 }

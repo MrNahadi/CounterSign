@@ -62,6 +62,23 @@ describe("the fixture suite", () => {
     load(name).proposals.map((entry) => ({ name, ...entry.expect })),
   );
 
+  it("decides every proposal in every case without throwing", () => {
+    for (const name of caseFiles) {
+      const decisionCase = load(name);
+      decisionCase.proposals.forEach((_entry, index) => {
+        expect(() => decideAt(decisionCase, index), `${name} proposal ${index}`).not.toThrow();
+      });
+    }
+  });
+
+  it("holds an allow whose daily total can't be counted with DAILY_LIMIT_UNKNOWN", () => {
+    const { record } = decideAt(load("usage-overflow.json"), 0);
+    expect(record.decision).toBe("step_up");
+    expect(record.reasons).toEqual([
+      { code: "DAILY_LIMIT_UNKNOWN", detail: "Today's USD total would be too large to count" },
+    ]);
+  });
+
   it("reaches every reason code", () => {
     const reached = new Set(expected.flatMap((each) => each.reasons));
     expect(REASON_CODES.filter((code) => !reached.has(code))).toEqual([]);

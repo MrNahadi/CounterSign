@@ -137,3 +137,10 @@ Gotchas for the next iteration:
 - `npm run decide` and `npm run <x> --workspace ...` need approval in this harness. The child-process test runs the entry with `node --import tsx` from the repo root instead, which relies on tsx being hoisted to the root `node_modules`.
 - A case-file path is resolved against the working directory, which npm sets to the repo root for root scripts.
 - Bad input (no path, two paths, an unknown option, an unreadable, non-JSON or invalid case file) exits 2 with one line on stderr; newlines in an error are folded into spaces.
+
+## T-011: done
+
+`todaysUsage` returns unknown ("Today's USD total is too large to count at execution <id>") when a running total leaves the safe-integer range. `evaluate`'s daily-limit step checks today's total plus the intent (and count + 1) before the limit lookup, and returns `DAILY_LIMIT_UNKNOWN` ("Today's USD total would be too large to count") instead of formatting it. New case `apps/gate/fixtures/cases/usage-overflow.json`; `decide.test.ts` now decides every proposal of every case and asserts none throws.
+
+Gotchas for the next iteration:
+- The unsafe-total check runs before the limit lookup, so it escalates even for a currency with no limit. T-015 adds `NO_DAILY_LIMIT` after it, in the same function.

@@ -378,6 +378,19 @@ describe("step 3: escalations", () => {
     ]);
   });
 
+  it("holds an allow with DAILY_LIMIT_UNKNOWN when today's total plus the intent passes the safe-integer range", () => {
+    const result = evaluate({
+      mandate,
+      intent: refund(),
+      trace: passing(),
+      usage: usage(1, Number.MAX_SAFE_INTEGER),
+    });
+    expect(result.outcome).toBe("step_up");
+    expect(result.reasons).toEqual([
+      { code: "DAILY_LIMIT_UNKNOWN", detail: "Today's USD total would be too large to count" },
+    ]);
+  });
+
   it("holds an allow on unknown usage even with no limit for the currency", () => {
     const rules = [{ id: "any-refund", action: "paypal.refund", decide: "allow" }];
     const lax = withRules(rules);

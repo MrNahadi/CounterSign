@@ -3,7 +3,7 @@
 
 import { ACTIONS, type Intent } from "./intent";
 import type { Mandate, Rule, ShipmentStatus, VerifierName } from "./mandate";
-import { formatMoney } from "./money";
+import { formatMoney, isMinorUnits } from "./money";
 import type { ReasonCode } from "./reason-codes";
 import type { TraceEntry, VerifierResult, VerifierTrace } from "./trace";
 import type { Usage } from "./usage";
@@ -115,15 +115,25 @@ function unmetRequirements(rule: Rule, trace: VerifierTrace): Reason[] {
 }
 
 // Step 3's daily limits: an intent that would take today's total or count for its currency past
-// the mandate's limit. Unknown usage always escalates, whatever the limits say.
+// the mandate's limit. Unknown usage always escalates, whatever the limits say, and so does a
+// total past the safe-integer range, which can't be counted.
 function dailyLimitReasons({ mandate, intent, usage }: EvaluateInput): Reason[] {
   if (!usage.known) return [{ code: "DAILY_LIMIT_UNKNOWN", detail: usage.detail }];
   const { currency } = intent.amount;
+  const today = usage.perCurrency[currency];
+  const total = today.total.minor + intent.amount.minor;
+  const count = today.count + 1;
+  if (!isMinorUnits(total) || !Number.isSafeInteger(count)) {
+    return [
+      {
+        code: "DAILY_LIMIT_UNKNOWN",
+        detail: `Today's ${currency} total would be too large to count`,
+      },
+    ];
+  }
   const limit = mandate.limits.find((each) => each.currency === currency);
   if (!limit) return [];
-  const today = usage.perCurrency[currency];
   const reasons: Reason[] = [];
-  const total = today.total.minor + intent.amount.minor;
   if (limit.per_day_total !== undefined && total > limit.per_day_total) {
     const after = formatMoney({ minor: total, currency });
     const cap = formatMoney({ minor: limit.per_day_total, currency });
@@ -132,7 +142,6 @@ function dailyLimitReasons({ mandate, intent, usage }: EvaluateInput): Reason[] 
       detail: `Today's ${currency} total would be ${after}, over the ${cap} daily limit`,
     });
   }
-  const count = today.count + 1;
   if (limit.per_day_count !== undefined && count > limit.per_day_count) {
     reasons.push({
       code: "DAILY_LIMIT_REACHED",
