@@ -15,7 +15,7 @@ You are one iteration of an unattended build loop. You remember nothing from ear
    - `Status: open`, and every ticket under `Blocked by` is `done`, or
    - `Status: blocked-question`, and its question file is now in `questions/answered/`. Read the answer, then treat the ticket as open.
 5. If no ticket is ready:
-   - Every ticket is `done`: run all four Feedback commands. If they all pass, write `COMPLETE` to `.ralph/done`. If one fails, add a ticket describing the failure, commit, and stop.
+   - Every ticket is `done` or `deferred` (set aside by the autopilot): run all four Feedback commands. If they all pass, write `COMPLETE` to `.ralph/done`. If one fails, add a ticket describing the failure, commit, and stop.
    - Otherwise write `WAITING` to `.ralph/done`, then one line per unfinished ticket with its ID and status. Stop.
 6. Read your ticket's block only: `sed -n '<start>,<end>p' FEATURE/tickets.md`, using the line numbers from step 3.
 7. Run `git stash list`. If it holds `<ticket-id> parked` or `<ticket-id> partial`, run `git stash pop` on that entry. A `partial` stash is unfinished work from an iteration that was cut off. Review it against the ticket before building on it, and redo anything that looks half-written.
