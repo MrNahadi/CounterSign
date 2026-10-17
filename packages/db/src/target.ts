@@ -42,6 +42,9 @@ export type PgliteOption =
   | { ok: true; pgliteDir: string | undefined; rest: string[] }
   | { ok: false; error: string };
 
+// A directory named on the command line: not blank, and not another option.
+const PgliteDirSchema = z.string().refine((dir) => dir.trim() !== "" && !dir.startsWith("-"));
+
 /** Takes `--pglite <dir>` out of a CLI's arguments. */
 export function takePgliteOption(args: readonly string[]): PgliteOption {
   const rest: string[] = [];
@@ -52,12 +55,10 @@ export function takePgliteOption(args: readonly string[]): PgliteOption {
       if (arg !== undefined) rest.push(arg);
       continue;
     }
-    const dir = args[index + 1];
-    if (dir === undefined || dir.startsWith("-") || dir.trim() === "") {
-      return { ok: false, error: "--pglite needs a directory." };
-    }
+    const dir = PgliteDirSchema.safeParse(args[index + 1]);
+    if (!dir.success) return { ok: false, error: "--pglite needs a directory." };
     if (pgliteDir !== undefined) return { ok: false, error: "--pglite is given twice." };
-    pgliteDir = dir;
+    pgliteDir = dir.data;
     index++;
   }
   return { ok: true, pgliteDir, rest };
