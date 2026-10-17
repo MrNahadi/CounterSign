@@ -16,12 +16,13 @@ The repo files are your memory. Your own context will be compacted or lost. Afte
 ## 1. Find where things stand
 
 1. `node --version` must print `v26.7.0`. If not, run `bash scripts/cloud-setup.sh`, then check again. If it still isn't, add the problem to `.ralph/human.md`, commit, push and stop.
-2. `git fetch origin --prune`
-3. `git branch -r --no-merged origin/main` lists feature branches that aren't merged yet.
+2. Commits belong to the owner (`CLAUDE.md`): `git config user.name "Farid Nahadi"`, then `git config user.email "thenahadi@gmail.com"`.
+3. `git fetch origin --prune`
+4. `git branch -r --no-merged origin/main` lists feature branches that aren't merged yet.
    - One `origin/feature/*` branch: that's the current feature. `git switch <name>` (track it), `git pull --ff-only`, then go to section 3, or section 4 if its tickets are all `done` or `deferred`.
    - None: `git switch main`, `git pull --ff-only`, then go to section 2.
    - More than one: work on the lowest-numbered one, and note the others in `.ralph/human.md`.
-4. If `.ralph/FINISHED` exists on main, the build is done. Stop.
+5. If `.ralph/FINISHED` exists on main, the build is done. Stop.
 
 ## 2. Plan the next feature
 
