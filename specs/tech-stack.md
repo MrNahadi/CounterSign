@@ -1,6 +1,6 @@
 # Tech stack
 
-Derived from brief §8–§9 and ADRs 0001–0022 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
+Derived from brief §8–§9 and ADRs 0001–0024 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
 
 ## Runtime and tooling
 
@@ -21,7 +21,7 @@ Pin exact versions with no `^` or `~`. The build loop can't install packages. Si
 |---|---|---|
 | typescript | 5.9.3 | all workspaces |
 | @types/node | 26.6.5 | all workspaces |
-| tsx | 4.23.15 | `dependencies` of each Node service |
+| tsx | 4.23.15 | `dependencies` of each Node service, and of the storefront for its seed script |
 | zod | 4.6.7 | root, shared |
 | @modelcontextprotocol/sdk | 1.32.1 | gate, resolve-agent |
 | express | 5.3.0 | gate |
@@ -32,6 +32,7 @@ Pin exact versions with no `^` or `~`. The build loop can't install packages. Si
 | @paypal/mcp / @paypal/agent-toolkit | 1.8.1 / 1.11.0 | `apps/baseline-paypal-mcp` only |
 | next | 16.4.2 | console, storefront |
 | react / react-dom | 19.3.1 | console, storefront |
+| @paypal/paypal-js | 11.2.0 | storefront (JS SDK v6 loader and types, from `@paypal/paypal-js/sdk-v6`; ADR 0024) |
 | ag-studio / ag-studio-react | 3.0.0 | console |
 | ag-grid-community / ag-grid-react | 36.2.0 | console |
 | tailwindcss / @tailwindcss/postcss | 4.3.3 | console, storefront, packages/graphite |
@@ -50,16 +51,16 @@ apps/
   console/              Next.js: inbox, approvals page, audit console, Risk desk (AG Studio), mandate editor, bench, judge path
   resolve-agent/        Gemini harness for Resolve (our own function-calling loop); protected mode talks to the gate, baseline mode to baseline-paypal-mcp
   baseline-paypal-mcp/  Isolated workspace holding @paypal/mcp + agent-toolkit; nothing imports it, it's spawned over stdio
-  storefront/           Next.js Kikapu shop on PayPal JS SDK v6, plus the seed script
+  storefront/           Next.js Kikapu shop on PayPal JS SDK v6, the product and seed catalogs, and the seed script (`npm run seed`)
 packages/
   mandate/              Mandate schema, rule evaluator, compiler prompt
   verifiers/            Pure verifier functions over record snapshots, with fixtures
-  rail-paypal/          OAuth token cache, REST client, webhook signature verification
+  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds and webhook signature verification from phase 6)
   rail-mpesa/           Daraja client, callback parsing, receipt store
   ledger/               Hash chain, appends, `ledger verify` and its CLI; evidence export (phase 10)
-  db/                   Drizzle schema, migrations (with the append-only trigger), postgres.js and PGlite clients
+  db/                   Drizzle schema (audit_log, carrier_shipments, seed_orders), migrations (with the append-only trigger), postgres.js and PGlite clients
   graphite/             Graphite tokens (byte-identical copy), Tailwind theme, AG Studio theme
-  carrier-mock/         Shipment status adapter
+  carrier-mock/         Carrier adapter interface, and the mock over carrier_shipments (stored status, never derived from the clock; ADR 0023)
 bench/                  cases/, runner, results/ (committed, dated)
 docs/                   adr/, spikes.md, validation.md, threat model, architecture, judge guide
 Graphite Design/        The design system source (DESIGN.md, graphite-tokens.css). Don't edit it from app work
@@ -78,13 +79,20 @@ specs/                  Brief, constitution, feature specs
 - Audit-log appends take `pg_advisory_xact_lock` inside one READ COMMITTED transaction. `seq` is the primary key and `prev_hash` is unique (ADR 0003).
 - An audit-log entry's hash covers its envelope `{ seq, entryType, refId, at, prevHash, payload }`. The payload is stored as the canonical text that was hashed, never as jsonb. A trigger rejects UPDATE and DELETE on `audit_log` (ADR 0022).
 - The decision path stays pure: `decide()` never touches the database. Callers record its result in the audit log afterwards.
-- Idempotency: `PayPal-Request-Id` is the intent hash, and `sender_batch_id` is the intent ID. Daraja calls are deduplicated in the audit log first.
+- Idempotency: `PayPal-Request-Id` is the intent hash, and `sender_batch_id` is the intent ID. Daraja calls are deduplicated in the audit log first. Non-decision POSTs (seed, storefront) use readable request IDs, `countersign-<area>-<id>-<step>`, so a rerun replays rather than repeats.
+- Only `@countersign/rail-paypal` calls PayPal REST or knows its JSON. It refuses any base URL but the sandbox's, caches one token per client, retries only GETs and POSTs with a request ID, and returns zod-parsed records in minor units (ADR 0024).
 
 **Code**
 - Validate every external input with zod 4: MCP arguments, webhooks, callbacks, env.
 - Import workspace packages by name (`@countersign/<name>`), never with relative paths across workspaces. Next apps list them in `transpilePackages`.
 - tsconfig base: `module: preserve`, `moduleResolution: bundler`, `noEmit`, `strict`, `isolatedModules`, `verbatimModuleSyntax`, `erasableSyntaxOnly`. No enums and no `paths`.
 - Server code detects the browser with `typeof window`, never `localStorage`, because Node 26 defines it (ADR 0008).
+
+**CLIs** (from phase 4)
+- Each CLI exports a run function `(args, env)` returning `{ exitCode, stdout, stderr }`, with a thin `*-main.ts` entry point. Tests call the run function with env passed explicitly (never `process.env`, since a cloud session may hold real values), plus one child-process run with `node --import tsx`.
+- Exit 0 for success, 1 for a negative result (a broken chain, a partial seed), 2 when it can't run (missing variables, no database). Missing variables are named, never shown.
+- Databases are chosen with `@countersign/db`'s target helpers: `DATABASE_URL` wins, then `--pglite <dir>`, then `.countersign/pglite`. Driver errors pass through its `redactSecrets`.
+- Counts in output are pluralised ("1 entry", "30 orders"). Sentences end with a full stop, never an exclamation mark.
 
 **UI (Graphite)**
 - Every screen uses `@countersign/graphite`: Tailwind v4 restricted to Graphite semantic tokens, so classes equal token names (`bg-container`, `text-secondary-foreground`). Tailwind's default palette is removed (ADR 0006).

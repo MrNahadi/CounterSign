@@ -16,8 +16,8 @@ Additions from the ADRs:
 - S9 runs on Next 16.4.2 and React 19.3.1 (ADR 0010), checks that the AG Studio theme reads the Graphite CSS variables (ADR 0006), and runs the analyst on Gemini through a server-side route (ADR 0016).
 - [x] **3. Decide a refund from records** [1]. Given an order's recorded PayPal and carrier facts, a refund intent gets allow, step-up or deny from a CLI, with reason codes and a verifier trace. Everything runs from fixtures: the mandate schema, the evaluator and the PayPal verifiers.
 - [x] **4. Tamper-evident audit log** [5]. Every intent and decision is appended to a hash-chained log. `ledger verify` passes, and fails on any edited row. The entry format is ADR 0022. Later phases add their own entry types: executions and reconciliations in phase 6, approvals in phase 9. The console view and evidence export come in phase 10.
-- [ ] **5. Kikapu storefront and seed** [7]. A shopper buys on the storefront with JS SDK v6. A seed script creates about 30 real sandbox orders with captures and trackers, and the carrier mock reports lost, stalled, in-transit and delivered.
-- [ ] **6. A refund executes once, live** [1, 2]. Decisions use live sandbox records. An allowed refund executes on PayPal exactly once, even on replay, and `PAYMENT.CAPTURE.REFUNDED` reconciles it in the audit log. **Gate G1 (Sun 25 Oct).**
+- [ ] **5. Kikapu storefront and seed** [7]. A shopper buys on the storefront with JS SDK v6. A seed script creates about 30 real sandbox orders with captures and trackers, and the carrier mock reports lost, stalled, in-transit and delivered. It also builds the PayPal rail client's first calls (orders, captures, trackers). Seed state and shipments live in Postgres (ADR 0023); the client and checkout follow ADR 0024. The live seed needs two vaulted sandbox buyers (`.ralph/human.md`).
+- [ ] **6. A refund executes once, live** [1, 2]. Decisions use live sandbox records, read through phase 5's rail client and carrier mock and mapped into the verifiers' snapshots. The rail client gains refunds and webhook signature checks. An allowed refund executes on PayPal exactly once, even on replay, and `PAYMENT.CAPTURE.REFUNDED` reconciles it in the audit log. **Gate G1 (Sun 25 Oct).**
 
 ## Product: Mon 26 Oct – Sun 1 Nov
 
@@ -27,7 +27,7 @@ Additions from the ADRs:
 - [ ] **10. Claims vs records, and the audit console** [4, 5]. Every decision shows what the message claims beside what the records say, each fact with its source and sandbox ID. The console lists every intent with its trace and rail response, checks the chain, and exports evidence.
 - [ ] **11. Dispute evidence** [13]. When a dispute webhook arrives, the agent drafts an evidence pack from the audit log and tracking. The merchant approves it, and it's submitted with `provide-evidence`. Cut line: if S3 failed, this becomes a recorded sandbox submission.
 - [ ] **12. Ops-agent supplier payouts** [15]. An ops agent pays an allowlisted supplier through PayPal Payouts, always with step-up. The support agent's payout attempts are denied.
-- [ ] **13. The hosted judge path** [8, 18]. The demo runs on Render (paid plans). A 60-second guide, a scenario launcher and a reset button that restores the seed state in ≤ 60 seconds work on the hosted URL. **Gate G2 (Sun 1 Nov): the full PayPal demo path works end to end on the hosted URL.**
+- [ ] **13. The hosted judge path** [8, 18]. The demo runs on Render (paid plans). A 60-second guide, a scenario launcher and a reset button that restores the seed state in ≤ 60 seconds work on the hosted URL. The reset truncates the audit log and seed tables and starts a fresh seed run, or reuses one whose captures are untouched (ADR 0023). **Gate G2 (Sun 1 Nov): the full PayPal demo path works end to end on the hosted URL.**
 
 ## Depth: Mon 2 – Thu 5 Nov
 

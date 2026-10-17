@@ -115,8 +115,12 @@ The two-column view of a decision: what the message claims beside what the recor
 _Avoid_: comparison view
 
 **Shipment status**:
-The carrier's state for an order's tracking number: lost, stalled for 10+ days, in transit or delivered.
+The carrier's state for an order's tracking number: lost, stalled for 10+ days, in transit or delivered. The carrier mock stores it; it's never worked out from the clock.
 _Avoid_: delivery state, tracking status
+
+**Tracker**:
+PayPal's record, on an order, that one capture shipped under a tracking number. Its ID is the capture ID, a hyphen and the tracking number. Its own status is only shipped or cancelled.
+_Avoid_: shipment (that's the carrier's record), tracking
 
 ### Mandate
 
@@ -255,6 +259,18 @@ _Avoid_: checkout app
 **Seed state**:
 The known starting data (orders, trackers, receipts, tickets) that a demo reset restores.
 _Avoid_: fixtures (reserved for tests), sample data
+
+**Seed catalog**:
+The fixed list of 30 demo orders (`KIK-1013` to `KIK-1042`): each one's product, seed buyer, shipment status, scan events and demo role.
+_Avoid_: seed data, fixtures
+
+**Seed run**:
+One run of the seed script, named by its run ID. It creates the seed catalog's orders as real sandbox orders, and rerunning it with the same ID resumes it rather than repeating it.
+_Avoid_: seeding job, import
+
+**Seed buyer**:
+One of the two vaulted sandbox buyer accounts (A and B) that pay for seeded orders. Two exist so that a ticket can come from someone other than an order's payer.
+_Avoid_: test user, customer
 
 **Visitor attack**:
 A message a hosted-demo visitor writes in "Attack it yourself" to try to make money move.

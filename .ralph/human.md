@@ -12,6 +12,8 @@ The autopilot builds everything it can and lists here what only you can do, or w
 - **LICENSE:** confirm Apache-2.0, and make the repo public with the licence in the About sidebar.
 - **Video, comprehension check, README cold read and the Devpost submission (phase 20).**
 - **Phase 4, `.env.example`:** add a `DATABASE_URL=` line (Render Postgres connection string). A deny rule stops agents reading `.env.*`, so they can't edit it.
+- **Phase 5, two seed buyers:** vault two different sandbox personal accounts the way spike S1 did (`spikes/paypal/s1.ts vault-setup`, approve as the buyer, then `vault-token`), and add `PAYPAL_SEED_VAULT_TOKEN` (buyer A, who sends beat 3's email) and `PAYPAL_SEED_VAULT_TOKEN_B` (buyer B, who pays KIK-1038 to KIK-1041) to the Dev environment and `.env.example`. Until then the seed is proven against fixtures only, and phase 6's live demo has no seeded orders. Then run `npm run seed` and the vault case of `LIVE=1 npm test -- packages/rail-paypal`.
+- **Phase 5, storefront checkout:** buy one product on the storefront as a sandbox buyer (`npm run dev --workspace @countersign/storefront`, or the hosted URL from phase 13) and check the order and capture IDs against the sandbox dashboard, in light and dark.
 - **Phase 4, live Postgres check:** once the Render Postgres 18 database exists (phase 13), set `DATABASE_URL` in the Dev environment and run `LIVE=1 npm test -- packages/ledger` (20 concurrent appends in a throwaway schema), then `npm run db:migrate` and `npm run ledger -- verify` on the hosted database (brief §12).
 
 ## Decided for you
@@ -23,5 +25,7 @@ The autopilot builds everything it can and lists here what only you can do, or w
 - **Phase 4, CLI wording:** counts are pluralised ("1 entry", "1 problem", "Applied 1 migration."), and `tail` prints "Last N entries of M." or "The audit log has no entries.".
 - **Phase 4, database precedence:** `DATABASE_URL` wins over `--pglite <dir>` when both are given, and `--pglite` is then ignored silently. Overturn to refuse both together.
 - **Phase 4, decide env loading:** `decide-main.ts` loads `.env.local` itself (only with `--record`, never overriding set variables), because a phase 3 test pins the `decide` script without `--env-file-if-exists`. Change the test and script together to match the other scripts.
+- **Phase 5, seed state and carrier data (ADR 0023):** seeded orders and carrier shipments live in two Postgres tables (`seed_orders`, `carrier_shipments`); the shipment status is stored, never worked out from the clock; each seed run has a resumable run ID; and two seed buyers are required, so beat 3's `TICKET_NOT_FROM_PAYER` can fire. The carrier's scan dates are backdated from seeding and can precede PayPal's capture time; the carrier is labeled simulated.
+- **Phase 5, storefront scope:** storefront sales are real and captured but get no tracker or carrier record, and the shop sells one product per order. The planner couldn't reach the answerer agent from its session, so it applied the answerer's rules itself; ADR 0024 (rail client, v6 checkout with the client ID) is marked researched.
 
 ## Done
