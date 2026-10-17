@@ -75,17 +75,17 @@ Notes:
 
 ## T-006: Record each decision in the audit log
 
-Status: open
+Status: done
 Tier: standard
 Blocked by: T-001, T-004
 Slice: After `decide()`, `recordDecision` writes the mandate's version entry (once per version) and the decision entry in one locked transaction. Recording beat 3 gives one mandate entry and five decision entries, and the chain verifies.
 Test seam: `recordDecision` in `apps/gate/src/`, over a migrated in-memory PGlite, read back through the ledger's exports
 Acceptance:
-- [ ] A decision entry's payload holds the principal, `mandateSeq`, the raw proposal's JSON text with `proposalTruncated`, the decision record and the agent response. Its ref is the intent ID, and its `at` is `decidedAt`
-- [ ] Recording beat 3's five proposals gives one `mandate.version` entry (ref `kikapu-studio@v3`, payload `{ mandate, hash }`) and five `decision` entries. Recording them again adds five decisions and no second mandate entry
-- [ ] A mandate changed under the same ID and version is refused with `MANDATE_VERSION_CONFLICT`, naming both hashes, and nothing is written
-- [ ] Proposals that never became an intent (invalid, unknown tool, fractional amount) are recorded with ref null and their text exactly as sent. A proposal text over 16,384 characters is cut, with `proposalTruncated` true
-- [ ] `decide()` is unchanged and imports no database or ledger code. A source check in the tests keeps it that way
+- [x] A decision entry's payload holds the principal, `mandateSeq`, the raw proposal's JSON text with `proposalTruncated`, the decision record and the agent response. Its ref is the intent ID, and its `at` is `decidedAt`
+- [x] Recording beat 3's five proposals gives one `mandate.version` entry (ref `kikapu-studio@v3`, payload `{ mandate, hash }`) and five `decision` entries. Recording them again adds five decisions and no second mandate entry
+- [x] A mandate changed under the same ID and version is refused with `MANDATE_VERSION_CONFLICT`, naming both hashes, and nothing is written
+- [x] Proposals that never became an intent (invalid, unknown tool, fractional amount) are recorded with ref null and their text exactly as sent. A proposal text over 16,384 characters is cut, with `proposalTruncated` true
+- [x] `decide()` is unchanged and imports no database or ledger code. A source check in the tests keeps it that way
 Notes:
 
 ## T-007: The ledger CLI and db:migrate

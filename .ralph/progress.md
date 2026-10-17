@@ -25,3 +25,11 @@ Gotchas: writer.append throws AppendRejectedError, which rolls back the whole wi
 ## T-005
 packages/ledger/test/tamper.test.ts: brief 11 tamper suite. On PGlite, raw SQL with the trigger disabled edits, re-hashes, deletes, swaps and re-spaces rows; each case asserts the exact [seq, problem] list from verifyLog (page sizes 2 and 500), then restores the rows, re-enables the trigger and checks verifyLog passes and UPDATE/DELETE fail again. No source changes were needed.
 Gotcha: `ALTER TABLE audit_log DISABLE TRIGGER audit_log_append_only` works in PGlite; the suite re-enables it in afterEach so a failing case cannot leave the table writable.
+
+## T-006
+apps/gate/src/record.ts: recordDecision(db, { proposal, principal, mandate, decided }) -> { ok, mandateSeq, mandateEntry (null when already logged), decision } | { ok: false, problem: "MANDATE_VERSION_CONFLICT" | AppendRejectionCode, detail }. One withAuditLog transaction: looks up the mandate.version entry by ref `<id>@v<version>` (mandateRef), compares the logged payload's hash, appends it if absent (at = decidedAt), then the decision entry. Also exports PROPOSAL_TEXT_LIMIT and proposalText. @countersign/db now also re-exports `and` and `eq`.
+Gotchas: the proposal text is JSON.stringify of the parsed proposal (so a lone surrogate is stored escaped, as `\ud800`). recordDecision records one proposal per transaction; for T-008, a MANDATE_VERSION_CONFLICT surfaces on a case file's first proposal, since every proposal in a file shares one mandate, so nothing from the file is written. ChainVerdict uses `intact`, not `ok`. The test's source check walks decide.ts's relative imports and bans db/ledger/drizzle/pglite/postgres.
+
+### For the human
+- T-006: a proposal JSON.stringify can't serialize (BigInt, a cycle, undefined) is recorded as String(proposal), or "" if that throws too, so recording never fails on content. Proposals reach the gate as parsed JSON, so this shouldn't happen in practice.
+- T-006: recordDecision throws (a programming error, not a reported problem) when the mandate passed in isn't the one in the decision record (id, version or hash differ).
