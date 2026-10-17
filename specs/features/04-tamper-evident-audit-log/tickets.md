@@ -30,17 +30,17 @@ Notes:
 
 ## T-003: The chain itself: entry hash, payload preparation and verifyChain
 
-Status: open
+Status: done
 Tier: standard
 Blocked by:
 Slice: Given plain audit-log rows, with no database, the ledger computes each entry's hash, prepares payloads into canonical text, and says whether the chain is intact, or names every bad row by `seq` and problem.
 Test seam: the chain exports of `@countersign/ledger`: entry types, the genesis hash, payload preparation, the entry hash and `verifyChain`
 Acceptance:
-- [ ] The entry hash is the SHA-256 of the canonical JSON of `{ seq, entryType, refId, at, prevHash, payload }`, using `@countersign/mandate`'s canonical JSON. A hand-written expected envelope string for one entry hashes to the same value
-- [ ] Payload preparation makes every string well-formed (a lone surrogate becomes U+FFFD), drops absent fields, and returns the canonical text. It reports, without throwing, a number that isn't a safe integer
-- [ ] `verifyChain` passes an empty list (head: the genesis hash) and a valid chain (head: the last `seq` and hash). It reports `SEQ_GAP`, `BROKEN_LINK`, `UNKNOWN_ENTRY_TYPE`, `BAD_TIMESTAMP`, `NOT_CANONICAL` and `HASH_MISMATCH` at the right `seq` for each tamper case in validation.md, check 4
-- [ ] An edited row is reported once, at its own `seq`. An edited row whose hash was recomputed shows as `BROKEN_LINK` on the next row. `verifyChain` never throws, even on a payload that isn't JSON
-- [ ] The entry types are `mandate.version` and `decision`, in one list that later phases extend
+- [x] The entry hash is the SHA-256 of the canonical JSON of `{ seq, entryType, refId, at, prevHash, payload }`, using `@countersign/mandate`'s canonical JSON. A hand-written expected envelope string for one entry hashes to the same value
+- [x] Payload preparation makes every string well-formed (a lone surrogate becomes U+FFFD), drops absent fields, and returns the canonical text. It reports, without throwing, a number that isn't a safe integer
+- [x] `verifyChain` passes an empty list (head: the genesis hash) and a valid chain (head: the last `seq` and hash). It reports `SEQ_GAP`, `BROKEN_LINK`, `UNKNOWN_ENTRY_TYPE`, `BAD_TIMESTAMP`, `NOT_CANONICAL` and `HASH_MISMATCH` at the right `seq` for each tamper case in validation.md, check 4
+- [x] An edited row is reported once, at its own `seq`. An edited row whose hash was recomputed shows as `BROKEN_LINK` on the next row. `verifyChain` never throws, even on a payload that isn't JSON
+- [x] The entry types are `mandate.version` and `decision`, in one list that later phases extend
 Notes:
 
 ## T-004: Append and verify against the table
