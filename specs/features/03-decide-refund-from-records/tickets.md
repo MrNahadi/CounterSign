@@ -70,16 +70,16 @@ Notes:
 
 ## T-006: Rule evaluation: match, require, fallback
 
-Status: open
+Status: done
 Blocked by: T-002, T-003
 Slice: Given a mandate, an intent and a trace, the evaluator returns allow, step-up or deny with reason codes for brief §6 steps 1, 2, 5 and 6.
 Test seam: the evaluator export of `@countersign/mandate`
 Acceptance:
-- [ ] Step 1: `when` matches on the claim, on `shipment.status` (an unknown status never matches) and on the rail. A rule with no `when` matches its action, and a rule with a `max` matches only its currency
-- [ ] Step 2: a matched rule with any requirement not `pass` denies, with one reason per failed or unknown requirement. The codes come from the catalog
-- [ ] Step 5: no match falls back to deny `NO_MATCHING_RULE`, followed by the unknown code for an unknown `when` fact
-- [ ] Step 6: an unknown action denies `UNKNOWN_ACTION`, and a principal that isn't the mandate's denies `WRONG_MANDATE`
-- [ ] A step-up or deny rule's outcome carries the rule's reason code
+- [x] Step 1: `when` matches on the claim, on `shipment.status` (an unknown status never matches) and on the rail. A rule with no `when` matches its action, and a rule with a `max` matches only its currency
+- [x] Step 2: a matched rule with any requirement not `pass` denies, with one reason per failed or unknown requirement. The codes come from the catalog
+- [x] Step 5: no match falls back to deny `NO_MATCHING_RULE`, followed by the unknown code for an unknown `when` fact
+- [x] Step 6: an unknown action denies `UNKNOWN_ACTION`, and a principal that isn't the mandate's denies `WRONG_MANDATE`
+- [x] A step-up or deny rule's outcome carries the rule's reason code
 Notes:
 
 ## T-007: Escalations, most restrictive wins, and the fail-closed property

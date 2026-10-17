@@ -80,3 +80,14 @@ Gotchas for the next iteration:
 
 For the human (outside T-005, raised in review):
 - Per ADR 0019, a second partial refund on a capture that was already partly refunded fails `DUPLICATE_REFUND`, even when the remaining amount covers it. Confirm that this is the intended behaviour for genuine follow-up refunds.
+
+## T-006: done
+
+`@countersign/mandate` exports `evaluate({ mandate, intent, trace })` → `Evaluation` (`{ outcome, reasons: Reason[], matchedRules: string[] }`), plus `OUTCOMES`, `Outcome` (`allow | step_up | deny`) and `Reason` (`{ code, detail }`) in `src/evaluate.ts`. It covers brief §6 steps 1, 2, 4 (most restrictive wins, reasons from the winning rules), 5 and 6.
+
+Gotchas for the next iteration:
+- Step 6 runs first: `UNKNOWN_ACTION` and `WRONG_MANDATE` deny with `matchedRules: []`, and both are named when both apply.
+- A verifier passes only if it's in the trace and every entry for it passes. Two entries for one verifier with different results never read as pass. `shipment.status` also needs one agreed `value`.
+- `SHIPMENT_STATUS_UNKNOWN` follows `NO_MATCHING_RULE` only when some rule matched on action, currency, claim and rail but its `shipment.status` couldn't be read.
+- Each built verifier maps to its own fail/unknown code in `REQUIREMENT_CODES`. Any other required verifier gives `VERIFIER_UNAVAILABLE`.
+- Step 3 (`max`, daily limits, `DAILY_LIMIT_UNKNOWN`) is not in yet. T-007 should add it inside `ruleOutcome` for allow rules only, and take `Usage` as a new `EvaluateInput` field.
