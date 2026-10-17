@@ -3,6 +3,8 @@
 
 import {
   CLAIMS,
+  firstIssueMessage,
+  IdSchema as Id,
   type Intent,
   isMinorUnits,
   type Money,
@@ -14,9 +16,6 @@ import { z } from "zod";
 
 // The tools the gate knows, by the guarded action each proposes. Anything else is UNKNOWN_ACTION.
 const TOOLS = { create_refund: "paypal.refund" } as const;
-
-// An ID with no blank and no leading or trailing spaces.
-const Id = z.string().regex(/^\S(?:.*\S)?$/, "Must be a non-blank ID without outer spaces");
 
 // PayPal's `{ value, currency_code }`, read strictly into minor units.
 const Amount = z
@@ -55,10 +54,6 @@ function invalid(detail: string): Normalized {
   return { ok: false, reason: { code: "INVALID_PROPOSAL", detail } };
 }
 
-function describePath(path: PropertyKey[]): string {
-  return path.map((key) => (typeof key === "number" ? `[${key}]` : `.${String(key)}`)).join("");
-}
-
 // Read first, alone, so an unknown tool is UNKNOWN_ACTION whatever else is wrong. A missing or
 // non-string tool falls through to the full parse, which calls it invalid.
 const NamedTool = z.object({ tool: z.string() });
@@ -71,12 +66,7 @@ export function normalizeProposal(input: ProposalInput): Normalized {
   }
 
   const parsed = CreateRefundProposal.safeParse(input.proposal);
-  if (!parsed.success) {
-    const [issue] = parsed.error.issues;
-    if (!issue) return invalid("Proposal is malformed");
-    const keys = issue.code === "unrecognized_keys" ? `: ${issue.keys.join(", ")}` : "";
-    return invalid(`Proposal${describePath(issue.path)}: ${issue.message}${keys}`);
-  }
+  if (!parsed.success) return invalid(firstIssueMessage("Proposal", parsed.error));
   const { args, justification } = parsed.data;
 
   const capture = captureFor(args.capture_id, input.records);

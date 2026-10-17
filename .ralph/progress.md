@@ -190,3 +190,13 @@ Gotchas for the next iteration:
 - `evaluate-property.test.ts`'s oracle keeps its own "one action or a list" switch on purpose: it's an independent oracle, so it shouldn't share the code it checks.
 - `decide.test.ts` has a source check that `decide.ts` doesn't import `./case-file`.
 
+## T-018: done
+
+`OUTCOMES`/`Outcome` are now `DECISIONS`/`Decision`, and `Evaluation.outcome` is `Evaluation.decision`. `@countersign/mandate` exports `IdSchema`, `parseIssues`, `describePath`, `firstIssueMessage` and `ParseIssue` (`src/parsing.ts`; `MandateIssue` is gone), used by the mandate, case-file and proposal parsers. The verifiers build entries with the internal `entryFor(verifier, records)` (`packages/verifiers/src/entry.ts`). The case-file `from()` is `snapshotSchema`, and `runVerifiers`' third parameter is `requiredVerifiers`.
+
+Gotchas for the next iteration:
+- The mandate passes the prefix `"Mandate "` (trailing space) to `firstIssueMessage`, because `mandate.test.ts` pins `Mandate .rules[0]...` while `decide.test.ts` pins `Case file.now`.
+
+For the human (outside T-018, raised in review):
+- Sharing one error helper brought three small wording changes, though no decision changes. An unknown key in a case file or proposal now reads `Case file.records.foo: Unknown key foo` (it was `Case file.records: Unrecognized key: "foo": foo`), which is the mandate's old style. A mandate error at the root now reads `Mandate : ...` (it was `Mandate .: ...`). The mandate's `id`, `principal` and rule IDs now use the shared ID rule, so an ID with outer spaces is rejected. No fixture or test was affected.
+

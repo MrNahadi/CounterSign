@@ -88,7 +88,11 @@ function withRules(rules: unknown[]) {
 describe("step 1: matching rules", () => {
   it("allows a lost parcel under the cap through its rule", () => {
     const result = evaluate({ mandate, intent: refund(), trace: passing("lost") });
-    expect(result).toEqual({ outcome: "allow", reasons: [], matchedRules: ["refund-lost-parcel"] });
+    expect(result).toEqual({
+      decision: "allow",
+      reasons: [],
+      matchedRules: ["refund-lost-parcel"],
+    });
   });
 
   it("matches the claim against one value", () => {
@@ -150,7 +154,7 @@ describe("step 1: matching rules", () => {
       intent: refund({ claim: null }),
       trace: passing(null),
     });
-    expect(result).toEqual({ outcome: "allow", reasons: [], matchedRules: ["any-refund"] });
+    expect(result).toEqual({ decision: "allow", reasons: [], matchedRules: ["any-refund"] });
   });
 
   it("matches a rule from its list of actions", () => {
@@ -173,7 +177,7 @@ describe("step 2: requirements", () => {
     const trace = withResult(passing("delivered"), "ticket.from_payer", "fail");
     const result = evaluate({ mandate, intent: refund(), trace });
     expect(result).toEqual({
-      outcome: "deny",
+      decision: "deny",
       reasons: [{ code: "TICKET_NOT_FROM_PAYER", detail: "ticket.from_payer fail" }],
       matchedRules: ["refund-delivered-claim"],
     });
@@ -191,7 +195,7 @@ describe("step 2: requirements", () => {
   ])("denies a lost parcel when %s is %s, with %s", (verifier, result, code) => {
     const trace = withResult(passing("lost"), verifier, result);
     const evaluation = evaluate({ mandate, intent: refund(), trace });
-    expect(evaluation.outcome).toBe("deny");
+    expect(evaluation.decision).toBe("deny");
     expect(codes(evaluation)).toEqual([code]);
   });
 
@@ -201,7 +205,7 @@ describe("step 2: requirements", () => {
   ])("denies a damaged item when the photo check is %s, with %s", (result, code) => {
     const trace = withResult(passing(), "evidence.photo_present", result);
     const evaluation = evaluate({ mandate, intent: refund({ claim: "damaged" }), trace });
-    expect(evaluation.outcome).toBe("deny");
+    expect(evaluation.decision).toBe("deny");
     expect(codes(evaluation)).toEqual([code]);
   });
 
@@ -210,7 +214,7 @@ describe("step 2: requirements", () => {
       { id: "any-refund", action: "paypal.refund", require: ["shipment.status"], decide: "allow" },
     ];
     const result = evaluate({ mandate: withRules(rules), intent: refund(), trace: passing(null) });
-    expect(result.outcome).toBe("deny");
+    expect(result.decision).toBe("deny");
     expect(codes(result)).toEqual(["SHIPMENT_STATUS_UNKNOWN"]);
   });
 
@@ -229,7 +233,7 @@ describe("step 2: requirements", () => {
   it("treats a required verifier missing from the trace as unknown", () => {
     const trace = passing("lost").filter((item) => item.verifier !== "capture.refundable");
     const result = evaluate({ mandate, intent: refund(), trace });
-    expect(result.outcome).toBe("deny");
+    expect(result.decision).toBe("deny");
     expect(codes(result)).toEqual(["CAPTURE_UNKNOWN"]);
   });
 
@@ -250,14 +254,14 @@ describe("step 2: requirements", () => {
     ];
     const trace = [...passing(), entry("payee.allowlisted", "unknown")];
     const result = evaluate({ mandate: withRules(rules), intent: refund(), trace });
-    expect(result.outcome).toBe("deny");
+    expect(result.decision).toBe("deny");
     expect(codes(result)).toEqual(["VERIFIER_UNAVAILABLE"]);
   });
 
   it("denies a step-up rule whose requirements fail, rather than holding it", () => {
     const trace = withResult(passing(), "capture.refundable", "fail");
     const result = evaluate({ mandate, intent: refund({ claim: "wrong_item" }), trace });
-    expect(result.outcome).toBe("deny");
+    expect(result.decision).toBe("deny");
     expect(codes(result)).toEqual(["CAPTURE_NOT_REFUNDABLE"]);
   });
 
@@ -283,7 +287,7 @@ describe("step 3: escalations", () => {
     const intent = refund({ amount: { minor: 9600, currency: "USD" } });
     const result = evaluate({ mandate, intent, trace: passing("lost") });
     expect(result).toEqual({
-      outcome: "step_up",
+      decision: "step_up",
       reasons: [
         {
           code: "ABOVE_AUTO_LIMIT",
@@ -296,13 +300,13 @@ describe("step 3: escalations", () => {
 
   it("allows an amount exactly at the rule's max", () => {
     const intent = refund({ amount: { minor: 8000, currency: "USD" } });
-    expect(evaluate({ mandate, intent, trace: passing("lost") }).outcome).toBe("allow");
+    expect(evaluate({ mandate, intent, trace: passing("lost") }).decision).toBe("allow");
   });
 
   it("holds a $240 damaged item with a photo with ABOVE_AUTO_LIMIT", () => {
     const intent = refund({ claim: "damaged", amount: { minor: 24000, currency: "USD" } });
     const result = evaluate({ mandate, intent, trace: passing() });
-    expect(result.outcome).toBe("step_up");
+    expect(result.decision).toBe("step_up");
     expect(result.reasons).toEqual([
       { code: "ABOVE_AUTO_LIMIT", detail: "$240.00 is over the $50.00 cap in rule refund-damaged" },
     ]);
@@ -315,7 +319,7 @@ describe("step 3: escalations", () => {
       trace: passing(),
       usage: usage(2, 29000),
     });
-    expect(result.outcome).toBe("step_up");
+    expect(result.decision).toBe("step_up");
     expect(result.reasons).toEqual([
       {
         code: "DAILY_LIMIT_REACHED",
@@ -331,28 +335,28 @@ describe("step 3: escalations", () => {
       trace: passing(),
       usage: usage(2, 28200),
     });
-    expect(result.outcome).toBe("allow");
+    expect(result.decision).toBe("allow");
   });
 
   it("holds an intent that would pass today's count with DAILY_LIMIT_REACHED", () => {
     const result = evaluate({ mandate, intent: refund(), trace: passing(), usage: usage(5, 1000) });
-    expect(result.outcome).toBe("step_up");
+    expect(result.decision).toBe("step_up");
     expect(result.reasons).toEqual([
       {
         code: "DAILY_LIMIT_REACHED",
         detail: "Today's USD count would be 6, over the daily limit of 5",
       },
     ]);
-    expect(evaluate({ mandate, intent: refund(), trace: passing(), usage: usage(4) }).outcome).toBe(
-      "allow",
-    );
+    expect(
+      evaluate({ mandate, intent: refund(), trace: passing(), usage: usage(4) }).decision,
+    ).toBe("allow");
   });
 
   it("checks the limit for the intent's own currency", () => {
     const rules = [{ id: "any-refund", action: "paypal.refund", decide: "allow" }];
     const kes = refund({ amount: { minor: 1500000, currency: "KES" } });
     const atLimit = evaluate({ mandate: withRules(rules), intent: kes, trace: passing() });
-    expect(atLimit.outcome).toBe("allow");
+    expect(atLimit.decision).toBe("allow");
     const over = refund({ amount: { minor: 1500001, currency: "KES" } });
     const result = evaluate({ mandate: withRules(rules), intent: over, trace: passing() });
     expect(codes(result)).toEqual(["DAILY_LIMIT_REACHED"]);
@@ -362,7 +366,7 @@ describe("step 3: escalations", () => {
   it("names every escalation that applies, the cap first", () => {
     const intent = refund({ amount: { minor: 9600, currency: "USD" } });
     const result = evaluate({ mandate, intent, trace: passing(), usage: usage(5, 25000) });
-    expect(result.outcome).toBe("step_up");
+    expect(result.decision).toBe("step_up");
     expect(codes(result)).toEqual([
       "ABOVE_AUTO_LIMIT",
       "DAILY_LIMIT_REACHED",
@@ -372,7 +376,7 @@ describe("step 3: escalations", () => {
 
   it("holds an allow when today's usage is unknown with DAILY_LIMIT_UNKNOWN", () => {
     const result = evaluate({ mandate, intent: refund(), trace: passing(), usage: unknownUsage });
-    expect(result.outcome).toBe("step_up");
+    expect(result.decision).toBe("step_up");
     expect(result.reasons).toEqual([
       { code: "DAILY_LIMIT_UNKNOWN", detail: "No execution history given" },
     ]);
@@ -385,7 +389,7 @@ describe("step 3: escalations", () => {
       trace: passing(),
       usage: usage(1, Number.MAX_SAFE_INTEGER),
     });
-    expect(result.outcome).toBe("step_up");
+    expect(result.decision).toBe("step_up");
     expect(result.reasons).toEqual([
       { code: "DAILY_LIMIT_UNKNOWN", detail: "Today's USD total would be too large to count" },
     ]);
@@ -410,11 +414,11 @@ describe("step 3: escalations", () => {
     usdOnly.limits = usdOnly.limits.filter((limit) => limit.currency === "USD");
     const kes = refund({ amount: { minor: 450000, currency: "KES" } });
     const result = evaluate({ mandate: usdOnly, intent: kes, trace: passing() });
-    expect(result.outcome).toBe("step_up");
+    expect(result.decision).toBe("step_up");
     expect(result.reasons).toEqual([
       { code: "NO_DAILY_LIMIT", detail: "Your mandate sets no KES daily limit" },
     ]);
-    expect(evaluate({ mandate: usdOnly, intent: refund(), trace: passing() }).outcome).toBe(
+    expect(evaluate({ mandate: usdOnly, intent: refund(), trace: passing() }).decision).toBe(
       "allow",
     );
   });
@@ -435,10 +439,10 @@ describe("step 3: escalations", () => {
       intent: refund(),
       trace: withResult(passing("lost"), "ticket.from_payer", "fail"),
     });
-    expect(denied.outcome).toBe("deny");
+    expect(denied.decision).toBe("deny");
     expect(codes(denied)).toEqual(["TICKET_NOT_FROM_PAYER"]);
     const held = evaluate({ mandate: lax, intent: refund(), trace: passing("delivered") });
-    expect(held.outcome).toBe("step_up");
+    expect(held.decision).toBe("step_up");
     expect(codes(held)).toEqual(["SHIPMENT_DELIVERED"]);
   });
 
@@ -447,7 +451,7 @@ describe("step 3: escalations", () => {
     const trace = withResult(passing("lost"), "ticket.from_payer", "fail");
     for (const today of [usage(5, 30000), unknownUsage]) {
       const result = evaluate({ mandate, intent, trace, usage: today });
-      expect(result.outcome).toBe("deny");
+      expect(result.decision).toBe("deny");
       expect(codes(result)).toEqual(["TICKET_NOT_FROM_PAYER"]);
     }
     const rules = [
@@ -497,7 +501,7 @@ describe("step 4: most restrictive wins", () => {
       trace: passing(),
     });
     expect(result).toEqual({
-      outcome: "step_up",
+      decision: "step_up",
       reasons: [
         {
           code: "ALWAYS_NEEDS_APPROVAL",
@@ -514,7 +518,7 @@ describe("step 4: most restrictive wins", () => {
       intent: refund(),
       trace: passing(),
     });
-    expect(result.outcome).toBe("deny");
+    expect(result.decision).toBe("deny");
     expect(codes(result)).toEqual(["RULE_DENIES"]);
   });
 
@@ -524,11 +528,11 @@ describe("step 4: most restrictive wins", () => {
       intent: refund(),
       trace: passing(),
     });
-    expect(result.outcome).toBe("step_up");
+    expect(result.decision).toBe("step_up");
     expect(codes(result)).toEqual(["ABOVE_AUTO_LIMIT"]);
   });
 
-  it("collects the reasons of every rule with the winning outcome", () => {
+  it("collects the reasons of every rule with the winning decision", () => {
     const result = evaluate({
       mandate: withRules([capped, stepUp]),
       intent: refund(),
@@ -543,7 +547,7 @@ describe("step 4: most restrictive wins", () => {
       intent: refund(),
       trace: passing(),
     });
-    expect(result.outcome).toBe("deny");
+    expect(result.decision).toBe("deny");
     expect(codes(result)).toEqual(["VERIFIER_UNAVAILABLE"]);
   });
 });
@@ -551,21 +555,21 @@ describe("step 4: most restrictive wins", () => {
 describe("step 5: fallback", () => {
   it("denies a parcel in transit with NO_MATCHING_RULE, naming the mandate", () => {
     const result = evaluate({ mandate, intent: refund(), trace: passing("in_transit") });
-    expect(result).toMatchObject({ outcome: "deny", matchedRules: [] });
+    expect(result).toMatchObject({ decision: "deny", matchedRules: [] });
     expect(codes(result)).toEqual(["NO_MATCHING_RULE"]);
     expect(result.reasons[0]?.detail).toContain("kikapu-studio v3");
   });
 
   it("denies a proposal with no claim with NO_MATCHING_RULE alone", () => {
     const result = evaluate({ mandate, intent: refund({ claim: null }), trace: passing(null) });
-    expect(result.outcome).toBe("deny");
+    expect(result.decision).toBe("deny");
     expect(codes(result)).toEqual(["NO_MATCHING_RULE"]);
   });
 
   it("follows NO_MATCHING_RULE with SHIPMENT_STATUS_UNKNOWN when only the status kept a rule out", () => {
     const trace = passing(null);
     const result = evaluate({ mandate, intent: refund(), trace });
-    expect(result.outcome).toBe("deny");
+    expect(result.decision).toBe("deny");
     expect(codes(result)).toEqual(["NO_MATCHING_RULE", "SHIPMENT_STATUS_UNKNOWN"]);
     expect(result.reasons[1]?.detail).toBe("shipment.status unknown");
   });
@@ -582,7 +586,7 @@ describe("step 5: fallback", () => {
       intent: refund({ action: "paypal.payout", claim: null }),
       trace: [],
     });
-    expect(result.outcome).toBe("deny");
+    expect(result.decision).toBe("deny");
     expect(codes(result)).toEqual(["NO_MATCHING_RULE"]);
   });
 });
@@ -593,7 +597,7 @@ describe("step 6: unknown actions and principals", () => {
 
   it("denies an unknown action with UNKNOWN_ACTION, naming it", () => {
     const result = evaluate({ mandate, intent: refund({ action: wire }), trace: passing() });
-    expect(result).toMatchObject({ outcome: "deny", matchedRules: [] });
+    expect(result).toMatchObject({ decision: "deny", matchedRules: [] });
     expect(codes(result)).toEqual(["UNKNOWN_ACTION"]);
     expect(result.reasons[0]?.detail).toContain("paypal.wire");
   });
@@ -604,7 +608,7 @@ describe("step 6: unknown actions and principals", () => {
       intent: refund({ principal: "ops-agent" }),
       trace: passing("lost"),
     });
-    expect(result).toMatchObject({ outcome: "deny", matchedRules: [] });
+    expect(result).toMatchObject({ decision: "deny", matchedRules: [] });
     expect(codes(result)).toEqual(["WRONG_MANDATE"]);
     expect(result.reasons[0]?.detail).toContain("ops-agent");
   });
@@ -641,7 +645,7 @@ describe("rule reasons", () => {
   it("holds a delivered never-arrived claim with SHIPMENT_DELIVERED, naming the carrier's reading, then the rule", () => {
     const trace = withShipment(carrierShows("TRK1042", "delivered"));
     const result = evaluate({ mandate, intent: refund(), trace });
-    expect(result.outcome).toBe("step_up");
+    expect(result.decision).toBe("step_up");
     expect(result.reasons).toEqual([
       {
         code: "SHIPMENT_DELIVERED",
@@ -666,7 +670,7 @@ describe("rule reasons", () => {
 
   it("holds a wrong-item claim with ALWAYS_NEEDS_APPROVAL, naming the action, the claim and the rule", () => {
     const result = evaluate({ mandate, intent: refund({ claim: "wrong_item" }), trace: passing() });
-    expect(result).toMatchObject({ outcome: "step_up", matchedRules: ["refund-wrong-item"] });
+    expect(result).toMatchObject({ decision: "step_up", matchedRules: ["refund-wrong-item"] });
     expect(result.reasons).toEqual([
       {
         code: "ALWAYS_NEEDS_APPROVAL",
@@ -705,7 +709,7 @@ describe("rule reasons", () => {
     ];
     const trace = withShipment(carrierShows("TRK1042", "delivered"));
     const result = evaluate({ mandate: withRules(rules), intent: refund(), trace });
-    expect(result.outcome).toBe("deny");
+    expect(result.decision).toBe("deny");
     expect(result.reasons).toEqual([
       {
         code: "RULE_DENIES",

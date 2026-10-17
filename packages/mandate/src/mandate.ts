@@ -4,6 +4,7 @@ import { z } from "zod";
 import { type CanonicalHash, type JsonValue, sha256Canonical } from "./canonical-json";
 import { ACTIONS, type Action as ActionName, CLAIMS, RAILS } from "./intent";
 import { CURRENCIES } from "./money";
+import { firstIssueMessage, IdSchema, type ParseIssue, parseIssues } from "./parsing";
 import { RULE_REASON_CODES, type RuleReasonCode } from "./reason-codes";
 
 // Every verifier a rule may name (original brief §8). Ones not built yet return unknown.
@@ -38,7 +39,7 @@ const When = z.strictObject({
 });
 
 const RuleBase = {
-  id: z.string().min(1),
+  id: IdSchema,
   action: z.union([Action, z.array(Action).nonempty()]),
   when: When.optional(),
   require: z.array(z.enum(VERIFIERS)).optional(),
@@ -84,9 +85,9 @@ function isTimeZone(name: string): boolean {
 
 export const MandateSchema = z
   .strictObject({
-    id: z.string().min(1),
+    id: IdSchema,
     version: z.int().positive(),
-    principal: z.string().min(1),
+    principal: IdSchema,
     // Daily limits count calendar days in this IANA time zone (ADR 0019).
     time_zone: z.string().refine(isTimeZone, "Unknown IANA time zone").default("Africa/Nairobi"),
     fallback: z.literal("deny"),
@@ -132,30 +133,16 @@ export function requiredVerifiers(mandate: Mandate, action: ActionName): Verifie
   return [...new Set(rules.flatMap((rule) => rule.require ?? []))];
 }
 
-export type MandateIssue = { path: (string | number)[]; message: string };
 export type MandateParse =
   | { ok: true; mandate: Mandate }
-  | { ok: false; error: string; issues: MandateIssue[] };
-
-function describePath(path: (string | number)[]): string {
-  return path.map((key) => (typeof key === "number" ? `[${key}]` : `.${key}`)).join("") || ".";
-}
+  | { ok: false; error: string; issues: ParseIssue[] };
 
 // Validates a mandate file's contents. Never throws on bad input.
 export function parseMandate(input: unknown): MandateParse {
   const result = MandateSchema.safeParse(input);
   if (result.success) return { ok: true, mandate: result.data };
-  const issues = result.error.issues.flatMap((issue): MandateIssue[] => {
-    const path = issue.path.map((key) => (typeof key === "number" ? key : String(key)));
-    // An unknown key's own path names the bad field, not just the object holding it.
-    if (issue.code === "unrecognized_keys") {
-      return issue.keys.map((key) => ({ path: [...path, key], message: `Unknown key ${key}` }));
-    }
-    return [{ path, message: issue.message }];
-  });
-  const [first] = issues;
-  const error = first ? `Mandate ${describePath(first.path)}: ${first.message}` : "Invalid mandate";
-  return { ok: false, error, issues };
+  const error = firstIssueMessage("Mandate ", result.error);
+  return { ok: false, error, issues: parseIssues(result.error) };
 }
 
 // SHA-256 of the mandate's canonical JSON (ADR 0019), with that JSON. The cast only drops the

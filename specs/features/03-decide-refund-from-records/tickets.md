@@ -227,14 +227,14 @@ Notes: From the phase 3 standards review: "validate every external input with zo
 
 ## T-018: Names from the glossary, and one copy of each helper
 
-Status: open
+Status: done
 Blocked by: T-017
 Slice: The decision type uses the glossary's word, and the helpers duplicated across the packages exist once, with no change in behaviour.
 Test seam: the public exports of `@countersign/mandate` and `@countersign/verifiers`, through the existing test suites
 Acceptance:
-- [ ] The decision type and list are named after `CONTEXT.md`'s "Decision", not "outcome", which the glossary's Avoid list rules out. That covers the type, the list and the `Record<…>` keys, everywhere
-- [ ] There is one ID schema, one zod-path formatter and one "first zod issue as a message" helper, each shared by the mandate, case-file and proposal parsers
-- [ ] The verifiers share one helper for building a trace entry, instead of each defining its own `result` closure
-- [ ] The snapshot schema builder `from()` is renamed `snapshotSchema`, and `runVerifiers`' `also` parameter becomes `requiredVerifiers`
-- [ ] No behaviour changes. Every test passes, with only renames in the tests
+- [x] The decision type and list are named after `CONTEXT.md`'s "Decision", not "outcome", which the glossary's Avoid list rules out. That covers the type, the list and the `Record<…>` keys, everywhere
+- [x] There is one ID schema, one zod-path formatter and one "first zod issue as a message" helper, each shared by the mandate, case-file and proposal parsers
+- [x] The verifiers share one helper for building a trace entry, instead of each defining its own `result` closure
+- [x] The snapshot schema builder `from()` is renamed `snapshotSchema`, and `runVerifiers`' `also` parameter becomes `requiredVerifiers`
+- [x] No behaviour changes. Every test passes, with only renames in the tests
 Notes: Phase 3 standards review: Mysterious Name, Duplicated Code, and CONTEXT.md's _Avoid_ list for Decision.

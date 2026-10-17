@@ -200,13 +200,13 @@ describe("the fail-closed property", () => {
       const usage = randomUsage(random);
       const result = evaluate({ mandate, intent, trace, usage });
       if (!limitFor(mandate, intent)) noLimit++;
-      if (result.outcome !== "allow") continue;
+      if (result.decision !== "allow") continue;
       allowed++;
       const context = { run, mandate, intent, trace, usage, result };
       expect(intent.principal, JSON.stringify(context)).toBe(mandate.principal);
       expect(ACTIONS as readonly string[]).toContain(intent.action);
       const matched = mandate.rules.filter((rule) => matches(rule, intent, trace));
-      // At least one matched rule cleanly allows, and, since the most restrictive outcome wins,
+      // At least one matched rule cleanly allows, and, since the most restrictive decision wins,
       // so does every other matched rule.
       expect(matched.length, JSON.stringify(context)).toBeGreaterThan(0);
       for (const rule of matched) {

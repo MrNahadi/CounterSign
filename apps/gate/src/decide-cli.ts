@@ -2,7 +2,7 @@
 // with its reasons, verifier trace and intent, or the agent responses with --json. Returns the
 // output and exit code rather than writing them, so tests can call it directly.
 
-import { formatMoney, type Outcome, REASONS, type TraceEntry } from "@countersign/mandate";
+import { type Decision, formatMoney, REASONS, type TraceEntry } from "@countersign/mandate";
 import { loadCase } from "./case-file";
 import { type Decided, decide } from "./decide";
 
@@ -14,7 +14,7 @@ export const USAGE = "Usage: npm run decide -- <case file> [--json]";
 export const EXIT_DECIDED = 0;
 export const EXIT_BAD_INPUT = 2;
 
-const DECISION_WORDS: Record<Outcome, string> = {
+const DECISION_WORDS: Record<Decision, string> = {
   allow: "Allow",
   step_up: "Step-up",
   deny: "Deny",

@@ -2,12 +2,12 @@
 // the decision record and the agent's response. Pure: `now` is passed in, and nothing executes.
 
 import {
+  type Decision,
   evaluate,
   hashIntent,
   hashMandate,
   type Intent,
   type Mandate,
-  type Outcome,
   REASONS,
   type Reason,
   ReasonCodeSchema,
@@ -61,7 +61,7 @@ export type DecisionRecord = {
   trace: VerifierTrace;
   usage: Usage;
   matchedRules: string[];
-  decision: Outcome;
+  decision: Decision;
   reasons: Reason[];
   decidedAt: string;
 };
@@ -130,7 +130,7 @@ export function decide(input: DecideInput): Decided {
   const { hash, id, canonical } = hashIntent(intent);
   // The mandate's rules may require verifiers beyond the action's own set.
   const trace = runVerifiers(intent, records, requiredVerifiers(mandate, intent.action));
-  const { outcome, reasons, matchedRules } = evaluate({ mandate, intent, trace, usage });
+  const { decision, reasons, matchedRules } = evaluate({ mandate, intent, trace, usage });
   const record: DecisionRecord = {
     ...base,
     intent,
@@ -139,13 +139,13 @@ export function decide(input: DecideInput): Decided {
     intentCanonical: canonical,
     trace,
     matchedRules,
-    decision: outcome,
+    decision,
     reasons,
   };
-  if (outcome === "allow") {
+  if (decision === "allow") {
     return { record, response: { decision: "allowed", intent_id: id, intent_hash: hash } };
   }
-  if (outcome === "step_up") {
+  if (decision === "step_up") {
     const expiresAt = new Date(now.getTime() + APPROVAL_WINDOW_MS).toISOString();
     return {
       record,

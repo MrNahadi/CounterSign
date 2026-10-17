@@ -14,14 +14,14 @@ import type { ReasonCode } from "./reason-codes";
 import type { TraceEntry, VerifierResult, VerifierTrace } from "./trace";
 import type { Usage } from "./usage";
 
-export const OUTCOMES = ["allow", "step_up", "deny"] as const;
-export type Outcome = (typeof OUTCOMES)[number];
+export const DECISIONS = ["allow", "step_up", "deny"] as const;
+export type Decision = (typeof DECISIONS)[number];
 
 // One reason for a decision: its code, and the specifics in words.
 export type Reason = { code: ReasonCode; detail: string };
 
 export type Evaluation = {
-  outcome: Outcome;
+  decision: Decision;
   reasons: Reason[];
   // The IDs of the rules whose action and `when` matched the intent, in mandate order.
   matchedRules: string[];
@@ -205,20 +205,20 @@ function ruleReason(
   return { code: rule.reason, detail: `Rule ${rule.id} denies ${what}` };
 }
 
-type RuleOutcome = { outcome: Outcome; reasons: Reason[] };
+type RuleDecision = { decision: Decision; reasons: Reason[] };
 
-function ruleOutcome(rule: Rule, input: EvaluateInput): RuleOutcome {
+function ruleDecision(rule: Rule, input: EvaluateInput): RuleDecision {
   const unmet = unmetRequirements(rule, input.trace);
-  if (unmet.length > 0) return { outcome: "deny", reasons: unmet };
+  if (unmet.length > 0) return { decision: "deny", reasons: unmet };
   if (rule.decide === "allow") {
     const escalated = escalations(rule, input);
-    if (escalated.length > 0) return { outcome: "step_up", reasons: escalated };
-    return { outcome: "allow", reasons: [] };
+    if (escalated.length > 0) return { decision: "step_up", reasons: escalated };
+    return { decision: "allow", reasons: [] };
   }
-  return { outcome: rule.decide, reasons: [ruleReason(rule, input)] };
+  return { decision: rule.decide, reasons: [ruleReason(rule, input)] };
 }
 
-const RESTRICTIVENESS: Record<Outcome, number> = { allow: 0, step_up: 1, deny: 2 };
+const RESTRICTIVENESS: Record<Decision, number> = { allow: 0, step_up: 1, deny: 2 };
 
 // Step 6: an action outside the known list, or a principal this mandate doesn't cover, is denied
 // before any rule is read. The action is checked at run time, since callers may be unchecked.
@@ -239,23 +239,23 @@ function outOfScope({ mandate, intent }: EvaluateInput): Reason[] {
 export function evaluate(input: EvaluateInput): Evaluation {
   const { mandate, intent, trace } = input;
   const refused = outOfScope(input);
-  if (refused.length > 0) return { outcome: "deny", reasons: refused, matchedRules: [] };
+  if (refused.length > 0) return { decision: "deny", reasons: refused, matchedRules: [] };
   const status = shipmentStatusOf(trace);
   const matches = mandate.rules.map((rule) => match(rule, intent, status));
   const matched = mandate.rules.filter((_rule, index) => matches[index] === "match");
   const matchedRules = matched.map((rule) => rule.id);
   if (matched.length === 0) {
     const statusKeptOut = matches.includes("status_unknown");
-    return { outcome: "deny", reasons: fallback(input, statusKeptOut), matchedRules };
+    return { decision: "deny", reasons: fallback(input, statusKeptOut), matchedRules };
   }
-  const outcomes = matched.map((rule) => ruleOutcome(rule, input));
-  const outcome = outcomes.reduce<Outcome>(
+  const ruleDecisions = matched.map((rule) => ruleDecision(rule, input));
+  const decision = ruleDecisions.reduce<Decision>(
     (worst, each) =>
-      RESTRICTIVENESS[each.outcome] > RESTRICTIVENESS[worst] ? each.outcome : worst,
+      RESTRICTIVENESS[each.decision] > RESTRICTIVENESS[worst] ? each.decision : worst,
     "allow",
   );
-  const reasons = outcomes
-    .filter((each) => each.outcome === outcome)
+  const reasons = ruleDecisions
+    .filter((each) => each.decision === decision)
     .flatMap((each) => each.reasons);
-  return { outcome, reasons, matchedRules };
+  return { decision, reasons, matchedRules };
 }
