@@ -104,3 +104,14 @@ Gotchas for the next iteration:
 
 For the human (outside T-007, raised in review):
 - A mandate with no `limits` entry for the intent's currency applies no daily limit to it (known usage never escalates). The fixture mandate has limits for both USD and KES. Confirm whether a missing limit should instead mean step-up, which would be stricter.
+
+## T-008: done
+
+`apps/gate/src/proposal.ts` exports `normalizeProposal({ proposal: unknown, principal, mandateVersion, records })` → `{ ok: true, intent }` or `{ ok: false, reason: { code, detail } }`, plus the types `ProposalInput` and `Normalized`. It doesn't hash; T-009 calls `hashIntent`.
+
+Gotchas for the next iteration:
+- Proposal shape (all objects strict, unknown keys are `INVALID_PROPOSAL`): `{ tool: "create_refund", args: { capture_id, amount?: { value, currency_code }, note_to_payer? (≤ 255) }, justification: { ticket_id, claim? (null allowed) } }`. T-009's case files should use these keys. `note_to_payer` is validated but not kept on the intent.
+- The principal and mandate version come from the caller, never from the proposal. A `principal` key in a proposal is an unknown key, so it's invalid.
+- The tool check runs first: any string `tool` other than `create_refund` is `UNKNOWN_ACTION`, whatever else is wrong. A missing or non-string tool is `INVALID_PROPOSAL`.
+- IDs must be non-blank with no outer spaces. They're rejected, not trimmed.
+- With no amount, a capture with nothing left (or malformed amounts) is `INVALID_PROPOSAL`, since an intent's amount must be greater than zero. With an explicit amount and no capture record, the intent is valid with `orderId: null` (see the T-001 note for the human).

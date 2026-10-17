@@ -97,15 +97,15 @@ Notes:
 
 ## T-008: Normalize a create_refund proposal
 
-Status: open
+Status: done
 Blocked by: T-001, T-002
 Slice: The gate turns a `create_refund` proposal and the capture record into an intent, or into a denial when the proposal is invalid or the tool is unknown.
 Test seam: the proposal normalization function in `apps/gate/src/` (its public function only)
 Acceptance:
-- [ ] A valid proposal becomes an intent with the principal, rail, action, amount in minor units, currency, capture and order IDs, ticket ID and claim
-- [ ] A missing amount becomes the capture's remaining refundable amount. With no capture record, it's invalid
-- [ ] Bad money, a missing capture ID, a missing ticket ID or an unknown claim value is denied `INVALID_PROPOSAL`, and nothing is thrown. An unknown tool name is denied `UNKNOWN_ACTION`
-- [ ] Every proposal input is validated with zod
+- [x] A valid proposal becomes an intent with the principal, rail, action, amount in minor units, currency, capture and order IDs, ticket ID and claim
+- [x] A missing amount becomes the capture's remaining refundable amount. With no capture record, it's invalid
+- [x] Bad money, a missing capture ID, a missing ticket ID or an unknown claim value is denied `INVALID_PROPOSAL`, and nothing is thrown. An unknown tool name is denied `UNKNOWN_ACTION`
+- [x] Every proposal input is validated with zod
 Notes:
 
 ## T-009: decide() end to end, the agent response and the fixture cases
