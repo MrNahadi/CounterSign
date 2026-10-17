@@ -33,15 +33,15 @@ Notes:
 
 ## T-003: Verifier trace, capture.refundable and ticket.from_payer
 
-Status: open
+Status: done
 Blocked by: T-001
 Slice: Given capture, order and ticket snapshots and a refund intent, the verifiers return a trace whose entries name their result, source call and record ID.
 Test seam: the verifier-running export of `@countersign/verifiers`
 Acceptance:
-- [ ] `capture.refundable` passes for `COMPLETED` and `PARTIALLY_REFUNDED` within the remaining amount. It fails for other statuses, another currency or too much asked for. It's unknown without a capture
-- [ ] `ticket.from_payer` passes on equal emails, ignoring case and outer spaces. It fails on different emails, and is unknown without a payer or sender email
-- [ ] Each trace entry names the call (such as `GET /v2/payments/captures/{id}`) and the record ID
-- [ ] Every verifier name in the schema that isn't built yet returns unknown
+- [x] `capture.refundable` passes for `COMPLETED` and `PARTIALLY_REFUNDED` within the remaining amount. It fails for other statuses, another currency or too much asked for. It's unknown without a capture
+- [x] `ticket.from_payer` passes on equal emails, ignoring case and outer spaces. It fails on different emails, and is unknown without a payer or sender email
+- [x] Each trace entry names the call (such as `GET /v2/payments/captures/{id}`) and the record ID
+- [x] Every verifier name in the schema that isn't built yet returns unknown
 Notes:
 
 ## T-004: shipment.status, dispute.none_open and evidence.photo_present

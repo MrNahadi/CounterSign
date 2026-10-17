@@ -26,3 +26,20 @@ Gotchas for the next iteration:
 
 For the human (outside T-002, raised in review):
 - The schema's `when` takes only `claim`, `shipment.status` and `rail` (requirements.md), so original brief §7's `mpesa-overpayment-refund` rule (`when: { purpose: overpayment_refund }`) doesn't fit yet. The M-Pesa phase and the mandate compiler will need a schema change and an ADR.
+
+## T-003: done
+
+`@countersign/mandate` now exports the trace types (`TraceEntry` = `{ verifier, result, records: RecordRef[], detail }`, `RecordRef` = `{ call, id: string | null }`, `VerifierTrace`, `VERIFIER_RESULTS`). They live in mandate, not verifiers, because T-006's evaluator reads them (ADR 0019; plan.md's module table updated to match). `@countersign/verifiers` exports `runVerifiers(intent, records, also?)`, `REFUND_VERIFIERS`, `CALLS`, `recordRef`, and the snapshot types (`CaptureSnapshot`, `OrderSnapshot`, `TicketSnapshot`, `RecordSnapshots`, `SnapshotSource`). `capture.refundable` and `ticket.from_payer` are built.
+
+Gotchas for the next iteration:
+- `RecordSnapshots` is `{ captures?, orders?, ticket? }`. Add `disputes`, `shipments`, `executions` there in T-004 and T-005. Register a new verifier in `BUILT_VERIFIERS` in `packages/verifiers/src/run.ts`. Anything not registered returns `unknown` with `records: []`. That's why the four T-004/T-005 refund verifiers already show up as unknown in the trace.
+- `runVerifiers` always runs `REFUND_VERIFIERS` for `paypal.refund`, and runs nothing by default for other actions. `also` adds names, such as the matched rules' `require` lists; T-009 should pass them. T-006 must treat a required verifier missing from the trace as unknown, never pass.
+- `TraceEntry` has no typed value yet. T-004 should add one (such as `value?: ShipmentStatus`) for `shipment.status`, so T-006 can match `when` without parsing `detail`.
+- VERIFIER_UNAVAILABLE: T-006 can map each built verifier's unknown to its own code (CAPTURE_UNKNOWN, PAYER_UNKNOWN, ...) and every other verifier name to VERIFIER_UNAVAILABLE. There's no "not built" flag on the entry.
+- `ticket.from_payer` reads `intent.target.orderId`. If the capture record names a different order, it returns unknown. Blank emails count as missing.
+- `capture.refundable` returns unknown on a capture record with malformed amounts (negative, fractional, or refunded > captured). T-009's case-file zod schema should still require non-negative integers.
+- Shared test fixtures are in `packages/verifiers/test/fixtures.ts`.
+- The Bash tool rejects `;`-chained commands and `/tmp` redirects in this harness. Run each Feedback command on its own, or use `&& echo OK`.
+
+For the human (outside T-003, raised in review):
+- The `ticket.from_payer` detail prints the full payer email, such as "Sender grace.w@example.com, payer sb-87z5x@personal.example.com". requirements.md's example shows `sb-87z5…@personal.example.com`. Confirm whether that ellipsis means the payer email should be masked on the phone card and in the CLI, or was only shortened for the doc.

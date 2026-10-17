@@ -1,0 +1,41 @@
+// Running the verifiers for an intent into its verifier trace.
+
+import type { Intent, TraceEntry, VerifierName, VerifierTrace } from "@countersign/mandate";
+import { captureRefundable } from "./capture";
+import type { RecordSnapshots } from "./snapshots";
+import { ticketFromPayer } from "./ticket";
+
+type Verifier = (intent: Intent, records: RecordSnapshots) => TraceEntry;
+
+const BUILT_VERIFIERS: Partial<Record<VerifierName, Verifier>> = {
+  "capture.refundable": captureRefundable,
+  "ticket.from_payer": ticketFromPayer,
+};
+
+// Every verifier that runs for a refund, whatever the rules need, so the trace is complete.
+export const REFUND_VERIFIERS = [
+  "capture.refundable",
+  "ticket.from_payer",
+  "dispute.none_open",
+  "shipment.status",
+  "evidence.photo_present",
+  "ledger.not_duplicate",
+] as const satisfies readonly VerifierName[];
+
+// A verifier named in the schema but not built yet is unknown, so a rule that requires it
+// denies until its phase builds it (ADR 0019).
+function notBuilt(verifier: VerifierName): TraceEntry {
+  return { verifier, result: "unknown", records: [], detail: "Countersign can't check this yet" };
+}
+
+// Runs the intent's verifiers over the record snapshots, plus any others named in `also`, such
+// as the requirements of the mandate's rules. Each verifier runs once, in a stable order.
+export function runVerifiers(
+  intent: Intent,
+  records: RecordSnapshots,
+  also: readonly VerifierName[] = [],
+): VerifierTrace {
+  const names = new Set<VerifierName>(intent.action === "paypal.refund" ? REFUND_VERIFIERS : []);
+  for (const name of also) names.add(name);
+  return [...names].map((name) => BUILT_VERIFIERS[name]?.(intent, records) ?? notBuilt(name));
+}

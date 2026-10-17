@@ -28,8 +28,8 @@ Shapes and placement follow ADR 0019:
 
 | Module | What it gains |
 |---|---|
-| `packages/mandate` | Money values; canonical JSON and SHA-256 hashing; known actions and verifier names; the intent schema and intent hash; the reason-code catalog (code, merchant-facing words, customer-safe reply hint); the mandate schema, mandate hash and the fixture mandate; the rule evaluator |
-| `packages/verifiers` | Record snapshot types; the trace entry shape; `capture.refundable`, `ticket.from_payer`, `dispute.none_open`, `shipment.status`, `evidence.photo_present`, `ledger.not_duplicate`; today's usage for limits; `unknown` for every named verifier not built yet |
+| `packages/mandate` | Money values; canonical JSON and SHA-256 hashing; known actions and verifier names; the intent schema and intent hash; the reason-code catalog (code, merchant-facing words, customer-safe reply hint); the mandate schema, mandate hash and the fixture mandate; the verifier trace entry shape (ADR 0019: the evaluator reads it); the rule evaluator |
+| `packages/verifiers` | Record snapshot types; `capture.refundable`, `ticket.from_payer`, `dispute.none_open`, `shipment.status`, `evidence.photo_present`, `ledger.not_duplicate`; today's usage for limits; `unknown` for every named verifier not built yet |
 | `apps/gate` | Normalizing a `create_refund` proposal into an intent; `decide()`, which runs normalize, verify and evaluate; the agent response (brief original §6 shapes); fixture decision cases; the `decide` CLI |
 | root `package.json` | A `decide` script that runs the CLI |
 
