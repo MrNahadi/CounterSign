@@ -58,14 +58,14 @@ Notes:
 
 ## T-005: ledger.not_duplicate and today's usage
 
-Status: open
+Status: done
 Blocked by: T-003
 Slice: Given an execution history, the trace says whether the capture was already refunded, and today's usage gives the count and total per currency for the principal.
 Test seam: the verifier-running and usage exports of `@countersign/verifiers`
 Acceptance:
-- [ ] `ledger.not_duplicate` passes with no earlier execution on the capture, fails with one, and is unknown without a history
-- [ ] Usage counts only the principal's executed money actions on today's date in the mandate's time zone. An execution at 23:30 UTC counts as the next day in `Africa/Nairobi`
-- [ ] Usage is unknown without a history
+- [x] `ledger.not_duplicate` passes with no earlier execution on the capture, fails with one, and is unknown without a history
+- [x] Usage counts only the principal's executed money actions on today's date in the mandate's time zone. An execution at 23:30 UTC counts as the next day in `Africa/Nairobi`
+- [x] Usage is unknown without a history
 Notes:
 
 ## T-006: Rule evaluation: match, require, fallback

@@ -6,3 +6,4 @@ export * from "./mandate";
 export * from "./money";
 export * from "./reason-codes";
 export * from "./trace";
+export * from "./usage";

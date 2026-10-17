@@ -1,7 +1,7 @@
 import { type Intent, VERIFIERS } from "@countersign/mandate";
 import { describe, expect, it } from "vitest";
 import { type RecordSnapshots, runVerifiers } from "../src/index";
-import { capture, disputes, intent, order, shipment, ticket } from "./fixtures";
+import { capture, disputes, execution, intent, order, shipment, ticket } from "./fixtures";
 
 const records: RecordSnapshots = {
   captures: [capture],
@@ -9,6 +9,7 @@ const records: RecordSnapshots = {
   ticket,
   disputes: [disputes],
   shipments: [shipment],
+  executions: [execution],
 };
 
 // Built in later phases. Until then they can only say unknown.
@@ -35,10 +36,7 @@ describe("runVerifiers", () => {
   });
 
   it("names a call and a record ID on every entry of the built checks", () => {
-    const built = runVerifiers(intent, records).filter(
-      (entry) => entry.verifier !== "ledger.not_duplicate",
-    );
-    for (const entry of built) {
+    for (const entry of runVerifiers(intent, records)) {
       expect(entry.records.length).toBeGreaterThan(0);
       for (const record of entry.records) {
         expect(record.call).not.toBe("");

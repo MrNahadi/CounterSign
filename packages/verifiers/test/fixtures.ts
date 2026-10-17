@@ -4,6 +4,7 @@ import type { Intent } from "@countersign/mandate";
 import type {
   CaptureSnapshot,
   DisputesSnapshot,
+  ExecutionSnapshot,
   OrderSnapshot,
   ShipmentSnapshot,
   TicketSnapshot,
@@ -53,4 +54,14 @@ export const shipment: ShipmentSnapshot = {
   call: "carrier GET /shipments/{tracking_number}",
   id: "KIK0042",
   status: "stalled_10d",
+};
+
+// An earlier $25.00 refund by the same principal, on another capture.
+export const execution: ExecutionSnapshot = {
+  call: "audit log executions",
+  id: "exe_0007",
+  principal: "support-agent",
+  captureId: "8YL89768KH2865639",
+  amount: { minor: 2500, currency: "USD" },
+  executedAt: "2026-10-17T06:40:00Z",
 };

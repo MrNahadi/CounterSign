@@ -1,13 +1,9 @@
 // capture.refundable: the capture can still be refunded for the intent's amount.
 
-import { formatMoney, type Intent, type TraceEntry } from "@countersign/mandate";
+import { formatMoney, type Intent, isMinorUnits, type TraceEntry } from "@countersign/mandate";
 import { CALLS, type RecordSnapshots, recordRef } from "./snapshots";
 
 const REFUNDABLE_STATUSES = new Set(["COMPLETED", "PARTIALLY_REFUNDED"]);
-
-function isMinor(value: number): boolean {
-  return Number.isSafeInteger(value) && value >= 0;
-}
 
 // The right status and currency, and no more than captured minus already refunded.
 export function captureRefundable(intent: Intent, records: RecordSnapshots): TraceEntry {
@@ -22,7 +18,7 @@ export function captureRefundable(intent: Intent, records: RecordSnapshots): Tra
   if (!capture) return result("unknown", `No record of capture ${captureId}`);
   const { amount, refundedMinor } = capture;
   // A record we can't do arithmetic on proves nothing.
-  if (!isMinor(amount.minor) || !isMinor(refundedMinor) || refundedMinor > amount.minor) {
+  if (!isMinorUnits(amount.minor) || !isMinorUnits(refundedMinor) || refundedMinor > amount.minor) {
     return result("unknown", `The record of capture ${captureId} has malformed amounts`);
   }
   const asked = formatMoney(intent.amount);

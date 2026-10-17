@@ -11,6 +11,7 @@ export const CALLS = {
   disputes: "GET /v1/customer/disputes",
   carrier: "carrier GET /shipments/{tracking_number}",
   ticket: "ticket",
+  executions: "audit log executions",
 } as const;
 
 // Where a snapshot came from.
@@ -71,6 +72,16 @@ export type TicketSnapshot = SnapshotSource & {
   attachments: readonly AttachmentSnapshot[];
 };
 
+// One executed money action from the audit log. Its ID is the execution's.
+export type ExecutionSnapshot = SnapshotSource & {
+  principal: string;
+  // The capture it refunded. Null for an action with no capture, such as a payout.
+  captureId: string | null;
+  amount: Money;
+  // When it executed, as an ISO 8601 timestamp with an offset, such as 2026-10-17T09:12:00Z.
+  executedAt: string;
+};
+
 // Everything the verifiers may read for one intent. A missing record is never a pass.
 export type RecordSnapshots = {
   captures?: readonly CaptureSnapshot[];
@@ -78,6 +89,10 @@ export type RecordSnapshots = {
   disputes?: readonly DisputesSnapshot[];
   shipments?: readonly ShipmentSnapshot[];
   ticket?: TicketSnapshot;
+  // The whole execution history, for every principal and every day: ledger.not_duplicate passes
+  // on anything left out. Absent means it wasn't read, so nothing about it is known; an empty
+  // list means nothing has executed.
+  executions?: readonly ExecutionSnapshot[];
 };
 
 // The trace's reference to a snapshot that was read.

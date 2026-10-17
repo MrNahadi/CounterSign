@@ -64,3 +64,19 @@ Gotchas for the next iteration:
 
 For the human (outside T-004, raised in review):
 - If an order has several live trackers for the same capture (a split shipment) and the carrier gives them different statuses, `shipment.status` returns unknown. That fails closed, so the refund falls to `NO_MATCHING_RULE` plus `SHIPMENT_STATUS_UNKNOWN`. requirements.md speaks of "the order's tracker" in the singular. Confirm this behaviour, or say which tracker should win.
+
+## T-005: done
+
+`ledger.not_duplicate` is built, and `@countersign/verifiers` exports `todaysUsage(records, { principal, timeZone, now: Date })` → `Usage`. The `Usage` type (`{ known: true, date, perCurrency: Record<Currency, { count, total: Money }> }` or `{ known: false, detail }`) lives in `@countersign/mandate` (`usage.ts`), because T-007's evaluator reads it. `@countersign/mandate` also exports `isMinorUnits`, now shared by `formatMoney`, `capture.refundable`, the ledger check and usage.
+
+Snapshot shape: `RecordSnapshots.executions?: ExecutionSnapshot[]`, each `{ call, id, principal, captureId: string | null, amount: Money, executedAt }`. `CALLS.executions` is `audit log executions`.
+
+Gotchas for the next iteration:
+- Absent `executions` means unknown; `[]` means nothing has executed. T-009's case files must say which they mean.
+- `executions` must be the whole history, for every principal and every day. `ledger.not_duplicate` fails on any earlier execution on the capture, whoever made it, and passes on anything left out. Usage filters to the principal and today itself.
+- `executedAt` must be ISO 8601 with seconds and an offset (`2026-10-17T06:40:00Z`). Anything else, including impossible dates such as 31 Feb, makes usage unknown. So does a negative, fractional or unknown-currency amount on one of the principal's executions. T-009's case-file zod schema should reject these up front anyway.
+- `ledger.not_duplicate`'s record is the earlier execution when it fails, and `{ call: "audit log executions", id: <captureId> }` otherwise.
+- Usage counts every executed money action of the principal, not only refunds (requirements.md). The reason-code words still say "refund limit".
+
+For the human (outside T-005, raised in review):
+- Per ADR 0019, a second partial refund on a capture that was already partly refunded fails `DUPLICATE_REFUND`, even when the remaining amount covers it. Confirm that this is the intended behaviour for genuine follow-up refunds.

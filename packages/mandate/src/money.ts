@@ -14,6 +14,11 @@ export function isCurrency(value: unknown): value is Currency {
   return (CURRENCIES as readonly unknown[]).includes(value);
 }
 
+// A count of minor units we can do arithmetic on: a safe, non-negative integer.
+export function isMinorUnits(value: number): boolean {
+  return Number.isSafeInteger(value) && value >= 0;
+}
+
 // Reads a decimal amount string, such as "96.00", into minor units.
 export function parseMoney(value: string, currency: string): MoneyParse {
   if (!isCurrency(currency)) return { ok: false, error: `Unsupported currency ${currency}` };
@@ -33,7 +38,7 @@ function groupThousands(whole: number): string {
 
 // "$96.00" and "KSh 4,500". Shillings show cents only when there are some.
 export function formatMoney(money: Money): string {
-  if (!Number.isSafeInteger(money.minor) || money.minor < 0) {
+  if (!isMinorUnits(money.minor)) {
     throw new RangeError(`Can't format ${money.minor} minor units`);
   }
   const whole = groupThousands(Math.trunc(money.minor / 100));
