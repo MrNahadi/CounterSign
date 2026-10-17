@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { hashMandate, parseMandate } from "../src/index";
@@ -55,9 +56,16 @@ describe("the fixture mandate", () => {
   });
 
   it("has a hash that ignores key order", () => {
-    const hash = hashMandate(mustParse(fixture));
+    const { hash, canonical } = hashMandate(mustParse(fixture));
     expect(hash).toMatch(/^[0-9a-f]{64}$/);
-    expect(hashMandate(mustParse(reverseKeys(fixture)))).toBe(hash);
+    expect(hashMandate(mustParse(reverseKeys(fixture)))).toEqual({ hash, canonical });
+  });
+
+  it("returns the canonical JSON it hashed", () => {
+    const mandate = mustParse(fixture);
+    const { hash, canonical } = hashMandate(mandate);
+    expect(createHash("sha256").update(canonical, "utf8").digest("hex")).toBe(hash);
+    expect(JSON.parse(canonical)).toEqual(mandate);
   });
 
   it("defaults the time zone to Africa/Nairobi", () => {
@@ -68,7 +76,7 @@ describe("the fixture mandate", () => {
   it("has a hash that changes with the rules", () => {
     const loosened = structuredClone(fixture);
     loosened.rules[0].max.amount = 8001;
-    expect(hashMandate(mustParse(loosened))).not.toBe(hashMandate(mustParse(fixture)));
+    expect(hashMandate(mustParse(loosened)).hash).not.toBe(hashMandate(mustParse(fixture)).hash);
   });
 });
 

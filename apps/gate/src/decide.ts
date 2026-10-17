@@ -54,6 +54,8 @@ export type DecisionRecord = {
   intent: Intent | null;
   intentId: string | null;
   intentHash: string | null;
+  // The exact canonical JSON the intent hash covers (ADR 0020).
+  intentCanonical: string | null;
   mandate: { id: string; version: number; hash: string };
   trace: VerifierTrace;
   usage: Usage;
@@ -103,7 +105,7 @@ export function decide(input: DecideInput): Decided {
   const decidedAt = now.toISOString();
   const usage = todaysUsage(records, { principal, timeZone: mandate.time_zone, now });
   const base = {
-    mandate: { id: mandate.id, version: mandate.version, hash: hashMandate(mandate) },
+    mandate: { id: mandate.id, version: mandate.version, hash: hashMandate(mandate).hash },
     usage,
     decidedAt,
   };
@@ -122,6 +124,7 @@ export function decide(input: DecideInput): Decided {
         intent: null,
         intentId: null,
         intentHash: null,
+        intentCanonical: null,
         trace: [],
         matchedRules: [],
         decision: "deny",
@@ -132,7 +135,7 @@ export function decide(input: DecideInput): Decided {
   }
 
   const { intent } = normalized;
-  const { hash, id } = hashIntent(intent);
+  const { hash, id, canonical } = hashIntent(intent);
   const trace = runVerifiers(intent, records, requiredBy(mandate, intent));
   const { outcome, reasons, matchedRules } = evaluate({ mandate, intent, trace, usage });
   const record: DecisionRecord = {
@@ -140,6 +143,7 @@ export function decide(input: DecideInput): Decided {
     intent,
     intentId: id,
     intentHash: hash,
+    intentCanonical: canonical,
     trace,
     matchedRules,
     decision: outcome,

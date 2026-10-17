@@ -1,7 +1,7 @@
 // The mandate: a merchant's signed, versioned rules for one principal, and its hash.
 
 import { z } from "zod";
-import { type JsonValue, sha256Canonical } from "./canonical-json";
+import { type CanonicalHash, type JsonValue, sha256Canonical } from "./canonical-json";
 import { ACTIONS, CLAIMS, RAILS } from "./intent";
 import { CURRENCIES } from "./money";
 import { RULE_REASON_CODES, type RuleReasonCode } from "./reason-codes";
@@ -147,9 +147,9 @@ export function parseMandate(input: unknown): MandateParse {
   return { ok: false, error, issues };
 }
 
-// SHA-256 of the mandate's canonical JSON (ADR 0019). The cast only drops the optional keys'
-// `undefined` from the type: a parsed mandate omits absent keys, and canonicalJson still
-// rejects anything that isn't integer-only JSON at run time.
-export function hashMandate(mandate: Mandate): string {
+// SHA-256 of the mandate's canonical JSON (ADR 0019), with that JSON. The cast only drops the
+// optional keys' `undefined` from the type: a parsed mandate omits absent keys, and
+// canonicalJson still rejects anything that isn't integer-only JSON at run time.
+export function hashMandate(mandate: Mandate): CanonicalHash {
   return sha256Canonical(mandate as unknown as JsonValue);
 }

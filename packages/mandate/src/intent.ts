@@ -1,6 +1,6 @@
 // The intent: one normalized proposal of a guarded action, and the hash that identifies it.
 
-import { sha256Canonical } from "./canonical-json";
+import { type CanonicalHash, sha256Canonical } from "./canonical-json";
 import type { Money } from "./money";
 
 export const RAILS = ["paypal", "mpesa"] as const;
@@ -34,15 +34,17 @@ export type Intent = {
   amount: Money;
   target: IntentTarget;
   ticketId: string;
-  // Kept with the intent but not hashed (ADR 0019).
+  // Kept with the intent but not hashed (ADRs 0019 and 0020), like the target's order ID.
   claim: Claim | null;
   mandateVersion: number;
 };
 
-export type IntentHash = { hash: string; id: string };
+export type IntentHash = CanonicalHash & { id: string };
 
-// SHA-256 over the canonical JSON of what executes. The claim and mandate version only explain
-// it, so a changed justification or a new mandate version can't make the same refund twice.
+// SHA-256 over the canonical JSON of what executes. A refund executes on the capture alone, so
+// the order ID, which only the capture record supplies, isn't hashed. The claim and mandate
+// version only explain it, so a changed justification or a new mandate version can't make the
+// same refund twice.
 export function hashIntent(intent: Intent): IntentHash {
   const executes = {
     principal: intent.principal,
@@ -50,9 +52,9 @@ export function hashIntent(intent: Intent): IntentHash {
     action: intent.action,
     amount: intent.amount.minor,
     currency: intent.amount.currency,
-    target: { captureId: intent.target.captureId, orderId: intent.target.orderId },
+    target: { captureId: intent.target.captureId },
     ticketId: intent.ticketId,
   };
-  const hash = sha256Canonical(executes);
-  return { hash, id: `int_${hash.slice(0, 24)}` };
+  const { hash, canonical } = sha256Canonical(executes);
+  return { hash, canonical, id: `int_${hash.slice(0, 24)}` };
 }

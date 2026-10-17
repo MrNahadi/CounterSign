@@ -122,11 +122,19 @@ describe("the decision record", () => {
       claim: "not_received",
       mandateVersion: 3,
     });
-    expect({ id: record.intentId, hash: record.intentHash }).toEqual(hashIntent(intent));
+    expect({
+      id: record.intentId,
+      hash: record.intentHash,
+      canonical: record.intentCanonical,
+    }).toEqual(hashIntent(intent));
+    expect(record.intentCanonical).toBe(
+      '{"action":"paypal.refund","amount":1800,"currency":"USD","principal":"support-agent",' +
+        '"rail":"paypal","target":{"captureId":"CAP-2041"},"ticketId":"TKT-2041"}',
+    );
     expect(record.mandate).toEqual({
       id: "kikapu-studio",
       version: 3,
-      hash: hashMandate(decisionCase.mandate),
+      hash: hashMandate(decisionCase.mandate).hash,
     });
     expect(record.trace.map((entry) => entry.verifier)).toEqual([...REFUND_VERIFIERS]);
     // No photo on a parcel claim: the trace is complete, whatever the matched rule needs.
@@ -155,9 +163,25 @@ describe("the decision record", () => {
 
   it("denies a proposal that never became an intent, with no trace", () => {
     const { record, response } = decideAt(load("out-of-scope.json"), 1);
-    expect(record).toMatchObject({ intent: null, intentId: null, intentHash: null, trace: [] });
+    expect(record).toMatchObject({
+      intent: null,
+      intentId: null,
+      intentHash: null,
+      intentCanonical: null,
+      trace: [],
+    });
     expect(record.matchedRules).toEqual([]);
     expect(response).toMatchObject({ decision: "denied", intent_id: null });
+  });
+
+  it("gives the same intent hash whether or not the capture record supplies the order", () => {
+    const decisionCase = load("beat-4-stalled-parcel.json");
+    const withRecord = decideAt(decisionCase, 0);
+    const withoutRecord = decideAt({ ...decisionCase, records: {} }, 0);
+    expect(withoutRecord.record.intent?.target.orderId).toBeNull();
+    expect(withRecord.record.intent?.target.orderId).toBe("ORD-2041");
+    expect(withoutRecord.record.intentHash).toBe(withRecord.record.intentHash);
+    expect(withoutRecord.record.intentCanonical).toBe(withRecord.record.intentCanonical);
   });
 
   it("runs the verifiers the mandate's rules require beyond the refund set", () => {

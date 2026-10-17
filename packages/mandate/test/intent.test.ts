@@ -16,12 +16,24 @@ const reference: Intent = {
 const sha256 = (text: string) => createHash("sha256").update(text, "utf8").digest("hex");
 
 describe("hashIntent", () => {
-  it("hashes the canonical JSON of what executes", () => {
+  it("hashes the canonical JSON of what executes, and returns that JSON", () => {
     const expected =
       '{"action":"paypal.refund","amount":1800,"currency":"USD","principal":"support-agent",' +
-      '"rail":"paypal","target":{"captureId":"7YL89768KH2865638","orderId":"5O190127TN364715T"},' +
-      '"ticketId":"tkt_0042"}';
-    expect(hashIntent(reference).hash).toBe(sha256(expected));
+      '"rail":"paypal","target":{"captureId":"7YL89768KH2865638"},"ticketId":"tkt_0042"}';
+    const { hash, canonical } = hashIntent(reference);
+    expect(canonical).toBe(expected);
+    expect(hash).toBe(sha256(expected));
+  });
+
+  it("returns JSON whose UTF-8 SHA-256 is the hash", () => {
+    const ticketId = `tkt_${String.fromCharCode(0xe9, 0x4e2d)}`;
+    const { hash, canonical } = hashIntent({ ...reference, ticketId });
+    expect(sha256(canonical)).toBe(hash);
+  });
+
+  it("ignores the order ID, which only the capture record supplies", () => {
+    const withoutOrder = { ...reference, target: { ...reference.target, orderId: null } };
+    expect(hashIntent(withoutOrder)).toEqual(hashIntent(reference));
   });
 
   it("gives an ID of int_ and the first 24 hex characters of the hash", () => {
@@ -55,7 +67,6 @@ describe("hashIntent", () => {
     ["amount", { amount: { minor: 1801, currency: "USD" } }],
     ["currency", { amount: { minor: 1800, currency: "KES" } }],
     ["capture", { target: { captureId: "8YL89768KH2865638", orderId: "5O190127TN364715T" } }],
-    ["order", { target: { captureId: "7YL89768KH2865638", orderId: null } }],
     ["ticket", { ticketId: "tkt_0043" }],
     ["principal", { principal: "ops-agent" }],
     ["action", { action: "paypal.payout" }],

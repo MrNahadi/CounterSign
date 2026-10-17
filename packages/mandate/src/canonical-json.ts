@@ -50,7 +50,11 @@ export function canonicalJson(value: JsonValue): string {
   }
 }
 
+// A hash and the exact canonical JSON it covers, kept together (ADRs 0003 and 0020).
+export type CanonicalHash = { hash: string; canonical: string };
+
 // SHA-256, as hex, of a value's canonical JSON. The intent and mandate hashes both use it.
-export function sha256Canonical(value: JsonValue): string {
-  return createHash("sha256").update(canonicalJson(value), "utf8").digest("hex");
+export function sha256Canonical(value: JsonValue): CanonicalHash {
+  const canonical = canonicalJson(value);
+  return { hash: createHash("sha256").update(canonical, "utf8").digest("hex"), canonical };
 }

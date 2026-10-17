@@ -49,7 +49,7 @@ The agent's request to run one tool: the tool name, its PayPal-shaped arguments,
 _Avoid_: tool call, request
 
 **Intent hash**:
-SHA-256 over the canonical JSON of what would execute: the principal, rail, action, amount, currency, target and ticket. An approval is bound to it.
+SHA-256 over the canonical JSON of what would execute: the principal, rail, action, amount, currency, capture and ticket. The order isn't hashed. The decision record keeps the exact JSON it covers. An approval is bound to it.
 _Avoid_: fingerprint, checksum
 
 **Decision**:

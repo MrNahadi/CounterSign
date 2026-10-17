@@ -174,17 +174,17 @@ Notes: Found by the phase 3 standards review. The gate path was already safe, be
 
 ## T-014: The intent hash covers the capture, and hashes keep their bytes
 
-Status: open
+Status: done
 Blocked by: T-013
 Slice: The intent hash covers the capture ID but not the order ID. Every hash comes back with the exact canonical JSON it hashed, and the decision record stores the intent's.
 Test seam: `hashIntent` and `hashMandate` in `@countersign/mandate`, and the `decide` function's decision record
 Acceptance:
-- [ ] The same intent with `orderId: null` and with an order ID set hashes the same. Changing the capture ID, amount, currency, ticket or principal changes the hash
-- [ ] `hashIntent` and `hashMandate` return the canonical JSON along with the hash, and the SHA-256 of that JSON equals the hash
-- [ ] T-001's hand-written reference canonical string is updated: the order ID leaves the hashed target. It still hashes to the intent's hash
-- [ ] The decision record gains the intent's canonical JSON. The agent response is unchanged apart from the new hash values
-- [ ] Fixture cases and CLI tests that pin hash values are updated to the new values, and nothing else changes
-Notes: ADR 0020, which amends ADR 0019. A refund executes as `POST /v2/payments/captures/{capture_id}/refund`, so the capture is the target.
+- [x] The same intent with `orderId: null` and with an order ID set hashes the same. Changing the capture ID, amount, currency, ticket or principal changes the hash
+- [x] `hashIntent` and `hashMandate` return the canonical JSON along with the hash, and the SHA-256 of that JSON equals the hash
+- [x] T-001's hand-written reference canonical string is updated: the order ID leaves the hashed target. It still hashes to the intent's hash
+- [x] The decision record gains the intent's canonical JSON. The agent response is unchanged apart from the new hash values
+- [x] Fixture cases and CLI tests that pin hash values are updated to the new values, and nothing else changes
+Notes: ADR 0020, which amends ADR 0019. A refund executes as `POST /v2/payments/captures/{capture_id}/refund`, so the capture is the target. No fixture case or CLI test pinned a hash value, so none needed updating.
 
 ## T-015: No daily limit for a currency means step-up
 

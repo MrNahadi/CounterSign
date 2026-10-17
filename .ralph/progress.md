@@ -158,3 +158,11 @@ Gotchas for the next iteration:
 
 Gotchas for the next iteration:
 - The `fromPayer` and `status` helpers in `ticket-from-payer.test.ts` and `shipment-status.test.ts` now put `captures: [capture]` into the records unless a test states `captures` itself. That kept every existing test body unchanged. Pass `captures: []` to test a missing capture record.
+
+## T-014: done
+
+The intent hash's target is `{ captureId }` alone; `orderId` stays on the intent but isn't hashed. `sha256Canonical` now returns `CanonicalHash` (`{ hash, canonical }`), `hashIntent` returns `{ hash, canonical, id }` and `hashMandate` returns `CanonicalHash`. `DecisionRecord` gains `intentCanonical: string | null`. CONTEXT.md's Intent hash entry updated.
+
+Gotchas for the next iteration:
+- `hashMandate(...)` is now an object: use `.hash` where a string is needed (`decide.ts` does).
+- No fixture or CLI test pins a hash value; tests compare against `hashIntent` instead.
