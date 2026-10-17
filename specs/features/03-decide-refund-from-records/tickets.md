@@ -123,13 +123,13 @@ Notes:
 
 ## T-010: The decide CLI
 
-Status: open
+Status: done
 Blocked by: T-009
 Slice: `npm run decide -- <case file>` prints each proposal's decision, reasons as words with codes, verifier trace and intent hash, or the agent responses with `--json`.
 Test seam: the CLI's exported run function, plus one child-process run of the real entry point
 Acceptance:
-- [ ] On the beat 3 case, the readable output shows 4 denials with `TICKET_NOT_FROM_PAYER` and 1 step-up with `SHIPMENT_DELIVERED`. Each reason shows its words with the code beside it, and each trace line its result, call and record ID
-- [ ] `--json` prints responses that validate against the agent response schema
-- [ ] An unreadable or invalid case file exits with code 2 and a one-line error that says what's wrong. Any decision exits with code 0
-- [ ] The root `package.json` has a `decide` script, and `CONTEXT.md` gains this phase's new terms
+- [x] On the beat 3 case, the readable output shows 4 denials with `TICKET_NOT_FROM_PAYER` and 1 step-up with `SHIPMENT_DELIVERED`. Each reason shows its words with the code beside it, and each trace line its result, call and record ID
+- [x] `--json` prints responses that validate against the agent response schema
+- [x] An unreadable or invalid case file exits with code 2 and a one-line error that says what's wrong. Any decision exits with code 0
+- [x] The root `package.json` has a `decide` script, and `CONTEXT.md` gains this phase's new terms
 Notes:

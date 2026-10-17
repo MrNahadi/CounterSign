@@ -128,3 +128,12 @@ Gotchas for the next iteration:
 - `decide` passes the `require` lists of every rule for the intent's action to `runVerifiers`, so an unbuilt verifier shows up in the trace.
 - `decide` calls `now.toISOString()`, which throws on an invalid Date. `loadCase` validates `now`; T-010's CLI should go through `loadCase`.
 - CONTEXT.md gained Decision record, Record snapshot and Today's usage.
+
+## T-010: done
+
+`apps/gate/src/decide-cli.ts` exports `runDecideCli(args)` → `{ exitCode, stdout, stderr }` (plus `USAGE`, `EXIT_DECIDED` = 0, `EXIT_BAD_INPUT` = 2), and never writes or exits itself. `apps/gate/src/decide-main.ts` is the entry; the root script is `"decide": "tsx apps/gate/src/decide-main.ts"`. `--json` prints one JSON array of agent responses. CONTEXT.md gained Proposal, Intent hash, Agent response and Decision case.
+
+Gotchas for the next iteration:
+- `npm run decide` and `npm run <x> --workspace ...` need approval in this harness. The child-process test runs the entry with `node --import tsx` from the repo root instead, which relies on tsx being hoisted to the root `node_modules`.
+- A case-file path is resolved against the working directory, which npm sets to the repo root for root scripts.
+- Bad input (no path, two paths, an unknown option, an unreadable, non-JSON or invalid case file) exits 2 with one line on stderr; newlines in an error are folded into spaces.

@@ -44,6 +44,14 @@ _Avoid_: pass-through tool, safe action
 One normalized proposal of a guarded action: rail, action, amount, currency, target and ticket. Its hash identifies it exactly.
 _Avoid_: request, proposal (as a noun for the stored thing), transaction
 
+**Proposal**:
+The agent's request to run one tool: the tool name, its PayPal-shaped arguments, and a justification naming the ticket and the claim. The gate normalizes it into an intent, or denies it.
+_Avoid_: tool call, request
+
+**Intent hash**:
+SHA-256 over the canonical JSON of what would execute: the principal, rail, action, amount, currency, target and ticket. An approval is bound to it.
+_Avoid_: fingerprint, checksum
+
 **Decision**:
 The gate's result for an intent: allow, step-up or deny.
 _Avoid_: verdict, outcome, ruling
@@ -59,6 +67,10 @@ _Avoid_: decision log, result object
 **Safe reply hint**:
 A suggestion returned with a denial, telling the agent what it can safely say to the customer.
 _Avoid_: canned response
+
+**Agent response**:
+What the agent gets back for one proposal: allowed, pending approval or denied, with the reasons, and for a denial a safe reply hint.
+_Avoid_: result, reply
 
 **Execution**:
 The rail call that carries out an allowed or approved intent, made at most once per intent.
@@ -193,6 +205,10 @@ _Avoid_: happy path, benign case
 **Case family**:
 A named kind of attack (A1–A12) or genuine situation that groups bench cases.
 _Avoid_: category, scenario type
+
+**Decision case**:
+A case file holding a moment, a mandate, record snapshots and proposals, each with the decision expected of it, written before it's run. `npm run decide` runs one.
+_Avoid_: test case, scenario
 
 **Hold-out slice**:
 Bench cases written without sight of the mandate or gate, committed unread and run once at the final bench.
