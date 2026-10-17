@@ -64,6 +64,14 @@ The fixture mandate uses the original brief §7's refund rules:
 
 It adds the wrong-item step-up rule that brief §4 item 5 asks for. These are test values. The demo mandate's real limits come from the merchant interviews (G7), and the bench freezes it in phase 14.
 
+## Review fixes (T-011 to T-018)
+
+The end-of-feature review on 17 Oct found no hard violations. It did find one crash on a valid case file, a few soft breaches, and some duplication. The owner then settled the loop's open questions (ADR 0020).
+
+Tickets T-011 to T-018 make those fixes in dependency order: the crash first, then shared timestamps, lookups, the hash target and its bytes, the missing-limit step-up, specific rule details, zod and helper placement, and last the renames and de-duplication, which change no behaviour.
+
+One display point is left for phase 10. The trace lists every refund verifier, so `evidence.photo_present fail` shows on "never arrived" claims too. The console and phone card should show only the checks that the matched rules use.
+
 ## Risks
 
 - **Snapshot fields that live PayPal responses lack.** Snapshot fields are limited to what spikes S1 and S2 saw in real sandbox responses: the capture status, amount and refunds; the order's `payer.email_address` and trackers; the dispute list. Phase 6's mappers and contract tests close the gap.

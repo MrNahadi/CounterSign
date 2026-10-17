@@ -1,6 +1,6 @@
 # 0019. Decision path shapes: verifiers read normalized record snapshots, shared decision types live in `@countersign/mandate`, and hashes use in-house RFC 8785 over integer-only JSON
 
-Status: accepted
+Status: accepted, amended by ADR 0020 (the intent hash target is the capture ID alone, and hashes keep their canonical bytes)
 Decided-by: Claude, writing the phase 3 feature spec on 16 Oct 2026 (strong inferences from the brief, tech-stack.md and ADR 0003). The owner approved it with the phase 3 tickets on 17 Oct 2026
 Question: Phase 3 builds the first decision path from fixtures. What do verifiers read, where do the types shared by the gate, the verifiers and the evaluator live, how are intents and mandates hashed, and how does a step-up or deny rule say why?
 Decision:

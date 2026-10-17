@@ -15,7 +15,7 @@ Brief §5 item 1, §6 (rule evaluation), §8 (fail closed, no AI), §11 (tests).
 - Money parsing is strict. USD and KES only, at most two decimals, no sign, no exponent, no thousands separators, and greater than zero. Anything else makes the proposal invalid.
 - A proposal with no amount means "refund what's left". The intent's amount is then the capture's remaining refundable amount, read from the capture record, so the intent always states the exact amount that would execute. If that record is missing, the proposal is invalid.
 - An invalid proposal is denied with `INVALID_PROPOSAL`, never thrown as an error. A tool name the gate doesn't know is denied with `UNKNOWN_ACTION`.
-- The intent hash is SHA-256 over the canonical JSON (RFC 8785) of the principal, rail, action, amount, currency, target and ticket ID. The claim and mandate version are kept with the intent but not hashed (ADR 0019). The intent ID is `int_` followed by the first 24 hex characters of the hash.
+- The intent hash is SHA-256 over the canonical JSON (RFC 8785) of the principal, rail, action, amount, currency, capture ID and ticket ID. The order ID, claim and mandate version are kept with the intent but not hashed (ADRs 0019 and 0020). The hash comes back with the exact canonical JSON it covers, and the decision record stores that JSON. The intent ID is `int_` followed by the first 24 hex characters of the hash.
 
 ### Verifiers derive facts from records
 
@@ -25,14 +25,17 @@ Brief §5 item 1, §6 (rule evaluation), §8 (fail closed, no AI), §11 (tests).
 | Verifier | Pass | Fail | Unknown | Record it reads |
 |---|---|---|---|---|
 | `capture.refundable` | The capture is `COMPLETED` or `PARTIALLY_REFUNDED`, its currency matches the intent, and the amount ≤ captured − already refunded | Any other status, another currency, or too much asked for | No capture record | `GET /v2/payments/captures/{id}` |
-| `ticket.from_payer` | The ticket's sender email equals the order's payer email, ignoring case and outer spaces | The emails differ | No payer email on the order, or no sender email on the ticket | `GET /v2/checkout/orders/{id}` and the ticket |
+| `ticket.from_payer` | The ticket's sender email equals the order's payer email, ignoring case and outer spaces | The emails differ | No capture record linking the intent's capture to its order, no payer email on the order, or no sender email on the ticket | `GET /v2/checkout/orders/{id}` and the ticket |
 | `dispute.none_open` | The disputes lookup ran and finds no open dispute on the capture | An open dispute on the capture (any status except `RESOLVED`) | The disputes lookup didn't run | `GET /v1/customer/disputes` |
-| `shipment.status` | Pass, with the value `lost`, `stalled_10d`, `in_transit` or `delivered`, for the tracking number on the order's tracker | Never fails | The order has no tracker, or the carrier has no record for its tracking number | The order's trackers and the carrier |
+| `shipment.status` | Pass, with the value `lost`, `stalled_10d`, `in_transit` or `delivered`, for the tracking number on the order's live `SHIPPED` tracker for the capture | Never fails | No capture record linking the capture to its order, no such tracker, several trackers whose carrier statuses disagree (ADR 0020), or no carrier record for the tracking number | The order's trackers and the carrier |
 | `evidence.photo_present` | The ticket has an image attachment | No image attachment | No ticket record | The ticket |
-| `ledger.not_duplicate` | No earlier execution targets the same capture | An earlier execution targets it | No execution history given | The audit log |
+| `ledger.not_duplicate` | No earlier execution targets the same capture | An earlier execution targets it. A second partial refund is denied by design (ADR 0020) | No execution history given | The audit log |
 
 - Every other verifier name in the schema (the M-Pesa verifiers, `payee.allowlisted`, `ledger.velocity`) returns `unknown` until its phase builds it.
-- Today's usage, for limits, is the count and total of executed money actions for the principal in each currency, on today's calendar date in the mandate's time zone. A missing execution history means usage is unknown, and an unknown usage escalates an allow to step-up (`DAILY_LIMIT_UNKNOWN`).
+- Today's usage, for limits, is the count and total of executed money actions for the principal in each currency, on today's calendar date in the mandate's time zone. Usage is unknown, which escalates an allow to step-up (`DAILY_LIMIT_UNKNOWN`), when:
+  - the execution history is missing;
+  - an execution of the principal's is malformed;
+  - a total would leave the safe-integer range.
 
 ### Rules decide
 
@@ -45,7 +48,10 @@ Rule evaluation follows brief §6 exactly:
 
    A rule with no `when` matches every intent for its action. A rule with a `max` only matches intents in the `max`'s currency.
 2. If any `require` on a matched rule isn't `pass`, that rule's outcome is **deny**, with one reason per failed or unknown requirement.
-3. Otherwise the rule's `decide` applies. An amount above the rule's `max` escalates an allow to **step-up** (`ABOVE_AUTO_LIMIT`). So does an intent that would push today's total or count past the mandate's limit for its currency (`DAILY_LIMIT_REACHED`).
+3. Otherwise the rule's `decide` applies. These escalate an allow to **step-up**:
+   - an amount above the rule's `max` (`ABOVE_AUTO_LIMIT`);
+   - an intent that would push today's total or count past the mandate's limit for its currency (`DAILY_LIMIT_REACHED`);
+   - an intent in a currency the mandate sets no limit for (`NO_DAILY_LIMIT`, ADR 0020).
 4. If several rules match, the most restrictive outcome wins: deny over step-up over allow. The reasons come from the winning outcome's rules.
 5. If no rule matches, the mandate's fallback applies. The fallback is always deny (`NO_MATCHING_RULE`). If a rule failed to match only because a verified `when` fact was unknown, the matching unknown code (such as `SHIPMENT_STATUS_UNKNOWN`) comes after it.
 6. An unknown action is always denied (`UNKNOWN_ACTION`). So is an intent whose principal isn't the mandate's principal (`WRONG_MANDATE`).
@@ -54,7 +60,7 @@ Rule evaluation follows brief §6 exactly:
 
 ### Reason codes
 
-Each code has stable words for the merchant and, for denials, a reply hint the agent can safely use with the customer. Codes never change once used. Rule reasons (`SHIPMENT_DELIVERED`, `ALWAYS_NEEDS_APPROVAL`, `RULE_DENIES`) are the only codes a mandate rule may name.
+Each code has stable words for the merchant and, for denials, a reply hint the agent can safely use with the customer. Codes never change once used. Rule reasons (`SHIPMENT_DELIVERED`, `ALWAYS_NEEDS_APPROVAL`, `RULE_DENIES`) are the only codes a mandate rule may name. A deny rule may name only the two that have a reply hint (`SHIPMENT_DELIVERED`, `RULE_DENIES`), so every denial has one.
 
 | Code | Raised when | Words for the merchant | Safe reply hint |
 |---|---|---|---|
@@ -73,6 +79,7 @@ Each code has stable words for the merchant and, for denials, a reply hint the a
 | `ABOVE_AUTO_LIMIT` | The amount is above the rule's `max` | It's over your auto-refund cap. | None (step-up only) |
 | `DAILY_LIMIT_REACHED` | The intent would pass a daily limit | It would pass your daily refund limit. | None (step-up only) |
 | `DAILY_LIMIT_UNKNOWN` | Today's usage is unknown | Countersign couldn't count today's refunds. | None (step-up only) |
+| `NO_DAILY_LIMIT` | The mandate sets no daily limit for the intent's currency | Your rules set no daily limit for this currency. | None (step-up only) |
 | `SHIPMENT_DELIVERED` | Rule reason | The carrier shows the parcel delivered. | Our carrier shows this order as delivered. Suggest they check with neighbours or their building's front desk. |
 | `ALWAYS_NEEDS_APPROVAL` | Rule reason | Your rules always ask you first for this. | None (step-up only) |
 | `RULE_DENIES` | Rule reason | Your rules don't allow this. | We can't do that for this order. |
@@ -81,7 +88,12 @@ Each code has stable words for the merchant and, for denials, a reply hint the a
 | `WRONG_MANDATE` | Principal mismatch | This agent isn't covered by this mandate. | We can't do that. Tell them the team will look at it. |
 | `INVALID_PROPOSAL` | Normalization fails | The proposal was incomplete or malformed. | We need a few more details. Ask them to confirm the order number and amount. |
 
-Each reason in a decision carries a `detail` with the specifics, such as "$96.00 is over the $80.00 cap in rule refund-lost-parcel" or "Sender grace.w@example.com, payer sb-87z5…@personal.example.com". The decision's safe reply hint is the hint of its first reason. A detail never contains a credential or a full token.
+Each reason in a decision carries a `detail` with the specifics, such as "$96.00 is over the $80.00 cap in rule refund-lost-parcel" or "Sender grace.w@example.com, payer sb-87z5x@personal.example.com". Rule reasons state the facts behind them as well as the rule:
+- `SHIPMENT_DELIVERED` names the carrier status and the tracking number;
+- `ALWAYS_NEEDS_APPROVAL` names the action;
+- `RULE_DENIES` names what the rule matched.
+
+Details show emails in full, because the CLI and the decision record are merchant-only. Public pages mask them (ADR 0020, phase 15). A detail never contains a credential or a full token. The decision's safe reply hint is the hint of its first reason that has one, falling back to `NO_MATCHING_RULE`'s.
 
 ### What the agent and the CLI get
 
@@ -124,7 +136,8 @@ Each reason in a decision carries a `detail` with the specifics, such as "$96.00
 ## Constraints
 
 - No AI in the decision path. `@countersign/mandate` and `@countersign/verifiers` import no AI SDK; the existing repo test enforces it. Nothing here calls the network, a database or the clock: `now` is always passed in.
-- Fail closed everywhere (brief §8). `unknown` counts as a fail for `require`. Unrecognized input is invalid, not defaulted.
+- Fail closed everywhere (brief §8). `unknown` counts as a fail for `require`. Unrecognized input is invalid, not defaulted. `decide` never throws on input that passed its schemas. Arithmetic that would leave the safe-integer range makes the fact unknown instead.
+- Timestamps follow one rule everywhere: case files, execution history and usage. A timestamp is ISO 8601 with seconds and an offset (`Z` or `±hh:mm`), and the date must be a real calendar date. The rule is zod 4's `z.iso.datetime({ offset: true })`, defined once and shared (ADR 0020).
 - Money is integer minor units plus a currency. It's never a float, including inside fixtures and the mandate.
 - Validate every external input with zod 4: mandate files, case files and proposals.
 - The mandate schema:

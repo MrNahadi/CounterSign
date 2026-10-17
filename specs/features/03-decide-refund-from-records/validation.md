@@ -14,6 +14,13 @@ All run from the repo root and are part of the Feedback commands.
 8. **Fixture cases:** every case in `apps/gate/fixtures/cases/` returns its expected decision and reason codes. The suite includes beats 3, 4 and 5 and every reachable code.
 9. **CLI:** a test runs the CLI as a child process on the beat 3 case and checks its output: 4 denials with `TICKET_NOT_FROM_PAYER` and 1 step-up with `SHIPMENT_DELIVERED`. `--json` output validates against the agent response schema, and an invalid case file exits with code 2.
 10. The existing "no AI in the decision path" test still passes.
+11. **Review fixes (T-011 to T-018, ADR 0020):**
+    - No fixture case makes `decide` throw. The overflow case gives step-up `DAILY_LIMIT_UNKNOWN` and exit code 0.
+    - `2026-02-31` is rejected in case files and in usage alike.
+    - An intent with no capture record can't pass `ticket.from_payer` or `shipment.status`.
+    - The intent hash ignores the order ID, and every hash comes back with its canonical JSON.
+    - `NO_DAILY_LIMIT` is reached, and the suite covers 23 codes.
+    - `SHIPMENT_DELIVERED` details name the tracking number.
 
 ## Manual checks for the human
 
