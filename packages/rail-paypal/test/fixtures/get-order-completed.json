@@ -1,0 +1,101 @@
+{
+  "id": "5O190127TN364715T",
+  "intent": "CAPTURE",
+  "status": "COMPLETED",
+  "payment_source": {
+    "paypal": {
+      "email_address": "buyer-a@example.com",
+      "account_id": "QYR5Z8XDVJNXQ",
+      "account_status": "VERIFIED",
+      "name": { "given_name": "Sample", "surname": "Buyer" },
+      "address": { "country_code": "KE" }
+    }
+  },
+  "purchase_units": [
+    {
+      "reference_id": "KIK-2002",
+      "custom_id": "spike",
+      "invoice_id": "KIK-2002-spike",
+      "amount": {
+        "currency_code": "USD",
+        "value": "36.00",
+        "breakdown": { "item_total": { "currency_code": "USD", "value": "36.00" } }
+      },
+      "payee": { "email_address": "merchant@example.com", "merchant_id": "7KW2PZ3QH9XLE" },
+      "items": [
+        {
+          "name": "Woven tote",
+          "unit_amount": { "currency_code": "USD", "value": "36.00" },
+          "quantity": "1"
+        }
+      ],
+      "shipping": {
+        "name": { "full_name": "Sample Buyer" },
+        "address": {
+          "address_line_1": "1 Example Road",
+          "admin_area_2": "Kisumu",
+          "country_code": "KE"
+        },
+        "trackers": [
+          {
+            "id": "3JM25846XW7943026-KIKSPIKE0002",
+            "status": "SHIPPED",
+            "items": [],
+            "links": [
+              {
+                "href": "https://api.sandbox.paypal.com/v2/checkout/orders/5O190127TN364715T/trackers/3JM25846XW7943026-KIKSPIKE0002",
+                "rel": "update",
+                "method": "PATCH"
+              }
+            ],
+            "create_time": "2026-10-16T09:20:05Z",
+            "update_time": "2026-10-16T09:20:05Z"
+          }
+        ]
+      },
+      "payments": {
+        "captures": [
+          {
+            "id": "3JM25846XW7943026",
+            "status": "COMPLETED",
+            "amount": { "currency_code": "USD", "value": "36.00" },
+            "final_capture": true,
+            "seller_protection": {
+              "status": "ELIGIBLE",
+              "dispute_categories": ["ITEM_NOT_RECEIVED", "UNAUTHORIZED_TRANSACTION"]
+            },
+            "seller_receivable_breakdown": {
+              "gross_amount": { "currency_code": "USD", "value": "36.00" },
+              "paypal_fee": { "currency_code": "USD", "value": "1.66" },
+              "net_amount": { "currency_code": "USD", "value": "34.34" }
+            },
+            "links": [
+              {
+                "href": "https://api.sandbox.paypal.com/v2/payments/captures/3JM25846XW7943026",
+                "rel": "self",
+                "method": "GET"
+              }
+            ],
+            "create_time": "2026-10-16T09:12:41Z",
+            "update_time": "2026-10-16T09:12:41Z"
+          }
+        ]
+      }
+    }
+  ],
+  "payer": {
+    "name": { "given_name": "Sample", "surname": "Buyer" },
+    "email_address": "buyer-a@example.com",
+    "payer_id": "QYR5Z8XDVJNXQ",
+    "address": { "country_code": "KE" }
+  },
+  "create_time": "2026-10-16T09:12:40Z",
+  "update_time": "2026-10-16T09:20:05Z",
+  "links": [
+    {
+      "href": "https://api.sandbox.paypal.com/v2/checkout/orders/5O190127TN364715T",
+      "rel": "self",
+      "method": "GET"
+    }
+  ]
+}

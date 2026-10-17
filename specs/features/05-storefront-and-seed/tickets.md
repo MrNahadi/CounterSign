@@ -2,18 +2,18 @@
 
 ## T-001: The PayPal client starts on sandbox only, caches its token, and reads one order
 
-Status: open
+Status: done
 Tier: standard
 Blocked by:
 Slice: Given the three PayPal variables and an injected `fetch`, `@countersign/rail-paypal` makes a sandbox-only client that fetches and caches an OAuth token and reads an order into a typed record, or a typed error that holds no secret.
 Test seam: the client factory and its get-order call, exported from `@countersign/rail-paypal`, with a fake `fetch` serving recorded fixtures
 Acceptance:
-- [ ] Env is validated with zod. A base URL other than `https://api-m.sandbox.paypal.com` (trailing slash allowed), or a missing variable, is refused with a message naming the problem and never a value
-- [ ] Many concurrent calls share one token request. A token with less than five minutes of `expires_in` left is replaced first. A 401 gets one new token and one retry; a second 401 is an error
-- [ ] Get order parses a recorded order (fixture in `packages/rail-paypal/test/fixtures/`, emails at `@example.com`) into ID, status, payer email and ID, and purchase units with reference ID, custom ID, invoice ID, amount in minor units, captures and trackers
-- [ ] A 404 and a 422 become errors carrying the call, HTTP status, PayPal `name`, `message`, `debug_id` and issue codes. A response missing a field we use is an error naming the field
-- [ ] GETs are retried on 429 and 5xx at most twice, honouring `Retry-After` (capped at 10 s; tests inject the clock or the wait)
-- [ ] No error, thrown value or return value in these tests contains the fake secret or token. `tests/no-ai-in-decision-path.test.ts` also covers `rail-paypal`
+- [x] Env is validated with zod. A base URL other than `https://api-m.sandbox.paypal.com` (trailing slash allowed), or a missing variable, is refused with a message naming the problem and never a value
+- [x] Many concurrent calls share one token request. A token with less than five minutes of `expires_in` left is replaced first. A 401 gets one new token and one retry; a second 401 is an error
+- [x] Get order parses a recorded order (fixture in `packages/rail-paypal/test/fixtures/`, emails at `@example.com`) into ID, status, payer email and ID, and purchase units with reference ID, custom ID, invoice ID, amount in minor units, captures and trackers
+- [x] A 404 and a 422 become errors carrying the call, HTTP status, PayPal `name`, `message`, `debug_id` and issue codes. A response missing a field we use is an error naming the field
+- [x] GETs are retried on 429 and 5xx at most twice, honouring `Retry-After` (capped at 10 s; tests inject the clock or the wait)
+- [x] No error, thrown value or return value in these tests contains the fake secret or token. `tests/no-ai-in-decision-path.test.ts` also covers `rail-paypal`
 Notes:
 
 ## T-002: Create, capture, track and read captures through the client

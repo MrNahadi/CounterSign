@@ -1,0 +1,27 @@
+{
+  "id": "7BN283777R9375221",
+  "intent": "CAPTURE",
+  "status": "PAYER_ACTION_REQUIRED",
+  "payment_source": { "paypal": {} },
+  "purchase_units": [
+    {
+      "reference_id": "SHOP-Q4ZK7M",
+      "custom_id": "storefront:market-basket",
+      "amount": { "currency_code": "USD", "value": "48.00" },
+      "payee": { "email_address": "merchant@example.com", "merchant_id": "7KW2PZ3QH9XLE" }
+    }
+  ],
+  "create_time": "2026-10-16T08:58:12Z",
+  "links": [
+    {
+      "href": "https://api.sandbox.paypal.com/v2/checkout/orders/7BN283777R9375221",
+      "rel": "self",
+      "method": "GET"
+    },
+    {
+      "href": "https://www.sandbox.paypal.com/checkoutnow?token=7BN283777R9375221",
+      "rel": "payer-action",
+      "method": "GET"
+    }
+  ]
+}
