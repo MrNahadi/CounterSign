@@ -46,16 +46,16 @@ Notes:
 
 ## T-004: The carrier mock reports lost, stalled, in transit and delivered
 
-Status: open
+Status: done
 Tier: standard
 Blocked by: T-003
 Slice: A shipment written to the carrier mock's store comes back from a lookup by tracking number with its status and scan events; unknown and malformed records never yield a status.
 Test seam: the adapter interface, the mock carrier, and its in-memory and database stores, exported from `@countersign/carrier-mock`
 Acceptance:
-- [ ] The adapter interface is documented in doc comments for a real tracking API: a lookup returns found (tracking number, carrier name, status, events, last updated), not found, or unreadable with a detail
-- [ ] Each of the four statuses round-trips through both stores. Writing a shipment validates it with zod and replaces an earlier one with the same tracking number
-- [ ] An unknown tracking number is not found. One that isn't 1 to 64 letters, digits or hyphens is not found without reading the store. A stored row that fails validation is unreadable
-- [ ] `tests/no-ai-in-decision-path.test.ts` also covers `carrier-mock`
+- [x] The adapter interface is documented in doc comments for a real tracking API: a lookup returns found (tracking number, carrier name, status, events, last updated), not found, or unreadable with a detail
+- [x] Each of the four statuses round-trips through both stores. Writing a shipment validates it with zod and replaces an earlier one with the same tracking number
+- [x] An unknown tracking number is not found. One that isn't 1 to 64 letters, digits or hyphens is not found without reading the store. A stored row that fails validation is unreadable
+- [x] `tests/no-ai-in-decision-path.test.ts` also covers `carrier-mock`
 Notes:
 
 ## T-005: The product catalog and the 30 demo orders
