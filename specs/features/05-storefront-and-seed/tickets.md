@@ -133,14 +133,14 @@ Notes: Read `Graphite Design/DESIGN.md` and the Button, Card, Badge and Spinner 
 
 ## T-010: Live checks: client credentials and one vault order
 
-Status: open
+Status: done
 Tier: standard
 Blocked by: T-002
 Slice: Under `LIVE=1`, the client's schemas parse real sandbox responses: an order awaiting approval with client credentials alone, and, when a vault token is set, one vault order created, tracked and read back.
 Test seam: the client's exported calls against the real sandbox, in a live test file under `packages/rail-paypal/test/`
 Acceptance:
-- [ ] The file is skipped unless `LIVE=1` and the three `PAYPAL_*` variables are set, so `npm test` never runs it. The skip message names only the variables
-- [ ] With client credentials: OAuth works, an order awaiting approval is created and read back, and both parse
-- [ ] With `PAYPAL_SEED_VAULT_TOKEN` also set: one $1.00 vault order with reference `KIK-LIVE`, a fresh run-style request ID and tracking number, is captured, tracked and read back with a `SHIPPED` tracker. Without it, that case is skipped with a message naming the variable
-- [ ] Nothing printed contains a secret, token or vault token
+- [x] The file is skipped unless `LIVE=1` and the three `PAYPAL_*` variables are set, so `npm test` never runs it. The skip message names only the variables
+- [x] With client credentials: OAuth works, an order awaiting approval is created and read back, and both parse
+- [x] With `PAYPAL_SEED_VAULT_TOKEN` also set: one $1.00 vault order with reference `KIK-LIVE`, a fresh run-style request ID and tracking number, is captured, tracked and read back with a `SHIPPED` tracker. Without it, that case is skipped with a message naming the variable
+- [x] Nothing printed contains a secret, token or vault token
 Notes: The vault case waits for the owner's vault tokens (`.ralph/human.md`). The build is complete when the test typechecks, skips cleanly, and the client-credentials case passes for the validator.
