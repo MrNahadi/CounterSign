@@ -11,7 +11,11 @@ The autopilot builds everything it can and lists here what only you can do, or w
 - **Sandbox disputes (phase 11):** open them as the sandbox buyer before recording and judging, if the autopilot's Playwright flow can't.
 - **LICENSE:** confirm Apache-2.0, and make the repo public with the licence in the About sidebar.
 - **Video, comprehension check, README cold read and the Devpost submission (phase 20).**
+- **Phase 4, `.env.example`:** add a `DATABASE_URL=` line (Render Postgres connection string). A deny rule stops agents reading `.env.*`, so they can't edit it.
+- **Phase 4, live Postgres check:** once the Render Postgres 18 database exists (phase 13), set `DATABASE_URL` in the Dev environment and run `LIVE=1 npm test -- packages/ledger` (20 concurrent appends in a throwaway schema), then `npm run db:migrate` and `npm run ledger -- verify` on the hosted database (brief §12).
 
 ## Decided for you
+
+- **Phase 4, audit-log format (ADR 0022):** one `audit_log` table, payloads stored as their hashed canonical text, an envelope hash, an append-only trigger (TRUNCATE allowed for the demo reset), raw proposals kept as JSON text, and `mandate.version` entries written once per version. A hash chain can't detect a cut-off tail, so `ledger verify` prints the head.
 
 ## Done

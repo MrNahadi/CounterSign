@@ -1,6 +1,6 @@
 # Tech stack
 
-Derived from brief §8–§9 and ADRs 0001–0017 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
+Derived from brief §8–§9 and ADRs 0001–0022 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
 
 ## Runtime and tooling
 
@@ -15,7 +15,7 @@ Derived from brief §8–§9 and ADRs 0001–0017 in `docs/adr/`. The ADR wins i
 
 ## Pinned versions
 
-Pin exact versions with no `^` or `~`. The loop can't install packages, so new dependencies are added by the human during the feature spec phase.
+Pin exact versions with no `^` or `~`. The build loop can't install packages. Since brief v1.4, the autopilot's planner installs the dependencies each feature's plan names while it writes the spec, with `npm install --save-exact <pkg>@<version> --workspace <workspace>`. It only picks versions published at least two weeks earlier (ADR 0021).
 
 | Package | Version | Where |
 |---|---|---|
@@ -25,9 +25,9 @@ Pin exact versions with no `^` or `~`. The loop can't install packages, so new d
 | zod | 4.6.7 | root, shared |
 | @modelcontextprotocol/sdk | 1.32.1 | gate, resolve-agent |
 | express | 5.3.0 | gate |
-| drizzle-orm / drizzle-kit | 0.45.4 / 0.31.11 | packages/db |
+| drizzle-orm / drizzle-kit | 0.45.3 / 0.31.11 | packages/db (drizzle-kit as a devDependency; ADR 0021) |
 | postgres | 3.4.9 | packages/db (Render, Postgres 18) |
-| @electric-sql/pglite | 0.5.10 | packages/db (tests) |
+| @electric-sql/pglite | 0.5.8 | packages/db (tests, and the local `.countersign/pglite` store; ADR 0021) |
 | @google/genai | 2.27.0 | resolve-agent; console (mandate compiler and Risk desk server routes) |
 | @paypal/mcp / @paypal/agent-toolkit | 1.8.1 / 1.11.0 | `apps/baseline-paypal-mcp` only |
 | next | 16.4.2 | console, storefront |
@@ -56,14 +56,15 @@ packages/
   verifiers/            Pure verifier functions over record snapshots, with fixtures
   rail-paypal/          OAuth token cache, REST client, webhook signature verification
   rail-mpesa/           Daraja client, callback parsing, receipt store
-  ledger/               Hash chain, `ledger verify`, evidence export
-  db/                   Drizzle schema, migrations, postgres.js and PGlite clients
+  ledger/               Hash chain, appends, `ledger verify` and its CLI; evidence export (phase 10)
+  db/                   Drizzle schema, migrations (with the append-only trigger), postgres.js and PGlite clients
   graphite/             Graphite tokens (byte-identical copy), Tailwind theme, AG Studio theme
   carrier-mock/         Shipment status adapter
 bench/                  cases/, runner, results/ (committed, dated)
 docs/                   adr/, spikes.md, validation.md, threat model, architecture, judge guide
 Graphite Design/        The design system source (DESIGN.md, graphite-tokens.css). Don't edit it from app work
 specs/                  Brief, constitution, feature specs
+.countersign/           Local data, git-ignored: the PGlite audit log the CLIs use when DATABASE_URL isn't set
 ```
 
 ## Conventions
@@ -75,6 +76,8 @@ specs/                  Brief, constitution, feature specs
 - Money is an integer count of minor units plus an ISO currency code. Never use floats. Convert to a rail's own format only inside that rail's client.
 - The intent hash is SHA-256 over an RFC 8785 canonical JSON serialization. Store exactly the bytes you hashed, and never re-hash jsonb read back from Postgres (ADR 0003).
 - Audit-log appends take `pg_advisory_xact_lock` inside one READ COMMITTED transaction. `seq` is the primary key and `prev_hash` is unique (ADR 0003).
+- An audit-log entry's hash covers its envelope `{ seq, entryType, refId, at, prevHash, payload }`. The payload is stored as the canonical text that was hashed, never as jsonb. A trigger rejects UPDATE and DELETE on `audit_log` (ADR 0022).
+- The decision path stays pure: `decide()` never touches the database. Callers record its result in the audit log afterwards.
 - Idempotency: `PayPal-Request-Id` is the intent hash, and `sender_batch_id` is the intent ID. Daraja calls are deduplicated in the audit log first.
 
 **Code**
@@ -101,7 +104,7 @@ specs/                  Brief, constitution, feature specs
 
 **Secrets and environment**
 - Real values live only in `.env.local` (git-ignored) and on Render. `.env.example` lists the names.
-- Load env with `tsx --env-file=.env.local`. Never print, log or commit a secret.
+- Load env with `tsx --env-file-if-exists=.env.local`, so scripts also run in cloud sessions, where the environment holds the values and there's no `.env.local`. Never print, log or commit a secret, `DATABASE_URL` included.
 - Unit tests never need credentials. Tests that hit live sandboxes run only under `LIVE=1` and are not part of the Feedback commands.
 
 **Git**
@@ -110,7 +113,7 @@ specs/                  Brief, constitution, feature specs
 
 ## Feedback commands
 
-Each runs from the repo root and must pass on a clean checkout. All four have passed since the scaffold (roadmap phase 1). `npm run format` (`biome check --write .`) fixes formatting and import order.
+Each runs from the repo root and must pass on a clean checkout. All four have passed since the scaffold (roadmap phase 1). `npm run format` (`biome check --write .`) fixes formatting and import order. Run one test file or folder with `npm test -- <path>`.
 
 | Check | Command |
 |---|---|

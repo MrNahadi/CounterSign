@@ -158,6 +158,22 @@ _Avoid_: confirmation, sign-off
 The append-only, hash-chained record of every intent, decision, approval, execution and reconciliation.
 _Avoid_: ledger, history, event log
 
+**Audit-log entry**:
+One row of the audit log: its sequence number, entry type, ref, time, payload, and the hashes that chain it to the entry before it.
+_Avoid_: log line, record (reserved for rail, carrier and audit-log data a verifier reads)
+
+**Entry type**:
+The kind of an audit-log entry, such as `mandate.version` or `decision`. The ledger never appends a type it doesn't know.
+_Avoid_: event type, kind
+
+**Genesis hash**:
+The fixed previous hash of the first audit-log entry: 64 zeros.
+_Avoid_: root hash, seed
+
+**Chain head**:
+The last audit-log entry's sequence number and hash. `ledger verify` prints it, so it can be compared with a copy kept elsewhere.
+_Avoid_: tip, latest hash
+
 **Evidence pack**:
 The facts drawn from the audit log and tracking to defend a dispute.
 _Avoid_: dispute bundle

@@ -9,6 +9,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@countersign/db": "0.0.0",
+    "@countersign/ledger": "0.0.0",
     "@countersign/mandate": "0.0.0",
     "@countersign/verifiers": "0.0.0",
     "@modelcontextprotocol/sdk": "1.32.1",

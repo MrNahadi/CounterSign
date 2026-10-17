@@ -1,11 +1,13 @@
 # Roadmap
 
-Each phase is one user-visible feature, built on its own `feature/NN-slug` branch. Numbers in brackets are the in-scope outcomes from brief §5. Phases marked **interactive** run with the human present, not in the loop. Gate dates come from brief §13; if a gate is missed, the cut it names applies, and we don't slip the deadline.
+Each phase is one user-visible feature, built on its own `feature/NN-slug` branch. Numbers in brackets are the in-scope outcomes from brief §5. Phases marked **interactive** run with the human present, not in the loop.
+
+Since brief v1.4 (17 Oct), the autopilot plans, builds, validates and merges each phase in order (`.ralph/AUTOPILOT.md`). The dates below are the original plan, not targets. The Devpost deadline is the one fixed date. Work only the owner can do goes in `.ralph/human.md`.
 
 ## Core: Fri 16 – Sun 25 Oct
 
 - [x] **1. Scaffold** *(interactive, spec-ralph Phase 2).* The monorepo runs. Every app and package exists as a stub. A console page renders with Graphite tokens in light and dark. One Vitest test passes. All Feedback commands pass from the repo root, including the Graphite design check.
-- [ ] **2. Integration spikes S1–S9** *(interactive).* Each spike in brief §13 passes or has a chosen fallback. Findings go in `docs/spikes.md`, and anything that sets direction becomes an ADR. Credentials live only in local env files and Render. Spike S6 ran first on 16 Oct and is partly done. Its remaining checks move to phase 18, because M-Pesa is now secondary (brief v1.2).
+- [ ] **2. Integration spikes S1–S9** *(interactive).* Each spike in brief §13 passes or has a chosen fallback. Findings go in `docs/spikes.md`, and anything that sets direction becomes an ADR. Credentials live only in local env files and Render. Spike S6 ran first on 16 Oct and is partly done. Its remaining checks move to phase 18, because M-Pesa is now secondary (brief v1.2). The autopilot skips this phase: the open spikes are built inside the phases that need them, S3 in phase 11 and S7 in phase 13.
 
 Additions from the ADRs:
 - S4 runs through the shared Resolve harness: an MCP client against PayPal's own MCP server (ADR 0011), driven by our own Gemini function-calling loop (ADR 0014).
@@ -13,7 +15,7 @@ Additions from the ADRs:
 - S8 checks the Gemini call shape, the fail-closed response check, and the project's real AI Studio rate limits (ADRs 0013, 0015).
 - S9 runs on Next 16.4.2 and React 19.3.1 (ADR 0010), checks that the AG Studio theme reads the Graphite CSS variables (ADR 0006), and runs the analyst on Gemini through a server-side route (ADR 0016).
 - [x] **3. Decide a refund from records** [1]. Given an order's recorded PayPal and carrier facts, a refund intent gets allow, step-up or deny from a CLI, with reason codes and a verifier trace. Everything runs from fixtures: the mandate schema, the evaluator and the PayPal verifiers.
-- [ ] **4. Tamper-evident audit log** [5]. Every intent and decision is appended to a hash-chained log. `ledger verify` passes, and fails on any edited row.
+- [ ] **4. Tamper-evident audit log** [5]. Every intent and decision is appended to a hash-chained log. `ledger verify` passes, and fails on any edited row. The entry format is ADR 0022. Later phases add their own entry types: executions and reconciliations in phase 6, approvals in phase 9. The console view and evidence export come in phase 10.
 - [ ] **5. Kikapu storefront and seed** [7]. A shopper buys on the storefront with JS SDK v6. A seed script creates about 30 real sandbox orders with captures and trackers, and the carrier mock reports lost, stalled, in-transit and delivered.
 - [ ] **6. A refund executes once, live** [1, 2]. Decisions use live sandbox records. An allowed refund executes on PayPal exactly once, even on replay, and `PAYMENT.CAPTURE.REFUNDED` reconciles it in the audit log. **Gate G1 (Sun 25 Oct).**
 
