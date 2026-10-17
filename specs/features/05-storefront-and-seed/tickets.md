@@ -60,15 +60,15 @@ Notes:
 
 ## T-005: The product catalog and the 30 demo orders
 
-Status: open
+Status: done
 Tier: simple
 Blocked by:
 Slice: The storefront's product catalog and the seed catalog exist as data, with the fixed demo orders and status mix from requirements.md, and each order's carrier shipment can be built for a given seeding time.
 Test seam: the catalog exports in `apps/storefront/`, and the function that builds a demo order's shipment from a seeding time and run ID
 Acceptance:
-- [ ] 8 products with stable IDs, names, one-line descriptions and the listed USD prices in minor units
-- [ ] 30 orders, `KIK-1013` to `KIK-1042`, each one product, with the fixed rows in requirements.md, 16 delivered, 6 in transit, 4 stalled and 4 lost, and at least 3 filler orders for buyer B
-- [ ] A built shipment's tracking number is `KC-<run>-<order digits>`, its carrier is "Kisumu Couriers (simulated)", and its events are in time order, start with a pickup, and agree with the status (delivered ends in a delivery, lost in a loss report, stalled's last scan at least 10 days before seeding, in transit's less than 10). KIK-1035's last scan is 14 days before seeding and KIK-1042's delivery 5 days before
+- [x] 8 products with stable IDs, names, one-line descriptions and the listed USD prices in minor units
+- [x] 30 orders, `KIK-1013` to `KIK-1042`, each one product, with the fixed rows in requirements.md, 16 delivered, 6 in transit, 4 stalled and 4 lost, and at least 3 filler orders for buyer B
+- [x] A built shipment's tracking number is `KC-<run>-<order digits>`, its carrier is "Kisumu Couriers (simulated)", and its events are in time order, start with a pickup, and agree with the status (delivered ends in a delivery, lost in a loss report, stalled's last scan at least 10 days before seeding, in transit's less than 10). KIK-1035's last scan is 14 days before seeding and KIK-1042's delivery 5 days before
 Notes:
 
 ## T-006: A seed run creates, tracks, checks and records every demo order
