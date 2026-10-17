@@ -45,17 +45,17 @@ Notes:
 
 ## T-004: Append and verify against the table
 
-Status: open
+Status: done
 Tier: standard
 Blocked by: T-002, T-003
 Slice: Entries appended to a PGlite `audit_log` form a chain that `verifyLog` passes, even when 20 appends race. Bad input writes nothing.
 Test seam: the append and `verifyLog` exports of `@countersign/ledger`, over a database from `@countersign/db`
 Acceptance:
-- [ ] An append takes `pg_advisory_xact_lock` on the ledger's exported fixed key, reads the tail, and inserts at `seq` + 1, all in one transaction. Several appends can share one transaction
-- [ ] Three appends give `seq` 1 to 3, with entry 1 linked to the genesis hash, and `verifyLog` passes with head #3
-- [ ] Twenty concurrent appends on one PGlite give `seq` 1 to 20 with no gap, and `verifyLog` passes
-- [ ] An unknown entry type, a time that fails the shared timestamp rule, or a payload that can't be prepared is rejected, and the table is unchanged
-- [ ] `verifyLog` reads the table in `seq` order in pages (a test uses a page size smaller than the log), validates each row's shape with zod, and gives the same result as `verifyChain` over the same rows
+- [x] An append takes `pg_advisory_xact_lock` on the ledger's exported fixed key, reads the tail, and inserts at `seq` + 1, all in one transaction. Several appends can share one transaction
+- [x] Three appends give `seq` 1 to 3, with entry 1 linked to the genesis hash, and `verifyLog` passes with head #3
+- [x] Twenty concurrent appends on one PGlite give `seq` 1 to 20 with no gap, and `verifyLog` passes
+- [x] An unknown entry type, a time that fails the shared timestamp rule, or a payload that can't be prepared is rejected, and the table is unchanged
+- [x] `verifyLog` reads the table in `seq` order in pages (a test uses a page size smaller than the log), validates each row's shape with zod, and gives the same result as `verifyChain` over the same rows
 Notes:
 
 ## T-005: The tamper test

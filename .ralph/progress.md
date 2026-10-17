@@ -14,3 +14,10 @@ Gotchas: entryHash throws on lone surrogates in envelope fields, so T-004's appe
 
 ### For the human
 - T-003 link rule: a row's prev_hash is accepted if it matches the previous row's stored hash, or, when that stored hash is itself wrong, the hash recomputed from the previous row's columns. Without this, an edited `hash` column would also show BROKEN_LINK on the next row, against validation check 4 and "an edited row is reported once, at its own seq". Two swapped rows still show a BROKEN_LINK on the row after them too, which a stored-hash chain can't avoid. Overturn if you'd rather link to the stored hash only.
+
+## T-004
+packages/ledger/src/log.ts: AUDIT_LOG_LOCK_KEY (bigint), withAuditLog(db, work) giving an AuditLogWriter { tx, append(input) } under the advisory lock in one READ COMMITTED transaction; appendEntries(db, inputs) -> { ok, entries } | { ok: false, index, rejection }; appendEntry(db, input) -> { ok, entry } | { ok: false, rejection }; verifyLog(db, { pageSize? = 500 }) with keyset paging. Rejection codes: BAD_INPUT, UNKNOWN_ENTRY_TYPE, BAD_TIMESTAMP, BAD_REF, BAD_PAYLOAD.
+Gotchas: writer.append throws AppendRejectedError, which rolls back the whole withAuditLog transaction unless caught; T-006's recordDecision should pre-check or catch it. Use log.tx for reads inside the transaction (e.g. finding the mandate.version entry). @countersign/db now re-exports asc, desc, gt and sql from drizzle-orm, so other workspaces needn't declare drizzle-orm. Database.execute() returns unknown rows (generic HKT); use db.select({ n: sql<number>`...` }).from(sql`table`) for raw reads with types.
+
+### For the human
+- T-004 adds BAD_REF: a ref with a lone surrogate is rejected, since it goes into the hashed envelope as-is and would make entryHash throw. IDs can't hold one after T-001, so it's a fail-closed backstop. Also BAD_INPUT for an entry that isn't the right shape at all.
