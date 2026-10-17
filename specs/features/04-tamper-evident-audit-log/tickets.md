@@ -60,17 +60,17 @@ Notes:
 
 ## T-005: The tamper test
 
-Status: open
+Status: done
 Tier: standard
 Blocked by: T-004
 Slice: On a real table, an attacker who disables the trigger and edits, re-hashes, deletes or swaps rows is caught by `verifyLog` at the right `seq`. That's brief §11's tamper test.
 Test seam: `verifyLog` in `@countersign/ledger`, on a PGlite table edited with raw SQL
 Acceptance:
-- [ ] With the trigger disabled, editing one row's payload gives `HASH_MISMATCH` at that `seq`, and nothing else
-- [ ] Editing a row's payload and recomputing its hash with the ledger's own function gives `BROKEN_LINK` at the next `seq`
-- [ ] Deleting a middle row gives `SEQ_GAP` and `BROKEN_LINK`. Swapping two rows' payloads is caught at both positions
-- [ ] Rewriting a payload into the same JSON value with different spacing or key order gives `NOT_CANONICAL`
-- [ ] Restoring the original row and re-enabling the trigger makes `verifyLog` pass again, and UPDATE fails once more
+- [x] With the trigger disabled, editing one row's payload gives `HASH_MISMATCH` at that `seq`, and nothing else
+- [x] Editing a row's payload and recomputing its hash with the ledger's own function gives `BROKEN_LINK` at the next `seq`
+- [x] Deleting a middle row gives `SEQ_GAP` and `BROKEN_LINK`. Swapping two rows' payloads is caught at both positions
+- [x] Rewriting a payload into the same JSON value with different spacing or key order gives `NOT_CANONICAL`
+- [x] Restoring the original row and re-enabling the trigger makes `verifyLog` pass again, and UPDATE fails once more
 Notes:
 
 ## T-006: Record each decision in the audit log

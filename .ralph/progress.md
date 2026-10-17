@@ -21,3 +21,7 @@ Gotchas: writer.append throws AppendRejectedError, which rolls back the whole wi
 
 ### For the human
 - T-004 adds BAD_REF: a ref with a lone surrogate is rejected, since it goes into the hashed envelope as-is and would make entryHash throw. IDs can't hold one after T-001, so it's a fail-closed backstop. Also BAD_INPUT for an entry that isn't the right shape at all.
+
+## T-005
+packages/ledger/test/tamper.test.ts: brief 11 tamper suite. On PGlite, raw SQL with the trigger disabled edits, re-hashes, deletes, swaps and re-spaces rows; each case asserts the exact [seq, problem] list from verifyLog (page sizes 2 and 500), then restores the rows, re-enables the trigger and checks verifyLog passes and UPDATE/DELETE fail again. No source changes were needed.
+Gotcha: `ALTER TABLE audit_log DISABLE TRIGGER audit_log_append_only` works in PGlite; the suite re-enables it in afterEach so a failing case cannot leave the table writable.
