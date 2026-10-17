@@ -172,4 +172,11 @@ Gotchas for the next iteration:
 The catalog gains `NO_DAILY_LIMIT` (23 codes, step-up only, not a rule reason). `evaluate`'s daily-limit step returns it ("Your mandate sets no KES daily limit") for an allow in a currency with no `limits` entry, after the unknown-usage and safe-integer checks and after `ABOVE_AUTO_LIMIT`. New test mandate `apps/gate/fixtures/mandates/usd-limits-only.json` and case `no-daily-limit.json` (USD allowed, KES held).
 
 Gotchas for the next iteration:
-- Any test mandate built with `limits = []` or missing a currency now steps up its allows in that currency. The property test's oracle treats a missing limit as not a clean allow. Its generator now gives each currency a limit 85% of the time and never a zero total or count limit, to keep enough allows (over 2% of runs) and enough missing limits (over 10%).
+- Any test mandate built with `limits = []` or missing a currency now steps up its allows in that currency.
+
+## T-016: done
+
+`evaluate`'s rule reasons now state their facts (`ruleReason` and `matchedFacts` in `packages/mandate/src/evaluate.ts`). `SHIPMENT_DELIVERED` is the `shipment.status` entry's own detail, then the rule ("Carrier shows TRK1042 delivered; rule refund-delivered-claim asks you first", or "... denies this" on a deny rule). `ALWAYS_NEEDS_APPROVAL` is "Rule refund-wrong-item asks you first for paypal.refund with claim wrong_item". `RULE_DENIES` is "Rule X denies paypal.refund with claim ..., shipment ..., rail ...". A rule with no `when` says "every paypal.refund".
+
+Gotchas for the next iteration:
+- The tracking number comes from the verifier's detail wording ("Carrier shows <tracking> <status>"), not from a structured field. If T-018 or phase 5 rewords `shipment.status`'s detail, the beat 3 CLI test pins the text and will catch it. The property test's oracle treats a missing limit as not a clean allow. Its generator now gives each currency a limit 85% of the time and never a zero total or count limit, to keep enough allows (over 2% of runs) and enough missing limits (over 10%).

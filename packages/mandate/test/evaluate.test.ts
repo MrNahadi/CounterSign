@@ -498,7 +498,12 @@ describe("step 4: most restrictive wins", () => {
     });
     expect(result).toEqual({
       outcome: "step_up",
-      reasons: [{ code: "ALWAYS_NEEDS_APPROVAL", detail: "Rule ask-first asks you first" }],
+      reasons: [
+        {
+          code: "ALWAYS_NEEDS_APPROVAL",
+          detail: "Rule ask-first asks you first for every paypal.refund",
+        },
+      ],
       matchedRules: ["allow-all", "ask-first"],
     });
   });
@@ -615,26 +620,128 @@ describe("step 6: unknown actions and principals", () => {
 });
 
 describe("rule reasons", () => {
-  it("holds a delivered never-arrived claim with SHIPMENT_DELIVERED, naming the rule", () => {
-    const result = evaluate({ mandate, intent: refund(), trace: passing("delivered") });
+  // A passing shipment.status entry as the verifier writes it, carrier reading included.
+  function carrierShows(trackingNumber: string, status: ShipmentStatus): TraceEntry {
+    return {
+      verifier: "shipment.status",
+      result: "pass",
+      records: [
+        { call: "GET /v2/checkout/orders/{id}", id: "ORD-1042" },
+        { call: "carrier GET /shipments/{tracking_number}", id: trackingNumber },
+      ],
+      detail: `Carrier shows ${trackingNumber} ${status}`,
+      value: status,
+    };
+  }
+
+  function withShipment(shipment: TraceEntry): TraceEntry[] {
+    return passing().map((item) => (item.verifier === "shipment.status" ? shipment : item));
+  }
+
+  it("holds a delivered never-arrived claim with SHIPMENT_DELIVERED, naming the carrier's reading, then the rule", () => {
+    const trace = withShipment(carrierShows("TRK1042", "delivered"));
+    const result = evaluate({ mandate, intent: refund(), trace });
     expect(result.outcome).toBe("step_up");
-    expect(codes(result)).toEqual(["SHIPMENT_DELIVERED"]);
-    expect(result.reasons[0]?.detail).toContain("refund-delivered-claim");
+    expect(result.reasons).toEqual([
+      {
+        code: "SHIPMENT_DELIVERED",
+        detail: "Carrier shows TRK1042 delivered; rule refund-delivered-claim asks you first",
+      },
+    ]);
   });
 
-  it("holds a wrong-item claim with ALWAYS_NEEDS_APPROVAL", () => {
+  it("names the shipment entry's own words when a SHIPMENT_DELIVERED rule fires without a status", () => {
+    const rules = [
+      { id: "ask-first", action: "paypal.refund", decide: "step_up", reason: "SHIPMENT_DELIVERED" },
+    ];
+    const missing = passing().filter((item) => item.verifier !== "shipment.status");
+    const result = evaluate({ mandate: withRules(rules), intent: refund(), trace: missing });
+    expect(result.reasons).toEqual([
+      {
+        code: "SHIPMENT_DELIVERED",
+        detail: "shipment.status isn't in the verifier trace; rule ask-first asks you first",
+      },
+    ]);
+  });
+
+  it("holds a wrong-item claim with ALWAYS_NEEDS_APPROVAL, naming the action, the claim and the rule", () => {
     const result = evaluate({ mandate, intent: refund({ claim: "wrong_item" }), trace: passing() });
     expect(result).toMatchObject({ outcome: "step_up", matchedRules: ["refund-wrong-item"] });
-    expect(codes(result)).toEqual(["ALWAYS_NEEDS_APPROVAL"]);
+    expect(result.reasons).toEqual([
+      {
+        code: "ALWAYS_NEEDS_APPROVAL",
+        detail: "Rule refund-wrong-item asks you first for paypal.refund with claim wrong_item",
+      },
+    ]);
   });
 
-  it("denies through a deny rule with its reason, naming the rule", () => {
+  it("names the action for an ALWAYS_NEEDS_APPROVAL rule with no when", () => {
+    const rules = [
+      {
+        id: "ask-first",
+        action: "paypal.refund",
+        decide: "step_up",
+        reason: "ALWAYS_NEEDS_APPROVAL",
+      },
+    ];
+    const result = evaluate({ mandate: withRules(rules), intent: refund(), trace: passing() });
+    expect(result.reasons).toEqual([
+      {
+        code: "ALWAYS_NEEDS_APPROVAL",
+        detail: "Rule ask-first asks you first for every paypal.refund",
+      },
+    ]);
+  });
+
+  it("denies through a deny rule with RULE_DENIES, naming the rule and the facts it matched", () => {
+    const rules = [
+      {
+        id: "no-delivered-refunds",
+        action: "paypal.refund",
+        when: { claim: "not_received", "shipment.status": ["delivered"], rail: "paypal" },
+        decide: "deny",
+        reason: "RULE_DENIES",
+      },
+    ];
+    const trace = withShipment(carrierShows("TRK1042", "delivered"));
+    const result = evaluate({ mandate: withRules(rules), intent: refund(), trace });
+    expect(result.outcome).toBe("deny");
+    expect(result.reasons).toEqual([
+      {
+        code: "RULE_DENIES",
+        detail:
+          "Rule no-delivered-refunds denies paypal.refund with claim not_received, shipment delivered, rail paypal",
+      },
+    ]);
+  });
+
+  it("denies through a RULE_DENIES rule with no when, naming the action", () => {
     const rules = [
       { id: "no-refunds", action: "paypal.refund", decide: "deny", reason: "RULE_DENIES" },
     ];
     const result = evaluate({ mandate: withRules(rules), intent: refund(), trace: passing() });
-    expect(result.outcome).toBe("deny");
-    expect(codes(result)).toEqual(["RULE_DENIES"]);
-    expect(result.reasons[0]?.detail).toContain("no-refunds");
+    expect(result.reasons).toEqual([
+      { code: "RULE_DENIES", detail: "Rule no-refunds denies every paypal.refund" },
+    ]);
+  });
+
+  it("names the carrier's reading on a deny rule with SHIPMENT_DELIVERED", () => {
+    const rules = [
+      {
+        id: "no-delivered-refunds",
+        action: "paypal.refund",
+        when: { "shipment.status": ["delivered"] },
+        decide: "deny",
+        reason: "SHIPMENT_DELIVERED",
+      },
+    ];
+    const trace = withShipment(carrierShows("TRK1042", "delivered"));
+    const result = evaluate({ mandate: withRules(rules), intent: refund(), trace });
+    expect(result.reasons).toEqual([
+      {
+        code: "SHIPMENT_DELIVERED",
+        detail: "Carrier shows TRK1042 delivered; rule no-delivered-refunds denies this",
+      },
+    ]);
   });
 });

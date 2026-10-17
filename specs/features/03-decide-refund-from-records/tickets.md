@@ -201,15 +201,15 @@ Notes: ADR 0020.
 
 ## T-016: Rule reasons say what the records showed
 
-Status: open
+Status: done
 Blocked by: T-015
 Slice: Step-up and deny reasons that come from a rule state the facts behind them. So #1042 in beat 3 reads "Carrier shows TRK1042 delivered; rule refund-delivered-claim asks you first", not just the rule's name.
 Test seam: `evaluate` in `@countersign/mandate`, and the CLI's exported run function on the beat 3 case
 Acceptance:
-- [ ] The `SHIPMENT_DELIVERED` detail names the carrier status and the tracking number, both read from the `shipment.status` trace entry, and then the rule
-- [ ] The `ALWAYS_NEEDS_APPROVAL` detail names the action and the rule
-- [ ] The `RULE_DENIES` detail names the rule and the facts it matched, such as the claim and the shipment status
-- [ ] The readable output for beat 3 shows the tracking number on #1042's step-up reason
+- [x] The `SHIPMENT_DELIVERED` detail names the carrier status and the tracking number, both read from the `shipment.status` trace entry, and then the rule
+- [x] The `ALWAYS_NEEDS_APPROVAL` detail names the action and the rule
+- [x] The `RULE_DENIES` detail names the rule and the facts it matched, such as the claim and the shipment status
+- [x] The readable output for beat 3 shows the tracking number on #1042's step-up reason
 Notes: Found by the phase 3 spec review: "Each reason in a decision carries a `detail` with the specifics."
 
 ## T-017: Validate the tool with zod, and put the mandate's helpers in the mandate package

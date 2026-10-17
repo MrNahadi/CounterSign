@@ -50,6 +50,15 @@ describe("the decide CLI's readable output", () => {
     expect(held).toHaveLength(1);
   });
 
+  it("shows the tracking number on #1042's step-up reason", () => {
+    const held = proposalBlocks.find((block) => block.includes("  Decision  Step-up\n")) ?? "";
+    expect(held).toContain("on capture CAP-1042\n");
+    expect(held).toContain(
+      `    ${REASONS.SHIPMENT_DELIVERED.words} (SHIPMENT_DELIVERED)\n` +
+        "      Carrier shows TRK1042 delivered; rule refund-delivered-claim asks you first\n",
+    );
+  });
+
   it("shows each proposal's amount, intent ID, intent hash, reason details and trace", () => {
     const loaded = loadCase(beat3);
     if (!loaded.ok) throw new Error(loaded.error);

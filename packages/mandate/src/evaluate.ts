@@ -169,6 +169,37 @@ function escalations(rule: Rule, input: EvaluateInput): Reason[] {
   return [...reasons, ...dailyLimitReasons(input)];
 }
 
+// The facts a matched rule's `when` tested, as the intent and trace showed them.
+function matchedFacts(rule: Rule, { intent, trace }: EvaluateInput): string[] {
+  const when = rule.when ?? {};
+  const facts: string[] = [];
+  if (when.claim !== undefined) facts.push(`claim ${intent.claim}`);
+  if (when["shipment.status"]) facts.push(`shipment ${shipmentStatusOf(trace) ?? "unknown"}`);
+  if (when.rail !== undefined) facts.push(`rail ${intent.rail}`);
+  return facts;
+}
+
+// A step-up or deny rule's own reason: the facts behind it, then the rule. SHIPMENT_DELIVERED
+// gives the carrier's reading from the shipment.status entry, which names the tracking number.
+function ruleReason(
+  rule: Extract<Rule, { decide: "step_up" | "deny" }>,
+  input: EvaluateInput,
+): Reason {
+  const { action } = input.intent;
+  const facts = matchedFacts(rule, input);
+  const what = facts.length > 0 ? `${action} with ${facts.join(", ")}` : `every ${action}`;
+  if (rule.reason === "SHIPMENT_DELIVERED") {
+    const shipment = entriesFor(input.trace, "shipment.status")[0];
+    const reading = shipment?.detail ?? notInTrace("shipment.status");
+    const verb = rule.decide === "step_up" ? "asks you first" : "denies this";
+    return { code: rule.reason, detail: `${reading}; rule ${rule.id} ${verb}` };
+  }
+  if (rule.reason === "ALWAYS_NEEDS_APPROVAL") {
+    return { code: rule.reason, detail: `Rule ${rule.id} asks you first for ${what}` };
+  }
+  return { code: rule.reason, detail: `Rule ${rule.id} denies ${what}` };
+}
+
 type RuleOutcome = { outcome: Outcome; reasons: Reason[] };
 
 function ruleOutcome(rule: Rule, input: EvaluateInput): RuleOutcome {
@@ -179,9 +210,7 @@ function ruleOutcome(rule: Rule, input: EvaluateInput): RuleOutcome {
     if (escalated.length > 0) return { outcome: "step_up", reasons: escalated };
     return { outcome: "allow", reasons: [] };
   }
-  const detail =
-    rule.decide === "step_up" ? `Rule ${rule.id} asks you first` : `Rule ${rule.id} denies this`;
-  return { outcome: rule.decide, reasons: [{ code: rule.reason, detail }] };
+  return { outcome: rule.decide, reasons: [ruleReason(rule, input)] };
 }
 
 const RESTRICTIVENESS: Record<Outcome, number> = { allow: 0, step_up: 1, deny: 2 };
