@@ -30,3 +30,7 @@
 
 ### For the human
 - `.env.example` couldn't be read by the loop (env files are off limits). Check that it lists `PAYPAL_SEED_VAULT_TOKEN` and `PAYPAL_SEED_VAULT_TOKEN_B`; the README now says it does.
+
+## T-008 (done)
+- `apps/storefront/src/checkout.ts` exports `createCheckoutOrder(body, { paypal, newId? })`, `captureCheckoutOrder({ orderId }, { paypal })` (both return `{ status, body }`: 200, 400/503 `{ error }`, 502 `{ error, debugId }`), `checkoutPayPal(env, fetch?)` (undefined when the sandbox variables are missing or wrong, so both routes answer 503), `CUSTOM_ID_PREFIX`, `CAPTURE_REQUEST_PREFIX` and the body types. Routes: `POST /api/orders` and `POST /api/orders/[orderId]/capture`, thin over `src/checkout-route.ts` (`serverPayPal()` caches one client per process from `process.env` at request time, `readJson`, `respond` with `no-store`). Tests in `apps/storefront/test/checkout.test.ts` with their own small fake (CREATED orders, capture on request, replay by request ID).
+- Gotchas for T-009: the paid body is `{ paid: true, orderId, captureId, amount: Money }` (format with `formatMoney`); not paid is `{ paid: false, status }`. The 503 body's `error` is already the page's "Checkout isn't set up here..." sentence. `next.config.ts` now loads the root `.env.local` like the console's and transpiles `@countersign/mandate` and `@countersign/rail-paypal`; add any other workspace package the pages import. The public client ID for the browser still has to come from the server (T-009).

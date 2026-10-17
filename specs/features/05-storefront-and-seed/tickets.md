@@ -103,17 +103,17 @@ Notes:
 
 ## T-008: The storefront's create and capture routes
 
-Status: open
+Status: done
 Tier: standard
 Blocked by: T-002, T-005
 Slice: The storefront's server creates an order priced from the catalog and captures only its own orders, returning the real order and capture IDs.
 Test seam: the checkout functions in `apps/storefront/` that the route handlers call, with an injected PayPal client over a fake `fetch`
 Acceptance:
-- [ ] Create order takes a product ID through zod, prices it from the catalog whatever else the body holds, uses custom ID `storefront:<product ID>` and a fresh request ID, and returns the order ID. An unknown product is a 400
-- [ ] Capture validates the order ID (10 to 32 uppercase letters and digits), reads the order first, and refuses with a 400, capturing nothing, unless its custom ID names a catalog product and its amount is that price
-- [ ] Capture uses request ID `countersign-storefront-capture-<order ID>`, and returns paid with order ID, capture ID and amount only for a `COMPLETED` capture of the right amount; otherwise not paid with PayPal's status
-- [ ] PayPal failures return 502 with a plain message and the debug ID. Missing PayPal variables return 503 from both routes
-- [ ] The Next route handlers only parse the request, call these functions and shape the response
+- [x] Create order takes a product ID through zod, prices it from the catalog whatever else the body holds, uses custom ID `storefront:<product ID>` and a fresh request ID, and returns the order ID. An unknown product is a 400
+- [x] Capture validates the order ID (10 to 32 uppercase letters and digits), reads the order first, and refuses with a 400, capturing nothing, unless its custom ID names a catalog product and its amount is that price
+- [x] Capture uses request ID `countersign-storefront-capture-<order ID>`, and returns paid with order ID, capture ID and amount only for a `COMPLETED` capture of the right amount; otherwise not paid with PayPal's status
+- [x] PayPal failures return 502 with a plain message and the debug ID. Missing PayPal variables return 503 from both routes
+- [x] The Next route handlers only parse the request, call these functions and shape the response
 Notes:
 
 ## T-009: The shop pages and the JS SDK v6 PayPal button
