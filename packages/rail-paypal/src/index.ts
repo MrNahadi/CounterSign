@@ -1,10 +1,14 @@
 // PayPal rail: the sandbox-only REST client. It owns PayPal's JSON shapes and returns
 // zod-checked records in minor units (ADR 0024).
 export {
+  type AddTrackerInput,
+  type CreateOrderInput,
   createPayPalClient,
   type FetchLike,
+  type OrderItem,
   type PayPalClient,
   type PayPalClientOptions,
+  type PostOptions,
 } from "./client";
 export {
   PAYPAL_ENV_NAMES,

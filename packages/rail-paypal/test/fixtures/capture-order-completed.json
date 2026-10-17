@@ -1,0 +1,70 @@
+{
+  "id": "4UX98204FL1736522",
+  "intent": "CAPTURE",
+  "status": "COMPLETED",
+  "payment_source": {
+    "paypal": {
+      "email_address": "buyer-b@example.com",
+      "account_id": "B8NQ3TZK2WLMA",
+      "account_status": "VERIFIED",
+      "name": { "given_name": "Sample", "surname": "Shopper" },
+      "address": { "country_code": "KE" }
+    }
+  },
+  "purchase_units": [
+    {
+      "reference_id": "SHOP-H7WQ2D",
+      "custom_id": "storefront:floor-basket",
+      "invoice_id": "SHOP-H7WQ2D",
+      "amount": {
+        "currency_code": "USD",
+        "value": "240.00",
+        "breakdown": { "item_total": { "currency_code": "USD", "value": "240.00" } }
+      },
+      "payee": { "email_address": "merchant@example.com", "merchant_id": "7KW2PZ3QH9XLE" },
+      "payments": {
+        "captures": [
+          {
+            "id": "6CW19580PB3374512",
+            "status": "COMPLETED",
+            "amount": { "currency_code": "USD", "value": "240.00" },
+            "final_capture": true,
+            "seller_protection": {
+              "status": "ELIGIBLE",
+              "dispute_categories": ["ITEM_NOT_RECEIVED", "UNAUTHORIZED_TRANSACTION"]
+            },
+            "seller_receivable_breakdown": {
+              "gross_amount": { "currency_code": "USD", "value": "240.00" },
+              "paypal_fee": { "currency_code": "USD", "value": "8.87" },
+              "net_amount": { "currency_code": "USD", "value": "231.13" }
+            },
+            "links": [
+              {
+                "href": "https://api.sandbox.paypal.com/v2/payments/captures/6CW19580PB3374512",
+                "rel": "self",
+                "method": "GET"
+              }
+            ],
+            "create_time": "2026-10-17T10:16:40Z",
+            "update_time": "2026-10-17T10:16:40Z"
+          }
+        ]
+      }
+    }
+  ],
+  "payer": {
+    "name": { "given_name": "Sample", "surname": "Shopper" },
+    "email_address": "buyer-b@example.com",
+    "payer_id": "B8NQ3TZK2WLMA",
+    "address": { "country_code": "KE" }
+  },
+  "create_time": "2026-10-17T10:15:02Z",
+  "update_time": "2026-10-17T10:16:40Z",
+  "links": [
+    {
+      "href": "https://api.sandbox.paypal.com/v2/checkout/orders/4UX98204FL1736522",
+      "rel": "self",
+      "method": "GET"
+    }
+  ]
+}

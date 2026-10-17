@@ -1,7 +1,17 @@
+import type { Money } from "@countersign/mandate";
 import { z } from "zod";
 import { type PayPalConfig, PayPalConfigError, parsePayPalEnv } from "./config";
 import { PayPalError } from "./errors";
-import { errorBodySchema, fieldPath, orderSchema, type PayPalOrder, tokenSchema } from "./records";
+import {
+  captureRecordSchema,
+  errorBodySchema,
+  fieldPath,
+  orderSchema,
+  type PayPalCapture,
+  type PayPalOrder,
+  tokenSchema,
+  toPayPalAmount,
+} from "./records";
 
 // The only code that calls PayPal REST (ADR 0024). Sandbox only, one cached OAuth token per
 // client, retries only where a repeat can't act twice, and zod-checked records out.
@@ -20,8 +30,42 @@ export type PayPalClientOptions = {
   now?: () => number;
 };
 
+// Every POST carries the caller's PayPal-Request-Id, so a repeat replays PayPal's first answer
+// instead of acting twice. Seed and storefront IDs read `countersign-<area>-<id>-<step>`.
+export type PostOptions = { requestId: string };
+
+export type OrderItem = {
+  name: string;
+  sku?: string;
+  quantity: number;
+  // Only USD is sent to PayPal.
+  unitAmount: Money;
+};
+
+export type CreateOrderInput = PostOptions & {
+  referenceId: string;
+  customId: string;
+  invoiceId: string;
+  items: OrderItem[];
+  // A vault payment token: PayPal creates and captures the order in one call. Without one,
+  // the order waits for the buyer's approval.
+  vaultId?: string;
+};
+
+export type AddTrackerInput = PostOptions & {
+  captureId: string;
+  trackingNumber: string;
+  // Sent as carrier OTHER with this name.
+  carrierName: string;
+};
+
 export type PayPalClient = {
+  createOrder(input: CreateOrderInput): Promise<PayPalOrder>;
+  captureOrder(orderId: string, options: PostOptions): Promise<PayPalOrder>;
   getOrder(orderId: string): Promise<PayPalOrder>;
+  // Answers with the order, carrying its trackers.
+  addTracker(orderId: string, tracker: AddTrackerInput): Promise<PayPalOrder>;
+  getCapture(captureId: string): Promise<PayPalCapture>;
 };
 
 // A token with less than this left is replaced before the next call.
@@ -31,6 +75,35 @@ const MAX_RETRY_WAIT_MS = 10_000;
 const BACKOFF_MS = 250;
 
 const resourceId = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
+// PayPal accepts request IDs of up to 108 characters.
+const requestIdSchema = z.string().min(1).max(108);
+const postOptionsSchema = z.object({ requestId: requestIdSchema });
+
+const createOrderSchema = z.object({
+  requestId: requestIdSchema,
+  referenceId: z.string().min(1).max(256),
+  customId: z.string().min(1).max(127),
+  invoiceId: z.string().min(1).max(127),
+  items: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(127),
+        sku: z.string().min(1).max(127).optional(),
+        quantity: z.number().int().min(1).max(1000),
+        unitAmount: z.object({ minor: z.number().int().positive(), currency: z.string() }),
+      }),
+    )
+    .min(1)
+    .max(100),
+  vaultId: z.string().min(1).max(255).optional(),
+});
+
+const addTrackerSchema = z.object({
+  requestId: requestIdSchema,
+  captureId: resourceId,
+  trackingNumber: resourceId,
+  carrierName: z.string().min(1).max(64),
+});
 
 type CallSpec = {
   call: string;
@@ -222,19 +295,108 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
     return parsed.data;
   }
 
+  function refuse(call: string, reason: string): PayPalError {
+    return new PayPalError({ kind: "invalid_request", call, status: null, reason });
+  }
+
   function checkId(call: string, id: string): string {
-    if (!resourceId.safeParse(id).success) {
-      throw new PayPalError({
-        kind: "invalid_request",
-        call,
-        status: null,
-        reason: "the ID is malformed",
-      });
-    }
+    if (!resourceId.safeParse(id).success) throw refuse(call, "the ID is malformed");
     return encodeURIComponent(id);
   }
 
+  // Validates a caller's input, naming the field that's wrong and never its value.
+  function checkInput<T>(call: string, schema: z.ZodType<T>, input: unknown): T {
+    const parsed = schema.safeParse(input);
+    if (parsed.success) return parsed.data;
+    const [issue] = parsed.error.issues;
+    const field = issue && issue.path.length > 0 ? fieldPath(issue.path) : "the request";
+    throw refuse(call, `${field} is missing or invalid`);
+  }
+
   return {
+    async createOrder(input) {
+      const call = "create-order";
+      const order = checkInput(call, createOrderSchema, input);
+      let total = 0;
+      const items = order.items.map((item, index) => {
+        if (item.unitAmount.currency !== "USD") throw refuse(call, "only USD is sent to PayPal");
+        const unitAmount = toPayPalAmount({ minor: item.unitAmount.minor, currency: "USD" });
+        if (!unitAmount) throw refuse(call, `items[${index}].unitAmount is invalid`);
+        total += item.unitAmount.minor * item.quantity;
+        return {
+          name: item.name,
+          ...(item.sku === undefined ? {} : { sku: item.sku }),
+          quantity: String(item.quantity),
+          unit_amount: unitAmount,
+        };
+      });
+      const amount = toPayPalAmount({ minor: total, currency: "USD" });
+      if (!amount) throw refuse(call, "the order total is invalid");
+      if (order.vaultId !== undefined) credentials.add(order.vaultId);
+      const answer = await send({
+        call,
+        method: "POST",
+        path: "/v2/checkout/orders",
+        requestId: order.requestId,
+        body: {
+          intent: "CAPTURE",
+          purchase_units: [
+            {
+              reference_id: order.referenceId,
+              custom_id: order.customId,
+              invoice_id: order.invoiceId,
+              items,
+              amount: { ...amount, breakdown: { item_total: amount } },
+            },
+          ],
+          ...(order.vaultId === undefined
+            ? {}
+            : { payment_source: { paypal: { vault_id: order.vaultId } } }),
+        },
+      });
+      return parse(call, answer, orderSchema);
+    },
+
+    async captureOrder(orderId, options) {
+      const call = "capture-order";
+      const id = checkId(call, orderId);
+      const { requestId } = checkInput(call, postOptionsSchema, options);
+      const answer = await send({
+        call,
+        method: "POST",
+        path: `/v2/checkout/orders/${id}/capture`,
+        requestId,
+      });
+      return parse(call, answer, orderSchema);
+    },
+
+    async addTracker(orderId, input) {
+      const call = "add-tracker";
+      const id = checkId(call, orderId);
+      const tracker = checkInput(call, addTrackerSchema, input);
+      const answer = await send({
+        call,
+        method: "POST",
+        path: `/v2/checkout/orders/${id}/track`,
+        requestId: tracker.requestId,
+        body: {
+          capture_id: tracker.captureId,
+          tracking_number: tracker.trackingNumber,
+          carrier: "OTHER",
+          carrier_name_other: tracker.carrierName,
+          notify_payer: false,
+        },
+      });
+      return parse(call, answer, orderSchema);
+    },
+
+    async getCapture(captureId) {
+      const call = "get-capture";
+      const id = checkId(call, captureId);
+      const answer = await send({ call, method: "GET", path: `/v2/payments/captures/${id}` });
+      return parse(call, answer, captureRecordSchema);
+    },
+
     async getOrder(orderId) {
       const call = "get-order";
       const id = checkId(call, orderId);

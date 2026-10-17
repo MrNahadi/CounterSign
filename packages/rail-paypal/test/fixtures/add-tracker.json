@@ -1,0 +1,69 @@
+{
+  "id": "2KT41359XA4728316",
+  "intent": "CAPTURE",
+  "status": "COMPLETED",
+  "purchase_units": [
+    {
+      "reference_id": "KIK-1013",
+      "custom_id": "demo01",
+      "invoice_id": "KIK-1013-demo01",
+      "amount": {
+        "currency_code": "USD",
+        "value": "48.00",
+        "breakdown": { "item_total": { "currency_code": "USD", "value": "48.00" } }
+      },
+      "payee": { "email_address": "merchant@example.com", "merchant_id": "7KW2PZ3QH9XLE" },
+      "shipping": {
+        "name": { "full_name": "Sample Buyer" },
+        "address": {
+          "address_line_1": "1 Example Road",
+          "admin_area_2": "Kisumu",
+          "country_code": "KE"
+        },
+        "trackers": [
+          {
+            "id": "8RH70421MV5531947-KC-demo01-1013",
+            "status": "SHIPPED",
+            "items": [],
+            "links": [
+              {
+                "href": "https://api.sandbox.paypal.com/v2/checkout/orders/2KT41359XA4728316/trackers/8RH70421MV5531947-KC-demo01-1013",
+                "rel": "update",
+                "method": "PATCH"
+              }
+            ],
+            "create_time": "2026-10-17T10:02:14Z",
+            "update_time": "2026-10-17T10:02:14Z"
+          }
+        ]
+      },
+      "payments": {
+        "captures": [
+          {
+            "id": "8RH70421MV5531947",
+            "status": "COMPLETED",
+            "amount": { "currency_code": "USD", "value": "48.00" },
+            "final_capture": true,
+            "create_time": "2026-10-17T10:02:11Z",
+            "update_time": "2026-10-17T10:02:11Z"
+          }
+        ]
+      }
+    }
+  ],
+  "payer": {
+    "name": { "given_name": "Sample", "surname": "Buyer" },
+    "email_address": "buyer-a@example.com",
+    "payer_id": "QYR5Z8XDVJNXQ",
+    "address": { "country_code": "KE" }
+  },
+  "create_time": "2026-10-17T10:02:10Z",
+  "update_time": "2026-10-17T10:02:14Z",
+  "links": [
+    {
+      "href": "https://api.sandbox.paypal.com/v2/checkout/orders/2KT41359XA4728316",
+      "rel": "self",
+      "method": "GET"
+    }
+  ]
+}

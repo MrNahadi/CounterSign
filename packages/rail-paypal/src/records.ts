@@ -1,4 +1,4 @@
-import { type Money, parseMoney } from "@countersign/mandate";
+import { formatMoney, type Money, parseMoney } from "@countersign/mandate";
 import { z } from "zod";
 
 // PayPal's JSON, parsed with zod into the client's own records. Only the fields we use are
@@ -49,7 +49,37 @@ export const moneySchema = z
     return z.NEVER;
   });
 
+export type PayPalAmount = { currency_code: string; value: string };
+
+// Money in PayPal's wire format: 4800 USD minor units is "48.00". Only USD is sent to PayPal,
+// so anything else, or an amount that doesn't read back to the same minor units, is null.
+export function toPayPalAmount(money: Money): PayPalAmount | null {
+  if (money.currency !== "USD" || !Number.isSafeInteger(money.minor) || money.minor <= 0) {
+    return null;
+  }
+  const value = formatMoney(money).replace(/^\$/, "").replaceAll(",", "");
+  const back = parseMoney(value, money.currency);
+  if (!back.ok || back.money.minor !== money.minor) return null;
+  return { currency_code: money.currency, value };
+}
+
 const captureSchema = z.object({ id: text, status: text, amount: moneySchema });
+
+// A capture read on its own carries its order's ID in supplementary_data.
+export const captureRecordSchema = captureSchema
+  .extend({
+    supplementary_data: z
+      .object({ related_ids: z.object({ order_id: z.string().optional() }).optional() })
+      .optional(),
+  })
+  .transform(
+    (capture): PayPalCapture => ({
+      id: capture.id,
+      status: capture.status,
+      amount: capture.amount,
+      orderId: capture.supplementary_data?.related_ids?.order_id || null,
+    }),
+  );
 
 const trackerSchema = z
   .object({ id: text, status: text })

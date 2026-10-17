@@ -18,17 +18,17 @@ Notes:
 
 ## T-002: Create, capture, track and read captures through the client
 
-Status: open
+Status: done
 Tier: standard
 Blocked by: T-001
 Slice: The client can create an order (paid by a vault token, or for buyer approval), capture it, add a tracker and read a capture, each against recorded fixtures, with money in minor units both ways.
 Test seam: the client's create-order, capture-order, add-tracker and get-capture calls
 Acceptance:
-- [ ] Create order sends `intent: CAPTURE`, one purchase unit with reference ID, custom ID, invoice ID, items and a matching amount breakdown, and either `payment_source.paypal.vault_id` or nothing for buyer approval. A non-USD amount is refused before any call
-- [ ] Every POST sends the caller's `PayPal-Request-Id` and `Prefer: return=representation`, and is retried on 429 and 5xx at most twice. A POST without a request ID is a type error
-- [ ] A vault order fixture (`COMPLETED`) parses with its capture and payer. An approval-pending fixture parses with its status. A capture fixture parses with its order ID from `supplementary_data.related_ids`
-- [ ] Add tracker sends the capture ID, tracking number, `carrier: OTHER`, the carrier name and `notify_payer: false`, and accepts PayPal's response
-- [ ] Amounts convert through `parseMoney` and `formatMoney` from `@countersign/mandate`: 4800 minor units is `"48.00"`, and `"240.00"` is 24000
+- [x] Create order sends `intent: CAPTURE`, one purchase unit with reference ID, custom ID, invoice ID, items and a matching amount breakdown, and either `payment_source.paypal.vault_id` or nothing for buyer approval. A non-USD amount is refused before any call
+- [x] Every POST sends the caller's `PayPal-Request-Id` and `Prefer: return=representation`, and is retried on 429 and 5xx at most twice. A POST without a request ID is a type error
+- [x] A vault order fixture (`COMPLETED`) parses with its capture and payer. An approval-pending fixture parses with its status. A capture fixture parses with its order ID from `supplementary_data.related_ids`
+- [x] Add tracker sends the capture ID, tracking number, `carrier: OTHER`, the carrier name and `notify_payer: false`, and accepts PayPal's response
+- [x] Amounts convert through `parseMoney` and `formatMoney` from `@countersign/mandate`: 4800 minor units is `"48.00"`, and `"240.00"` is 24000
 Notes:
 
 ## T-003: The carrier_shipments and seed_orders tables

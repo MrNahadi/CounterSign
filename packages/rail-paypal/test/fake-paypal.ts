@@ -1,12 +1,21 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { FetchLike } from "@countersign/rail-paypal";
+import { inspect } from "node:util";
+import {
+  createPayPalClient,
+  type FetchLike,
+  type PayPalClientOptions,
+  PayPalError,
+} from "@countersign/rail-paypal";
+import { expect } from "vitest";
 
 // A fake PayPal sandbox for tests: no network, recorded fixtures, every request kept.
 
 export const FAKE_CLIENT_ID = "fake-client-id-for-tests";
 export const FAKE_SECRET = "fake-client-secret-do-not-leak";
 export const FAKE_TOKEN = "A21AAFAKE-ACCESS-TOKEN-FOR-TESTS-ONLY";
+// The vault ID in `create-order-vault-completed.json`, so tests can check it never leaks.
+export const FAKE_VAULT_TOKEN = "fake-vault-token-do-not-leak";
 
 export const sandboxEnv = {
   PAYPAL_BASE_URL: "https://api-m.sandbox.paypal.com",
@@ -67,4 +76,50 @@ export function fakePayPal(api: Route, token: Route = () => tokenReply()) {
     tokenRequests: () => requests.filter((r) => r.path === "/v1/oauth2/token"),
     apiRequests: () => requests.filter((r) => r.path !== "/v1/oauth2/token"),
   };
+}
+
+// A client over the fake, with retries that don't wait.
+export function testClient(
+  fake: ReturnType<typeof fakePayPal>,
+  options: Partial<PayPalClientOptions> = {},
+) {
+  return createPayPalClient({
+    env: sandboxEnv,
+    fetch: fake.fetch,
+    sleep: async () => {},
+    ...options,
+  });
+}
+
+// Everything a test can see: return values, thrown values and their stacks.
+export function exposed(value: unknown): string {
+  if (value instanceof Error) {
+    return [
+      String(value),
+      value.stack ?? "",
+      inspect(value, { depth: 10 }),
+      JSON.stringify(value),
+    ].join("\n");
+  }
+  return `${JSON.stringify(value)}\n${inspect(value, { depth: 10 })}`;
+}
+
+export function expectNoSecrets(value: unknown) {
+  const text = exposed(value);
+  expect(text).not.toContain(FAKE_SECRET);
+  expect(text).not.toContain(FAKE_TOKEN);
+  expect(text).not.toContain(FAKE_VAULT_TOKEN);
+  expect(text).not.toContain(Buffer.from(`${FAKE_CLIENT_ID}:${FAKE_SECRET}`).toString("base64"));
+}
+
+// The PayPalError a call fails with, checked for secrets.
+export async function caught(promise: Promise<unknown>): Promise<PayPalError> {
+  try {
+    await promise;
+  } catch (error) {
+    expect(error).toBeInstanceOf(PayPalError);
+    expectNoSecrets(error);
+    return error as PayPalError;
+  }
+  throw new Error("Expected the call to fail");
 }

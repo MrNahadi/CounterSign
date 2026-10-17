@@ -1,0 +1,40 @@
+{
+  "id": "8RH70421MV5531947",
+  "amount": { "currency_code": "USD", "value": "48.00" },
+  "final_capture": true,
+  "seller_protection": {
+    "status": "ELIGIBLE",
+    "dispute_categories": ["ITEM_NOT_RECEIVED", "UNAUTHORIZED_TRANSACTION"]
+  },
+  "seller_receivable_breakdown": {
+    "gross_amount": { "currency_code": "USD", "value": "48.00" },
+    "paypal_fee": { "currency_code": "USD", "value": "1.93" },
+    "net_amount": { "currency_code": "USD", "value": "46.07" }
+  },
+  "invoice_id": "KIK-1013-demo01",
+  "custom_id": "demo01",
+  "status": "COMPLETED",
+  "supplementary_data": {
+    "related_ids": { "order_id": "2KT41359XA4728316" }
+  },
+  "payee": { "email_address": "merchant@example.com", "merchant_id": "7KW2PZ3QH9XLE" },
+  "create_time": "2026-10-17T10:02:11Z",
+  "update_time": "2026-10-17T10:02:11Z",
+  "links": [
+    {
+      "href": "https://api.sandbox.paypal.com/v2/payments/captures/8RH70421MV5531947",
+      "rel": "self",
+      "method": "GET"
+    },
+    {
+      "href": "https://api.sandbox.paypal.com/v2/payments/captures/8RH70421MV5531947/refund",
+      "rel": "refund",
+      "method": "POST"
+    },
+    {
+      "href": "https://api.sandbox.paypal.com/v2/checkout/orders/2KT41359XA4728316",
+      "rel": "up",
+      "method": "GET"
+    }
+  ]
+}

@@ -1,13 +1,15 @@
-import { inspect } from "node:util";
 import {
   createPayPalClient,
   type PayPalClientOptions,
   PayPalConfigError,
-  PayPalError,
   parsePayPalEnv,
 } from "@countersign/rail-paypal";
 import { describe, expect, it } from "vitest";
 import {
+  caught,
+  testClient as client,
+  expectNoSecrets,
+  exposed,
   FAKE_CLIENT_ID,
   FAKE_SECRET,
   FAKE_TOKEN,
@@ -19,46 +21,6 @@ import {
 } from "./fake-paypal";
 
 const ORDER_ID = "5O190127TN364715T";
-
-// Everything a test can see: return values, thrown values and their stacks.
-function exposed(value: unknown): string {
-  if (value instanceof Error) {
-    return [
-      String(value),
-      value.stack ?? "",
-      inspect(value, { depth: 10 }),
-      JSON.stringify(value),
-    ].join("\n");
-  }
-  return `${JSON.stringify(value)}\n${inspect(value, { depth: 10 })}`;
-}
-
-function expectNoSecrets(value: unknown) {
-  const text = exposed(value);
-  expect(text).not.toContain(FAKE_SECRET);
-  expect(text).not.toContain(FAKE_TOKEN);
-  expect(text).not.toContain(Buffer.from(`${FAKE_CLIENT_ID}:${FAKE_SECRET}`).toString("base64"));
-}
-
-async function caught(promise: Promise<unknown>): Promise<PayPalError> {
-  try {
-    await promise;
-  } catch (error) {
-    expect(error).toBeInstanceOf(PayPalError);
-    expectNoSecrets(error);
-    return error as PayPalError;
-  }
-  throw new Error("Expected the call to fail");
-}
-
-function client(fake: ReturnType<typeof fakePayPal>, options: Partial<PayPalClientOptions> = {}) {
-  return createPayPalClient({
-    env: sandboxEnv,
-    fetch: fake.fetch,
-    sleep: async () => {},
-    ...options,
-  });
-}
 
 describe("configuration", () => {
   it("accepts the sandbox base URL, with or without a trailing slash", () => {

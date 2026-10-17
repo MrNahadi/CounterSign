@@ -1,0 +1,49 @@
+{
+  "id": "4UX98204FL1736522",
+  "intent": "CAPTURE",
+  "status": "CREATED",
+  "purchase_units": [
+    {
+      "reference_id": "SHOP-H7WQ2D",
+      "custom_id": "storefront:floor-basket",
+      "invoice_id": "SHOP-H7WQ2D",
+      "amount": {
+        "currency_code": "USD",
+        "value": "240.00",
+        "breakdown": { "item_total": { "currency_code": "USD", "value": "240.00" } }
+      },
+      "payee": { "email_address": "merchant@example.com", "merchant_id": "7KW2PZ3QH9XLE" },
+      "items": [
+        {
+          "name": "Floor basket",
+          "unit_amount": { "currency_code": "USD", "value": "240.00" },
+          "quantity": "1",
+          "sku": "floor-basket"
+        }
+      ]
+    }
+  ],
+  "create_time": "2026-10-17T10:15:02Z",
+  "links": [
+    {
+      "href": "https://api.sandbox.paypal.com/v2/checkout/orders/4UX98204FL1736522",
+      "rel": "self",
+      "method": "GET"
+    },
+    {
+      "href": "https://www.sandbox.paypal.com/checkoutnow?token=4UX98204FL1736522",
+      "rel": "approve",
+      "method": "GET"
+    },
+    {
+      "href": "https://api.sandbox.paypal.com/v2/checkout/orders/4UX98204FL1736522",
+      "rel": "update",
+      "method": "PATCH"
+    },
+    {
+      "href": "https://api.sandbox.paypal.com/v2/checkout/orders/4UX98204FL1736522/capture",
+      "rel": "capture",
+      "method": "POST"
+    }
+  ]
+}
