@@ -1,9 +1,15 @@
 import { type Intent, VERIFIERS } from "@countersign/mandate";
 import { describe, expect, it } from "vitest";
 import { type RecordSnapshots, runVerifiers } from "../src/index";
-import { capture, intent, order, ticket } from "./fixtures";
+import { capture, disputes, intent, order, shipment, ticket } from "./fixtures";
 
-const records: RecordSnapshots = { captures: [capture], orders: [order], ticket };
+const records: RecordSnapshots = {
+  captures: [capture],
+  orders: [order],
+  ticket,
+  disputes: [disputes],
+  shipments: [shipment],
+};
 
 // Built in later phases. Until then they can only say unknown.
 const NOT_BUILT_YET = [
@@ -28,8 +34,11 @@ describe("runVerifiers", () => {
     ]);
   });
 
-  it("names a call and a record ID on every entry of the PayPal checks", () => {
-    for (const entry of runVerifiers(intent, records).slice(0, 2)) {
+  it("names a call and a record ID on every entry of the built checks", () => {
+    const built = runVerifiers(intent, records).filter(
+      (entry) => entry.verifier !== "ledger.not_duplicate",
+    );
+    for (const entry of built) {
       expect(entry.records.length).toBeGreaterThan(0);
       for (const record of entry.records) {
         expect(record.call).not.toBe("");

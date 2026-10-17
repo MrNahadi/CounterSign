@@ -43,3 +43,24 @@ Gotchas for the next iteration:
 
 For the human (outside T-003, raised in review):
 - The `ticket.from_payer` detail prints the full payer email, such as "Sender grace.w@example.com, payer sb-87z5x@personal.example.com". requirements.md's example shows `sb-87z5…@personal.example.com`. Confirm whether that ellipsis means the payer email should be masked on the phone card and in the CLI, or was only shortened for the doc.
+
+## T-004: done
+
+`shipment.status`, `dispute.none_open` and `evidence.photo_present` are built. `TraceEntry` gains `value?: ShipmentStatus`, which is set only on a passing `shipment.status`. T-006 should match `when` on that value, never on `detail`.
+
+Snapshot shapes (`packages/verifiers/src/snapshots.ts`):
+- `OrderSnapshot.trackers: { id, trackingNumber, status }[]` is required.
+- `TicketSnapshot.attachments: { id, contentType }[]` is required.
+- `RecordSnapshots` gains `disputes?: DisputesSnapshot[]` and `shipments?: ShipmentSnapshot[]`.
+  - Each `DisputesSnapshot` is `{ call, id, disputes: { id, status }[] }`. Its `id` is the capture the lookup was filtered by.
+  - Each `ShipmentSnapshot` is `{ call, id, status }`. Its `id` is the tracking number.
+- New calls are in `CALLS`: `disputes` is `GET /v1/customer/disputes`, and `carrier` is `carrier GET /shipments/{tracking_number}`. Phase 5 may rename the carrier call when the carrier mock defines its interface.
+
+Gotchas for the next iteration:
+- `orderFor` and `ticketFor` now live in `packages/verifiers/src/lookups.ts` and aren't exported from the package. Use them for any verifier that reads the intent's order or ticket. `orderFor` checks the capture's order against the intent's.
+- `shipment.status` counts only trackers with status exactly `SHIPPED` whose ID is `${captureId}-${trackingNumber}` (spike S2). T-009's case-file fixtures must build tracker IDs that way, or the status is unknown.
+- `dispute.none_open` treats every dispute in the capture's own lookup as being on that capture, so any status other than `RESOLVED` fails. A lookup for another capture makes it unknown.
+- `evidence.photo_present` passes on any attachment whose content type starts with `image/`, ignoring case.
+
+For the human (outside T-004, raised in review):
+- If an order has several live trackers for the same capture (a split shipment) and the carrier gives them different statuses, `shipment.status` returns unknown. That fails closed, so the refund falls to `NO_MATCHING_RULE` plus `SHIPMENT_STATUS_UNKNOWN`. requirements.md speaks of "the order's tracker" in the singular. Confirm this behaviour, or say which tracker should win.

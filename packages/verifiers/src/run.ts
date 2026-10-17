@@ -2,14 +2,19 @@
 
 import type { Intent, TraceEntry, VerifierName, VerifierTrace } from "@countersign/mandate";
 import { captureRefundable } from "./capture";
+import { disputeNoneOpen } from "./dispute";
+import { shipmentStatus } from "./shipment";
 import type { RecordSnapshots } from "./snapshots";
-import { ticketFromPayer } from "./ticket";
+import { evidencePhotoPresent, ticketFromPayer } from "./ticket";
 
 type Verifier = (intent: Intent, records: RecordSnapshots) => TraceEntry;
 
 const BUILT_VERIFIERS: Partial<Record<VerifierName, Verifier>> = {
   "capture.refundable": captureRefundable,
   "ticket.from_payer": ticketFromPayer,
+  "dispute.none_open": disputeNoneOpen,
+  "shipment.status": shipmentStatus,
+  "evidence.photo_present": evidencePhotoPresent,
 };
 
 // Every verifier that runs for a refund, whatever the rules need, so the trace is complete.

@@ -46,14 +46,14 @@ Notes:
 
 ## T-004: shipment.status, dispute.none_open and evidence.photo_present
 
-Status: open
+Status: done
 Blocked by: T-003
 Slice: The trace for a refund intent includes the carrier's shipment status for the order's tracker, the dispute check and the photo check.
 Test seam: the verifier-running export of `@countersign/verifiers`
 Acceptance:
-- [ ] `shipment.status` passes with the value `lost`, `stalled_10d`, `in_transit` or `delivered`, read through the tracker's tracking number. It's unknown with no tracker or no carrier record
-- [ ] `dispute.none_open` passes when the lookup ran and finds no open dispute on the capture, and fails on an open one. It's unknown when the lookup didn't run
-- [ ] `evidence.photo_present` passes with an image attachment, fails without one, and is unknown without a ticket
+- [x] `shipment.status` passes with the value `lost`, `stalled_10d`, `in_transit` or `delivered`, read through the tracker's tracking number. It's unknown with no tracker or no carrier record
+- [x] `dispute.none_open` passes when the lookup ran and finds no open dispute on the capture, and fails on an open one. It's unknown when the lookup didn't run
+- [x] `evidence.photo_present` passes with an image attachment, fails without one, and is unknown without a ticket
 Notes:
 
 ## T-005: ledger.not_duplicate and today's usage

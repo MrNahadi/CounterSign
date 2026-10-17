@@ -1,7 +1,13 @@
 // A $18 refund on a $48 capture, with the records that back it.
 
 import type { Intent } from "@countersign/mandate";
-import type { CaptureSnapshot, OrderSnapshot, TicketSnapshot } from "../src/index";
+import type {
+  CaptureSnapshot,
+  DisputesSnapshot,
+  OrderSnapshot,
+  ShipmentSnapshot,
+  TicketSnapshot,
+} from "../src/index";
 
 export const intent: Intent = {
   principal: "support-agent",
@@ -27,10 +33,24 @@ export const order: OrderSnapshot = {
   call: "GET /v2/checkout/orders/{id}",
   id: "5O190127TN364715T",
   payerEmail: "sb-87z5x@personal.example.com",
+  trackers: [{ id: "7YL89768KH2865638-KIK0042", trackingNumber: "KIK0042", status: "SHIPPED" }],
 };
 
 export const ticket: TicketSnapshot = {
   call: "ticket",
   id: "tkt_0042",
   senderEmail: "sb-87z5x@personal.example.com",
+  attachments: [],
+};
+
+export const disputes: DisputesSnapshot = {
+  call: "GET /v1/customer/disputes",
+  id: "7YL89768KH2865638",
+  disputes: [],
+};
+
+export const shipment: ShipmentSnapshot = {
+  call: "carrier GET /shipments/{tracking_number}",
+  id: "KIK0042",
+  status: "stalled_10d",
 };

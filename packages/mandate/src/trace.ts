@@ -1,6 +1,6 @@
 // The verifier trace: each verifier run for an intent, its result and the records it read.
 
-import type { VerifierName } from "./mandate";
+import type { ShipmentStatus, VerifierName } from "./mandate";
 
 export const VERIFIER_RESULTS = ["pass", "fail", "unknown"] as const;
 export type VerifierResult = (typeof VERIFIER_RESULTS)[number];
@@ -16,6 +16,8 @@ export type TraceEntry = {
   records: RecordRef[];
   // What the records showed, in words. Never a credential or a full token.
   detail: string;
+  // The value a passing `shipment.status` found, so a rule's `when` can match it.
+  value?: ShipmentStatus;
 };
 
 export type VerifierTrace = readonly TraceEntry[];
