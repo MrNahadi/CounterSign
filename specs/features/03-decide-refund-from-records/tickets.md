@@ -161,15 +161,15 @@ Notes: zod 4.6.7's `z.iso.datetime({ offset: true })` rejects calendar rollovers
 
 ## T-013: Record lookups fail closed
 
-Status: open
+Status: done
 Blocked by:
 Slice: Verifiers that reach an order through the intent's capture need the capture record, and the record must name that order. Without it, `ticket.from_payer` and `shipment.status` are unknown, even when the intent carries an order ID.
 Test seam: `runVerifiers` in `@countersign/verifiers`, and the proposal normalization function in `apps/gate/src/`
 Acceptance:
-- [ ] One `captureFor` lookup in `packages/verifiers/src/lookups.ts` replaces the three separate capture finds (`capture.ts`, `lookups.ts`, `apps/gate/src/proposal.ts`)
-- [ ] With no capture record, `orderFor` finds no order. A test gives an intent with an order ID but no capture record, and gets `ticket.from_payer` and `shipment.status` unknown
-- [ ] A capture record that names a different order than the intent still gives unknown, as it does today
-- [ ] Every existing verifier and fixture-case test still passes unchanged
+- [x] One `captureFor` lookup in `packages/verifiers/src/lookups.ts` replaces the three separate capture finds (`capture.ts`, `lookups.ts`, `apps/gate/src/proposal.ts`)
+- [x] With no capture record, `orderFor` finds no order. A test gives an intent with an order ID but no capture record, and gets `ticket.from_payer` and `shipment.status` unknown
+- [x] A capture record that names a different order than the intent still gives unknown, as it does today
+- [x] Every existing verifier and fixture-case test still passes unchanged
 Notes: Found by the phase 3 standards review. The gate path was already safe, because normalization derives the order ID from the capture. This is defence in depth.
 
 ## T-014: The intent hash covers the capture, and hashes keep their bytes

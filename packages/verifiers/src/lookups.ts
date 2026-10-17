@@ -3,6 +3,7 @@
 import type { Intent, RecordRef } from "@countersign/mandate";
 import {
   CALLS,
+  type CaptureSnapshot,
   type OrderSnapshot,
   type RecordSnapshots,
   recordRef,
@@ -13,8 +14,13 @@ export type OrderLookup =
   | { order: OrderSnapshot; ref: RecordRef }
   | { order: null; ref: RecordRef; missing: string };
 
-// The intent's order, as long as it's the order the capture was taken on. Otherwise, the reason
-// it's missing.
+// The capture's record, if the records hold it.
+export function captureFor(captureId: string, records: RecordSnapshots): CaptureSnapshot | null {
+  return records.captures?.find((record) => record.id === captureId) ?? null;
+}
+
+// The intent's order, as long as the capture's record says the money was captured on it.
+// Otherwise, the reason it's missing.
 export function orderFor(intent: Intent, records: RecordSnapshots): OrderLookup {
   const { captureId, orderId } = intent.target;
   const order =
@@ -25,8 +31,10 @@ export function orderFor(intent: Intent, records: RecordSnapshots): OrderLookup 
     return { order: null, ref: { call: CALLS.order, id: orderId }, missing };
   }
   const ref = recordRef(order);
-  const capture = records.captures?.find((record) => record.id === captureId);
-  if (capture && capture.orderId !== order.id) {
+  // Without the capture's record, nothing links the intent's order to its money.
+  const capture = captureFor(captureId, records);
+  if (!capture) return { order: null, ref, missing: `No record of capture ${captureId}` };
+  if (capture.orderId !== order.id) {
     return { order: null, ref, missing: `Capture ${captureId} isn't on order ${order.id}` };
   }
   return { order, ref };

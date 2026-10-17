@@ -1,6 +1,7 @@
 // capture.refundable: the capture can still be refunded for the intent's amount.
 
 import { formatMoney, type Intent, isMinorUnits, type TraceEntry } from "@countersign/mandate";
+import { captureFor } from "./lookups";
 import { CALLS, type RecordSnapshots, recordRef } from "./snapshots";
 
 const REFUNDABLE_STATUSES = new Set(["COMPLETED", "PARTIALLY_REFUNDED"]);
@@ -8,7 +9,7 @@ const REFUNDABLE_STATUSES = new Set(["COMPLETED", "PARTIALLY_REFUNDED"]);
 // The right status and currency, and no more than captured minus already refunded.
 export function captureRefundable(intent: Intent, records: RecordSnapshots): TraceEntry {
   const { captureId } = intent.target;
-  const capture = records.captures?.find((record) => record.id === captureId);
+  const capture = captureFor(captureId, records);
   const result = (outcome: TraceEntry["result"], detail: string): TraceEntry => ({
     verifier: "capture.refundable",
     result: outcome,

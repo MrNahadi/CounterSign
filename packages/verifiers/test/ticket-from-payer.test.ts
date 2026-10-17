@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import { type RecordSnapshots, runVerifiers, type TicketSnapshot } from "../src/index";
 import { capture, intent, order, ticket } from "./fixtures";
 
+// The capture's record links the intent to its order, so it's there unless a test replaces it.
 function fromPayer(records: RecordSnapshots, asked: Intent = intent) {
-  return runVerifiers(asked, records).find((entry) => entry.verifier === "ticket.from_payer");
+  return runVerifiers(asked, { captures: [capture], ...records }).find(
+    (entry) => entry.verifier === "ticket.from_payer",
+  );
 }
 
 describe("ticket.from_payer", () => {
@@ -49,6 +52,12 @@ describe("ticket.from_payer", () => {
     );
     const noOrder: Intent = { ...intent, target: { ...intent.target, orderId: null } };
     expect(fromPayer({ orders: [order], ticket }, noOrder)?.result).toBe("unknown");
+  });
+
+  it("is unknown without the capture record, even when the intent names the order", () => {
+    const entry = fromPayer({ captures: [], orders: [order], ticket });
+    expect(entry?.result).toBe("unknown");
+    expect(entry?.detail).toBe("No record of capture 7YL89768KH2865638");
   });
 
   it("checks the payer of the capture's own order", () => {

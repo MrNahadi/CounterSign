@@ -9,7 +9,7 @@ import {
   parseMoney,
   type Reason,
 } from "@countersign/mandate";
-import type { RecordSnapshots } from "@countersign/verifiers";
+import { captureFor, type RecordSnapshots } from "@countersign/verifiers";
 import { z } from "zod";
 
 // The tools the gate knows, by the guarded action each proposes. Anything else is UNKNOWN_ACTION.
@@ -78,7 +78,7 @@ export function normalizeProposal(input: ProposalInput): Normalized {
   }
   const { args, justification } = parsed.data;
 
-  const capture = input.records.captures?.find((record) => record.id === args.capture_id);
+  const capture = captureFor(args.capture_id, input.records);
   let amount = args.amount;
   if (!amount) {
     // No amount means "refund what's left", so the intent states the exact amount that executes.

@@ -151,3 +151,10 @@ Gotchas for the next iteration:
 
 Gotchas for the next iteration:
 - The rule now accepts any number of fractional-second digits (the old regexes allowed at most three), as zod does.
+
+## T-013: done
+
+`captureFor(captureId, records)` → `CaptureSnapshot | null` in `packages/verifiers/src/lookups.ts` is now the one capture lookup, exported from `@countersign/verifiers` (lookups' other helpers stay internal). `capture.refundable` and `normalizeProposal` use it. `orderFor` now finds no order without the capture record ("No record of capture <id>"), so `ticket.from_payer` and `shipment.status` are unknown then, even when the intent names an order.
+
+Gotchas for the next iteration:
+- The `fromPayer` and `status` helpers in `ticket-from-payer.test.ts` and `shipment-status.test.ts` now put `captures: [capture]` into the records unless a test states `captures` itself. That kept every existing test body unchanged. Pass `captures: []` to test a missing capture record.

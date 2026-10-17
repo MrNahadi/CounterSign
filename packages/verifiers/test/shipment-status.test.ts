@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import { type OrderSnapshot, type RecordSnapshots, runVerifiers } from "../src/index";
 import { capture, intent, order, shipment } from "./fixtures";
 
+// The capture's record links the intent to its order, so it's there unless a test replaces it.
 function status(records: RecordSnapshots, asked: Intent = intent) {
-  return runVerifiers(asked, records).find((entry) => entry.verifier === "shipment.status");
+  return runVerifiers(asked, { captures: [capture], ...records }).find(
+    (entry) => entry.verifier === "shipment.status",
+  );
 }
 
 describe("shipment.status", () => {
@@ -58,6 +61,13 @@ describe("shipment.status", () => {
     expect(status({ shipments: [shipment] })?.result).toBe("unknown");
     const noOrder: Intent = { ...intent, target: { ...intent.target, orderId: null } };
     expect(status({ orders: [order], shipments: [shipment] }, noOrder)?.result).toBe("unknown");
+  });
+
+  it("is unknown without the capture record, even when the intent names the order", () => {
+    const entry = status({ captures: [], orders: [order], shipments: [shipment] });
+    expect(entry?.result).toBe("unknown");
+    expect(entry?.value).toBeUndefined();
+    expect(entry?.detail).toBe("No record of capture 7YL89768KH2865638");
   });
 
   it("is unknown when the capture isn't on the order", () => {
