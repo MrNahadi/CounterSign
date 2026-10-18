@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { bigint, check, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 
 // The audit log (ADR 0022). `payload` and `at` are the exact text that was hashed, never jsonb.
 // The chain itself is enforced here: `seq` is the primary key and `prev_hash` is unique, so a
@@ -66,3 +66,32 @@ export const seedOrders = pgTable("seed_orders", {
 
 export type SeedOrderRow = typeof seedOrders.$inferSelect;
 export type NewSeedOrderRow = typeof seedOrders.$inferInsert;
+
+/** The channels a ticket arrives on. */
+export const TICKET_CHANNELS = ["email", "chat"] as const;
+export type TicketChannel = (typeof TICKET_CHANNELS)[number];
+
+/** One file a customer attached to a ticket. */
+export type TicketAttachment = { id: string; contentType: string };
+
+// The ticket store (ADR 0029): one row per message a customer sent. Written once through
+// `writeTicket`, never updated; the gate reads it by ID. `receivedAt` is ISO 8601 text that
+// passes the shared timestamp rule. Not hashed, not append-only, and no trigger.
+export const tickets = pgTable(
+  "tickets",
+  {
+    id: text("id").primaryKey(),
+    channel: text("channel").notNull(),
+    senderEmail: text("sender_email"),
+    senderPhone: text("sender_phone"),
+    subject: text("subject"),
+    body: text("body").notNull(),
+    attachments: jsonb("attachments").$type<TicketAttachment[]>().notNull(),
+    receivedAt: text("received_at").notNull(),
+    simulated: boolean("simulated").notNull(),
+  },
+  (table) => [check("tickets_channel_check", sql`${table.channel} IN ('email', 'chat')`)],
+);
+
+export type TicketRow = typeof tickets.$inferSelect;
+export type NewTicketRow = typeof tickets.$inferInsert;

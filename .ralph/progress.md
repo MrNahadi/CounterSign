@@ -19,3 +19,10 @@
 ## T-004 (done)
 - `send_invoice`, `pay_order` and `create_payout` normalize in `apps/gate/src/proposal.ts` (shared `recordMoney` checks a record's currency and amount). Verifiers gain `InvoiceSnapshot` (`RecordSnapshots.invoices`, `CALLS.invoice`, `invoiceFor`), `RecordAmount`, `OrderSnapshot.amounts?` (each purchase unit's amount; absent means unread, so `pay_order` is `TARGET_UNKNOWN`) and `orderRecordFor`. `decide()` turns an allow for a non-executable action into deny `ACTION_UNAVAILABLE` via `apps/gate/src/executable.ts` (`EXECUTABLE_ACTIONS`, `isExecutable`). Cases `invoice-order-payout.json` and `action-unavailable.json` (mandate `fixtures/mandates/order-capture-allowed.json`).
 - Gotcha: `live-records.ts` doesn't fill `OrderSnapshot.amounts` yet; T-006 must map `order.purchaseUnits[].amount` into it for `pay_order`'s live read. `out-of-scope.json` and `proposal.test.ts` now use `transfer_funds` as the unknown tool. `pay_order` intents carry `params: {}`.
+
+## T-005 (done)
+- `@countersign/db` gains the `tickets` table (migration `0002_lively_synch.sql`, CHECK `tickets_channel_check`) and `packages/db/src/tickets.ts`: `TicketSchema`, `Ticket` (camelCase: `id`, `channel`, `senderEmail`, `senderPhone`, `subject`, `body`, `attachments[{ id, contentType }]`, `receivedAt`, `simulated`), `writeTicket(db, ticket)` returning `"written" | "unchanged"`, `readTicket(db, id)` returning `Ticket | null`, `InvalidTicketError`, `TicketConflictError` (has `ticketId`). Tests in `packages/db/test/tickets.test.ts`, including a migrate from a phase 6 (two-migration) database.
+- Gotcha: to use the shared timestamp rule, `@countersign/db` now depends on `@countersign/mandate` (package.json and the lockfile's `packages/db` entry edited by hand; no cycle, mandate has no workspace deps). `senderEmail` must pass `z.email()`. The writer inserts with ON CONFLICT DO NOTHING, then compares field by field.
+
+### For the human
+- T-005 added a workspace link `@countersign/db` -> `@countersign/mandate` (for `TimestampSchema`, so ADR 0020's one rule isn't copied). The plan said no new workspace links; overturn by moving the rule if you prefer.

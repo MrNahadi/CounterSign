@@ -61,16 +61,16 @@ Notes:
 
 ## T-005: The ticket store
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: A ticket written once to the `tickets` table reads back by ID, and a changed rewrite is refused.
 Test seam: the ticket writer and reader exported by `@countersign/db`, over PGlite
 Acceptance:
-- [ ] A migration adds `tickets` with requirements.md's columns; `npm run db:migrate` applies it on a fresh and on a phase 6 database
-- [ ] Writing a ticket and reading it by ID returns the same channel, sender, subject, body, attachments, received time and simulated flag; an unknown ID reads as none
-- [ ] Writing the same ID with the same contents is a no-op; with different contents it's refused with a typed error and the stored ticket is unchanged
-- [ ] The writer validates its input with zod, including the shared timestamp rule for the received time
+- [x] A migration adds `tickets` with requirements.md's columns; `npm run db:migrate` applies it on a fresh and on a phase 6 database
+- [x] Writing a ticket and reading it by ID returns the same channel, sender, subject, body, attachments, received time and simulated flag; an unknown ID reads as none
+- [x] Writing the same ID with the same contents is a no-op; with different contents it's refused with a typed error and the stored ticket is unchanged
+- [x] The writer validates its input with zod, including the shared timestamp rule for the received time
 Notes:
 
 ## T-006: propose() for every guarded action, reading tickets from the store
