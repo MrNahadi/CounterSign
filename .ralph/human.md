@@ -34,5 +34,6 @@ The autopilot builds everything it can and lists here what only you can do, or w
 - **Phase 6, late replay:** a replay after the 6-hour window is logged as a `DUPLICATE_REFUND` decision entry, with no replay request written and nothing sent.
 - **Phase 6, unreadable execution entry in the webhook:** an execution or reconciliation entry whose payload can't be read makes the webhook answer 503 (so PayPal redelivers) and write nothing.
 - **Phase 6, live disputes check (validator):** the sandbox answers a disputes lookup for a capture the merchant doesn't hold with 400 `INVALID_REQUEST`, not an empty list, so the live check now expects that error for a made-up ID (the gate leaves the disputes snapshot out, failing closed) and checks a real capture's empty list in the vault refund test.
+- **Phase 6, executed then refused (validator):** an intent whose result once said `executed` stays in the execution history even if a later re-send of it is refused, because money moved. requirements.md's "no later failed result" read literally would have dropped it and let a second intent on that capture through `ledger.not_duplicate`.
 
 ## Done
