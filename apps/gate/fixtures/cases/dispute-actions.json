@@ -1,0 +1,78 @@
+{
+  "description": "The dispute tools under the demo mandate: accepting a claim, providing evidence and making an offer each wait for the merchant, and a dispute with no record or in an unsupported currency is denied. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "records": {
+    "disputeRecords": [
+      {
+        "id": "PP-D-4012",
+        "status": "WAITING_FOR_SELLER_RESPONSE",
+        "amount": { "minor": 4500, "currency": "USD" }
+      },
+      {
+        "id": "PP-D-4013",
+        "status": "WAITING_FOR_SELLER_RESPONSE",
+        "amount": { "minor": 4500, "currency": "EUR" }
+      }
+    ],
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "accept_dispute_claim",
+        "args": { "dispute_id": "PP-D-4012", "note": "Refunding in full, sorry for the trouble." },
+        "justification": { "ticket_id": "TKT-4012", "claim": "not_received" }
+      },
+      "expect": { "decision": "step_up", "reasons": ["ALWAYS_NEEDS_APPROVAL"] }
+    },
+    {
+      "proposal": {
+        "tool": "provide_dispute_evidence",
+        "args": {
+          "dispute_id": "PP-D-4012",
+          "evidence": [
+            {
+              "evidence_type": "PROOF_OF_FULFILLMENT",
+              "notes": "Shipped on 2 October with tracking.",
+              "tracking_numbers": ["TRK4012"]
+            }
+          ]
+        }
+      },
+      "expect": { "decision": "step_up", "reasons": ["ALWAYS_NEEDS_APPROVAL"] }
+    },
+    {
+      "proposal": {
+        "tool": "make_offer",
+        "args": {
+          "dispute_id": "PP-D-4012",
+          "offer_type": "REFUND",
+          "offer_amount": { "value": "20.00", "currency_code": "USD" },
+          "note": "Half back for the scuffed box."
+        },
+        "justification": {}
+      },
+      "expect": { "decision": "step_up", "reasons": ["ALWAYS_NEEDS_APPROVAL"] }
+    },
+    {
+      "proposal": {
+        "tool": "accept_dispute_claim",
+        "args": { "dispute_id": "PP-D-9999", "note": "Refunding in full." }
+      },
+      "expect": { "decision": "deny", "reasons": ["TARGET_UNKNOWN"] }
+    },
+    {
+      "proposal": {
+        "tool": "make_offer",
+        "args": {
+          "dispute_id": "PP-D-4013",
+          "offer_type": "REPLACEMENT_WITHOUT_REFUND",
+          "note": "We'll send a new one."
+        }
+      },
+      "expect": { "decision": "deny", "reasons": ["TARGET_UNKNOWN"] }
+    }
+  ]
+}

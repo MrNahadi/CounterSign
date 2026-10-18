@@ -9,6 +9,7 @@ export const CALLS = {
   capture: "GET /v2/payments/captures/{id}",
   order: "GET /v2/checkout/orders/{id}",
   disputes: "GET /v1/customer/disputes",
+  dispute: "GET /v1/customer/disputes/{id}",
   carrier: "carrier GET /shipments/{tracking_number}",
   ticket: "ticket",
   executions: "audit log executions",
@@ -55,6 +56,14 @@ export type DisputesSnapshot = SnapshotSource & {
   disputes: readonly DisputeSnapshot[];
 };
 
+// One dispute's own record, read by its ID, for the actions that target it (ADR 0027). The amount
+// keeps PayPal's currency code unchecked, so the gate can deny an unsupported currency by name.
+export type DisputeRecordSnapshot = SnapshotSource & {
+  // PayPal's dispute status, such as WAITING_FOR_SELLER_RESPONSE.
+  status: string;
+  amount: { minor: number; currency: string };
+};
+
 // The carrier's record for one tracking number, which is its ID.
 export type ShipmentSnapshot = SnapshotSource & {
   status: ShipmentStatus;
@@ -87,6 +96,7 @@ export type RecordSnapshots = {
   captures?: readonly CaptureSnapshot[];
   orders?: readonly OrderSnapshot[];
   disputes?: readonly DisputesSnapshot[];
+  disputeRecords?: readonly DisputeRecordSnapshot[];
   shipments?: readonly ShipmentSnapshot[];
   ticket?: TicketSnapshot;
   // The whole execution history, for every principal and every day: ledger.not_duplicate passes

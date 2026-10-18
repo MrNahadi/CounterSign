@@ -12,6 +12,7 @@ import { entryFor } from "./entry";
 import {
   CALLS,
   type CaptureSnapshot,
+  type DisputeRecordSnapshot,
   type OrderSnapshot,
   type RecordSnapshots,
   recordRef,
@@ -39,6 +40,14 @@ export function notACapture(verifier: VerifierName, intent: Intent): TraceEntry 
 // The capture's record, if the records hold it.
 export function captureFor(captureId: string, records: RecordSnapshots): CaptureSnapshot | null {
   return records.captures?.find((record) => record.id === captureId) ?? null;
+}
+
+// The dispute's own record, if the records hold it.
+export function disputeRecordFor(
+  disputeId: string,
+  records: RecordSnapshots,
+): DisputeRecordSnapshot | null {
+  return records.disputeRecords?.find((record) => record.id === disputeId) ?? null;
 }
 
 // The capture's order, as long as the capture's record says the money was captured on it.

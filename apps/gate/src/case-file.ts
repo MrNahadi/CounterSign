@@ -54,6 +54,19 @@ const Records = z.strictObject({
       }),
     )
     .optional(),
+  // A dispute's own record. Its currency isn't limited here, so a case can hold one the gate
+  // doesn't support.
+  disputeRecords: z
+    .array(
+      snapshotSchema(CALLS.dispute, {
+        status: z.string(),
+        amount: z.strictObject({
+          minor: Money.shape.minor,
+          currency: z.string().regex(/^[A-Z]{3}$/, "Must be a three-letter currency code"),
+        }),
+      }),
+    )
+    .optional(),
   shipments: z
     .array(snapshotSchema(CALLS.carrier, { status: z.enum(SHIPMENT_STATUSES) }))
     .optional(),

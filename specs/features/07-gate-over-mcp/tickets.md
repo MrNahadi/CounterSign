@@ -32,17 +32,17 @@ Notes:
 
 ## T-003: Normalize the dispute tools, and two new reason codes
 
-Status: open
+Status: done
 Blocked by: T-001
 Tier: standard
 Slice: `accept_dispute_claim`, `provide_dispute_evidence` and `make_offer` proposals become intents on the dispute's record, and the demo mandate holds each one for approval; an unreadable dispute is denied `TARGET_UNKNOWN`.
 Test seam: the proposal normalization and `decide` functions in `apps/gate/src/`, and fixture cases in `apps/gate/fixtures/cases/`
 Acceptance:
-- [ ] The catalog gains `TARGET_UNKNOWN` and `ACTION_UNAVAILABLE` with requirements.md's words and hints; neither is a rule reason
-- [ ] Each dispute tool's arguments are read with zod per requirements.md; a bad note, evidence item, offer type, offer amount or an unknown key is `INVALID_PROPOSAL`
-- [ ] The intent's amount is the dispute's amount, or the offer amount for `make_offer` with one; no dispute record, or one in another currency, is `TARGET_UNKNOWN` with a detail naming the dispute
-- [ ] The verifiers' snapshots and the case-file schema gain a dispute record (call `GET /v1/customer/disputes/{id}`, its ID); fixture cases give each dispute tool step-up `ALWAYS_NEEDS_APPROVAL` under the demo mandate, and an unreadable dispute deny `TARGET_UNKNOWN`
-- [ ] `create_refund` accepts and ignores `invoice_id`, and its behaviour is otherwise unchanged
+- [x] The catalog gains `TARGET_UNKNOWN` and `ACTION_UNAVAILABLE` with requirements.md's words and hints; neither is a rule reason
+- [x] Each dispute tool's arguments are read with zod per requirements.md; a bad note, evidence item, offer type, offer amount or an unknown key is `INVALID_PROPOSAL`
+- [x] The intent's amount is the dispute's amount, or the offer amount for `make_offer` with one; no dispute record, or one in another currency, is `TARGET_UNKNOWN` with a detail naming the dispute
+- [x] The verifiers' snapshots and the case-file schema gain a dispute record (call `GET /v1/customer/disputes/{id}`, its ID); fixture cases give each dispute tool step-up `ALWAYS_NEEDS_APPROVAL` under the demo mandate, and an unreadable dispute deny `TARGET_UNKNOWN`
+- [x] `create_refund` accepts and ignores `invoice_id`, and its behaviour is otherwise unchanged
 Notes:
 
 ## T-004: Normalize send_invoice, pay_order and create_payout, and ACTION_UNAVAILABLE

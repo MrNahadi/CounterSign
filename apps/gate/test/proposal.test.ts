@@ -1,4 +1,8 @@
-import type { CaptureSnapshot, RecordSnapshots } from "@countersign/verifiers";
+import type {
+  CaptureSnapshot,
+  DisputeRecordSnapshot,
+  RecordSnapshots,
+} from "@countersign/verifiers";
 import { describe, expect, it } from "vitest";
 import { normalizeProposal } from "../src/proposal";
 
@@ -151,8 +155,13 @@ describe("normalizeProposal", () => {
     },
   );
 
+  it("accepts and ignores invoice_id on a refund, as it does the note", () => {
+    expect(normalize(withArgs({ invoice_id: "INV-1" }))).toEqual(normalize(proposal));
+    expect(deniedCode(withArgs({ invoice_id: "" }))).toBe("INVALID_PROPOSAL");
+  });
+
   it("denies unrecognized fields as INVALID_PROPOSAL rather than ignoring them", () => {
-    expect(deniedCode(withArgs({ invoice_id: "INV-1" }))).toBe("INVALID_PROPOSAL");
+    expect(deniedCode(withArgs({ invoice_ref: "INV-1" }))).toBe("INVALID_PROPOSAL");
     expect(deniedCode(withJustification({ purpose: "goodwill" }))).toBe("INVALID_PROPOSAL");
     expect(deniedCode({ ...proposal, principal: "admin" })).toBe("INVALID_PROPOSAL");
   });
@@ -165,7 +174,7 @@ describe("normalizeProposal", () => {
     expect(deniedCode({ ...proposal, justification: undefined })).toBe("INVALID_PROPOSAL");
   });
 
-  it.each([["create_payout"], ["accept_dispute_claim"], ["CREATE_REFUND"], [""], ["toString"]])(
+  it.each([["create_payout"], ["refund_everything"], ["CREATE_REFUND"], [""], ["toString"]])(
     "denies the unknown tool %j as UNKNOWN_ACTION",
     (tool) => {
       expect(deniedCode({ ...proposal, tool })).toBe("UNKNOWN_ACTION");
@@ -190,5 +199,209 @@ describe("normalizeProposal", () => {
       ok: false,
       reason: { code: "UNKNOWN_ACTION", detail: expect.stringContaining("create_payout") },
     });
+  });
+});
+
+const dispute: DisputeRecordSnapshot = {
+  call: "GET /v1/customer/disputes/{id}",
+  id: "PP-D-4012",
+  status: "WAITING_FOR_SELLER_RESPONSE",
+  amount: { minor: 4500, currency: "USD" },
+};
+
+const disputeRecords: RecordSnapshots = { disputeRecords: [dispute] };
+
+const acceptClaim = {
+  tool: "accept_dispute_claim",
+  args: { dispute_id: "PP-D-4012", note: "Refunding in full, sorry for the trouble." },
+  justification: { ticket_id: "TKT-90", claim: "not_received" },
+};
+
+const provideEvidence = {
+  tool: "provide_dispute_evidence",
+  args: {
+    dispute_id: "PP-D-4012",
+    evidence: [
+      {
+        evidence_type: "PROOF_OF_FULFILLMENT",
+        notes: "Shipped on 2 Oct.",
+        tracking_numbers: ["TRK1"],
+      },
+      { evidence_type: "OTHER", notes: "The buyer confirmed receipt by email." },
+    ],
+  },
+};
+
+const makeOffer = {
+  tool: "make_offer",
+  args: {
+    dispute_id: "PP-D-4012",
+    offer_type: "REFUND",
+    offer_amount: { value: "20.00", currency_code: "USD" },
+    note: "Half back for the scuffed box.",
+  },
+  justification: {},
+};
+
+function normalizeDispute(input: unknown, snapshots: RecordSnapshots = disputeRecords) {
+  return normalize(input, snapshots);
+}
+
+function deniedDispute(input: unknown, snapshots: RecordSnapshots = disputeRecords) {
+  return deniedCode(input, snapshots);
+}
+
+function withDisputeArgs(base: { args: object }, args: Record<string, unknown>) {
+  return { ...base, args: { ...base.args, ...args } };
+}
+
+describe("normalizeProposal for the dispute tools", () => {
+  it("makes accept_dispute_claim an intent on the dispute, for the dispute's amount", () => {
+    expect(normalizeDispute(acceptClaim)).toEqual({
+      ok: true,
+      intent: {
+        principal: "support-agent",
+        rail: "paypal",
+        action: "paypal.dispute.accept_claim",
+        amount: { minor: 4500, currency: "USD" },
+        target: { kind: "dispute", disputeId: "PP-D-4012" },
+        ticketId: "TKT-90",
+        params: { note: "Refunding in full, sorry for the trouble." },
+        claim: "not_received",
+        mandateVersion: 3,
+      },
+    });
+  });
+
+  it("makes provide_dispute_evidence an intent holding each evidence item", () => {
+    const result = normalizeDispute(provideEvidence);
+    if (!result.ok) throw new Error(result.reason.detail);
+    expect(result.intent).toMatchObject({
+      action: "paypal.dispute.provide_evidence",
+      amount: { minor: 4500, currency: "USD" },
+      target: { kind: "dispute", disputeId: "PP-D-4012" },
+      ticketId: null,
+      claim: null,
+      params: {
+        evidence: [
+          {
+            evidenceType: "PROOF_OF_FULFILLMENT",
+            notes: "Shipped on 2 Oct.",
+            trackingNumbers: ["TRK1"],
+          },
+          {
+            evidenceType: "OTHER",
+            notes: "The buyer confirmed receipt by email.",
+            trackingNumbers: null,
+          },
+        ],
+      },
+    });
+  });
+
+  it("makes make_offer an intent for the offer amount, or the dispute's without one", () => {
+    const offer = normalizeDispute(makeOffer);
+    if (!offer.ok) throw new Error(offer.reason.detail);
+    expect(offer.intent).toMatchObject({
+      action: "paypal.dispute.make_offer",
+      amount: { minor: 2000, currency: "USD" },
+      target: { kind: "dispute", disputeId: "PP-D-4012" },
+      params: { offerType: "REFUND", note: "Half back for the scuffed box." },
+    });
+
+    const replacement = normalizeDispute({
+      ...makeOffer,
+      args: {
+        dispute_id: "PP-D-4012",
+        offer_type: "REPLACEMENT_WITHOUT_REFUND",
+        note: "We'll send a new one.",
+      },
+    });
+    if (!replacement.ok) throw new Error(replacement.reason.detail);
+    expect(replacement.intent.amount).toEqual({ minor: 4500, currency: "USD" });
+    expect(replacement.intent.params).toEqual({
+      offerType: "REPLACEMENT_WITHOUT_REFUND",
+      note: "We'll send a new one.",
+    });
+  });
+
+  it.each([
+    ["an empty note", withDisputeArgs(acceptClaim, { note: "" })],
+    ["a note over 2,000 characters", withDisputeArgs(acceptClaim, { note: "a".repeat(2001) })],
+    ["a missing note", { ...acceptClaim, args: { dispute_id: "PP-D-4012" } }],
+    ["a blank dispute ID", withDisputeArgs(acceptClaim, { dispute_id: " " })],
+    ["an unknown argument", withDisputeArgs(acceptClaim, { reason: "goodwill" })],
+    ["an unknown justification key", { ...acceptClaim, justification: { purpose: "x" } }],
+    ["no evidence", withDisputeArgs(provideEvidence, { evidence: [] })],
+    [
+      "eleven evidence items",
+      withDisputeArgs(provideEvidence, {
+        evidence: Array.from({ length: 11 }, () => ({ evidence_type: "OTHER", notes: "n" })),
+      }),
+    ],
+    [
+      "an unknown evidence type",
+      withDisputeArgs(provideEvidence, { evidence: [{ evidence_type: "SELFIE", notes: "n" }] }),
+    ],
+    [
+      "evidence with empty notes",
+      withDisputeArgs(provideEvidence, { evidence: [{ evidence_type: "OTHER", notes: "" }] }),
+    ],
+    [
+      "an evidence item with an unknown key",
+      withDisputeArgs(provideEvidence, {
+        evidence: [{ evidence_type: "OTHER", notes: "n", documents: [] }],
+      }),
+    ],
+    ["an unknown offer type", withDisputeArgs(makeOffer, { offer_type: "STORE_CREDIT" })],
+    [
+      "a refund offer with no amount",
+      { ...makeOffer, args: { dispute_id: "PP-D-4012", offer_type: "REFUND", note: "n" } },
+    ],
+    [
+      "a replacement offer with an amount",
+      withDisputeArgs(makeOffer, { offer_type: "REPLACEMENT_WITHOUT_REFUND" }),
+    ],
+    [
+      "a malformed offer amount",
+      withDisputeArgs(makeOffer, { offer_amount: { value: "20.001", currency_code: "USD" } }),
+    ],
+    [
+      "a zero offer amount",
+      withDisputeArgs(makeOffer, { offer_amount: { value: "0.00", currency_code: "USD" } }),
+    ],
+    [
+      "an offer in another currency than the dispute's",
+      withDisputeArgs(makeOffer, { offer_amount: { value: "2000.00", currency_code: "KES" } }),
+    ],
+    ["a missing offer note", { ...makeOffer, args: { ...makeOffer.args, note: undefined } }],
+  ])("denies %s as INVALID_PROPOSAL", (_label, input) => {
+    expect(deniedDispute(input)).toBe("INVALID_PROPOSAL");
+  });
+
+  it("denies a dispute with no record as TARGET_UNKNOWN, naming the dispute", () => {
+    for (const input of [acceptClaim, provideEvidence, makeOffer]) {
+      expect(normalizeDispute(input, {})).toEqual({
+        ok: false,
+        reason: { code: "TARGET_UNKNOWN", detail: "No record of dispute PP-D-4012" },
+      });
+    }
+  });
+
+  it("denies a dispute in an unsupported currency as TARGET_UNKNOWN, naming the dispute", () => {
+    const euro = { disputeRecords: [{ ...dispute, amount: { minor: 4500, currency: "EUR" } }] };
+    for (const input of [acceptClaim, provideEvidence, makeOffer]) {
+      expect(normalizeDispute(input, euro)).toEqual({
+        ok: false,
+        reason: {
+          code: "TARGET_UNKNOWN",
+          detail: "Dispute PP-D-4012 is in EUR, which Countersign doesn't support",
+        },
+      });
+    }
+  });
+
+  it("checks the arguments before the record, so a bad call with no record is INVALID_PROPOSAL", () => {
+    expect(deniedDispute(withDisputeArgs(acceptClaim, { note: "" }), {})).toBe("INVALID_PROPOSAL");
   });
 });

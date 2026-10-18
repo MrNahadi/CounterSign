@@ -106,8 +106,9 @@ describe("the fixture suite", () => {
 
   it("reaches every reason code", () => {
     const reached = new Set(expected.flatMap((each) => each.reasons));
-    expect(REASON_CODES.filter((code) => !reached.has(code))).toEqual([]);
-    expect(REASON_CODES).toHaveLength(23);
+    // ACTION_UNAVAILABLE comes from decide() itself, which T-004 builds with its own case.
+    expect(REASON_CODES.filter((code) => !reached.has(code))).toEqual(["ACTION_UNAVAILABLE"]);
+    expect(REASON_CODES).toHaveLength(25);
     expect(reached).toContain("NO_DAILY_LIMIT");
   });
 
@@ -221,6 +222,44 @@ describe("the decision record", () => {
     ]);
   });
 
+  it("holds a dispute action for approval on the dispute's record, with no verifiers", () => {
+    const decisionCase = load("dispute-actions.json");
+    expect(decisionCase.records.disputeRecords?.[0]?.call).toBe("GET /v1/customer/disputes/{id}");
+    const accepted = decideAt(decisionCase, 0).record;
+    expect(accepted.intent).toMatchObject({
+      action: "paypal.dispute.accept_claim",
+      amount: { minor: 4500, currency: "USD" },
+      target: { kind: "dispute", disputeId: "PP-D-4012" },
+      ticketId: "TKT-4012",
+    });
+    expect(accepted.trace).toEqual([]);
+    expect(accepted.matchedRules).toEqual(["dispute-and-invoice-actions"]);
+    expect(decideAt(decisionCase, 2).record.intent?.amount).toEqual({
+      minor: 2000,
+      currency: "USD",
+    });
+  });
+
+  it("denies an unreadable dispute TARGET_UNKNOWN, naming the dispute, with no intent", () => {
+    const decisionCase = load("dispute-actions.json");
+    const missing = decideAt(decisionCase, 3);
+    expect(missing.record.reasons).toEqual([
+      { code: "TARGET_UNKNOWN", detail: "No record of dispute PP-D-9999" },
+    ]);
+    expect(missing.record.intent).toBeNull();
+    expect(missing.response).toMatchObject({
+      decision: "denied",
+      intent_id: null,
+      safe_reply_hint: REASONS.TARGET_UNKNOWN.hint,
+    });
+    expect(decideAt(decisionCase, 4).record.reasons).toEqual([
+      {
+        code: "TARGET_UNKNOWN",
+        detail: "Dispute PP-D-4013 is in EUR, which Countersign doesn't support",
+      },
+    ]);
+  });
+
   it("comes from a module that doesn't load case files", () => {
     const source = readFileSync(new URL("../src/decide.ts", import.meta.url), "utf8");
     expect(source).not.toMatch(/from "\.\/case-file"/);
@@ -268,6 +307,28 @@ describe("case files", () => {
       },
     ],
     ["an unknown record key", { records: { ...valid.records, payments: [] } }],
+    [
+      "a dispute record with a malformed currency",
+      {
+        records: {
+          ...valid.records,
+          disputeRecords: [
+            { id: "PP-D-1", status: "OPEN", amount: { minor: 100, currency: "usd" } },
+          ],
+        },
+      },
+    ],
+    [
+      "a dispute record with a stated call",
+      {
+        records: {
+          ...valid.records,
+          disputeRecords: [
+            { id: "PP-D-1", call: "x", status: "OPEN", amount: { minor: 100, currency: "USD" } },
+          ],
+        },
+      },
+    ],
     [
       "a stated call",
       { records: { ...valid.records, ticket: { ...valid.records.ticket, call: "ticket" } } },

@@ -90,6 +90,16 @@ const table: [string, string, string | null][] = [
     "The proposal was incomplete or malformed.",
     "We need a few more details. Ask them to confirm the order number and amount.",
   ],
+  [
+    "TARGET_UNKNOWN",
+    "There's no record of what this action targets.",
+    "We couldn't find the record for this request. Tell them we'll follow up.",
+  ],
+  [
+    "ACTION_UNAVAILABLE",
+    "Countersign can't carry out this action yet.",
+    "We can't do that automatically. Tell them the team will look at it.",
+  ],
 ];
 
 describe("the reason-code catalog", () => {
