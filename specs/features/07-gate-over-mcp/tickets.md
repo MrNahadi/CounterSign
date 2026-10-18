@@ -170,3 +170,16 @@ Acceptance:
 - [x] It shows `npm run agent` on the beat 4 and guarded-actions files, says the tickets are simulated and the people illustrative, and the project status section lists phase 7
 - [x] `CONTEXT.md` terms used in the section match the glossary (principal key, Countersign extension, target, ticket)
 Notes:
+
+## T-013: Gate tests clean up their temp folders
+
+Status: open
+Blocked by: none
+Tier: simple
+Slice: A full `npm test` leaves no folders behind in the OS temp directory, so repeated runs stop filling the disk.
+Test seam: the gate test files that call `mkdtempSync` (`agent-cli`, `propose-cli`, `decide-cli`, `decide-record`, `decide`, `reconcile-cli`), and a count of `<prefix>-*` folders in `os.tmpdir()` before and after `npm test -- apps/gate`
+Acceptance:
+- [ ] Each of those files removes every folder it creates (`rm(..., { recursive: true, force: true })` in `afterEach`/`afterAll`), closing any PGlite handle on it first, like `packages/db/test/tickets.test.ts` does
+- [ ] After `npm test -- apps/gate`, no `agent-cli-`, `agent-file-`, `agent-pglite-`, `propose-cli-`, `propose-file-`, `decide-cli-`, `decide-record-`, `countersign-case-`, `reconcile-cli-` or `reconcile-empty-` folder from that run is left in the temp directory
+- [ ] Every existing test still passes unchanged
+Notes: Found by the validator on 2026-10-18. About 1,200 leaked PGlite folders (roughly 29 GB) had filled the disk, so `npm test` failed with ENOSPC (5 failures, including `apps/storefront/test/seed-cli.test.ts`) and the full suite could not be confirmed green.
