@@ -114,9 +114,9 @@ async function reconcileAll(
     // The refund was read outside the lock; another run may have logged it since.
     const logged = await withAuditLog(db, async (log) => {
       const again = await readReconcileWork(log.tx);
-      if (!again.known) return false;
+      if (!again.known) return "unknown" as const;
       const current = again.work.executed.find((item) => item.refundId === intent.refundId);
-      if (current === undefined || current.reconciled !== null) return false;
+      if (current === undefined || current.reconciled !== null) return "skipped" as const;
       await log.append(
         reconciliationEntry({
           at: now.toISOString(),
@@ -131,9 +131,17 @@ async function reconcileAll(
           resultSeq: intent.resultSeq,
         }),
       );
-      return true;
+      return "logged" as const;
     });
-    if (!logged) continue;
+    if (logged === "unknown") {
+      // Never silently skipped: an unreadable log leaves the refund unreconciled.
+      unreadable += 1;
+      problems.push(
+        `Refund ${intent.refundId} wasn't logged: the audit log has an entry that can't be read.`,
+      );
+      continue;
+    }
+    if (logged === "skipped") continue;
     done.push(
       `  ${intent.intentId}  ${refund.id}  ${refund.status}  ${formatMoney(refund.amount)}`,
     );
