@@ -90,16 +90,16 @@ Notes:
 
 ## T-007: Principal keys
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: A bearer header is turned into the principal and its mandate, or refused, from keys in the environment.
 Test seam: the gate's principal-key module in `apps/gate/src/` (its exported parse and authenticate functions)
 Acceptance:
-- [ ] `COUNTERSIGN_SUPPORT_AGENT_KEY` of 32+ characters authenticates `Bearer <key>` as `support-agent` with the `kikapu-studio` v3 mandate, parsed once
-- [ ] No header, another scheme, an empty or wrong key, and a configured key under 32 characters all give the same refusal; comparison is constant-time over SHA-256 digests
-- [ ] With no key configured, every header is refused, and the env parser names the unset variable without showing any value
-- [ ] Env is validated with zod and passed explicitly in tests
+- [x] `COUNTERSIGN_SUPPORT_AGENT_KEY` of 32+ characters authenticates `Bearer <key>` as `support-agent` with the `kikapu-studio` v3 mandate, parsed once
+- [x] No header, another scheme, an empty or wrong key, and a configured key under 32 characters all give the same refusal; comparison is constant-time over SHA-256 digests
+- [x] With no key configured, every header is refused, and the env parser names the unset variable without showing any value
+- [x] Env is validated with zod and passed explicitly in tests
 Notes:
 
 ## T-008: The MCP endpoint with guarded tools
