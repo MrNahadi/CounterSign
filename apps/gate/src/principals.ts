@@ -40,11 +40,16 @@ export function parsePrincipalEnv(env: Environment): PrincipalEnv {
 
 const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
 
+// `Authorization: Bearer <key>`, read with zod into the key alone.
+const BearerHeader = z
+  .string()
+  .regex(/^Bearer \S+$/)
+  .transform((header) => header.slice("Bearer ".length));
+
 // The key from an `Authorization` header, or null for no header, another scheme or an empty key.
-export function bearerKey(header: string | undefined): string | null {
-  if (typeof header !== "string") return null;
-  const match = /^Bearer (\S+)$/.exec(header);
-  return match?.[1] ?? null;
+export function bearerKey(header: unknown): string | null {
+  const parsed = BearerHeader.safeParse(header);
+  return parsed.success ? parsed.data : null;
 }
 
 const SUPPORT_AGENT_MANDATE = new URL(
