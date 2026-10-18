@@ -1,6 +1,6 @@
 // A $18 refund on a $48 capture, with the records that back it.
 
-import type { Intent } from "@countersign/mandate";
+import type { CaptureTarget, Intent } from "@countersign/mandate";
 import type {
   CaptureSnapshot,
   DisputesSnapshot,
@@ -10,12 +10,12 @@ import type {
   TicketSnapshot,
 } from "../src/index";
 
-export const intent: Intent = {
+export const intent: Intent & { target: CaptureTarget } = {
   principal: "support-agent",
   rail: "paypal",
   action: "paypal.refund",
   amount: { minor: 1800, currency: "USD" },
-  target: { captureId: "7YL89768KH2865638", orderId: "5O190127TN364715T" },
+  target: { kind: "capture", captureId: "7YL89768KH2865638", orderId: "5O190127TN364715T" },
   ticketId: "tkt_0042",
   claim: "not_received",
   mandateVersion: 3,

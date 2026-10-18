@@ -2,7 +2,7 @@
 
 import type { Intent, RecordRef, ShipmentStatus, TraceEntry } from "@countersign/mandate";
 import { entryFor } from "./entry";
-import { orderFor } from "./lookups";
+import { captureTargetOf, notACapture, orderFor } from "./lookups";
 import { CALLS, type RecordSnapshots, recordRefOr } from "./snapshots";
 
 // The only tracker status that counts as a live shipment. PayPal's other is CANCELLED.
@@ -12,8 +12,10 @@ const SHIPPED = "SHIPPED";
 // count, linked by the tracker ID (spike S2). With several, the carrier must give them all the
 // same status, or the status is unknown.
 export function shipmentStatus(intent: Intent, records: RecordSnapshots): TraceEntry {
-  const { captureId } = intent.target;
-  const found = orderFor(intent, records);
+  const target = captureTargetOf(intent);
+  if (!target) return notACapture("shipment.status", intent);
+  const { captureId } = target;
+  const found = orderFor(target, records);
   const recordsRead: RecordRef[] = [found.ref];
   const entry = entryFor("shipment.status", recordsRead);
   if (!found.order) return entry("unknown", found.missing);

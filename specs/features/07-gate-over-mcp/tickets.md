@@ -2,17 +2,17 @@
 
 ## T-001: An intent target for every guarded PayPal action
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: Intents for a dispute action, an invoice send, an order capture and a payout carry their own target and hashed parameters, while a refund's intent hashes exactly as before.
 Test seam: the intent and `hashIntent` exports of `@countersign/mandate`, and `runVerifiers` in `@countersign/verifiers`
 Acceptance:
-- [ ] The intent target is one shape per action (capture, dispute, invoice, order, payee email), per ADR 0027; the ticket ID may be null for every action but a refund
-- [ ] Phase 3's hand-written reference canonical string for a refund still hashes to the refund intent's hash, unchanged
-- [ ] For each non-refund action, the hashed JSON adds `params` with that action's fixed keys (absent optional values as `null`); changing the target, amount or any parameter changes the hash, key order doesn't
-- [ ] The capture-based verifiers return `unknown` for a target that isn't a capture, naming the target; a refund's trace is unchanged
-- [ ] Every existing mandate, verifier and gate test passes, with only type-level changes in the tests
+- [x] The intent target is one shape per action (capture, dispute, invoice, order, payee email), per ADR 0027; the ticket ID may be null for every action but a refund
+- [x] Phase 3's hand-written reference canonical string for a refund still hashes to the refund intent's hash, unchanged
+- [x] For each non-refund action, the hashed JSON adds `params` with that action's fixed keys (absent optional values as `null`); changing the target, amount or any parameter changes the hash, key order doesn't
+- [x] The capture-based verifiers return `unknown` for a target that isn't a capture, naming the target; a refund's trace is unchanged
+- [x] Every existing mandate, verifier and gate test passes, with only type-level changes in the tests
 Notes:
 
 ## T-002: Get dispute, get invoice and transaction search

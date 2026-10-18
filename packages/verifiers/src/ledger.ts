@@ -8,12 +8,15 @@ import {
   type TraceEntry,
 } from "@countersign/mandate";
 import { entryFor } from "./entry";
+import { captureTargetOf, notACapture } from "./lookups";
 import { CALLS, type RecordSnapshots, recordRefOr } from "./snapshots";
 
 // Any earlier execution on the capture fails, whoever made it (ADR 0019). Replays of the same
 // intent are answered before deciding, in phase 6.
 export function ledgerNotDuplicate(intent: Intent, records: RecordSnapshots): TraceEntry {
-  const { captureId } = intent.target;
+  const target = captureTargetOf(intent);
+  if (!target) return notACapture("ledger.not_duplicate", intent);
+  const { captureId } = target;
   const earlier = records.executions?.find((execution) => execution.captureId === captureId);
   const entry = entryFor("ledger.not_duplicate", [
     recordRefOr(earlier, { call: CALLS.executions, id: captureId }),

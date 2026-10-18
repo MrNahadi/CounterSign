@@ -14,7 +14,13 @@ import {
   takePgliteOption,
   targetName,
 } from "@countersign/db";
-import { type Decision, formatMoney, REASONS, type TraceEntry } from "@countersign/mandate";
+import {
+  type Decision,
+  describeTarget,
+  formatMoney,
+  REASONS,
+  type TraceEntry,
+} from "@countersign/mandate";
 import { type DecisionCase, loadCase } from "./case-file";
 import { type Decided, decide } from "./decide";
 import { recordDecision } from "./record";
@@ -52,7 +58,7 @@ export function decisionLines({ record }: Decided, index: number, count: number)
   const lines = [
     `Proposal ${index + 1} of ${count}`,
     `  Decision  ${DECISION_WORDS[record.decision]}`,
-    `  Amount    ${intent ? `${formatMoney(intent.amount)} on capture ${intent.target.captureId}` : "None, the proposal didn't become an intent"}`,
+    `  Amount    ${intent ? `${formatMoney(intent.amount)} on ${describeTarget(intent.target)}` : "None, the proposal didn't become an intent"}`,
     `  Intent    ${record.intentId ?? "None"}`,
     `  Hash      ${record.intentHash ?? "None"}`,
   ];

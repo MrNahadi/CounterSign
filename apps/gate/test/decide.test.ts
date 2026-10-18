@@ -2,7 +2,13 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { hashIntent, hashMandate, REASON_CODES, REASONS } from "@countersign/mandate";
+import {
+  type CaptureTarget,
+  hashIntent,
+  hashMandate,
+  REASON_CODES,
+  REASONS,
+} from "@countersign/mandate";
 import { REFUND_VERIFIERS } from "@countersign/verifiers";
 import { describe, expect, it } from "vitest";
 import { CaseFileSchema, type DecisionCase, loadCase } from "../src/case-file";
@@ -138,7 +144,7 @@ describe("the decision record", () => {
       principal: "support-agent",
       action: "paypal.refund",
       amount: { minor: 1800, currency: "USD" },
-      target: { captureId: "CAP-2041", orderId: "ORD-2041" },
+      target: { kind: "capture", captureId: "CAP-2041", orderId: "ORD-2041" },
       ticketId: "TKT-2041",
       claim: "not_received",
       mandateVersion: 3,
@@ -199,8 +205,10 @@ describe("the decision record", () => {
     const decisionCase = load("beat-4-stalled-parcel.json");
     const withRecord = decideAt(decisionCase, 0);
     const withoutRecord = decideAt({ ...decisionCase, records: {} }, 0);
-    expect(withoutRecord.record.intent?.target.orderId).toBeNull();
-    expect(withRecord.record.intent?.target.orderId).toBe("ORD-2041");
+    expect((withoutRecord.record.intent?.target as CaptureTarget | undefined)?.orderId).toBeNull();
+    expect((withRecord.record.intent?.target as CaptureTarget | undefined)?.orderId).toBe(
+      "ORD-2041",
+    );
     expect(withoutRecord.record.intentHash).toBe(withRecord.record.intentHash);
     expect(withoutRecord.record.intentCanonical).toBe(withRecord.record.intentCanonical);
   });

@@ -3,7 +3,7 @@
 
 import type { Intent, TraceEntry } from "@countersign/mandate";
 import { entryFor } from "./entry";
-import { orderFor, ticketFor } from "./lookups";
+import { captureTargetOf, notACapture, orderFor, ticketFor } from "./lookups";
 import type { RecordSnapshots } from "./snapshots";
 
 // Blank counts as missing, so two empty emails can never match.
@@ -14,13 +14,15 @@ function normalizeEmail(email: string | null): string | null {
 
 // The ticket's sender email is the order's payer email, ignoring case and outer spaces.
 export function ticketFromPayer(intent: Intent, records: RecordSnapshots): TraceEntry {
-  const found = orderFor(intent, records);
-  const { ticket, ref } = ticketFor(intent, records);
+  const target = captureTargetOf(intent);
+  if (!target) return notACapture("ticket.from_payer", intent);
+  const found = orderFor(target, records);
+  const { ticket, ref, missing } = ticketFor(intent, records);
   const entry = entryFor("ticket.from_payer", [found.ref, ref]);
   // The payer to check is the one on the order the money was captured for.
   if (!found.order) return entry("unknown", found.missing);
   const { order } = found;
-  if (!ticket) return entry("unknown", `No record of ticket ${intent.ticketId}`);
+  if (!ticket) return entry("unknown", missing);
   const payer = normalizeEmail(order.payerEmail);
   const sender = normalizeEmail(ticket.senderEmail);
   if (!payer) return entry("unknown", `No payer email on order ${order.id}`);
@@ -31,9 +33,9 @@ export function ticketFromPayer(intent: Intent, records: RecordSnapshots): Trace
 // An image attachment on the ticket. AI may describe the photo, but never decides (original
 // brief §8).
 export function evidencePhotoPresent(intent: Intent, records: RecordSnapshots): TraceEntry {
-  const { ticket, ref } = ticketFor(intent, records);
+  const { ticket, ref, missing } = ticketFor(intent, records);
   const entry = entryFor("evidence.photo_present", [ref]);
-  if (!ticket) return entry("unknown", `No record of ticket ${intent.ticketId}`);
+  if (!ticket) return entry("unknown", missing);
   const image = ticket.attachments.find((attachment) =>
     attachment.contentType.trim().toLowerCase().startsWith("image/"),
   );

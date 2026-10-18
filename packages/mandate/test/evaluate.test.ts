@@ -41,7 +41,7 @@ function refund(change: Partial<Intent> = {}): Intent {
     rail: "paypal",
     action: "paypal.refund",
     amount: { minor: 1800, currency: "USD" },
-    target: { captureId: "7YL89768KH2865638", orderId: "5O190127TN364715T" },
+    target: { kind: "capture", captureId: "7YL89768KH2865638", orderId: "5O190127TN364715T" },
     ticketId: "tkt_0042",
     claim: "not_received",
     mandateVersion: 3,

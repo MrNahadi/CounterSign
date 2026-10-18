@@ -324,7 +324,7 @@ describe("proposeRefund: executing once, and replays", () => {
     rail: "paypal",
     action: "paypal.refund",
     amount: usd(1800),
-    target: { captureId: "CAP-1035", orderId: "ORD-1035" },
+    target: { kind: "capture", captureId: "CAP-1035", orderId: "ORD-1035" },
     ticketId: "TKT-1035",
     claim: "not_received",
     mandateVersion: mandate.version,

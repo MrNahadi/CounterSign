@@ -56,7 +56,7 @@ describe("normalizeProposal", () => {
         rail: "paypal",
         action: "paypal.refund",
         amount: { minor: 1800, currency: "USD" },
-        target: { captureId: "CAP-1042", orderId: "ORD-1042" },
+        target: { kind: "capture", captureId: "CAP-1042", orderId: "ORD-1042" },
         ticketId: "TKT-77",
         claim: "not_received",
         mandateVersion: 3,
@@ -78,7 +78,7 @@ describe("normalizeProposal", () => {
   it("takes the order ID from the capture record, and null without one", () => {
     const result = normalize(proposal, {});
     if (!result.ok) throw new Error(result.reason.detail);
-    expect(result.intent.target).toEqual({ captureId: "CAP-1042", orderId: null });
+    expect(result.intent.target).toEqual({ kind: "capture", captureId: "CAP-1042", orderId: null });
   });
 
   it("refunds what's left on the capture when no amount is given", () => {

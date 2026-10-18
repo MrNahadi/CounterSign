@@ -88,7 +88,7 @@ export function normalizeProposal(input: ProposalInput): Normalized {
       rail: "paypal",
       action: TOOLS[parsed.data.tool],
       amount,
-      target: { captureId: args.capture_id, orderId: capture?.orderId ?? null },
+      target: { kind: "capture", captureId: args.capture_id, orderId: capture?.orderId ?? null },
       ticketId: justification.ticket_id,
       claim: justification.claim ?? null,
       mandateVersion: input.mandateVersion,

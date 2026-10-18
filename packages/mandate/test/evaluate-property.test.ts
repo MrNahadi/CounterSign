@@ -96,6 +96,7 @@ function randomIntent(random: Random): Intent {
       : ("paypal.wire" as Intent["action"]),
     amount: { minor: random.pick(amounts), currency: random.chance(0.8) ? "USD" : "KES" },
     target: {
+      kind: "capture",
       captureId: "7YL89768KH2865638",
       orderId: random.chance(0.9) ? "5O190127TN364715T" : null,
     },

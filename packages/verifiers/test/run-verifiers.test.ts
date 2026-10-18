@@ -71,3 +71,52 @@ describe("runVerifiers", () => {
     ).toEqual(["payee.allowlisted"]);
   });
 });
+
+describe("runVerifiers for a target that isn't a capture", () => {
+  const CAPTURE_BASED = [
+    "capture.refundable",
+    "ticket.from_payer",
+    "dispute.none_open",
+    "shipment.status",
+    "ledger.not_duplicate",
+  ] as const;
+
+  it.each<[Intent["target"], string]>([
+    [{ kind: "dispute", disputeId: "PP-D-27803" }, "dispute PP-D-27803"],
+    [{ kind: "invoice", invoiceId: "INV2-AB12" }, "invoice INV2-AB12"],
+    [{ kind: "order", orderId: "5O190127TN364715T" }, "order 5O190127TN364715T"],
+    [{ kind: "payee", email: "payee@example.com" }, "payee payee@example.com"],
+  ])("returns unknown from every capture-based verifier, naming %o", (target, named) => {
+    const other: Intent = { ...intent, action: "paypal.dispute.accept_claim", target };
+    const trace = runVerifiers(other, records, CAPTURE_BASED);
+    expect(trace.map((entry) => entry.verifier)).toEqual([...CAPTURE_BASED]);
+    for (const entry of trace) {
+      expect(entry.result).toBe("unknown");
+      expect(entry.detail).toBe(`The target is ${named}, not a capture`);
+    }
+  });
+
+  it("runs only the verifiers the rules require for an action other than a refund", () => {
+    const other: Intent = {
+      ...intent,
+      action: "paypal.invoice.send",
+      target: { kind: "invoice", invoiceId: "INV2-AB12" },
+    };
+    expect(runVerifiers(other, records)).toEqual([]);
+    expect(runVerifiers(other, records, ["evidence.photo_present"])).toEqual([
+      runVerifiers(intent, records, []).find((e) => e.verifier === "evidence.photo_present"),
+    ]);
+  });
+
+  it("returns unknown from the ticket checks when there's no ticket ID", () => {
+    const other: Intent = {
+      ...intent,
+      action: "paypal.payout",
+      target: { kind: "payee", email: "payee@example.com" },
+      ticketId: null,
+    };
+    const [photo] = runVerifiers(other, records, ["evidence.photo_present"]);
+    expect(photo?.result).toBe("unknown");
+    expect(photo?.detail).toBe("No ticket for this proposal");
+  });
+});

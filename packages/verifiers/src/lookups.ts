@@ -1,6 +1,14 @@
 // Finding the intent's own records among the snapshots, with the reference the trace names.
 
-import type { Intent, RecordRef } from "@countersign/mandate";
+import {
+  type CaptureTarget,
+  describeTarget,
+  type Intent,
+  type RecordRef,
+  type TraceEntry,
+  type VerifierName,
+} from "@countersign/mandate";
+import { entryFor } from "./entry";
 import {
   CALLS,
   type CaptureSnapshot,
@@ -15,15 +23,28 @@ export type OrderLookup =
   | { order: OrderSnapshot; ref: RecordRef }
   | { order: null; ref: RecordRef; missing: string };
 
+// The intent's capture, for the verifiers that check one, or null when it targets something else.
+export function captureTargetOf(intent: Intent): CaptureTarget | null {
+  return intent.target.kind === "capture" ? intent.target : null;
+}
+
+// A capture-based verifier knows nothing about any other target (ADR 0027).
+export function notACapture(verifier: VerifierName, intent: Intent): TraceEntry {
+  return entryFor(verifier, [])(
+    "unknown",
+    `The target is ${describeTarget(intent.target)}, not a capture`,
+  );
+}
+
 // The capture's record, if the records hold it.
 export function captureFor(captureId: string, records: RecordSnapshots): CaptureSnapshot | null {
   return records.captures?.find((record) => record.id === captureId) ?? null;
 }
 
-// The intent's order, as long as the capture's record says the money was captured on it.
+// The capture's order, as long as the capture's record says the money was captured on it.
 // Otherwise, the reason it's missing.
-export function orderFor(intent: Intent, records: RecordSnapshots): OrderLookup {
-  const { captureId, orderId } = intent.target;
+export function orderFor(target: CaptureTarget, records: RecordSnapshots): OrderLookup {
+  const { captureId, orderId } = target;
   const order =
     orderId === null ? undefined : records.orders?.find((record) => record.id === orderId);
   if (!order) {
@@ -41,11 +62,15 @@ export function orderFor(intent: Intent, records: RecordSnapshots): OrderLookup 
   return { order, ref };
 }
 
-// The intent's ticket, if the records hold it, and its reference either way.
+// The intent's ticket, if the records hold it, and its reference either way. Without a ticket ID
+// there's nothing to find, so the reason it's missing says so.
 export function ticketFor(
   intent: Intent,
   records: RecordSnapshots,
-): { ticket: TicketSnapshot | null; ref: RecordRef } {
-  const ticket = records.ticket?.id === intent.ticketId ? records.ticket : null;
-  return { ticket, ref: recordRefOr(ticket, { call: CALLS.ticket, id: intent.ticketId }) };
+): { ticket: TicketSnapshot | null; ref: RecordRef; missing: string } {
+  const { ticketId } = intent;
+  const ticket = ticketId !== null && records.ticket?.id === ticketId ? records.ticket : null;
+  const missing =
+    ticketId === null ? "No ticket for this proposal" : `No record of ticket ${ticketId}`;
+  return { ticket, ref: recordRefOr(ticket, { call: CALLS.ticket, id: ticketId }), missing };
 }

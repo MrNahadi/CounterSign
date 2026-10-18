@@ -176,7 +176,9 @@ async function decideAndRecord(
     if (intent === null || intentId === null || intentHash === null) {
       throw new Error("an allowed decision has no intent");
     }
-    const captureId = intent.target.captureId;
+    // Only a refund executes in this phase, and a refund always targets a capture.
+    if (intent.target.kind !== "capture") throw new Error("an allowed decision targets no capture");
+    const { captureId } = intent.target;
     request = await log.append(
       executionRequestedEntry({
         at: record.decidedAt,
