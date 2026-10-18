@@ -85,10 +85,13 @@ async function findMandateEntry(log: AuditLogWriter, ref: string): Promise<Chain
   return row;
 }
 
+export type Recorded = { mandateSeq: number; mandateEntry: ChainRow | null; decision: ChainRow };
+
 // Writes the mandate's version entry if this version isn't logged yet, then the decision
-// entry. Nothing is written if the version is logged with a different hash, or if either
-// entry is rejected.
-export async function recordDecision(db: Database, input: RecordInput): Promise<RecordResult> {
+// entry, inside a transaction the caller holds. A version logged with a different hash, or a
+// rejected entry, throws; `recordingFailure` turns that into a problem, and the caller's
+// transaction rolls back so nothing is written.
+export async function appendDecision(log: AuditLogWriter, input: RecordInput): Promise<Recorded> {
   const { proposal, principal, mandate, decided } = input;
   const { record, response } = decided;
   const { hash } = hashMandate(mandate);
@@ -101,52 +104,66 @@ export async function recordDecision(db: Database, input: RecordInput): Promise<
   }
   const ref = mandateRef(mandate);
   const { text, truncated } = proposalText(proposal);
+  const logged = await findMandateEntry(log, ref);
+  if (logged !== undefined) {
+    const loggedMandateHash = loggedHash(logged);
+    if (loggedMandateHash !== hash) {
+      throw new MandateVersionConflict(
+        `Mandate ${mandate.id} version ${mandate.version} is logged with hash ` +
+          `${loggedMandateHash ?? "(unreadable)"}, not ${hash}`,
+      );
+    }
+  }
+  const mandateEntry =
+    logged === undefined
+      ? await log.append({
+          entryType: "mandate.version",
+          refId: ref,
+          at: record.decidedAt,
+          payload: { mandate, hash },
+        })
+      : null;
+  const mandateSeq = (mandateEntry ?? logged)?.seq;
+  if (mandateSeq === undefined) throw new Error("no mandate entry to point at");
+  const decision = await log.append({
+    entryType: "decision",
+    refId: record.intentId,
+    at: record.decidedAt,
+    payload: {
+      principal,
+      mandateSeq,
+      proposal: text,
+      proposalTruncated: truncated,
+      record,
+      response,
+    },
+  });
+  return { mandateSeq, mandateEntry, decision };
+}
 
+// The recording problem an error from `appendDecision` or an append stands for, or null for
+// any other error, which the caller rethrows.
+export function recordingFailure(
+  error: unknown,
+): { problem: RecordProblem; detail: string } | null {
+  if (error instanceof MandateVersionConflict) {
+    return { problem: "MANDATE_VERSION_CONFLICT", detail: error.message };
+  }
+  if (error instanceof AppendRejectedError) {
+    return { problem: error.rejection.problem, detail: error.rejection.detail };
+  }
+  return null;
+}
+
+// Records one decided proposal in its own transaction. Nothing is written if the version is
+// logged with a different hash, or if either entry is rejected.
+export async function recordDecision(db: Database, input: RecordInput): Promise<RecordResult> {
   try {
-    return await withAuditLog(db, async (log): Promise<RecordResult> => {
-      const logged = await findMandateEntry(log, ref);
-      if (logged !== undefined) {
-        const loggedMandateHash = loggedHash(logged);
-        if (loggedMandateHash !== hash) {
-          throw new MandateVersionConflict(
-            `Mandate ${mandate.id} version ${mandate.version} is logged with hash ` +
-              `${loggedMandateHash ?? "(unreadable)"}, not ${hash}`,
-          );
-        }
-      }
-      const mandateEntry =
-        logged === undefined
-          ? await log.append({
-              entryType: "mandate.version",
-              refId: ref,
-              at: record.decidedAt,
-              payload: { mandate, hash },
-            })
-          : null;
-      const mandateSeq = (mandateEntry ?? logged)?.seq;
-      if (mandateSeq === undefined) throw new Error("no mandate entry to point at");
-      const decision = await log.append({
-        entryType: "decision",
-        refId: record.intentId,
-        at: record.decidedAt,
-        payload: {
-          principal,
-          mandateSeq,
-          proposal: text,
-          proposalTruncated: truncated,
-          record,
-          response,
-        },
-      });
-      return { ok: true, mandateSeq, mandateEntry, decision };
-    });
+    const recorded = await withAuditLog(db, (log) => appendDecision(log, input));
+    return { ok: true, ...recorded };
   } catch (error) {
-    if (error instanceof MandateVersionConflict) {
-      return { ok: false, problem: "MANDATE_VERSION_CONFLICT", detail: error.message };
-    }
-    if (error instanceof AppendRejectedError) {
-      return { ok: false, problem: error.rejection.problem, detail: error.rejection.detail };
-    }
+    const failure = recordingFailure(error);
+    if (failure) return { ok: false, ...failure };
     throw error;
   }
 }

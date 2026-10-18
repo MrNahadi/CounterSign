@@ -61,17 +61,17 @@ Notes:
 
 ## T-005: Decide on live records under the ledger lock
 
-Status: open
+Status: done
 Blocked by: T-003, T-004
 Tier: standard
 Slice: A refund proposal is decided on live records and the execution history from the log, in one audit-log transaction that writes the decision and, on allow, the execution request.
 Test seam: `proposeRefund(...)` in the gate, against a stateful fake sandbox and PGlite, with execution switched off by the fake's answers where needed
 Acceptance:
-- [ ] Beat 3's five proposals give four denials `TICKET_NOT_FROM_PAYER` and one step-up `SHIPMENT_DELIVERED`; each writes one decision entry and no request
-- [ ] Beat 4 writes a decision entry and an `execution.requested` entry pointing at it, in the same transaction
-- [ ] With an earlier request on the same capture in the log (no result yet), a new intent is denied `DUPLICATE_REFUND`
-- [ ] A recording failure (a mandate version logged with another hash) writes nothing and requests nothing
-- [ ] Two different intents on one capture run concurrently: exactly one request is written
+- [x] Beat 3's five proposals give four denials `TICKET_NOT_FROM_PAYER` and one step-up `SHIPMENT_DELIVERED`; each writes one decision entry and no request
+- [x] Beat 4 writes a decision entry and an `execution.requested` entry pointing at it, in the same transaction
+- [x] With an earlier request on the same capture in the log (no result yet), a new intent is denied `DUPLICATE_REFUND`
+- [x] A recording failure (a mandate version logged with another hash) writes nothing and requests nothing
+- [x] Two different intents on one capture run concurrently: exactly one request is written
 Notes:
 
 ## T-006: Execute once, and replays
