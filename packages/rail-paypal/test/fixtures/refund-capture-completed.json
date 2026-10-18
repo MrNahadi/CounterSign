@@ -1,0 +1,41 @@
+{
+  "id": "1JU08902781691411",
+  "amount": {
+    "currency_code": "USD",
+    "value": "18.00"
+  },
+  "seller_payable_breakdown": {
+    "gross_amount": {
+      "currency_code": "USD",
+      "value": "18.00"
+    },
+    "paypal_fee": {
+      "currency_code": "USD",
+      "value": "0.00"
+    },
+    "net_amount": {
+      "currency_code": "USD",
+      "value": "18.00"
+    },
+    "total_refunded_amount": {
+      "currency_code": "USD",
+      "value": "18.00"
+    }
+  },
+  "custom_id": "intent-kik-1013-demo",
+  "status": "COMPLETED",
+  "create_time": "2026-10-18T08:14:02-07:00",
+  "update_time": "2026-10-18T08:14:02-07:00",
+  "links": [
+    {
+      "href": "https://api.sandbox.paypal.com/v2/payments/refunds/1JU08902781691411",
+      "rel": "self",
+      "method": "GET"
+    },
+    {
+      "href": "https://api.sandbox.paypal.com/v2/payments/captures/8RH70421MV5531947",
+      "rel": "up",
+      "method": "GET"
+    }
+  ]
+}

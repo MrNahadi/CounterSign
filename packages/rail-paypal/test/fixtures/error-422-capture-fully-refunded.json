@@ -1,0 +1,18 @@
+{
+  "name": "UNPROCESSABLE_ENTITY",
+  "details": [
+    {
+      "issue": "CAPTURE_FULLY_REFUNDED",
+      "description": "The capture has already been fully refunded"
+    }
+  ],
+  "message": "The requested action could not be performed, semantically incorrect, or failed business validation.",
+  "debug_id": "b81d4e07c2a95",
+  "links": [
+    {
+      "href": "https://developer.paypal.com/docs/api/payments/v2/#error-CAPTURE_FULLY_REFUNDED",
+      "rel": "information_link",
+      "method": "GET"
+    }
+  ]
+}

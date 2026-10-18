@@ -21,6 +21,17 @@ export type PayPalTracker = {
   status: string;
 };
 
+export const REFUND_STATUSES = ["COMPLETED", "PENDING", "FAILED", "CANCELLED"] as const;
+export type PayPalRefundStatus = (typeof REFUND_STATUSES)[number];
+
+// A refund of one capture (ADR 0025). Its capture ID comes from its `up` link, null when absent.
+export type PayPalRefund = {
+  id: string;
+  status: PayPalRefundStatus;
+  amount: Money;
+  captureId: string | null;
+};
+
 export type PayPalPurchaseUnit = {
   referenceId: string;
   customId: string | null;
@@ -28,6 +39,7 @@ export type PayPalPurchaseUnit = {
   amount: Money;
   captures: PayPalCapture[];
   trackers: PayPalTracker[];
+  refunds: PayPalRefund[];
 };
 
 export type PayPalOrder = {
@@ -101,12 +113,53 @@ const trackerSchema = z
     };
   });
 
+// The capture a refund's `up` link names: `.../v2/payments/captures/{id}`.
+const CAPTURE_LINK = /\/v2\/payments\/captures\/([A-Za-z0-9-]{1,64})\/?$/;
+
+function captureIdFromLinks(links: { rel?: string; href?: string }[] | undefined): string | null {
+  for (const link of links ?? []) {
+    if (link.rel !== "up" || !link.href) continue;
+    let path: string;
+    try {
+      path = new URL(link.href).pathname;
+    } catch {
+      continue;
+    }
+    const match = CAPTURE_LINK.exec(path);
+    if (match?.[1]) return match[1];
+  }
+  return null;
+}
+
+export const refundSchema = z
+  .object({
+    id: text,
+    status: z.enum(REFUND_STATUSES),
+    amount: moneySchema,
+    links: z
+      .array(z.object({ rel: z.string().optional(), href: z.string().optional() }))
+      .optional(),
+  })
+  .transform(
+    (refund): PayPalRefund => ({
+      id: refund.id,
+      status: refund.status,
+      amount: refund.amount,
+      captureId: captureIdFromLinks(refund.links),
+    }),
+  );
+
 const purchaseUnitSchema = z.object({
   reference_id: text,
   custom_id: z.string().optional(),
   invoice_id: z.string().optional(),
   amount: moneySchema,
-  payments: z.object({ captures: z.array(captureSchema).optional() }).optional(),
+  payments: z
+    .object({
+      captures: z.array(captureSchema).optional(),
+      refunds: z.array(refundSchema).optional(),
+    })
+    .optional(),
   shipping: z.object({ trackers: z.array(trackerSchema).optional() }).optional(),
 });
 
@@ -135,9 +188,33 @@ export const orderSchema = z
           orderId: order.id,
         })),
         trackers: unit.shipping?.trackers ?? [],
+        refunds: unit.payments?.refunds ?? [],
       })),
     }),
   );
+
+// Refunds that took or may still take money: PENDING counts, FAILED and CANCELLED don't.
+const COUNTED_REFUNDS = new Set<PayPalRefundStatus>(["COMPLETED", "PENDING"]);
+
+// The total already refunded from one of the order's captures, in minor units of the
+// capture's currency (ADR 0025). Null when it can't be known: the capture isn't on the order,
+// a counted refund is in another currency, or a counted refund with no capture link sits in a
+// purchase unit with several captures.
+export function refundedTotal(order: PayPalOrder, captureId: string): number | null {
+  const unit = order.purchaseUnits.find((u) => u.captures.some((c) => c.id === captureId));
+  const capture = unit?.captures.find((c) => c.id === captureId);
+  if (!unit || !capture) return null;
+  let total = 0;
+  for (const refund of unit.refunds) {
+    if (!COUNTED_REFUNDS.has(refund.status)) continue;
+    if (refund.captureId === null && unit.captures.length > 1) return null;
+    if (refund.captureId !== null && refund.captureId !== captureId) continue;
+    if (refund.amount.currency !== capture.amount.currency) return null;
+    total += refund.amount.minor;
+    if (!Number.isSafeInteger(total)) return null;
+  }
+  return total;
+}
 
 // The body of a PayPal error. Every field is optional: an unreadable body still yields an error.
 export const errorBodySchema = z.object({

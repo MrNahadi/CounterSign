@@ -2,17 +2,17 @@
 
 ## T-001: Refund capture, get refund, and refunds on orders
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: The rail client refunds a capture with a request ID, reads a refund back, and reports each capture's refunded total from the order's refunds.
 Test seam: `createPayPalClient(...)`'s `refundCapture`, `getRefund` and `getOrder` in `@countersign/rail-paypal`, against recorded fixtures and an injected `fetch`
 Acceptance:
-- [ ] A refund sends the amount in PayPal's format, `custom_id` and the caller's `PayPal-Request-Id`, and returns the refund's ID, status, amount and capture ID (from its `up` link) in minor units. A replayed request ID answered with HTTP 200 returns the same record
-- [ ] A non-USD amount, a malformed capture ID or a missing request ID is refused as `invalid_request` before any call
-- [ ] Get refund parses `COMPLETED`, `PENDING`, `FAILED` and `CANCELLED` refunds; a 404 and a 422 become `PayPalError`s with PayPal's name, issues and debug ID
-- [ ] Orders carry each purchase unit's refunds. A capture's refunded total counts `COMPLETED` and `PENDING` refunds only; an unattributable refund counts against a unit's only capture, and makes the total unknown when the unit has several
-- [ ] No captured request, error or return value holds the fake secret or access token
+- [x] A refund sends the amount in PayPal's format, `custom_id` and the caller's `PayPal-Request-Id`, and returns the refund's ID, status, amount and capture ID (from its `up` link) in minor units. A replayed request ID answered with HTTP 200 returns the same record
+- [x] A non-USD amount, a malformed capture ID or a missing request ID is refused as `invalid_request` before any call
+- [x] Get refund parses `COMPLETED`, `PENDING`, `FAILED` and `CANCELLED` refunds; a 404 and a 422 become `PayPalError`s with PayPal's name, issues and debug ID
+- [x] Orders carry each purchase unit's refunds. A capture's refunded total counts `COMPLETED` and `PENDING` refunds only; an unattributable refund counts against a unit's only capture, and makes the total unknown when the unit has several
+- [x] No captured request, error or return value holds the fake secret or access token
 Notes:
 
 ## T-002: List disputes by capture, and webhook signature verification

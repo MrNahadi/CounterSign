@@ -9,6 +9,7 @@ export {
   type PayPalClient,
   type PayPalClientOptions,
   type PostOptions,
+  type RefundCaptureInput,
 } from "./client";
 export {
   PAYPAL_ENV_NAMES,
@@ -19,4 +20,13 @@ export {
   SANDBOX_BASE_URL,
 } from "./config";
 export { PayPalError, type PayPalErrorDetail, type PayPalErrorKind } from "./errors";
-export type { PayPalCapture, PayPalOrder, PayPalPurchaseUnit, PayPalTracker } from "./records";
+export {
+  type PayPalCapture,
+  type PayPalOrder,
+  type PayPalPurchaseUnit,
+  type PayPalRefund,
+  type PayPalRefundStatus,
+  type PayPalTracker,
+  REFUND_STATUSES,
+  refundedTotal,
+} from "./records";

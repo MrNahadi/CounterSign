@@ -130,6 +130,7 @@ describe("create order", () => {
             },
           ],
           trackers: [],
+          refunds: [],
         },
       ],
     });

@@ -260,6 +260,7 @@ describe("get order", () => {
               status: "SHIPPED",
             },
           ],
+          refunds: [],
         },
       ],
     });
@@ -283,6 +284,7 @@ describe("get order", () => {
           amount: { minor: 4800, currency: "USD" },
           captures: [],
           trackers: [],
+          refunds: [],
         },
       ],
     });

@@ -9,6 +9,8 @@ import {
   orderSchema,
   type PayPalCapture,
   type PayPalOrder,
+  type PayPalRefund,
+  refundSchema,
   tokenSchema,
   toPayPalAmount,
 } from "./records";
@@ -59,6 +61,14 @@ export type AddTrackerInput = PostOptions & {
   carrierName: string;
 };
 
+export type RefundCaptureInput = PostOptions & {
+  captureId: string;
+  // Only USD is sent to PayPal.
+  amount: Money;
+  // Set to the intent ID, so the refund can be found from PayPal's side.
+  customId: string;
+};
+
 export type PayPalClient = {
   createOrder(input: CreateOrderInput): Promise<PayPalOrder>;
   captureOrder(orderId: string, options: PostOptions): Promise<PayPalOrder>;
@@ -66,6 +76,9 @@ export type PayPalClient = {
   // Answers with the order, carrying its trackers.
   addTracker(orderId: string, tracker: AddTrackerInput): Promise<PayPalOrder>;
   getCapture(captureId: string): Promise<PayPalCapture>;
+  // A replayed request ID answers with the first refund, not a second one.
+  refundCapture(input: RefundCaptureInput): Promise<PayPalRefund>;
+  getRefund(refundId: string): Promise<PayPalRefund>;
 };
 
 // A token with less than this left is replaced before the next call.
@@ -103,6 +116,13 @@ const addTrackerSchema = z.object({
   captureId: resourceId,
   trackingNumber: resourceId,
   carrierName: z.string().min(1).max(64),
+});
+
+const refundCaptureSchema = z.object({
+  requestId: requestIdSchema,
+  captureId: resourceId,
+  amount: z.object({ minor: z.number().int().positive(), currency: z.string() }),
+  customId: z.string().min(1).max(127),
 });
 
 type CallSpec = {
@@ -395,6 +415,29 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
       const id = checkId(call, captureId);
       const answer = await send({ call, method: "GET", path: `/v2/payments/captures/${id}` });
       return parse(call, answer, captureRecordSchema);
+    },
+
+    async refundCapture(input) {
+      const call = "refund-capture";
+      const refund = checkInput(call, refundCaptureSchema, input);
+      if (refund.amount.currency !== "USD") throw refuse(call, "only USD is sent to PayPal");
+      const amount = toPayPalAmount({ minor: refund.amount.minor, currency: "USD" });
+      if (!amount) throw refuse(call, "amount is invalid");
+      const answer = await send({
+        call,
+        method: "POST",
+        path: `/v2/payments/captures/${encodeURIComponent(refund.captureId)}/refund`,
+        requestId: refund.requestId,
+        body: { amount, custom_id: refund.customId },
+      });
+      return parse(call, answer, refundSchema);
+    },
+
+    async getRefund(refundId) {
+      const call = "get-refund";
+      const id = checkId(call, refundId);
+      const answer = await send({ call, method: "GET", path: `/v2/payments/refunds/${id}` });
+      return parse(call, answer, refundSchema);
     },
 
     async getOrder(orderId) {
