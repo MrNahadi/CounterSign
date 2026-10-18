@@ -46,17 +46,17 @@ Notes:
 
 ## T-004: Live records mapped into snapshots
 
-Status: open
+Status: done
 Blocked by: T-001, T-002
 Tier: standard
 Slice: Given a capture ID and a ticket, the gate reads the capture, order, disputes and shipment and returns the record snapshots, plus one line for each read that failed.
 Test seam: the gate's live-record reader, with a fake PayPal client and an in-memory carrier store
 Acceptance:
-- [ ] A stalled-parcel order gives capture, order, disputes and shipment snapshots that let the beat 4 proposal pass every verifier, each with its call and record ID
-- [ ] The capture snapshot's refunded total comes from the order's refunds, and is left out when the total is unknown
-- [ ] A capture 404, an order 500, an incomplete disputes list, and a shipment not found or unreadable each leave exactly their snapshot out and add one read problem naming the call; nothing throws
-- [ ] Only `SHIPPED` trackers for the intent's capture are looked up with the carrier
-- [ ] No read problem holds a secret
+- [x] A stalled-parcel order gives capture, order, disputes and shipment snapshots that let the beat 4 proposal pass every verifier, each with its call and record ID
+- [x] The capture snapshot's refunded total comes from the order's refunds, and is left out when the total is unknown
+- [x] A capture 404, an order 500, an incomplete disputes list, and a shipment not found or unreadable each leave exactly their snapshot out and add one read problem naming the call; nothing throws
+- [x] Only `SHIPPED` trackers for the intent's capture are looked up with the carrier
+- [x] No read problem holds a secret
 Notes:
 
 ## T-005: Decide on live records under the ledger lock
