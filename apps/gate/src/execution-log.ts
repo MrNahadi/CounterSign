@@ -316,3 +316,65 @@ export async function readExecutionHistory(reader: Reader): Promise<ExecutionHis
     throw error;
   }
 }
+
+// --- One intent's trail --------------------------------------------------------------------
+
+type FirstRequestPayload = Extract<ExecutionRequestedPayload, { replay: false }>;
+
+export type IntentRecord = {
+  firstRequest: { seq: number; at: string; payload: FirstRequestPayload };
+  // The first result that says `executed`, or null when none does.
+  executed: {
+    seq: number;
+    refund: Extract<ExecutionResultPayload, { outcome: "executed" }>["refund"];
+  } | null;
+  // The intent's latest result, or null when it has none yet.
+  lastOutcome: ExecutionOutcome | null;
+};
+
+export type IntentRecordRead =
+  | { known: true; trail: IntentRecord | null }
+  | { known: false; seq: number; detail: string };
+
+// Reads one intent's requests and results, to answer a replay (ADR 0026). `trail` is null when
+// the intent has never been requested. An entry that can't be read makes it unknown.
+export async function readIntentRecord(
+  reader: Reader,
+  intentId: string,
+): Promise<IntentRecordRead> {
+  const rows: ChainRow[] = await reader
+    .select()
+    .from(auditLog)
+    .where(
+      sql`${auditLog.entryType} IN ('execution.requested', 'execution.result') AND ${auditLog.refId} = ${intentId}`,
+    )
+    .orderBy(asc(auditLog.seq));
+  try {
+    let trail: IntentRecord | null = null;
+    for (const row of rows) {
+      if (row.entryType === "execution.requested") {
+        const payload = parsePayload(row, ExecutionRequestedPayloadSchema);
+        if (trail === null && !payload.replay) {
+          trail = {
+            firstRequest: { seq: row.seq, at: row.at, payload },
+            executed: null,
+            lastOutcome: null,
+          };
+        }
+      } else {
+        const payload = parsePayload(row, ExecutionResultPayloadSchema);
+        if (trail === null) {
+          throw new Unreadable(row.seq, `execution.result #${row.seq} comes before any request`);
+        }
+        trail.lastOutcome = payload.outcome;
+        if (payload.outcome === "executed" && trail.executed === null) {
+          trail.executed = { seq: row.seq, refund: payload.refund };
+        }
+      }
+    }
+    return { known: true, trail };
+  } catch (error) {
+    if (error instanceof Unreadable) return { known: false, seq: error.seq, detail: error.message };
+    throw error;
+  }
+}

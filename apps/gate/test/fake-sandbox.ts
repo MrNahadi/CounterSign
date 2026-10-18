@@ -19,6 +19,10 @@ export type FakeSandbox = PayPalClient & {
   refunds: Map<string, PayPalRefund>;
   // Thrown by the named call instead of answering.
   failures: Partial<Record<FakeCall, unknown>>;
+  // Thrown by the named call after it takes effect, as a lost response would be.
+  lostResponses: Partial<Record<FakeCall, unknown>>;
+  // The status a new refund is created with.
+  refundStatus: PayPalRefund["status"];
   // Every call made, in order, with its first argument.
   calls: { call: FakeCall; arg: unknown }[];
 };
@@ -39,6 +43,8 @@ export function createFakeSandbox(): FakeSandbox {
     disputes: new Map(),
     refunds: new Map(),
     failures: {},
+    lostResponses: {},
+    refundStatus: "COMPLETED",
     calls: [],
     async createOrder() {
       throw new Error("createOrder isn't in the fake sandbox");
@@ -68,17 +74,25 @@ export function createFakeSandbox(): FakeSandbox {
     async refundCapture(input) {
       enter("refundCapture", input);
       const replayed = byRequestId.get(input.requestId);
-      if (replayed) return structuredClone(sandbox.refunds.get(replayed) as PayPalRefund);
+      if (replayed) return answer("refundCapture", sandbox.refunds.get(replayed) as PayPalRefund);
       if (!sandbox.captures.has(input.captureId)) throw notFound("refund-capture");
       const refund: PayPalRefund = {
         id: `FAKEREFUND${String(nextRefund++).padStart(6, "0")}`,
-        status: "COMPLETED",
+        status: sandbox.refundStatus,
         amount: input.amount,
         captureId: input.captureId,
       };
       sandbox.refunds.set(refund.id, refund);
       byRequestId.set(input.requestId, refund.id);
-      return structuredClone(refund);
+      // The order shows the refund on the unit holding the capture, as PayPal's does.
+      for (const order of sandbox.orders.values()) {
+        for (const unit of order.purchaseUnits) {
+          if (unit.captures.some((capture) => capture.id === input.captureId)) {
+            unit.refunds.push(structuredClone(refund));
+          }
+        }
+      }
+      return answer("refundCapture", refund);
     },
     async getRefund(refundId) {
       enter("getRefund", refundId);
@@ -96,6 +110,12 @@ export function createFakeSandbox(): FakeSandbox {
     sandbox.calls.push({ call, arg });
     const failure = sandbox.failures[call];
     if (failure !== undefined) throw failure;
+  }
+
+  function answer<T>(call: FakeCall, value: T): T {
+    const lost = sandbox.lostResponses[call];
+    if (lost !== undefined) throw lost;
+    return structuredClone(value);
   }
 
   return sandbox;

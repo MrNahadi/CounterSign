@@ -76,17 +76,17 @@ Notes:
 
 ## T-006: Execute once, and replays
 
-Status: open
+Status: done
 Blocked by: T-005
 Tier: standard
 Slice: An allowed refund is sent once with the intent hash as request ID, its outcome is logged, and proposing the same intent again never pays twice.
 Test seam: `proposeRefund(...)` in the gate, against the stateful fake sandbox and PGlite
 Acceptance:
-- [ ] Beat 4 makes one refund with request ID = intent hash and `custom_id` = intent ID, and appends `execution.result` `executed` with the refund ID; the response is `allowed`
-- [ ] Proposing beat 4 again makes no rail call, writes only a replay request, and answers `allowed` with the same intent ID
-- [ ] A request whose result was `unknown` (or that has none) is re-sent with the same request ID within 6 hours and gets the same refund; after 6 hours nothing is sent and the answer is `DUPLICATE_REFUND`
-- [ ] A 4xx refusal is `failed` with PayPal's name, issues and debug ID; a network error or unparseable answer is `unknown`
-- [ ] A step-up and a deny make no rail call; `ledger verify` passes on every resulting chain
+- [x] Beat 4 makes one refund with request ID = intent hash and `custom_id` = intent ID, and appends `execution.result` `executed` with the refund ID; the response is `allowed`
+- [x] Proposing beat 4 again makes no rail call, writes only a replay request, and answers `allowed` with the same intent ID
+- [x] A request whose result was `unknown` (or that has none) is re-sent with the same request ID within 6 hours and gets the same refund; after 6 hours nothing is sent and the answer is `DUPLICATE_REFUND`
+- [x] A 4xx refusal is `failed` with PayPal's name, issues and debug ID; a network error or unparseable answer is `unknown`
+- [x] A step-up and a deny make no rail call; `ledger verify` passes on every resulting chain
 Notes:
 
 ## T-007: The propose CLI and demo proposal files

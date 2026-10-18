@@ -40,4 +40,25 @@ describe("no AI in the decision path", () => {
       expect(hits).toEqual([]);
     });
   }
+
+  // The gate may later host the MCP server, but the modules that decide, record and execute
+  // import no AI SDK (phase 6).
+  const gateModules = [
+    "decide.ts",
+    "execution-log.ts",
+    "live-records.ts",
+    "proposal.ts",
+    "propose.ts",
+    "record.ts",
+  ];
+  it("the gate's decide and execute modules import no AI SDK", () => {
+    const hits: string[] = [];
+    for (const file of gateModules) {
+      const text = readFileSync(join(repo, "apps", "gate", "src", file), "utf8");
+      for (const [, specifier] of text.matchAll(importSpecifier)) {
+        if (specifier && aiModule.test(specifier)) hits.push(`${file}: ${specifier}`);
+      }
+    }
+    expect(hits).toEqual([]);
+  });
 });

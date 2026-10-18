@@ -10,13 +10,19 @@ import {
   sql,
 } from "@countersign/db";
 import { appendEntries, verifyLog } from "@countersign/ledger";
-import { parseMandate } from "@countersign/mandate";
+import { hashIntent, parseMandate } from "@countersign/mandate";
+import { PayPalError } from "@countersign/rail-paypal";
 import { CALLS, type TicketSnapshot } from "@countersign/verifiers";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { ExecutionRequestedPayloadSchema, executionRequestedEntry } from "../src/execution-log";
-import { proposeRefund } from "../src/propose";
+import {
+  ExecutionRequestedPayloadSchema,
+  ExecutionResultPayloadSchema,
+  executionRequestedEntry,
+  executionResultEntry,
+} from "../src/execution-log";
+import { type ProposeResult, proposeRefund } from "../src/propose";
 import { mandateRef } from "../src/record";
-import { createFakeSandbox } from "./fake-sandbox";
+import { createFakeSandbox, httpError } from "./fake-sandbox";
 
 // Each PGlite start takes a couple of seconds.
 const SLOW = 60_000;
@@ -153,9 +159,10 @@ describe("proposeRefund: deciding on live records under the ledger lock", () => 
     const outcomes = [];
     for (const proposal of proposals) {
       const result = await propose(world, proposal, attack);
-      if (!result.ok) throw new Error(result.detail);
+      if (!result.ok || result.replay) throw new Error("not decided");
       expect(result.problems).toEqual([]);
       expect(result.seqs.request).toBeNull();
+      expect(result.execution).toBeNull();
       outcomes.push([result.record.decision, result.record.reasons.map((r) => r.code)]);
     }
 
@@ -182,7 +189,7 @@ describe("proposeRefund: deciding on live records under the ledger lock", () => 
   it("writes beat 4's decision and an execution.requested entry pointing at it, in one transaction", async () => {
     const world = beat4World();
     const result = await propose(world, refund(1035, "18.00", "TKT-1035"), beat4Ticket);
-    if (!result.ok) throw new Error(result.detail);
+    if (!result.ok || result.replay) throw new Error("not decided");
 
     expect(result.response.decision).toBe("allowed");
     expect(result.problems).toEqual([]);
@@ -193,6 +200,7 @@ describe("proposeRefund: deciding on live records under the ledger lock", () => 
       [1, "mandate.version", mandateRef(mandate)],
       [2, "decision", result.record.intentId],
       [3, "execution.requested", result.record.intentId],
+      [4, "execution.result", result.record.intentId],
     ]);
     // Written together: the same clock reading, and the request names the decision.
     expect(rows[2]?.at).toBe(rows[1]?.at);
@@ -228,7 +236,7 @@ describe("proposeRefund: deciding on live records under the ledger lock", () => 
     if (!earlier.ok) throw new Error(earlier.rejection.detail);
 
     const result = await propose(world, refund(1035, "18.00", "TKT-1035"), beat4Ticket);
-    if (!result.ok) throw new Error(result.detail);
+    if (!result.ok || result.replay) throw new Error("not decided");
 
     expect(result.response.decision).toBe("denied");
     expect(result.record.reasons.map((reason) => reason.code)).toContain("DUPLICATE_REFUND");
@@ -261,7 +269,9 @@ describe("proposeRefund: deciding on live records under the ledger lock", () => 
       propose(world, refund(1035, "18.00", "TKT-1035"), beat4Ticket),
       propose(world, refund(1035, "10.00", "TKT-1035"), beat4Ticket),
     ]);
-    if (!first?.ok || !second?.ok) throw new Error("recording failed");
+    if (!first?.ok || !second?.ok || first.replay || second.replay) {
+      throw new Error("not decided");
+    }
 
     expect(first.record.intentId).not.toBe(second.record.intentId);
     const decisions = [first, second].map((result) => result.response.decision).sort();
@@ -280,10 +290,322 @@ describe("proposeRefund: deciding on live records under the ledger lock", () => 
     if (!broken.ok) throw new Error(broken.rejection.detail);
 
     const result = await propose(world, refund(1035, "18.00", "TKT-1035"), beat4Ticket);
-    if (!result.ok) throw new Error(result.detail);
+    if (!result.ok || result.replay) throw new Error("not decided");
 
     expect(result.response.decision).not.toBe("allowed");
     expect(result.seqs.request).toBeNull();
     expect(await requests()).toHaveLength(1);
+  });
+});
+
+describe("proposeRefund: executing once, and replays", () => {
+  let handle: DatabaseHandle;
+  let db: Database;
+
+  beforeAll(async () => {
+    handle = await createTestDatabase();
+    db = handle.db;
+  }, SLOW);
+
+  beforeEach(async () => {
+    await db.execute(sql`TRUNCATE audit_log`);
+  });
+
+  afterAll(async () => {
+    await handle.close();
+  });
+
+  const HOUR = 60 * 60 * 1000;
+  const later = (ms: number) => new Date(NOW.getTime() + ms);
+  const beat4 = refund(1035, "18.00", "TKT-1035");
+  // Beat 4's intent, as the gate normalizes it from the live records.
+  const beat4Intent = hashIntent({
+    principal: PRINCIPAL,
+    rail: "paypal",
+    action: "paypal.refund",
+    amount: usd(1800),
+    target: { captureId: "CAP-1035", orderId: "ORD-1035" },
+    ticketId: "TKT-1035",
+    claim: "not_received",
+    mandateVersion: mandate.version,
+  });
+
+  const entries = () => db.select().from(auditLog).orderBy(asc(auditLog.seq));
+  const ofType = async (entryType: string) =>
+    (await entries()).filter((row) => row.entryType === entryType);
+  const results = async () =>
+    (await ofType("execution.result")).map((row) =>
+      ExecutionResultPayloadSchema.parse(JSON.parse(row.payload)),
+    );
+  const refundCalls = (world: ReturnType<typeof sandboxWith>) =>
+    world.rail.calls.filter((call) => call.call === "refundCapture");
+
+  const propose = (world: ReturnType<typeof sandboxWith>, now = NOW) =>
+    proposeRefund({
+      mandate,
+      principal: PRINCIPAL,
+      proposal: beat4,
+      ticket: beat4Ticket,
+      now,
+      rail: world.rail,
+      carrier: world.carrier,
+      db,
+      clock: () => now,
+    });
+
+  const decided = (result: ProposeResult) => {
+    if (!result.ok || result.replay) throw new Error("not decided");
+    return result;
+  };
+  const replayed = (result: ProposeResult) => {
+    if (!result.ok || !result.replay) throw new Error("not a replay");
+    return result;
+  };
+
+  // Beat 4's request, logged earlier with no decision run here, and optionally its result.
+  const seedRequest = async (at: Date, outcome?: "unknown" | "failed") => {
+    const inputs = [
+      executionRequestedEntry({
+        at: at.toISOString(),
+        intentId: beat4Intent.id,
+        intentHash: beat4Intent.hash,
+        principal: PRINCIPAL,
+        rail: "paypal",
+        action: "paypal.refund",
+        captureId: "CAP-1035",
+        amount: usd(1800),
+        decisionSeq: 1,
+      }),
+    ];
+    if (outcome === "unknown") {
+      inputs.push(
+        executionResultEntry({
+          at: at.toISOString(),
+          intentId: beat4Intent.id,
+          requestSeq: 1,
+          outcome: "unknown",
+        }),
+      );
+    } else if (outcome === "failed") {
+      inputs.push(
+        executionResultEntry({
+          at: at.toISOString(),
+          intentId: beat4Intent.id,
+          requestSeq: 1,
+          outcome: "failed",
+          error: { name: "UNPROCESSABLE_ENTITY", issues: [], debugId: "fake-debug" },
+        }),
+      );
+    }
+    const seeded = await appendEntries(db, inputs);
+    if (!seeded.ok) throw new Error(seeded.rejection.detail);
+  };
+
+  it("sends beat 4's refund once, with the intent hash as request ID and the intent ID as custom_id, and logs it executed", async () => {
+    const world = beat4World();
+    const result = decided(await propose(world));
+
+    expect(result.response).toEqual({
+      decision: "allowed",
+      intent_id: beat4Intent.id,
+      intent_hash: beat4Intent.hash,
+    });
+    expect(refundCalls(world)).toEqual([
+      {
+        call: "refundCapture",
+        arg: {
+          captureId: "CAP-1035",
+          amount: usd(1800),
+          customId: beat4Intent.id,
+          requestId: beat4Intent.hash,
+        },
+      },
+    ]);
+    expect(result.execution).toEqual({
+      outcome: "executed",
+      refund: { id: "FAKEREFUND000001", status: "COMPLETED" },
+      error: null,
+      resultSeq: 4,
+      resultProblem: null,
+      sent: true,
+    });
+    const [row] = await ofType("execution.result");
+    expect(row?.refId).toBe(beat4Intent.id);
+    expect(await results()).toEqual([
+      {
+        requestSeq: 3,
+        outcome: "executed",
+        refund: { id: "FAKEREFUND000001", status: "COMPLETED" },
+      },
+    ]);
+    expect((await verifyLog(db)).intact).toBe(true);
+  });
+
+  it("answers beat 4 proposed again with no rail call, only a replay request, and the same allowed response", async () => {
+    const world = beat4World();
+    const first = decided(await propose(world));
+    const before = (await entries()).length;
+
+    const second = replayed(await propose(world, later(60_000)));
+
+    expect(second.response).toEqual(first.response);
+    expect(second.firstRequestSeq).toBe(3);
+    expect(second.execution).toEqual({
+      outcome: "executed",
+      refund: { id: "FAKEREFUND000001", status: "COMPLETED" },
+      error: null,
+      resultSeq: 4,
+      resultProblem: null,
+      sent: false,
+    });
+    expect(refundCalls(world)).toHaveLength(1);
+    const rows = await entries();
+    expect(rows).toHaveLength(before + 1);
+    const last = rows.at(-1);
+    expect([last?.seq, last?.entryType, last?.refId]).toEqual([
+      second.seqs.request,
+      "execution.requested",
+      beat4Intent.id,
+    ]);
+    expect(ExecutionRequestedPayloadSchema.parse(JSON.parse(last?.payload ?? ""))).toMatchObject({
+      replay: true,
+      firstRequestSeq: 3,
+      proposal: JSON.stringify(beat4),
+      requestId: beat4Intent.hash,
+    });
+    expect((await verifyLog(db)).intact).toBe(true);
+  });
+
+  it("re-sends a request whose result was unknown with the same request ID within 6 hours, and gets the same refund", async () => {
+    const world = beat4World();
+    world.rail.lostResponses.refundCapture = new PayPalError({
+      kind: "network",
+      call: "refund-capture",
+      status: null,
+      reason: "the connection was reset",
+    });
+    const first = decided(await propose(world));
+    expect(first.execution).toMatchObject({ outcome: "unknown", refund: null, resultSeq: 4 });
+
+    delete world.rail.lostResponses.refundCapture;
+    const second = replayed(await propose(world, later(5 * HOUR)));
+
+    expect(second.response).toEqual(first.response);
+    expect(second.execution).toMatchObject({
+      outcome: "executed",
+      refund: { id: "FAKEREFUND000001", status: "COMPLETED" },
+      sent: true,
+    });
+    const calls = refundCalls(world);
+    expect(calls).toHaveLength(2);
+    expect(calls.map((call) => (call.arg as { requestId: string }).requestId)).toEqual([
+      beat4Intent.hash,
+      beat4Intent.hash,
+    ]);
+    expect(world.rail.refunds.size).toBe(1);
+    expect((await results()).map((result) => [result.requestSeq, result.outcome])).toEqual([
+      [3, "unknown"],
+      [second.seqs.request, "executed"],
+    ]);
+    expect((await verifyLog(db)).intact).toBe(true);
+  });
+
+  it("re-sends a request that has no result yet within 6 hours", async () => {
+    const world = beat4World();
+    await seedRequest(later(-HOUR));
+
+    const result = replayed(await propose(world));
+
+    expect(result.firstRequestSeq).toBe(1);
+    expect(result.execution).toMatchObject({ outcome: "executed", sent: true });
+    expect(refundCalls(world).map((call) => call.arg)).toEqual([
+      {
+        captureId: "CAP-1035",
+        amount: usd(1800),
+        customId: beat4Intent.id,
+        requestId: beat4Intent.hash,
+      },
+    ]);
+    expect((await verifyLog(db)).intact).toBe(true);
+  });
+
+  it.each([
+    ["no result", undefined],
+    ["an unknown result", "unknown"],
+    ["a failed result", "failed"],
+  ] as const)(
+    "sends nothing after 6 hours for a request with %s, and denies DUPLICATE_REFUND naming it",
+    async (_, outcome) => {
+      const world = beat4World();
+      await seedRequest(later(-6 * HOUR - 1000), outcome);
+      const requestsBefore = (await ofType("execution.requested")).length;
+
+      const result = decided(await propose(world));
+
+      expect(result.response.decision).toBe("denied");
+      expect(result.record.reasons.map((reason) => reason.code)).toEqual(["DUPLICATE_REFUND"]);
+      expect(result.record.reasons[0]?.detail).toContain("#1");
+      expect(result.record.reasons[0]?.detail).toContain("npm run reconcile");
+      expect(result.execution).toBeNull();
+      expect(refundCalls(world)).toHaveLength(0);
+      // Logged as a decision, and no replay request, so a failed intent doesn't block its
+      // capture again.
+      expect((await ofType("execution.requested")).length).toBe(requestsBefore);
+      expect((await entries()).at(-1)?.entryType).toBe("decision");
+      expect((await verifyLog(db)).intact).toBe(true);
+    },
+  );
+
+  it("logs a 4xx refusal as failed, with PayPal's name, issues and debug ID", async () => {
+    const world = beat4World();
+    world.rail.failures.refundCapture = new PayPalError({
+      kind: "http",
+      call: "refund-capture",
+      status: 422,
+      paypalName: "UNPROCESSABLE_ENTITY",
+      issues: ["CAPTURE_FULLY_REFUNDED"],
+      debugId: "fake-debug",
+    });
+
+    const result = decided(await propose(world));
+
+    const error = {
+      name: "UNPROCESSABLE_ENTITY",
+      issues: ["CAPTURE_FULLY_REFUNDED"],
+      debugId: "fake-debug",
+    };
+    expect(result.execution).toMatchObject({ outcome: "failed", refund: null, error });
+    expect(await results()).toEqual([{ requestSeq: 3, outcome: "failed", error }]);
+    expect((await verifyLog(db)).intact).toBe(true);
+  });
+
+  it("logs a refund PayPal returns as FAILED as failed, with the refund", async () => {
+    const world = beat4World();
+    world.rail.refundStatus = "FAILED";
+
+    const result = decided(await propose(world));
+
+    const refunded = { id: "FAKEREFUND000001", status: "FAILED" };
+    expect(result.execution).toMatchObject({ outcome: "failed", refund: refunded });
+    expect(await results()).toEqual([{ requestSeq: 3, outcome: "failed", refund: refunded }]);
+  });
+
+  it.each([
+    ["a network error", new PayPalError({ kind: "network", call: "refund-capture", status: null })],
+    [
+      "an unparseable answer",
+      new PayPalError({ kind: "invalid_response", call: "refund-capture", status: 201 }),
+    ],
+    ["a 5xx after retries", httpError("refund-capture", 503, "SERVICE_UNAVAILABLE")],
+    ["an unexpected throw", new Error("boom")],
+  ])("logs %s as unknown", async (_, failure) => {
+    const world = beat4World();
+    world.rail.failures.refundCapture = failure;
+
+    const result = decided(await propose(world));
+
+    expect(result.execution).toMatchObject({ outcome: "unknown", refund: null, resultSeq: 4 });
+    expect((await results()).map((r) => r.outcome)).toEqual(["unknown"]);
+    expect((await verifyLog(db)).intact).toBe(true);
   });
 });
