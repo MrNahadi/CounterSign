@@ -148,11 +148,19 @@ describe.skipIf(!live.success)(`live PayPal sandbox (${needs})`, () => {
     60_000,
   );
 
-  it("lists no disputes for a made-up capture and reads a made-up refund as a 404", async () => {
+  // The sandbox refuses a disputes filter on a transaction the merchant doesn't hold with a
+  // 400 INVALID_REQUEST, so a made-up capture reads as an error (no disputes snapshot), never
+  // as an empty list. A real capture's empty list is checked in the vault refund test.
+  it("refuses disputes for a made-up capture and reads a made-up refund as a 404", async () => {
     await guarded(async () => {
       const paypal = client();
-      const disputes = await paypal.listDisputes(`LIVE${runId.toUpperCase()}`);
-      expect(disputes).toEqual({ disputes: [], complete: true });
+      const refused = await paypal.listDisputes(`LIVE${runId.toUpperCase()}`).then(
+        () => null,
+        (caught: unknown) => caught,
+      );
+      expect(refused).toBeInstanceOf(PayPalError);
+      expect((refused as PayPalError).status).toBe(400);
+      expect((refused as PayPalError).paypalName).toBe("INVALID_REQUEST");
 
       const error = await paypal.getRefund(`LIVE${runId.toUpperCase()}`).then(
         () => null,
@@ -200,7 +208,10 @@ describe.skipIf(!live.success)(`live PayPal sandbox (${needs})`, () => {
         expect(readRefund.id).toBe(first.id);
         expect(readRefund.amount).toEqual(ONE_DOLLAR);
         expect(readRefund.captureId).toBe(capture.id);
-        expectNoSecrets([created, first, second, read, readRefund]);
+
+        const disputes = await paypal.listDisputes(capture.id);
+        expect(disputes).toEqual({ disputes: [], complete: true });
+        expectNoSecrets([created, first, second, read, readRefund, disputes]);
       });
     },
     90_000,
