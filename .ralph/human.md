@@ -19,6 +19,7 @@ The autopilot builds everything it can and lists here what only you can do, or w
 - **Phase 6, webhook (blocks the live webhook only, from phase 13):** register a sandbox webhook for `PAYMENT.CAPTURE.REFUNDED` at `<gate URL>/webhooks/paypal`, then add `PAYPAL_WEBHOOK_ID` to Render, the Dev environment and `.env.example`. Check a webhook reconciliation lands within 2 minutes of beat 4's refund (G4).
 - **Phase 7, principal key:** create a random key of 32+ characters and add it as `COUNTERSIGN_SUPPORT_AGENT_KEY` to the Dev environment and `.env.example` (and to Render in phase 13). Agents can't edit `.env.*`. Until then the MCP server is proven with test keys only, and every live `/mcp` call answers 401.
 - **Phase 7, live MCP check:** once the key is set and `npm run seed` has run, start the gate and run `npm run agent -- apps/gate/proposals/beat-4-stalled-parcel.json`, then `guarded-actions.json`, then `npm run ledger -- verify` (validation.md live check 2). Point an MCP inspector at `/mcp` with the key and check the tool list reads sensibly to someone who knows PayPal's Agent Toolkit.
+- **Phase 7, real dispute:** once a sandbox dispute exists (phase 11), call `get_dispute` and `accept_dispute_claim` on it over MCP and check the step-up names the dispute's real amount (validation.md manual check 3).
 
 ## Decided for you
 
@@ -41,5 +42,9 @@ The autopilot builds everything it can and lists here what only you can do, or w
 - **Phase 7, intent targets (ADR 0027):** each guarded action hashes its own target (dispute, invoice, order, payee) plus the parameters that execute, such as a note or offer type; refund hashes are unchanged; only refunds need a ticket; a target record that can't be read denies `TARGET_UNKNOWN`. The planner couldn't reach the answerer agent, so it applied the answerer's rules itself.
 - **Phase 7, MCP surface (ADR 0028):** agents authenticate with a principal key as a bearer token from `COUNTERSIGN_SUPPORT_AGENT_KEY`; the gate uses the MCP SDK's low-level `Server` (amending ADR 0001) so invalid calls are still logged; denials are answers, not MCP errors; only refunds execute, and an allow for anything else is denied `ACTION_UNAVAILABLE`; read-only tools are served by our own PayPal client, not by spawning PayPal's toolkit.
 - **Phase 7, ticket store (ADR 0029):** tickets live in a write-once `tickets` table that Resolve writes and the gate reads by the ID the agent names, so the agent can't choose the sender a verifier sees.
+- **Phase 7, db links mandate (builder):** `@countersign/db` now depends on `@countersign/mandate` to reuse the shared timestamp rule for a ticket's received time, although plan.md said no new workspace links.
+- **Phase 7, simulated ticket time (builder):** a simulated ticket's received time is the run's now(), not a time from the proposal file.
+- **Phase 7, `seed_order` (builder):** proposal files gained a `seed_order` field, allowed only on `pay_order`, so a demo proposal names a seeded order by its order number (such as KIK-1037) and the CLI looks up its PayPal order ID.
+- **Phase 7, live 404s (builder):** the builder couldn't confirm that the sandbox answers 404 for a made-up dispute and invoice ID. The validator ran `LIVE=1` on 2026-10-18 and both answered 404 as `PayPalError`s.
 
 ## Done
