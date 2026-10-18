@@ -2,16 +2,16 @@
 
 ## T-001: Threads and attachments in the ticket store
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: A two-message thread with a photo is written to the store and read back in order, with the photo's bytes, while the gate's CLIs keep writing tickets as before.
 Test seam: the ticket, thread and attachment writers and readers exported by `@countersign/db`, over PGlite
 Acceptance:
-- [ ] A migration adds `tickets.thread_id` (not null; existing rows take their own ID) and the write-once `ticket_attachments` table (ID, ticket ID, content type, size, bytes); `npm run db:migrate` applies it on a fresh and on a phase 7 database
-- [ ] `writeTicket` takes an optional `threadId`, defaulting to the ticket's ID, and compares it like any other field; every existing db and gate test passes unchanged
-- [ ] An attachment writes and reads back byte for byte with its content type; rewriting the same ID with other bytes is refused with a typed error
-- [ ] A thread reader returns a thread's tickets oldest first; a thread list returns each thread's first ticket and its latest activity time, newest first; an unknown thread reads as none
+- [x] A migration adds `tickets.thread_id` (not null; existing rows take their own ID) and the write-once `ticket_attachments` table (ID, ticket ID, content type, size, bytes); `npm run db:migrate` applies it on a fresh and on a phase 7 database
+- [x] `writeTicket` takes an optional `threadId`, defaulting to the ticket's ID, and compares it like any other field; every existing db and gate test passes unchanged
+- [x] An attachment writes and reads back byte for byte with its content type; rewriting the same ID with other bytes is refused with a typed error
+- [x] A thread reader returns a thread's tickets oldest first; a thread list returns each thread's first ticket and its latest activity time, newest first; an unknown thread reads as none
 Notes:
 
 ## T-002: Agent runs in the store

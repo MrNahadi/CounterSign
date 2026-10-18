@@ -177,7 +177,8 @@ describe("the tickets migration", { timeout: SLOW }, () => {
 
     const handle = await openPgliteDirectory(dir, { migrate: false });
     try {
-      expect(await handle.migrate()).toBe(1);
+      // Every migration after phase 6's two, so a later phase's migration doesn't break it.
+      expect(await handle.migrate()).toBe(journal.entries.length - 2);
       expect(await handle.db.select().from(seedOrders)).toHaveLength(1);
       await writeTicket(handle.db, ticket());
       expect(await readTicket(handle.db, "tkt_1013")).toEqual(ticket());

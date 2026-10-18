@@ -1,5 +1,15 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  check,
+  customType,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+} from "drizzle-orm/pg-core";
 
 // The audit log (ADR 0022). `payload` and `at` are the exact text that was hashed, never jsonb.
 // The chain itself is enforced here: `seq` is the primary key and `prev_hash` is unique, so a
@@ -76,7 +86,8 @@ export type TicketAttachment = { id: string; contentType: string };
 
 // The ticket store (ADR 0029): one row per message a customer sent. Written once through
 // `writeTicket`, never updated; the gate reads it by ID. `receivedAt` is ISO 8601 text that
-// passes the shared timestamp rule. Not hashed, not append-only, and no trigger.
+// passes the shared timestamp rule. `threadId` groups a conversation (ADR 0030): a thread's ID
+// is its first ticket's ID. Not hashed, not append-only, and no trigger.
 export const tickets = pgTable(
   "tickets",
   {
@@ -89,9 +100,38 @@ export const tickets = pgTable(
     attachments: jsonb("attachments").$type<TicketAttachment[]>().notNull(),
     receivedAt: text("received_at").notNull(),
     simulated: boolean("simulated").notNull(),
+    threadId: text("thread_id").notNull(),
   },
-  (table) => [check("tickets_channel_check", sql`${table.channel} IN ('email', 'chat')`)],
+  (table) => [
+    check("tickets_channel_check", sql`${table.channel} IN ('email', 'chat')`),
+    index("tickets_thread_id_idx").on(table.threadId),
+  ],
 );
 
 export type TicketRow = typeof tickets.$inferSelect;
 export type NewTicketRow = typeof tickets.$inferInsert;
+
+// Postgres `bytea`. PGlite reads it as a Uint8Array and postgres.js as a Buffer (a Uint8Array
+// too); writes go as a Buffer, which both drivers send as bytes.
+const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({
+  dataType: () => "bytea",
+  toDriver: (value) => Buffer.from(value.buffer, value.byteOffset, value.byteLength),
+  fromDriver: (value) => new Uint8Array(value),
+});
+
+// A file a customer attached to a ticket (ADR 0030), written once, before the ticket that lists
+// it, so there's no foreign key. `size` is the byte count of `bytes`.
+export const ticketAttachments = pgTable(
+  "ticket_attachments",
+  {
+    id: text("id").primaryKey(),
+    ticketId: text("ticket_id").notNull(),
+    contentType: text("content_type").notNull(),
+    size: integer("size").notNull(),
+    bytes: bytea("bytes").notNull(),
+  },
+  (table) => [index("ticket_attachments_ticket_id_idx").on(table.ticketId)],
+);
+
+export type TicketAttachmentRow = typeof ticketAttachments.$inferSelect;
+export type NewTicketAttachmentRow = typeof ticketAttachments.$inferInsert;
