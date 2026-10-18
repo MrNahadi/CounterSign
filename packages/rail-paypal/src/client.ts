@@ -10,18 +10,24 @@ import {
 import { PayPalError } from "./errors";
 import {
   captureRecordSchema,
+  disputeDetailSchema,
   disputesPageSchema,
   errorBodySchema,
   fieldPath,
+  invoiceSchema,
   orderSchema,
   type PayPalCapture,
   type PayPalDispute,
+  type PayPalDisputeDetail,
   type PayPalDisputeList,
+  type PayPalInvoice,
   type PayPalOrder,
   type PayPalRefund,
+  type PayPalTransactionPage,
   refundSchema,
   tokenSchema,
   toPayPalAmount,
+  transactionPageSchema,
   verificationSchema,
   type WebhookVerification,
 } from "./records";
@@ -97,6 +103,13 @@ export type VerifyWebhookInput = {
   rawBody: string;
 };
 
+// A Transaction Search range: ISO 8601 dates or date-times, at most 31 days apart.
+export type TransactionSearchInput = {
+  startDate: string;
+  endDate: string;
+  transactionId?: string;
+};
+
 export type PayPalClient = {
   createOrder(input: CreateOrderInput): Promise<PayPalOrder>;
   captureOrder(orderId: string, options: PostOptions): Promise<PayPalOrder>;
@@ -109,6 +122,10 @@ export type PayPalClient = {
   getRefund(refundId: string): Promise<PayPalRefund>;
   // Every dispute on the capture, reading up to five pages.
   listDisputes(captureId: string): Promise<PayPalDisputeList>;
+  getDispute(disputeId: string): Promise<PayPalDisputeDetail>;
+  getInvoice(invoiceId: string): Promise<PayPalInvoice>;
+  // One page of up to 100 transactions in the range.
+  searchTransactions(input: TransactionSearchInput): Promise<PayPalTransactionPage>;
   // Never retried. Throws when the check can't complete, so it's never mistaken for a pass.
   verifyWebhookSignature(input: VerifyWebhookInput): Promise<WebhookVerification>;
 };
@@ -120,6 +137,8 @@ const MAX_RETRY_WAIT_MS = 10_000;
 const BACKOFF_MS = 250;
 const MAX_DISPUTE_PAGES = 5;
 const DISPUTES_PATH = "/v1/customer/disputes";
+const TRANSACTION_PAGE_SIZE = 100;
+const MAX_TRANSACTION_RANGE_MS = 31 * 24 * 60 * 60_000;
 // Hosts PayPal's sandbox links name. A next link anywhere else is not followed.
 const SANDBOX_LINK_HOSTS = new Set([new URL(SANDBOX_BASE_URL).host, "api.sandbox.paypal.com"]);
 
@@ -160,6 +179,27 @@ const refundCaptureSchema = z.object({
   amount: z.object({ minor: z.number().int().positive(), currency: z.string() }),
   customId: z.string().min(1).max(127),
 });
+
+// A date-time with an offset, or a plain date read as midnight UTC.
+const searchDate = z
+  .union([z.iso.datetime({ offset: true }), z.iso.date()])
+  .transform((value, ctx) => {
+    const ms = Date.parse(value);
+    if (Number.isNaN(ms)) {
+      ctx.addIssue({ code: "custom", message: "Unreadable date" });
+      return z.NEVER;
+    }
+    return ms;
+  });
+
+const transactionSearchSchema = z
+  .object({ startDate: searchDate, endDate: searchDate, transactionId: resourceId.optional() })
+  .superRefine((search, ctx) => {
+    const span = search.endDate - search.startDate;
+    if (span < 0 || span > MAX_TRANSACTION_RANGE_MS) {
+      ctx.addIssue({ code: "custom", message: "Range over 31 days", path: ["endDate"] });
+    }
+  });
 
 const header = z.string().min(1).max(4096);
 const verifyWebhookSchema = z.object({
@@ -527,6 +567,39 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
         path = page.next === null ? null : nextDisputesPath(call, answer, page.next);
       }
       return { disputes, complete: true };
+    },
+
+    async getDispute(disputeId) {
+      const call = "get-dispute";
+      const id = checkId(call, disputeId);
+      const answer = await send({ call, method: "GET", path: `${DISPUTES_PATH}/${id}` });
+      return parse(call, answer, disputeDetailSchema);
+    },
+
+    async getInvoice(invoiceId) {
+      const call = "get-invoice";
+      const id = checkId(call, invoiceId);
+      const answer = await send({ call, method: "GET", path: `/v2/invoicing/invoices/${id}` });
+      return parse(call, answer, invoiceSchema);
+    },
+
+    async searchTransactions(input) {
+      const call = "search-transactions";
+      const search = checkInput(call, transactionSearchSchema, input);
+      const query = new URLSearchParams({
+        start_date: new Date(search.startDate).toISOString(),
+        end_date: new Date(search.endDate).toISOString(),
+        fields: "transaction_info",
+        page_size: String(TRANSACTION_PAGE_SIZE),
+        page: "1",
+      });
+      if (search.transactionId !== undefined) query.set("transaction_id", search.transactionId);
+      const answer = await send({
+        call,
+        method: "GET",
+        path: `/v1/reporting/transactions?${query}`,
+      });
+      return parse(call, answer, transactionPageSchema);
     },
 
     async verifyWebhookSignature(input) {

@@ -5,3 +5,8 @@
 - Gotcha: hashed target omits `kind` (`{ captureId }`, `{ disputeId }`, `{ invoiceId }`, `{ orderId }`, `{ email }`); params keys are camelCase (`offerType`, `sendToRecipient`, `additionalRecipients`, evidence items `{ evidenceType, notes, trackingNumbers }`). Normalizers (T-003/T-004) must map snake_case MCP args into these.
 - Verifiers: `captureTargetOf`/`notACapture` in `packages/verifiers/src/lookups.ts`; `orderFor` now takes a `CaptureTarget`; `ticketFor` returns a `missing` reason ("No ticket for this proposal" when `ticketId` is null).
 - `propose.ts` throws if an allowed decision targets a non-capture; T-004's `ACTION_UNAVAILABLE` makes that unreachable.
+
+## T-002 (done)
+- `@countersign/rail-paypal` gains `getDispute` (`PayPalDisputeDetail`: id, status, amount, `captureIds` from `disputed_transactions[].seller_transaction_id`), `getInvoice` (`PayPalInvoice`: id, status, amount, `invoiceNumber` or null, `recipientEmails` primary then additional) and `searchTransactions({ startDate, endDate, transactionId? })` (`PayPalTransactionPage`: `transactions`, `complete`). Tests in `packages/rail-paypal/test/reads.test.ts`, fixtures `get-dispute`, `get-invoice`, `search-transactions`, `error-403-not-authorized`.
+- Gotcha: a transaction's `amount` is unsigned Money plus `direction: "credit" | "debit"` (PayPal sends money out as a negative value), and `initiatedAt` is normalized ISO UTC. Search always sends `fields=transaction_info&page_size=100&page=1`; the client has no default range, so T-009 must compute "the last 31 days" from the injected clock. Dates accept an ISO date-time with offset or a plain date.
+- The gate's fake sandbox (`apps/gate/test/fake-sandbox.ts`) gained `disputeDetails`, `invoices` and `transactions`.

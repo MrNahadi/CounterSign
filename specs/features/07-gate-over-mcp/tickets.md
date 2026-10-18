@@ -17,17 +17,17 @@ Notes:
 
 ## T-002: Get dispute, get invoice and transaction search
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: The rail client reads one dispute with its amount and disputed captures, one invoice with its amount and recipients, and a page of transactions.
 Test seam: `createPayPalClient(...)`'s new calls in `@countersign/rail-paypal`, against recorded fixtures and an injected `fetch`
 Acceptance:
-- [ ] Get dispute returns the ID, status, amount in minor units and disputed capture IDs; get invoice returns the ID, status, amount, invoice number and recipient emails; transaction search returns each transaction's ID, status, amount and initiation time, for a date range of at most 31 days
-- [ ] A malformed ID, or a range over 31 days or with an unreadable date, is refused as `invalid_request` before any call
-- [ ] A 404, a 403 and a 5xx become `PayPalError`s with PayPal's name, issues and debug ID; GETs retry as the client already does
-- [ ] An amount in a currency other than USD or KES makes the record unreadable (`invalid_response`), never a guessed figure
-- [ ] No captured request, error or return value holds the fake secret or access token
+- [x] Get dispute returns the ID, status, amount in minor units and disputed capture IDs; get invoice returns the ID, status, amount, invoice number and recipient emails; transaction search returns each transaction's ID, status, amount and initiation time, for a date range of at most 31 days
+- [x] A malformed ID, or a range over 31 days or with an unreadable date, is refused as `invalid_request` before any call
+- [x] A 404, a 403 and a 5xx become `PayPalError`s with PayPal's name, issues and debug ID; GETs retry as the client already does
+- [x] An amount in a currency other than USD or KES makes the record unreadable (`invalid_response`), never a guessed figure
+- [x] No captured request, error or return value holds the fake secret or access token
 Notes:
 
 ## T-003: Normalize the dispute tools, and two new reason codes

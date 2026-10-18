@@ -1,0 +1,75 @@
+{
+  "id": "INV2-Z56S-5LLA-Q52L-CPZ5",
+  "status": "SENT",
+  "detail": {
+    "invoice_number": "KIK-INV-0042",
+    "reference": "kik-1021",
+    "invoice_date": "2026-10-15",
+    "currency_code": "USD",
+    "note": "Thank you for your order.",
+    "payment_term": {
+      "term_type": "NET_10",
+      "due_date": "2026-10-25"
+    },
+    "metadata": {
+      "create_time": "2026-10-15T08:01:12Z",
+      "last_update_time": "2026-10-15T08:04:40Z",
+      "recipient_view_url": "https://www.sandbox.paypal.com/invoice/p/#Z56S5LLAQ52LCPZ5"
+    }
+  },
+  "invoicer": {
+    "name": {
+      "given_name": "Kikapu",
+      "surname": "Studio"
+    },
+    "email_address": "seller-kikapu@example.com"
+  },
+  "primary_recipients": [
+    {
+      "billing_info": {
+        "name": {
+          "given_name": "Amina",
+          "surname": "Otieno"
+        },
+        "email_address": "amina.buyer@example.com"
+      }
+    }
+  ],
+  "additional_recipients": [
+    {
+      "email_address": "accounts@example.com"
+    }
+  ],
+  "items": [
+    {
+      "name": "Woven basket, large",
+      "quantity": "2",
+      "unit_amount": {
+        "currency_code": "USD",
+        "value": "24.00"
+      },
+      "unit_of_measure": "QUANTITY"
+    }
+  ],
+  "amount": {
+    "currency_code": "USD",
+    "value": "48.00",
+    "breakdown": {
+      "item_total": {
+        "currency_code": "USD",
+        "value": "48.00"
+      }
+    }
+  },
+  "due_amount": {
+    "currency_code": "USD",
+    "value": "48.00"
+  },
+  "links": [
+    {
+      "href": "https://api-m.sandbox.paypal.com/v2/invoicing/invoices/INV2-Z56S-5LLA-Q52L-CPZ5",
+      "rel": "self",
+      "method": "GET"
+    }
+  ]
+}

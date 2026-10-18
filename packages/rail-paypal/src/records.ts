@@ -238,6 +238,149 @@ export const disputesPageSchema = z
     next: page.links?.find((link) => link.rel === "next")?.href ?? null,
   }));
 
+// One dispute read by its ID: its amount and the captures it disputes (the seller-side
+// transaction IDs). A disputed transaction with no seller-side ID names no capture.
+export type PayPalDisputeDetail = {
+  id: string;
+  status: string;
+  amount: Money;
+  captureIds: string[];
+};
+
+export const disputeDetailSchema = z
+  .object({
+    dispute_id: text,
+    status: text,
+    dispute_amount: moneySchema,
+    disputed_transactions: z
+      .array(z.object({ seller_transaction_id: z.string().optional() }))
+      .optional(),
+  })
+  .transform(
+    (dispute): PayPalDisputeDetail => ({
+      id: dispute.dispute_id,
+      status: dispute.status,
+      amount: dispute.dispute_amount,
+      captureIds: (dispute.disputed_transactions ?? []).flatMap((transaction) =>
+        transaction.seller_transaction_id ? [transaction.seller_transaction_id] : [],
+      ),
+    }),
+  );
+
+// One invoice: its total, number and every recipient's email, primary recipients first.
+export type PayPalInvoice = {
+  id: string;
+  status: string;
+  amount: Money;
+  invoiceNumber: string | null;
+  recipientEmails: string[];
+};
+
+// PayPal documents an additional recipient as an email address object; a bare string is read
+// the same way.
+const additionalRecipientSchema = z.union([
+  z.string(),
+  z.object({ email_address: z.string().optional() }),
+]);
+
+export const invoiceSchema = z
+  .object({
+    id: text,
+    status: text,
+    amount: moneySchema,
+    detail: z.object({ invoice_number: z.string().optional() }).optional(),
+    primary_recipients: z
+      .array(
+        z.object({
+          billing_info: z.object({ email_address: z.string().optional() }).optional(),
+        }),
+      )
+      .optional(),
+    additional_recipients: z.array(additionalRecipientSchema).optional(),
+  })
+  .transform((invoice): PayPalInvoice => {
+    const primary = (invoice.primary_recipients ?? []).map((r) => r.billing_info?.email_address);
+    const additional = (invoice.additional_recipients ?? []).map((r) =>
+      typeof r === "string" ? r : r.email_address,
+    );
+    return {
+      id: invoice.id,
+      status: invoice.status,
+      amount: invoice.amount,
+      invoiceNumber: invoice.detail?.invoice_number || null,
+      recipientEmails: [...primary, ...additional].filter((email): email is string => !!email),
+    };
+  });
+
+// One transaction from Transaction Search. Its status is PayPal's one-letter code (D, P, S, V).
+// The amount is unsigned; a negative amount on PayPal's side (money out) is a debit.
+export type PayPalTransaction = {
+  id: string;
+  status: string;
+  amount: Money;
+  direction: "credit" | "debit";
+  // ISO 8601 in UTC.
+  initiatedAt: string;
+};
+
+// A page of transactions. `complete` is false when PayPal has more pages than this one.
+export type PayPalTransactionPage = { transactions: PayPalTransaction[]; complete: boolean };
+
+const signedMoneySchema = z
+  .object({ currency_code: text, value: text })
+  .transform((amount, ctx): { money: Money; direction: "credit" | "debit" } => {
+    const debit = amount.value.startsWith("-");
+    const parsed = parseMoney(debit ? amount.value.slice(1) : amount.value, amount.currency_code);
+    if (parsed.ok) return { money: parsed.money, direction: debit ? "debit" : "credit" };
+    ctx.addIssue({ code: "custom", message: "Unreadable amount" });
+    return z.NEVER;
+  });
+
+// PayPal writes "2026-10-12T14:20:01+0000"; the offset gains its colon before parsing.
+const paypalTimeSchema = text.transform((time, ctx) => {
+  const iso = time.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
+  const parsed = z.iso.datetime({ offset: true }).safeParse(iso);
+  const ms = parsed.success ? Date.parse(iso) : Number.NaN;
+  if (Number.isNaN(ms)) {
+    ctx.addIssue({ code: "custom", message: "Unreadable time" });
+    return z.NEVER;
+  }
+  return new Date(ms).toISOString();
+});
+
+export const transactionPageSchema = z
+  .object({
+    transaction_details: z
+      .array(
+        z.object({
+          transaction_info: z.object({
+            transaction_id: text,
+            transaction_status: text,
+            transaction_amount: signedMoneySchema,
+            transaction_initiation_date: paypalTimeSchema,
+          }),
+        }),
+      )
+      .optional(),
+    page: z.number().int().optional(),
+    total_pages: z.number().int().optional(),
+    links: z.array(linkSchema).optional(),
+  })
+  .transform(
+    (page): PayPalTransactionPage => ({
+      transactions: (page.transaction_details ?? []).map(({ transaction_info: info }) => ({
+        id: info.transaction_id,
+        status: info.transaction_status,
+        amount: info.transaction_amount.money,
+        direction: info.transaction_amount.direction,
+        initiatedAt: info.transaction_initiation_date,
+      })),
+      complete:
+        (page.total_pages ?? 0) <= (page.page ?? 1) &&
+        !page.links?.some((link) => link.rel === "next"),
+    }),
+  );
+
 // What PayPal says of a webhook's signature. Only SUCCESS is a pass.
 export type WebhookVerification = "pass" | "fail";
 

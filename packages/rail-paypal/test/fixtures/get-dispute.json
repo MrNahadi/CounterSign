@@ -1,0 +1,56 @@
+{
+  "dispute_id": "PP-R-NKG-10049671",
+  "create_time": "2026-10-16T09:12:44.000Z",
+  "update_time": "2026-10-17T11:03:10.000Z",
+  "disputed_transactions": [
+    {
+      "buyer_transaction_id": "2VK09781LF1442032",
+      "seller_transaction_id": "8RH70421MV5531947",
+      "create_time": "2026-10-12T14:20:01.000Z",
+      "transaction_status": "COMPLETED",
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "18.00"
+      },
+      "invoice_number": "KIK-1013",
+      "custom": "kik-1013",
+      "buyer": {
+        "name": "Amina Otieno"
+      },
+      "seller": {
+        "email": "seller-kikapu@example.com",
+        "merchant_id": "8XKZQ5S4WWDUA",
+        "name": "Kikapu Studio"
+      }
+    }
+  ],
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+  "status": "WAITING_FOR_SELLER_RESPONSE",
+  "dispute_amount": {
+    "currency_code": "USD",
+    "value": "18.00"
+  },
+  "dispute_outcome": null,
+  "dispute_life_cycle_stage": "INQUIRY",
+  "dispute_channel": "INTERNAL",
+  "messages": [
+    {
+      "posted_by": "BUYER",
+      "time_posted": "2026-10-16T09:12:44.000Z",
+      "content": "The basket never arrived."
+    }
+  ],
+  "seller_response_due_date": "2026-10-26T09:12:44.000Z",
+  "links": [
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-R-NKG-10049671",
+      "rel": "self",
+      "method": "GET"
+    },
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-R-NKG-10049671/accept-claim",
+      "rel": "accept_claim",
+      "method": "POST"
+    }
+  ]
+}

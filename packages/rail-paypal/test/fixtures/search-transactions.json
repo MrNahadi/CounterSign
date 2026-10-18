@@ -1,0 +1,56 @@
+{
+  "transaction_details": [
+    {
+      "transaction_info": {
+        "paypal_account_id": "6STWC2LSUYYYE",
+        "transaction_id": "8RH70421MV5531947",
+        "transaction_event_code": "T0006",
+        "transaction_initiation_date": "2026-10-12T14:20:01+0000",
+        "transaction_updated_date": "2026-10-12T14:20:01+0000",
+        "transaction_amount": {
+          "currency_code": "USD",
+          "value": "18.00"
+        },
+        "fee_amount": {
+          "currency_code": "USD",
+          "value": "-0.92"
+        },
+        "transaction_status": "S",
+        "invoice_id": "KIK-1013",
+        "custom_field": "kik-1013",
+        "protection_eligibility": "01"
+      }
+    },
+    {
+      "transaction_info": {
+        "paypal_account_id": "6STWC2LSUYYYE",
+        "transaction_id": "1JU08902781691411",
+        "paypal_reference_id": "8RH70421MV5531947",
+        "paypal_reference_id_type": "TXN",
+        "transaction_event_code": "T1107",
+        "transaction_initiation_date": "2026-10-14T10:02:33+0000",
+        "transaction_updated_date": "2026-10-14T10:02:33+0000",
+        "transaction_amount": {
+          "currency_code": "USD",
+          "value": "-18.00"
+        },
+        "transaction_status": "S",
+        "invoice_id": "KIK-1013"
+      }
+    }
+  ],
+  "account_number": "8XKZQ5S4WWDUA",
+  "start_date": "2026-10-01T00:00:00+0000",
+  "end_date": "2026-10-18T00:00:00+0000",
+  "last_refreshed_datetime": "2026-10-17T21:59:59+0000",
+  "page": 1,
+  "total_items": 2,
+  "total_pages": 1,
+  "links": [
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/reporting/transactions?start_date=2026-10-01T00%3A00%3A00.000Z&end_date=2026-10-18T00%3A00%3A00.000Z&fields=transaction_info&page_size=100&page=1",
+      "rel": "self",
+      "method": "GET"
+    }
+  ]
+}

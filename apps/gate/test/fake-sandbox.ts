@@ -1,9 +1,12 @@
 import type {
   PayPalCapture,
   PayPalClient,
+  PayPalDisputeDetail,
   PayPalDisputeList,
+  PayPalInvoice,
   PayPalOrder,
   PayPalRefund,
+  PayPalTransaction,
 } from "@countersign/rail-paypal";
 import { PayPalError } from "@countersign/rail-paypal";
 
@@ -16,6 +19,11 @@ export type FakeSandbox = PayPalClient & {
   captures: Map<string, PayPalCapture>;
   orders: Map<string, PayPalOrder>;
   disputes: Map<string, PayPalDisputeList>;
+  // Disputes read by their own ID, as get dispute returns them.
+  disputeDetails: Map<string, PayPalDisputeDetail>;
+  invoices: Map<string, PayPalInvoice>;
+  // Every transaction search answers with these, filtered by transaction ID when one is given.
+  transactions: PayPalTransaction[];
   refunds: Map<string, PayPalRefund>;
   // Thrown by the named call instead of answering.
   failures: Partial<Record<FakeCall, unknown>>;
@@ -43,6 +51,9 @@ export function createFakeSandbox(): FakeSandbox {
     captures: new Map(),
     orders: new Map(),
     disputes: new Map(),
+    disputeDetails: new Map(),
+    invoices: new Map(),
+    transactions: [],
     refunds: new Map(),
     failures: {},
     lostResponses: {},
@@ -73,6 +84,25 @@ export function createFakeSandbox(): FakeSandbox {
     async listDisputes(captureId) {
       enter("listDisputes", captureId);
       return structuredClone(sandbox.disputes.get(captureId) ?? { disputes: [], complete: true });
+    },
+    async getDispute(disputeId) {
+      enter("getDispute", disputeId);
+      const dispute = sandbox.disputeDetails.get(disputeId);
+      if (!dispute) throw notFound("get-dispute");
+      return structuredClone(dispute);
+    },
+    async getInvoice(invoiceId) {
+      enter("getInvoice", invoiceId);
+      const invoice = sandbox.invoices.get(invoiceId);
+      if (!invoice) throw notFound("get-invoice");
+      return structuredClone(invoice);
+    },
+    async searchTransactions(input) {
+      enter("searchTransactions", input);
+      const transactions = sandbox.transactions.filter(
+        (t) => input.transactionId === undefined || t.id === input.transactionId,
+      );
+      return structuredClone({ transactions, complete: true });
     },
     async refundCapture(input) {
       enter("refundCapture", input);
