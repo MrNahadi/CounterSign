@@ -556,6 +556,54 @@ describe("proposeRefund: executing once, and replays", () => {
     },
   );
 
+  it("re-sends nothing for a refused intent once another intent has executed on its capture", async () => {
+    const world = beat4World();
+    await seedRequest(later(-HOUR), "failed");
+    const otherId = `int_${"b".repeat(24)}`;
+    const other = await appendEntries(db, [
+      executionRequestedEntry({
+        at: later(-30 * 60_000).toISOString(),
+        intentId: otherId,
+        intentHash: "b".repeat(64),
+        principal: PRINCIPAL,
+        rail: "paypal",
+        action: "paypal.refund",
+        captureId: "CAP-1035",
+        amount: usd(500),
+        decisionSeq: 1,
+      }),
+      executionResultEntry({
+        at: later(-30 * 60_000).toISOString(),
+        intentId: otherId,
+        requestSeq: 3,
+        outcome: "executed",
+        refund: { id: "OTHERREFUND00001", status: "COMPLETED" },
+      }),
+    ]);
+    if (!other.ok) throw new Error(other.rejection.detail);
+    const requestsBefore = (await ofType("execution.requested")).length;
+
+    const result = decided(await propose(world));
+
+    expect(result.response.decision).toBe("denied");
+    expect(result.record.reasons.map((reason) => reason.code)).toEqual(["DUPLICATE_REFUND"]);
+    expect(result.record.reasons[0]?.detail).toContain(otherId);
+    expect(result.execution).toBeNull();
+    expect(refundCalls(world)).toHaveLength(0);
+    expect((await ofType("execution.requested")).length).toBe(requestsBefore);
+    expect((await verifyLog(db)).intact).toBe(true);
+  });
+
+  it("re-sends a refused intent within 6 hours when nothing else has executed on its capture", async () => {
+    const world = beat4World();
+    await seedRequest(later(-HOUR), "failed");
+
+    const result = replayed(await propose(world));
+
+    expect(result.execution).toMatchObject({ outcome: "executed", sent: true });
+    expect(refundCalls(world)).toHaveLength(1);
+  });
+
   it("logs a 4xx refusal as failed, with PayPal's name, issues and debug ID", async () => {
     const world = beat4World();
     world.rail.failures.refundCapture = new PayPalError({

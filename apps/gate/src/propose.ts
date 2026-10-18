@@ -226,6 +226,24 @@ async function answerReplay(
         "Check the refund with npm run reconcile.",
     });
   }
+  // A refused intent stops counting against its capture, so another intent may have executed on
+  // it since. Re-sending then could pay twice, so it's denied like any second intent on the
+  // capture (brief §10 trade-off 1).
+  if (trail.executed === null && trail.lastOutcome === "failed") {
+    const executions = ctx.records.executions;
+    const other = executions?.find(
+      (execution) => execution.captureId === first.captureId && execution.id !== first.intentId,
+    );
+    if (executions === undefined || other !== undefined) {
+      return decideAndRecord(log, ctx, {
+        code: "DUPLICATE_REFUND",
+        detail:
+          `Intent ${first.intentId} was refused (entry #${firstRequest.seq}), and ` +
+          `${other === undefined ? "the execution history can't be read" : `intent ${other.id} has since executed on capture ${first.captureId}`}, ` +
+          "so it isn't sent again. Check the refund with npm run reconcile.",
+      });
+    }
+  }
   const request = await log.append(
     executionRequestedEntry({
       at: ctx.now.toISOString(),
