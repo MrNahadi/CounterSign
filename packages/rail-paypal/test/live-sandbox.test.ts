@@ -171,6 +171,59 @@ describe.skipIf(!live.success)(`live PayPal sandbox (${needs})`, () => {
     });
   }, 60_000);
 
+  // Made-up IDs read as 404s. Asserted from PayPal's documented answer for an unknown
+  // dispute or invoice; if the sandbox answers another status, change it here and say so.
+  it("reads a made-up dispute and a made-up invoice as 404s", async () => {
+    await guarded(async () => {
+      const paypal = client();
+      const dispute = await paypal.getDispute(`PP-D-${runId.toUpperCase()}`).then(
+        () => null,
+        (caught: unknown) => caught,
+      );
+      expect(dispute).toBeInstanceOf(PayPalError);
+      expect((dispute as PayPalError).status).toBe(404);
+
+      const invoice = await paypal.getInvoice(`INV2-${runId.toUpperCase()}`).then(
+        () => null,
+        (caught: unknown) => caught,
+      );
+      expect(invoice).toBeInstanceOf(PayPalError);
+      expect((invoice as PayPalError).status).toBe(404);
+    });
+  }, 60_000);
+
+  // The sandbox app needs the Transaction Search permission. Without it PayPal answers 403,
+  // which is an ordinary read problem, so that answer passes and says why.
+  it("searches the last day of transactions, or gets a 403 when the app lacks Transaction Search", async () => {
+    await guarded(async () => {
+      const end = new Date();
+      const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+      const outcome = await client()
+        .searchTransactions({ startDate: start.toISOString(), endDate: end.toISOString() })
+        .then(
+          (page) => page,
+          (caught: unknown) => caught,
+        );
+      if (outcome instanceof PayPalError) {
+        // The app lacks Transaction Search.
+        expect(outcome.status).toBe(403);
+        return;
+      }
+      expect(Array.isArray((outcome as { transactions: unknown }).transactions)).toBe(true);
+      expect(typeof (outcome as { complete: unknown }).complete).toBe("boolean");
+      expectNoSecrets(outcome);
+    });
+  }, 60_000);
+
+  it("lists the merchant's disputes, one page", async () => {
+    await guarded(async () => {
+      const page = await client().listMerchantDisputes({ pageSize: 5 });
+      expect(Array.isArray(page.disputes)).toBe(true);
+      expect(page.disputes.length).toBeLessThanOrEqual(5);
+      expectNoSecrets(page);
+    });
+  }, 60_000);
+
   it.skipIf(!vault)(
     `refunds one $1.00 vault capture twice with one request ID (needs ${VAULT_ENV_NAME})`,
     async () => {

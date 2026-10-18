@@ -147,15 +147,15 @@ Notes:
 
 ## T-011: Live checks for the new rail calls
 
-Status: open
+Status: done
 Blocked by: T-002
 Tier: simple
 Slice: Under `LIVE=1`, the sandbox's answers to get dispute, get invoice and transaction search parse with the rail client's schemas.
 Test seam: `packages/rail-paypal/test/live-sandbox.test.ts` (runs only with `LIVE=1` and the PayPal variables set)
 Acceptance:
-- [ ] Get dispute and get invoice of made-up IDs give `PayPalError`s with HTTP 404 (or the status the sandbox really answers, asserted and noted)
-- [ ] Transaction search over the last day parses, or the test asserts the sandbox's 403 and says the app lacks Transaction Search
-- [ ] Without `LIVE=1` the checks are skipped, and `npm test` stays green with no credentials
+- [x] Get dispute and get invoice of made-up IDs give `PayPalError`s with HTTP 404 (or the status the sandbox really answers, asserted and noted)
+- [x] Transaction search over the last day parses, or the test asserts the sandbox's 403 and says the app lacks Transaction Search
+- [x] Without `LIVE=1` the checks are skipped, and `npm test` stays green with no credentials
 Notes:
 
 ## T-012: README: connect an agent

@@ -53,3 +53,7 @@
 
 ### For the human
 - T-010 added `seed_order` to the proposal file: the requirements want "a pay_order on a seed order" but also say only refunds name an `order`, and the sandbox picks the PayPal order ID, so the file can't hold it. `seed_order` (pay_order only) looks it up in `seed_orders`. No answerer sub-agent could be spawned from this iteration, so this was decided in-loop as a technical choice; overturn if you prefer another shape.
+
+## T-011 (done)
+- `packages/rail-paypal/test/live-sandbox.test.ts` gained three LIVE=1 checks: made-up dispute and invoice IDs give `PayPalError` 404; last-day `searchTransactions` parses or passes on a 403 (app lacks Transaction Search); `listMerchantDisputes({ pageSize: 5 })` parses.
+- Gotcha: the loop can't reach the sandbox, so the 404 statuses are PayPal's documented answers, unverified live. If the sandbox answers 400 for the malformed dispute ID, change the assertion and note it.
