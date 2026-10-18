@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDatabaseShipmentStore } from "@countersign/carrier-mock";
-import { openPgliteDirectory, seedOrders, sql } from "@countersign/db";
+import { openPgliteDirectory, readTicket, seedOrders, sql, writeTicket } from "@countersign/db";
 import { runLedgerCli } from "@countersign/ledger";
 import { REASONS, type ShipmentStatus } from "@countersign/mandate";
 import { SANDBOX_BASE_URL } from "@countersign/rail-paypal";
@@ -177,6 +177,19 @@ describe("npm run propose on the demo files", { timeout: SLOW }, () => {
     expect(again).toContain("  Refund    FAKEREFUND000001 COMPLETED\n");
     expect(rail.calls.filter((call) => call.call === "refundCapture")).toHaveLength(1);
     expect((await verify(dir)).exitCode).toBe(0);
+
+    // The file's ticket is in the store, labelled simulated, and the second run kept it.
+    const handle = await openPgliteDirectory(dir);
+    try {
+      expect(await readTicket(handle.db, "TKT-1035")).toMatchObject({
+        id: "TKT-1035",
+        senderEmail: BUYER_EMAIL.A,
+        attachments: [],
+        simulated: true,
+      });
+    } finally {
+      await handle.close();
+    }
   });
 
   // KIK-1040 is in transit in the seed catalog, so no rule covers it: denied before the payer
@@ -300,6 +313,30 @@ describe("npm run propose when it can't run", { timeout: SLOW }, () => {
     const result = await runPropose([path, "--pglite", dir], ENV, options(rail));
     expect(result.exitCode).toBe(EXIT_CANT_RUN);
     expect(result.stderr).toBe("Buyer A isn't seeded. Run npm run seed first.\n");
+  });
+
+  it("exits 2 when a file ticket is already stored with another sender, deciding nothing", async () => {
+    const { dir, rail } = await seededWorld();
+    const handle = await openPgliteDirectory(dir);
+    await writeTicket(handle.db, {
+      id: "TKT-1035",
+      channel: "email",
+      senderEmail: "someone.else@example.com",
+      senderPhone: null,
+      subject: null,
+      body: "Simulated ticket.",
+      attachments: [],
+      receivedAt: "2026-10-17T08:00:00+03:00",
+      simulated: true,
+    });
+    await handle.close();
+    const result = await runPropose([beat4, "--pglite", dir], ENV, options(rail));
+    expect(result.exitCode).toBe(EXIT_CANT_RUN);
+    expect(result.stderr).toBe(
+      "Ticket TKT-1035 is already stored with another sender or attachments.\n",
+    );
+    expect((await verify(dir)).stdout).toContain("0 entries");
+    expect(rail.calls).toHaveLength(0);
   });
 
   it("exits 2 for a proposal file that fails validation", async () => {

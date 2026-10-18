@@ -1,8 +1,9 @@
-// The propose CLI: runs every proposal in a proposal file through proposeRefund() against the
-// PayPal sandbox, the carrier mock and the audit log, then prints each decision with its trace and
-// what executed, or the agent responses with --json. Order numbers and senders are resolved from
+// The propose CLI: runs every proposal in a proposal file through propose() against the PayPal
+// sandbox, the carrier mock and the audit log, then prints each decision with its trace and what
+// executed, or the agent responses with --json. Order numbers and senders are resolved from
 // `seed_orders`. Returns the output and exit code rather than writing them, so tests can call it
-// directly. The ticket is simulated in phase 6 (brief §8: simulated parts are labeled).
+// directly. Each file ticket is simulated: the CLI writes it to the ticket store, labelled
+// simulated, before proposing, as Resolve will (ADR 0029; brief §8: simulated parts are labeled).
 
 import { dirname, resolve } from "node:path";
 import { createDatabaseShipmentStore, createMockCarrier } from "@countersign/carrier-mock";
@@ -16,10 +17,13 @@ import {
   hasAuditLogTable,
   openDatabase,
   openFailure,
+  readTicket,
   resolveDatabaseTarget,
   seedOrders,
+  type Ticket,
   takePgliteOption,
   targetName,
+  writeTicket,
 } from "@countersign/db";
 import {
   DECISIONS,
@@ -35,11 +39,10 @@ import {
   type PayPalClient,
   parsePayPalEnv,
 } from "@countersign/rail-paypal";
-import { CALLS, type TicketSnapshot } from "@countersign/verifiers";
 import { z } from "zod";
 import { readJson } from "./case-file";
 import { type CliResult, decisionLines } from "./decide-cli";
-import { type ProposeResult, proposeRefund } from "./propose";
+import { type ProposeResult, propose } from "./propose";
 
 export const PROPOSE_USAGE = "Usage: npm run propose -- <proposal file> [--json] [--pglite <dir>]";
 
@@ -142,7 +145,10 @@ function paypalProblem(env: Environment): string | null {
   return sentences.join(" ");
 }
 
-type Resolved = { proposal: unknown; ticket: TicketSnapshot; expect: Expected; label: string };
+// The simulated ticket's fields that come from the file; the rest are filled in when it's written.
+type FileTicket = Pick<Ticket, "id" | "senderEmail" | "attachments">;
+
+type Resolved = { proposal: unknown; ticket: FileTicket; expect: Expected; label: string };
 
 const notSeeded = (what: string) => `${what} isn't seeded. Run npm run seed first.`;
 
@@ -178,8 +184,7 @@ async function resolveProposal(
       item.order === undefined ? `The payer of capture ${captureId}` : `Order ${item.order}`;
     return { ok: false, error: sender.error ?? notSeeded(what) };
   }
-  const ticket: TicketSnapshot = {
-    call: CALLS.ticket,
+  const ticket: FileTicket = {
     id: item.ticket.id,
     senderEmail: sender.email,
     attachments: item.ticket.attachments,
@@ -199,6 +204,43 @@ async function resolveProposal(
       label: `${label}, ticket ${item.ticket.id} from ${sender.email} (simulated)`,
     },
   };
+}
+
+const SIMULATED_BODY = "Simulated ticket from a proposal file.";
+
+const sameTicket = (stored: Ticket, ticket: FileTicket): boolean =>
+  stored.senderEmail === ticket.senderEmail &&
+  stored.attachments.length === ticket.attachments.length &&
+  stored.attachments.every(
+    (item, i) =>
+      item.id === ticket.attachments[i]?.id &&
+      item.contentType === ticket.attachments[i]?.contentType,
+  );
+
+// Writes a file ticket to the store, labelled simulated. A ticket already stored with the same
+// sender and attachments, from an earlier run or an earlier proposal, is kept as it is, since a
+// ticket is never changed once written; one stored with another sender or attachments can't run.
+async function storeTicket(
+  db: Database,
+  ticket: FileTicket,
+  receivedAt: Date,
+): Promise<string | null> {
+  const stored = await readTicket(db, ticket.id);
+  if (stored !== null) {
+    return sameTicket(stored, ticket)
+      ? null
+      : `Ticket ${ticket.id} is already stored with another sender or attachments.`;
+  }
+  await writeTicket(db, {
+    ...ticket,
+    channel: "email",
+    senderPhone: null,
+    subject: null,
+    body: SIMULATED_BODY,
+    receivedAt: receivedAt.toISOString(),
+    simulated: true,
+  });
+  return null;
 }
 
 async function senderEmail(
@@ -398,14 +440,27 @@ export async function runPropose(
       resolved.push(one.resolved);
     }
 
+    // Then every simulated ticket is stored, before anything is decided.
+    const received = now();
+    for (const item of resolved) {
+      let conflict: string | null;
+      try {
+        conflict = await storeTicket(db, item.ticket, received);
+      } catch (error) {
+        return cantRun(
+          `Couldn't store ticket ${item.ticket.id} at ${targetName(target)}: ${failureReason(error, target)}. Run npm run db:migrate if the tickets table is missing.`,
+        );
+      }
+      if (conflict !== null) return cantRun(conflict);
+    }
+
     const carrier = createMockCarrier(createDatabaseShipmentStore(db));
     const ran: Ran[] = [];
     for (const [index, item] of resolved.entries()) {
-      const result = await proposeRefund({
+      const result = await propose({
         mandate: file.loaded.mandate,
         principal: file.loaded.file.principal,
         proposal: item.proposal,
-        ticket: item.ticket,
         now: now(),
         rail,
         carrier,

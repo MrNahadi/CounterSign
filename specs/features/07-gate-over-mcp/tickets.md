@@ -75,17 +75,17 @@ Notes:
 
 ## T-006: propose() for every guarded action, reading tickets from the store
 
-Status: open
+Status: done
 Blocked by: T-002, T-004, T-005
 Tier: standard
 Slice: Any guarded PayPal proposal is decided on its live records and the stored ticket, recorded in the audit log, and, only for an allowed refund, executed as in phase 6.
 Test seam: the gate's propose function in `apps/gate/src/propose.ts`, with the fake sandbox and a PGlite database
 Acceptance:
-- [ ] Live reads follow the action: a refund reads what phase 6 reads; dispute tools read the dispute, `send_invoice` the invoice, `pay_order` the order, `create_payout` nothing; every action reads its ticket from the store; a failed read leaves its snapshot out and adds one read problem
-- [ ] The caller-supplied ticket input is gone; a refund whose ticket ID isn't stored has `ticket.from_payer` unknown and is denied, and beat 4 with its stored payer ticket is allowed and refunded once, as in phase 6
-- [ ] A dispute, invoice, capture or payout proposal writes a decision entry and no execution entries, and the fake sandbox records no money-moving call; `ledger verify` passes
-- [ ] Replays still apply to refunds only, and every phase 6 propose, replay and execution test passes
-- [ ] The propose CLI writes each file ticket to the store (simulated) before proposing, and its beat 3, 4 and 5 tests pass unchanged
+- [x] Live reads follow the action: a refund reads what phase 6 reads; dispute tools read the dispute, `send_invoice` the invoice, `pay_order` the order, `create_payout` nothing; every action reads its ticket from the store; a failed read leaves its snapshot out and adds one read problem
+- [x] The caller-supplied ticket input is gone; a refund whose ticket ID isn't stored has `ticket.from_payer` unknown and is denied, and beat 4 with its stored payer ticket is allowed and refunded once, as in phase 6
+- [x] A dispute, invoice, capture or payout proposal writes a decision entry and no execution entries, and the fake sandbox records no money-moving call; `ledger verify` passes
+- [x] Replays still apply to refunds only, and every phase 6 propose, replay and execution test passes
+- [x] The propose CLI writes each file ticket to the store (simulated) before proposing, and its beat 3, 4 and 5 tests pass unchanged
 Notes:
 
 ## T-007: Principal keys

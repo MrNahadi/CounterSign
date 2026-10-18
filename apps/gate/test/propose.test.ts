@@ -8,6 +8,7 @@ import {
   type Database,
   type DatabaseHandle,
   sql,
+  writeTicket,
 } from "@countersign/db";
 import { appendEntries, verifyLog } from "@countersign/ledger";
 import { hashIntent, parseMandate } from "@countersign/mandate";
@@ -20,7 +21,7 @@ import {
   executionRequestedEntry,
   executionResultEntry,
 } from "../src/execution-log";
-import { type ProposeResult, proposeRefund } from "../src/propose";
+import { type ProposeResult, propose as runPropose } from "../src/propose";
 import { mandateRef } from "../src/record";
 import { createFakeSandbox, httpError } from "./fake-sandbox";
 
@@ -88,6 +89,20 @@ const ticket = (id: string, senderEmail: string): TicketSnapshot => ({
   attachments: [],
 });
 
+// Writes a ticket snapshot's ticket to the store, as Resolve or the propose CLI would.
+const storeTicket = (db: Database, snapshot: TicketSnapshot) =>
+  writeTicket(db, {
+    id: snapshot.id,
+    channel: "email",
+    senderEmail: snapshot.senderEmail,
+    senderPhone: null,
+    subject: null,
+    body: "Simulated ticket.",
+    attachments: [...snapshot.attachments],
+    receivedAt: "2026-10-17T08:00:00+03:00",
+    simulated: true,
+  });
+
 const refund = (n: number, value: string | null, ticketId: string) => ({
   tool: "create_refund",
   args: {
@@ -102,7 +117,7 @@ const beat4World = () =>
   sandboxWith([{ n: 1035, minor: 1800, payerEmail: BEAT4_PAYER, shipment: "stalled_10d" }]);
 const beat4Ticket = ticket("TKT-1035", BEAT4_PAYER);
 
-describe("proposeRefund: deciding on live records under the ledger lock", () => {
+describe("propose: deciding on live records under the ledger lock", () => {
   let handle: DatabaseHandle;
   let db: Database;
 
@@ -112,7 +127,7 @@ describe("proposeRefund: deciding on live records under the ledger lock", () => 
   }, SLOW);
 
   beforeEach(async () => {
-    await db.execute(sql`TRUNCATE audit_log`);
+    await db.execute(sql`TRUNCATE audit_log, tickets`);
   });
 
   afterAll(async () => {
@@ -123,21 +138,22 @@ describe("proposeRefund: deciding on live records under the ledger lock", () => 
   const requests = async () =>
     (await entries()).filter((row) => row.entryType === "execution.requested");
 
-  const propose = (
+  const propose = async (
     world: ReturnType<typeof sandboxWith>,
     proposal: unknown,
     proposalTicket: TicketSnapshot,
-  ) =>
-    proposeRefund({
+  ) => {
+    await storeTicket(db, proposalTicket);
+    return runPropose({
       mandate,
       principal: PRINCIPAL,
       proposal,
-      ticket: proposalTicket,
       now: NOW,
       rail: world.rail,
       carrier: world.carrier,
       db,
     });
+  };
 
   it("gives beat 3's five proposals four TICKET_NOT_FROM_PAYER denials and one SHIPMENT_DELIVERED step-up, each one decision entry and no request", async () => {
     const world = sandboxWith([
@@ -298,7 +314,7 @@ describe("proposeRefund: deciding on live records under the ledger lock", () => 
   });
 });
 
-describe("proposeRefund: executing once, and replays", () => {
+describe("propose: executing once, and replays", () => {
   let handle: DatabaseHandle;
   let db: Database;
 
@@ -308,7 +324,7 @@ describe("proposeRefund: executing once, and replays", () => {
   }, SLOW);
 
   beforeEach(async () => {
-    await db.execute(sql`TRUNCATE audit_log`);
+    await db.execute(sql`TRUNCATE audit_log, tickets`);
   });
 
   afterAll(async () => {
@@ -340,18 +356,19 @@ describe("proposeRefund: executing once, and replays", () => {
   const refundCalls = (world: ReturnType<typeof sandboxWith>) =>
     world.rail.calls.filter((call) => call.call === "refundCapture");
 
-  const propose = (world: ReturnType<typeof sandboxWith>, now = NOW) =>
-    proposeRefund({
+  const propose = async (world: ReturnType<typeof sandboxWith>, now = NOW) => {
+    await storeTicket(db, beat4Ticket);
+    return runPropose({
       mandate,
       principal: PRINCIPAL,
       proposal: beat4,
-      ticket: beat4Ticket,
       now,
       rail: world.rail,
       carrier: world.carrier,
       db,
       clock: () => now,
     });
+  };
 
   const decided = (result: ProposeResult) => {
     if (!result.ok || result.replay) throw new Error("not decided");

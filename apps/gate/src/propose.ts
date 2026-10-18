@@ -1,18 +1,20 @@
-// proposeRefund(): one refund proposal decided on live records and the execution history, then
-// executed once (brief §6 steps 1 to 6, ADR 0026). Live reads happen first, outside any
-// transaction. Then one audit-log transaction, under the ledger's lock, reads the history,
-// answers a replay or decides, and writes the decision entry and, on allow, the
-// `execution.requested` entry, so a second intent on the same capture always sees the first
-// one's request. The refund is sent after that commits, and its result is appended in its own
-// transaction. No AI, and the lock is never held across a network call.
+// propose(): one guarded PayPal proposal decided on live records, the stored ticket and the
+// execution history, and, only for an allowed refund, executed once (brief §6 steps 1 to 6, ADRs
+// 0026 and 0029). Live reads happen first, outside any transaction: the records the action
+// targets, and the ticket its justification names, from the ticket store. Then one audit-log
+// transaction, under the ledger's lock, reads the history, answers a refund's replay or decides,
+// and writes the decision entry and, for an allowed refund, the `execution.requested` entry, so a
+// second intent on the same capture always sees the first one's request. The refund is sent after
+// that commits, and its result is appended in its own transaction. Every other action is only
+// decided and recorded: decide() denies an allow for it ACTION_UNAVAILABLE. No AI, and the lock
+// is never held across a network call.
 
 import type { CarrierAdapter } from "@countersign/carrier-mock";
 import type { Database } from "@countersign/db";
 import { type AuditLogWriter, appendEntry, type ChainRow, withAuditLog } from "@countersign/ledger";
-import { hashIntent, IdSchema, type Mandate, type Money, REASONS } from "@countersign/mandate";
+import { hashIntent, type Mandate, type Money, REASONS } from "@countersign/mandate";
 import { type PayPalClient, PayPalError, type PayPalRefund } from "@countersign/rail-paypal";
-import type { RecordSnapshots, TicketSnapshot } from "@countersign/verifiers";
-import { z } from "zod";
+import type { RecordSnapshots } from "@countersign/verifiers";
 import { type AgentResponse, type DecisionRecord, decide } from "./decide";
 import {
   type ExecutionOutcome,
@@ -22,7 +24,7 @@ import {
   readExecutionHistory,
   readIntentRecord,
 } from "./execution-log";
-import { type ReadProblem, readLiveRecords } from "./live-records";
+import { type ReadProblem, readProposalRecords } from "./live-records";
 import { normalizeProposal } from "./proposal";
 import { appendDecision, type RecordProblem, recordingFailure } from "./record";
 
@@ -34,10 +36,8 @@ export type ProposeInput = {
   mandate: Mandate;
   // Who is proposing, from the agent's credentials, never from the proposal itself.
   principal: string;
-  // The proposal exactly as the agent sent it.
+  // The proposal exactly as the agent sent it. Its ticket is read from the ticket store.
   proposal: unknown;
-  // Simulated in phase 6, from Resolve in phase 8.
-  ticket?: TicketSnapshot;
   // The decision time, and the time the replay window is measured at.
   now: Date;
   // Built by the gate from its environment, never from the proposal.
@@ -98,15 +98,6 @@ export type ProposeResult =
     }
   // Recording failed, so nothing was written and nothing executes.
   | { ok: false; problem: RecordProblem; detail: string; problems: ReadProblem[] };
-
-// Only the capture ID is read before normalizing, to know which records to fetch. A proposal
-// without a readable one reads nothing, and normalizing denies it.
-const NamedCapture = z.object({ args: z.object({ capture_id: IdSchema }) });
-
-function captureOf(proposal: unknown): string | null {
-  const parsed = NamedCapture.safeParse(proposal);
-  return parsed.success ? parsed.data.args.capture_id : null;
-}
 
 // A refund to send once the transaction commits.
 type Send = {
@@ -362,20 +353,16 @@ async function sendRefund(
   return execution;
 }
 
-export async function proposeRefund(input: ProposeInput): Promise<ProposeResult> {
-  const { mandate, principal, proposal, ticket, now, rail, carrier, db } = input;
+export async function propose(input: ProposeInput): Promise<ProposeResult> {
+  const { mandate, principal, proposal, now, rail, carrier, db } = input;
   const clock = input.clock ?? (() => new Date());
 
-  // 1. Live records, outside the transaction.
-  const captureId = captureOf(proposal);
-  const live: { records: RecordSnapshots; problems: ReadProblem[] } =
-    captureId === null
-      ? { records: ticket ? { ticket } : {}, problems: [] }
-      : await readLiveRecords({ captureId, ticket, rail, carrier });
+  // 1. Live records and the ticket, outside the transaction.
+  const live = await readProposalRecords({ proposal, rail, carrier, db });
   const { problems } = live;
 
-  // 2. One transaction under the ledger's lock: history, then a replay's answer or a decision
-  // and, on allow, the request.
+  // 2. One transaction under the ledger's lock: history, then a refund replay's answer or a
+  // decision and, for an allowed refund, the request.
   let planned: Planned;
   try {
     planned = await withAuditLog(db, async (log): Promise<Planned> => {
@@ -393,7 +380,8 @@ export async function proposeRefund(input: ProposeInput): Promise<ProposeResult>
           mandateVersion: mandate.version,
           records,
         });
-        if (normalized.ok) {
+        // Replays apply to refunds only (ADR 0026); any other action is decided again.
+        if (normalized.ok && normalized.intent.action === "paypal.refund") {
           const { id, hash } = hashIntent(normalized.intent);
           const read = await readIntentRecord(log.tx, id);
           if (read.known && read.trail !== null) return answerReplay(log, ctx, read.trail, hash);

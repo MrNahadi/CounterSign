@@ -117,7 +117,6 @@ describe("reading live records", () => {
     const { rail, carrier } = stalledParcel();
     const { records, problems } = await readLiveRecords({
       captureId: CAPTURE,
-      ticket,
       rail,
       carrier,
     });
@@ -145,14 +144,15 @@ describe("reading live records", () => {
     expect(records.shipments).toEqual([
       { call: CALLS.carrier, id: TRACKING, status: "stalled_10d" },
     ]);
-    expect(records.ticket).toEqual(ticket);
+    expect(records.ticket).toBeUndefined();
     expect(rail.calls.map((call) => call.call)).toEqual(["getCapture", "getOrder", "listDisputes"]);
 
     const { record } = decide({
       mandate,
       principal: "support-agent",
       proposal: beat4Proposal,
-      records: { ...records, executions: [] },
+      // The ticket comes from the ticket store, which this test doesn't read.
+      records: { ...records, ticket, executions: [] },
       now: new Date("2026-10-17T09:00:00+03:00"),
     });
     expect(record.reasons).toEqual([]);
@@ -184,7 +184,6 @@ describe("reading live records", () => {
     ];
     const { records, problems } = await readLiveRecords({
       captureId: CAPTURE,
-      ticket,
       rail,
       carrier,
     });
@@ -204,7 +203,6 @@ describe("reading live records", () => {
     order.refunds = [{ id: "R1", status: "COMPLETED", amount: usd(300), captureId: null }];
     const { records, problems } = await readLiveRecords({
       captureId: CAPTURE,
-      ticket,
       rail,
       carrier,
     });
@@ -222,13 +220,11 @@ describe("failed reads", () => {
     rail.captures.clear();
     const { records, problems } = await readLiveRecords({
       captureId: CAPTURE,
-      ticket,
       rail,
       carrier,
     });
     expect(records.captures).toBeUndefined();
     expect(records.disputes).toHaveLength(1);
-    expect(records.ticket).toEqual(ticket);
     expect(problems).toHaveLength(1);
     expect(problems[0]?.call).toBe("get-capture");
     expect(problems[0]?.message).toContain("HTTP 404");
@@ -239,7 +235,6 @@ describe("failed reads", () => {
     rail.failures.getOrder = httpError("get-order", 500, "INTERNAL_SERVER_ERROR");
     const { records, problems } = await readLiveRecords({
       captureId: CAPTURE,
-      ticket,
       rail,
       carrier,
     });
@@ -256,7 +251,6 @@ describe("failed reads", () => {
     rail.disputes.set(CAPTURE, { disputes: [{ id: "PP-D-1", status: "OPEN" }], complete: false });
     const { records, problems } = await readLiveRecords({
       captureId: CAPTURE,
-      ticket,
       rail,
       carrier,
     });
@@ -275,7 +269,6 @@ describe("failed reads", () => {
     });
     const { records, problems } = await readLiveRecords({
       captureId: CAPTURE,
-      ticket,
       rail,
       carrier,
     });
@@ -292,7 +285,6 @@ describe("failed reads", () => {
     else shipments.set(TRACKING, stored);
     const { records, problems } = await readLiveRecords({
       captureId: CAPTURE,
-      ticket,
       rail,
       carrier,
     });
@@ -315,7 +307,6 @@ describe("failed reads", () => {
     };
     const { records, problems } = await readLiveRecords({
       captureId: CAPTURE,
-      ticket,
       rail,
       carrier,
     });
@@ -347,7 +338,6 @@ describe("carrier lookups", () => {
     shipments.set("TRKOTHER", shipment("TRKOTHER", "delivered"));
     const { records, problems } = await readLiveRecords({
       captureId: CAPTURE,
-      ticket,
       rail,
       carrier,
     });
@@ -384,7 +374,7 @@ describe("secrets", () => {
     };
     const rail = createPayPalClient({ env, fetch, sleep: async () => {}, now: () => 0 });
     const carrier = createMockCarrier(createMemoryShipmentStore());
-    const { problems } = await readLiveRecords({ captureId: CAPTURE, ticket, rail, carrier });
+    const { problems } = await readLiveRecords({ captureId: CAPTURE, rail, carrier });
     expect(problems.map((problem) => problem.call)).toEqual(["get-capture", "list-disputes"]);
     const text = JSON.stringify(problems);
     for (const secret of [SECRET, TOKEN, basic]) expect(text).not.toContain(secret);

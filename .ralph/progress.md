@@ -26,3 +26,8 @@
 
 ### For the human
 - T-005 added a workspace link `@countersign/db` -> `@countersign/mandate` (for `TimestampSchema`, so ADR 0020's one rule isn't copied). The plan said no new workspace links; overturn by moving the rule if you prefer.
+
+## T-006 (done)
+- `proposeRefund` is now `propose()` in `apps/gate/src/propose.ts`, with no `ticket` input. Live reads go through `readProposalRecords({ proposal, rail, carrier, db })` in `live-records.ts`: by tool, refund -> `readLiveRecords` (capture reads, no ticket input any more), dispute tools -> `readDisputeRecord`, `send_invoice` -> `readInvoiceRecord`, `pay_order` -> `readOrderRecord` (fills `OrderSnapshot.amounts`), payout/unknown -> nothing; plus `readTicketRecord(db, justification.ticket_id)`. New `READ_CALLS`: `get-dispute`, `get-invoice`, `ticket-store`. Replay lookup runs only for `paypal.refund` intents. Tests in `apps/gate/test/propose-actions.test.ts`.
+- The propose CLI resolves every proposal first, then stores each file ticket (channel email, fixed body, `receivedAt` = the run's `now()`, `simulated: true`) before proposing. An ID already stored with the same sender and attachments is kept (reruns, beat 3's shared ticket); another sender or attachments exits 2.
+- Gotcha: tests that call `propose()` must write the ticket to the store first and `TRUNCATE audit_log, tickets` between tests, or a ticket ID reused with a different sender throws `TicketConflictError`. T-010's agent CLI can reuse the CLI's store-then-propose approach.
