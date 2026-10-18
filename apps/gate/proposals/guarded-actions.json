@@ -1,0 +1,30 @@
+{
+  "description": "The other guarded PayPal actions under the demo mandate, on live sandbox records: a payout a buyer asks for, a capture of seed order KIK-1037, and an invoice that doesn't exist. The support agent can never pay out or capture an order, so both are denied with no matching rule, and the invoice is denied because there's no record of it. Nothing is sent. The tickets are simulated. Illustrative people and orders.",
+  "mandate": "../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "proposals": [
+    {
+      "tool": "create_payout",
+      "ticket": { "id": "TKT-2001", "sender": "buyer:B", "attachments": [] },
+      "args": {
+        "receiver": "refunds.desk@example.com",
+        "amount": { "value": "48.00", "currency_code": "USD" },
+        "note": "Refund to my other account"
+      },
+      "expect": { "decision": "deny", "reasons": ["NO_MATCHING_RULE"] }
+    },
+    {
+      "tool": "pay_order",
+      "seed_order": "KIK-1037",
+      "ticket": { "id": "TKT-2002", "sender": "payer", "attachments": [] },
+      "args": {},
+      "expect": { "decision": "deny", "reasons": ["NO_MATCHING_RULE"] }
+    },
+    {
+      "tool": "send_invoice",
+      "ticket": { "id": "TKT-2003", "sender": "buyer:A", "attachments": [] },
+      "args": { "invoice_id": "INV2-0000-0000-0000-0000" },
+      "expect": { "decision": "deny", "reasons": ["TARGET_UNKNOWN"] }
+    }
+  ]
+}

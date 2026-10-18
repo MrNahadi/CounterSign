@@ -133,16 +133,16 @@ Notes:
 
 ## T-010: The stand-in agent CLI
 
-Status: open
+Status: done
 Blocked by: T-008
 Tier: standard
 Slice: `npm run agent -- <proposal file>` writes the file's simulated tickets and calls the gate over MCP with the principal key, printing each decision and whether it matched.
 Test seam: the CLI's exported run function against a listening gate and a PGlite directory, plus one child-process run of the real entry point
 Acceptance:
-- [ ] On `beat-4-stalled-parcel.json` and the new `guarded-actions.json`, every decision matches its `expect` and the CLI exits 0; a differing decision exits 1
-- [ ] The proposal file schema gains an optional `tool`; only `create_refund` proposals may name an `order` or `capture`
-- [ ] A missing `COUNTERSIGN_SUPPORT_AGENT_KEY` is named, never shown; a 401 or an unreachable gate exits 2 with one line saying which
-- [ ] `--json` prints the agent responses, which validate against the agent response schema; the root `package.json` has the `agent` script
+- [x] On `beat-4-stalled-parcel.json` and the new `guarded-actions.json`, every decision matches its `expect` and the CLI exits 0; a differing decision exits 1
+- [x] The proposal file schema gains an optional `tool`; only `create_refund` proposals may name an `order` or `capture`
+- [x] A missing `COUNTERSIGN_SUPPORT_AGENT_KEY` is named, never shown; a 401 or an unreachable gate exits 2 with one line saying which
+- [x] `--json` prints the agent responses, which validate against the agent response schema; the root `package.json` has the `agent` script
 Notes:
 
 ## T-011: Live checks for the new rail calls
