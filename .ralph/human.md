@@ -20,6 +20,7 @@ The autopilot builds everything it can and lists here what only you can do, or w
 - **Phase 7, principal key:** create a random key of 32+ characters and add it as `COUNTERSIGN_SUPPORT_AGENT_KEY` to the Dev environment and `.env.example` (and to Render in phase 13). Agents can't edit `.env.*`. Until then the MCP server is proven with test keys only, and every live `/mcp` call answers 401.
 - **Phase 7, live MCP check:** once the key is set and `npm run seed` has run, start the gate and run `npm run agent -- apps/gate/proposals/beat-4-stalled-parcel.json`, then `guarded-actions.json`, then `npm run ledger -- verify` (validation.md live check 2). Point an MCP inspector at `/mcp` with the key and check the tool list reads sensibly to someone who knows PayPal's Agent Toolkit.
 - **Phase 7, real dispute:** once a sandbox dispute exists (phase 11), call `get_dispute` and `accept_dispute_claim` on it over MCP and check the step-up names the dispute's real amount (validation.md manual check 3).
+- **BLOCKS the build now (phase 7 validation): disk full.** About 1,200 PGlite temp folders leaked by the gate tests fill `/tmp` (~29 GB), so `npm test` fails with ENOSPC. Auto mode denied the validator's cleanup, so the autopilot stopped instead of retrying. Delete `/tmp/{propose-cli,propose-file,decide-cli,decide-record,countersign-case,reconcile-cli,reconcile-empty,agent-cli,agent-file,agent-pglite}-*` (or start a fresh session), then let the watchdog resume. Ticket T-013 fixes the leak; phase 7 then needs validation and shipping.
 
 ## Decided for you
 
