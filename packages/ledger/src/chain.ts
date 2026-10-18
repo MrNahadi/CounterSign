@@ -9,8 +9,15 @@ import {
 } from "@countersign/mandate";
 
 // Every entry type the ledger knows. Later phases add theirs here; anything else is never
-// appended, and verification reports it.
-export const ENTRY_TYPES = ["mandate.version", "decision"] as const;
+// appended, and verification reports it. Phase 6 adds the execution types (ADR 0026), whose
+// payloads the gate defines.
+export const ENTRY_TYPES = [
+  "mandate.version",
+  "decision",
+  "execution.requested",
+  "execution.result",
+  "reconciliation",
+] as const;
 export type EntryType = (typeof ENTRY_TYPES)[number];
 
 export function isEntryType(value: string): value is EntryType {

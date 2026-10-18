@@ -67,8 +67,14 @@ function problemsOf(rows: ChainRow[]) {
 }
 
 describe("entry types", () => {
-  it("are mandate.version and decision, in one list", () => {
-    expect(ENTRY_TYPES).toEqual(["mandate.version", "decision"]);
+  it("are mandate.version, decision and phase 6's execution types, in one list", () => {
+    expect(ENTRY_TYPES).toEqual([
+      "mandate.version",
+      "decision",
+      "execution.requested",
+      "execution.result",
+      "reconciliation",
+    ]);
   });
 });
 

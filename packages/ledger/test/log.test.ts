@@ -149,9 +149,51 @@ describe("appending to and verifying the audit_log table", () => {
     });
   });
 
+  it("appends execution requests, results and reconciliations, and the log verifies", async () => {
+    const result = await appendEntries(db, [
+      decision(1),
+      {
+        entryType: "execution.requested",
+        refId: "int_1",
+        at: AT,
+        payload: { intentId: "int_1", amount: { minor: 1250, currency: "USD" } },
+      },
+      {
+        entryType: "execution.result",
+        refId: "int_1",
+        at: AT,
+        payload: { requestSeq: 2, outcome: "executed" },
+      },
+      {
+        entryType: "reconciliation",
+        refId: null,
+        at: AT,
+        payload: { source: "poll", refund: { id: "REF-1" } },
+      },
+    ]);
+    expect(result.ok).toBe(true);
+    const rows = await storedRows(db);
+    expect(rows.map((row) => row.entryType)).toEqual([
+      "decision",
+      "execution.requested",
+      "execution.result",
+      "reconciliation",
+    ]);
+    expect(await verifyLog(db)).toEqual({
+      intact: true,
+      entries: 4,
+      head: { seq: 4, hash: rows[3]?.hash },
+    });
+  });
+
   describe("rejects bad input and leaves the table unchanged", () => {
     const cases: [string, EntryInput, string][] = [
       ["an unknown entry type", { ...decision(2), entryType: "approval" }, "UNKNOWN_ENTRY_TYPE"],
+      [
+        "an execution type that isn't one",
+        { ...decision(2), entryType: "execution.refunded" },
+        "UNKNOWN_ENTRY_TYPE",
+      ],
       ["a time with no offset", { ...decision(2), at: "2026-10-17T09:00:00" }, "BAD_TIMESTAMP"],
       ["a time that isn't one", { ...decision(2), at: "yesterday" }, "BAD_TIMESTAMP"],
       ["a fractional amount", { ...decision(2), payload: { minor: 12.5 } }, "BAD_PAYLOAD"],

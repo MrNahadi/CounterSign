@@ -31,17 +31,17 @@ Notes:
 
 ## T-003: Execution entry types and the execution history
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: The audit log accepts execution requests, results and reconciliations, and the gate reads the log back as the execution history the verifiers use.
 Test seam: the ledger's append and verify exports, and the gate's execution-history reader over a PGlite database
 Acceptance:
-- [ ] `execution.requested`, `execution.result` and `reconciliation` append and pass `ledger verify`; an unknown type is still rejected
-- [ ] The gate's payload schemas (zod) for the three types match ADR 0026, and the writers it exports build only valid payloads
-- [ ] The history has one `ExecutionSnapshot` per non-replay request with no later `failed` result, with the request's amount, capture, principal and time; replay requests don't add a second
-- [ ] An unreadable payload of one of these types makes the history unknown, never skipped
-- [ ] The no-AI test still passes for `@countersign/ledger`
+- [x] `execution.requested`, `execution.result` and `reconciliation` append and pass `ledger verify`; an unknown type is still rejected
+- [x] The gate's payload schemas (zod) for the three types match ADR 0026, and the writers it exports build only valid payloads
+- [x] The history has one `ExecutionSnapshot` per non-replay request with no later `failed` result, with the request's amount, capture, principal and time; replay requests don't add a second
+- [x] An unreadable payload of one of these types makes the history unknown, never skipped
+- [x] The no-AI test still passes for `@countersign/ledger`
 Notes:
 
 ## T-004: Live records mapped into snapshots
