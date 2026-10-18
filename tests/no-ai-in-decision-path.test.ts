@@ -55,6 +55,7 @@ describe("no AI in the decision path", () => {
     "propose-cli.ts",
     "propose-main.ts",
     "propose.ts",
+    "reads.ts",
     "reconcile-cli.ts",
     "reconcile-main.ts",
     "record.ts",
