@@ -213,6 +213,25 @@ const PROPOSALS = {
   create_payout: CreatePayoutProposal,
 } as const satisfies Record<Tool, z.ZodType>;
 
+export type GuardedTool = Tool;
+
+// The guarded tools, in the order the MCP server lists them.
+export const GUARDED_TOOLS = Object.keys(TOOLS) as GuardedTool[];
+
+export function isGuardedTool(name: string): name is GuardedTool {
+  return Object.hasOwn(TOOLS, name);
+}
+
+/**
+ * A guarded tool's MCP arguments as one object: its PayPal arguments plus `justification`, from
+ * the same zod schemas the proposal is normalized with. For the tool's advertised input schema
+ * only; calls are never validated against it before normalization (ADR 0028).
+ */
+export function guardedToolArguments(tool: GuardedTool): z.ZodObject {
+  const { args, justification } = PROPOSALS[tool].shape;
+  return z.strictObject({ ...args.shape, justification });
+}
+
 export type ProposalInput = {
   proposal: unknown;
   // Who is proposing, from the agent's credentials, never from the proposal itself.

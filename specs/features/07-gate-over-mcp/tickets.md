@@ -104,17 +104,17 @@ Notes:
 
 ## T-008: The MCP endpoint with guarded tools
 
-Status: open
+Status: done
 Blocked by: T-006, T-007
 Tier: standard
 Slice: An MCP client with the support agent's key lists the guarded tools and calls `create_refund` on beat 4, getting `allowed` and one sandbox refund, with the decision in the audit log.
 Test seam: `createApp(...)` listening on `127.0.0.1` port 0, driven by the MCP SDK's `Client` over `StreamableHTTPClientTransport`
 Acceptance:
-- [ ] `POST /mcp` serves stateless JSON-mode MCP with a low-level `Server` per request; `GET` and `DELETE` answer 405; a missing or wrong key answers 401 with one fixed body before any MCP handling
-- [ ] `tools/list` returns the seven guarded tools with input schemas from the normalization zod schemas, extensions described as such
-- [ ] A guarded call returns the agent response as `structuredContent` and JSON text with `isError: false`; beat 4 is allowed and refunds once, a second call is a replay with no second refund, beat 3's five proposals give 4 denials and 1 step-up
-- [ ] A malformed `create_refund` and an unknown tool name are denied (`INVALID_PROPOSAL`, `UNKNOWN_ACTION`) and recorded, not MCP errors; a recording failure is `isError: true` with requirements.md's fixed message
-- [ ] `server.ts` wires the database, rail, carrier and keys from the environment, and the gate still starts and answers `/health` with none of them set
+- [x] `POST /mcp` serves stateless JSON-mode MCP with a low-level `Server` per request; `GET` and `DELETE` answer 405; a missing or wrong key answers 401 with one fixed body before any MCP handling
+- [x] `tools/list` returns the seven guarded tools with input schemas from the normalization zod schemas, extensions described as such
+- [x] A guarded call returns the agent response as `structuredContent` and JSON text with `isError: false`; beat 4 is allowed and refunds once, a second call is a replay with no second refund, beat 3's five proposals give 4 denials and 1 step-up
+- [x] A malformed `create_refund` and an unknown tool name are denied (`INVALID_PROPOSAL`, `UNKNOWN_ACTION`) and recorded, not MCP errors; a recording failure is `isError: true` with requirements.md's fixed message
+- [x] `server.ts` wires the database, rail, carrier and keys from the environment, and the gate still starts and answers `/health` with none of them set
 Notes:
 
 ## T-009: Read-only tools

@@ -41,12 +41,16 @@ describe("no AI in the decision path", () => {
     });
   }
 
-  // The gate may later host the MCP server, but the modules that decide, record and execute
-  // import no AI SDK (phase 6).
+  // The modules that decide, record and execute, and the MCP surface and principal keys that
+  // reach them, import no AI SDK (phases 6 and 7).
   const gateModules = [
+    "app.ts",
     "decide.ts",
+    "executable.ts",
     "execution-log.ts",
     "live-records.ts",
+    "mcp.ts",
+    "principals.ts",
     "proposal.ts",
     "propose-cli.ts",
     "propose-main.ts",
