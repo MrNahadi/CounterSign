@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runLedgerCli } from "@countersign/ledger";
@@ -12,6 +11,7 @@ import {
   runDecide,
   runDecideCli,
 } from "../src/decide-cli";
+import { trackedTempDirs } from "./temp-dirs";
 
 const casesDir = fileURLToPath(new URL("../fixtures/cases/", import.meta.url));
 const beat3 = join(casesDir, "beat-3-attack-email.json");
@@ -22,8 +22,9 @@ const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const SLOW = 60_000;
 const HASH = "[0-9a-f]{64}";
 
+const makeDir = trackedTempDirs();
 function tempDir(): string {
-  return mkdtempSync(join(tmpdir(), "decide-record-"));
+  return makeDir("decide-record-");
 }
 
 const verify = (dir: string) => runLedgerCli(["verify", "--pglite", dir], {});

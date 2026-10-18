@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { REASONS } from "@countersign/mandate";
@@ -8,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { loadCase } from "../src/case-file";
 import { AgentResponseSchema, decide } from "../src/decide";
 import { EXIT_BAD_INPUT, EXIT_DECIDED, runDecideCli, USAGE } from "../src/decide-cli";
+import { trackedTempDirs } from "./temp-dirs";
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const casesDir = fileURLToPath(new URL("../fixtures/cases/", import.meta.url));
@@ -19,8 +19,10 @@ function blocks(stdout: string): string[] {
   return stdout.split(/\n(?=Proposal \d+ of \d+\n)/).slice(1);
 }
 
+const makeDir = trackedTempDirs();
+
 function tempCase(contents: string): string {
-  const path = join(mkdtempSync(join(tmpdir(), "decide-cli-")), "case.json");
+  const path = join(makeDir("decide-cli-"), "case.json");
   writeFileSync(path, contents);
   return path;
 }

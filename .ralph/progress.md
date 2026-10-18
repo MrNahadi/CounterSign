@@ -61,3 +61,7 @@
 ## T-012 (done)
 - README gained a "Connect an agent" section (URL, bearer key, tool table, demo decisions, only refunds execute, `npm run agent`) and the status table now lists phases 6 and 7 as done.
 - Gotcha: none. Phase 7 tickets are all done; next iteration runs the four Feedback commands and writes COMPLETE.
+
+## T-013 (done)
+- `apps/gate/test/temp-dirs.ts` exports `trackedTempDirs()` (makes temp folders, removes them in `afterAll`); the six gate test files that used `mkdtempSync` now use it. After `npm test -- apps/gate`, no leaked folders in /tmp.
+- Gotcha: removal happens in afterAll, after each file's afterEach has closed its PGlite handles. New tests that make temp folders should use `trackedTempDirs()`.

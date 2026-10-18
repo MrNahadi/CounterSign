@@ -1,8 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDatabaseShipmentStore, createMockCarrier } from "@countersign/carrier-mock";
@@ -25,6 +24,7 @@ import {
 import { createApp } from "../src/app";
 import { AgentResponseSchema } from "../src/decide";
 import { createFakeSandbox, type FakeSandbox } from "./fake-sandbox";
+import { trackedTempDirs } from "./temp-dirs";
 
 // The stand-in agent against a listening gate over real HTTP and MCP, sharing one PGlite store.
 // Illustrative orders and people in PayPal's sandbox shapes; made-up principal keys.
@@ -50,7 +50,7 @@ const SEEDED: readonly SeededOrder[] = [
   { n: 1038, buyer: "B", minor: 4800, status: "delivered" },
 ];
 
-const tempDir = (prefix: string) => mkdtempSync(join(tmpdir(), prefix));
+const tempDir = trackedTempDirs();
 
 let servers: Server[] = [];
 let handles: DatabaseHandle[] = [];

@@ -1,5 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -13,7 +12,9 @@ import { REFUND_VERIFIERS } from "@countersign/verifiers";
 import { describe, expect, it } from "vitest";
 import { CaseFileSchema, type DecisionCase, loadCase } from "../src/case-file";
 import { AgentResponseSchema, decide } from "../src/decide";
+import { trackedTempDirs } from "./temp-dirs";
 
+const makeDir = trackedTempDirs();
 const casesDir = fileURLToPath(new URL("../fixtures/cases/", import.meta.url));
 const caseFiles = readdirSync(casesDir)
   .filter((name) => name.endsWith(".json"))
@@ -427,7 +428,7 @@ describe("case files", () => {
   });
 
   it("report an unreadable, invalid or mandate-less file instead of throwing", () => {
-    const dir = mkdtempSync(join(tmpdir(), "countersign-case-"));
+    const dir = makeDir("countersign-case-");
     const write = (name: string, text: string) => {
       writeFileSync(join(dir, name), text);
       return loadCase(join(dir, name));

@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDatabaseShipmentStore } from "@countersign/carrier-mock";
@@ -18,6 +17,7 @@ import {
   runPropose,
 } from "../src/propose-cli";
 import { createFakeSandbox, type FakeSandbox, httpError } from "./fake-sandbox";
+import { trackedTempDirs } from "./temp-dirs";
 
 // Each PGlite start takes a couple of seconds.
 const SLOW = 60_000;
@@ -53,7 +53,7 @@ const SEEDED: readonly SeededOrder[] = [
   { n: 1042, buyer: "A", minor: 4800, status: "delivered" },
 ];
 
-const tempDir = (prefix: string) => mkdtempSync(join(tmpdir(), prefix));
+const tempDir = trackedTempDirs();
 
 // A PGlite directory as `npm run seed` leaves it, and a fake sandbox holding the same orders.
 async function seededWorld(

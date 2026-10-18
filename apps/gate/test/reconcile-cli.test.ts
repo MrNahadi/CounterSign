@@ -1,7 +1,4 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { asc, auditLog, openPgliteDirectory, sql } from "@countersign/db";
 import { appendEntries, runLedgerCli } from "@countersign/ledger";
@@ -20,6 +17,7 @@ import {
   runReconcile,
 } from "../src/reconcile-cli";
 import { createFakeSandbox, type FakeSandbox, httpError } from "./fake-sandbox";
+import { trackedTempDirs } from "./temp-dirs";
 
 // Each PGlite start takes a couple of seconds.
 const SLOW = 60_000;
@@ -42,9 +40,11 @@ type Seeded = {
   amount?: number;
 };
 
+const makeDir = trackedTempDirs();
+
 // A PGlite directory whose audit log holds these requests, each followed by its result.
 async function logWith(items: readonly Seeded[]): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), "reconcile-cli-"));
+  const dir = makeDir("reconcile-cli-");
   const handle = await openPgliteDirectory(dir);
   try {
     let seq = 0;
@@ -257,7 +257,7 @@ describe("runReconcile", () => {
   it(
     "exits 2 when the database has no audit_log table",
     async () => {
-      const dir = mkdtempSync(join(tmpdir(), "reconcile-empty-"));
+      const dir = makeDir("reconcile-empty-");
       const handle = await openPgliteDirectory(dir);
       await handle.db.execute(sql`DROP TABLE audit_log`);
       await handle.close();
