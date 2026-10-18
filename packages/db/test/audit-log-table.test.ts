@@ -129,7 +129,8 @@ describe("the audit_log table on a fresh in-memory PGlite", () => {
   });
 });
 
-describe("a PGlite directory", () => {
+// Two PGlite opens on disk can pass 5 s when the whole suite runs in parallel.
+describe("a PGlite directory", { timeout: 60_000 }, () => {
   let parent: string;
 
   beforeEach(async () => {

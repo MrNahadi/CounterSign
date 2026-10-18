@@ -17,7 +17,6 @@ The autopilot builds everything it can and lists here what only you can do, or w
 - **Phase 4, live Postgres check:** once the Render Postgres 18 database exists (phase 13), set `DATABASE_URL` in the Dev environment and run `LIVE=1 npm test -- packages/ledger` (20 concurrent appends in a throwaway schema), then `npm run db:migrate` and `npm run ledger -- verify` on the hosted database (brief §12).
 - **Phase 6, live refund:** once the two seed buyers exist and `npm run seed` has run, run the three `npm run propose -- apps/gate/proposals/beat-*.json` files, beat 4 twice, then `npm run reconcile` and `npm run ledger -- verify` (validation.md manual checks 1 to 3, gate G1). Also run `LIVE=1 npm test -- packages/rail-paypal` for the refund replay check. Then read the propose output as a stranger: can they tell which refund moved money, which waits for approval, and why the others were refused (validation.md manual check 5)?
 - **Phase 6, webhook (blocks the live webhook only, from phase 13):** register a sandbox webhook for `PAYMENT.CAPTURE.REFUNDED` at `<gate URL>/webhooks/paypal`, then add `PAYPAL_WEBHOOK_ID` to Render, the Dev environment and `.env.example`. Check a webhook reconciliation lands within 2 minutes of beat 4's refund (G4).
-- packages/db test 'is created and migrated on open, and keeps its rows across opens' (pglite directory) failed once in the full `npm test` run on main after merging 05 and passed on two re-runs; likely a timeout under parallel load. Blocks nothing.
 
 ## Decided for you
 
