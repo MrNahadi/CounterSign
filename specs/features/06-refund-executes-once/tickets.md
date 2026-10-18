@@ -121,16 +121,16 @@ Notes:
 
 ## T-009: The reconcile CLI
 
-Status: open
+Status: done
 Blocked by: T-001, T-003
 Tier: simple
 Slice: `npm run reconcile` re-reads every executed, unreconciled refund, logs a reconciliation for each, and lists requests whose outcome is still open.
 Test seam: the reconcile CLI's run function `(args, env, options)` with a fake PayPal client and a PGlite directory
 Acceptance:
-- [ ] An executed refund with no reconciliation gets one (source `poll`); a second run adds nothing
-- [ ] A re-read refund that's `CANCELLED` or `FAILED`, or whose amount differs from the request, exits 1 and is listed
-- [ ] Requests with no result or an `unknown` result are listed oldest first with their age, and exit 1
-- [ ] Missing variables or no database exit 2 naming the reason; the root `reconcile` script runs it
+- [x] An executed refund with no reconciliation gets one (source `poll`); a second run adds nothing
+- [x] A re-read refund that's `CANCELLED` or `FAILED`, or whose amount differs from the request, exits 1 and is listed
+- [x] Requests with no result or an `unknown` result are listed oldest first with their age, and exit 1
+- [x] Missing variables or no database exit 2 naming the reason; the root `reconcile` script runs it
 Notes:
 
 ## T-010: Live sandbox checks for refunds, disputes and webhook verification
