@@ -160,13 +160,13 @@ Notes:
 
 ## T-012: README: connect an agent
 
-Status: open
+Status: done
 Blocked by: T-009, T-010
 Tier: simple
 Slice: A developer reading the README can connect an MCP client to the gate with a principal key and knows which tools are PayPal's and which are Countersign extensions.
 Test seam: the README, plus the existing doc-free test suite staying green
 Acceptance:
-- [ ] A README section shows the `/mcp` URL, the bearer key variable, the tool table (guarded, read-only, extensions marked), what each guarded tool decides under the demo mandate, and that only refunds execute in this phase
-- [ ] It shows `npm run agent` on the beat 4 and guarded-actions files, says the tickets are simulated and the people illustrative, and the project status section lists phase 7
-- [ ] `CONTEXT.md` terms used in the section match the glossary (principal key, Countersign extension, target, ticket)
+- [x] A README section shows the `/mcp` URL, the bearer key variable, the tool table (guarded, read-only, extensions marked), what each guarded tool decides under the demo mandate, and that only refunds execute in this phase
+- [x] It shows `npm run agent` on the beat 4 and guarded-actions files, says the tickets are simulated and the people illustrative, and the project status section lists phase 7
+- [x] `CONTEXT.md` terms used in the section match the glossary (principal key, Countersign extension, target, ticket)
 Notes:

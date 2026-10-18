@@ -230,6 +230,58 @@ The ticket in each proposal file is simulated: the file names its sender as `pay
 
 It exits 0 when every proposal got its expected decision, and 1 when one didn't or a refund's outcome is unknown (PayPal timed out or failed after the request). Then `npm run reconcile` checks the refund. It exits 2, naming the reason, when it can't run: a bad file, an order that isn't seeded, missing PayPal variables, or a database that can't be opened or isn't migrated.
 
+## Connect an agent
+
+The gate serves MCP at `POST /mcp` on its port (`http://127.0.0.1:8787/mcp` locally). Any MCP client can connect, as long as it sends a principal key as a bearer token:
+
+```text
+Authorization: Bearer <principal key>
+```
+
+The gate reads the key from `COUNTERSIGN_SUPPORT_AGENT_KEY` and knows one principal in this phase, `support-agent`, which uses the demo mandate. A key shorter than 32 characters counts as unset. A missing, wrong or unset key gets HTTP 401 with one fixed body that says nothing about which principals exist. The agent never holds a PayPal credential: the gate keeps those.
+
+```bash
+npm run dev --workspace @countersign/gate                              # start the gate
+npm run agent -- apps/gate/proposals/beat-4-stalled-parcel.json        # a refund, allowed and executed
+npm run agent -- apps/gate/proposals/guarded-actions.json              # three denials
+npm run agent -- apps/gate/proposals/guarded-actions.json --json
+npm run agent -- apps/gate/proposals/guarded-actions.json --url http://127.0.0.1:8787/mcp
+```
+
+`npm run agent` is a stand-in agent until Resolve exists. It writes each proposal's simulated ticket to the store, connects with the principal key, calls each proposal's tool and prints the agent response. It needs only `COUNTERSIGN_SUPPORT_AGENT_KEY`. It exits 0 when every decision matched `expect`, 1 when one differed, and 2 when it can't run (a missing variable, an unreadable file, the gate unreachable or answering 401).
+
+### Tools
+
+Tool and argument names follow PayPal's Agent Toolkit. A Countersign extension is a guarded tool the Toolkit has no equivalent for.
+
+| Tool | Kind | Action |
+|---|---|---|
+| `create_refund` | Guarded | `paypal.refund` |
+| `accept_dispute_claim` | Guarded | `paypal.dispute.accept_claim` |
+| `provide_dispute_evidence` | Guarded, Countersign extension | `paypal.dispute.provide_evidence` |
+| `make_offer` | Guarded, Countersign extension | `paypal.dispute.make_offer` |
+| `send_invoice` | Guarded | `paypal.invoice.send` |
+| `pay_order` | Guarded | `paypal.order.capture` |
+| `create_payout` | Guarded, Countersign extension | `paypal.payout` |
+| `get_order`, `get_refund`, `get_dispute`, `get_shipment_tracking` | Read-only | |
+| `list_disputes`, `list_transactions` | Read-only | |
+
+Guarded tools also take a `justification` with a `ticket_id` (required for `create_refund`) and a `claim`. The gate reads the ticket from its store by ID, so the agent can't choose the sender a verifier sees. Every guarded call is normalized into an intent, decided, and recorded in the audit log, including a malformed one (`INVALID_PROPOSAL`) and a tool name the gate doesn't know (`UNKNOWN_ACTION`). The result is the agent response, with `isError: false` whether the decision is allow, step-up or deny.
+
+Read-only tools pass through to the sandbox and the carrier mock. They need a principal key but aren't recorded.
+
+Under the demo mandate, the other guarded tools decide like this:
+
+| Tool | Decision |
+|---|---|
+| `accept_dispute_claim`, `provide_dispute_evidence`, `make_offer`, `send_invoice` | Step-up `ALWAYS_NEEDS_APPROVAL`, when the dispute or invoice can be read |
+| `pay_order`, `create_payout` | Deny `NO_MATCHING_RULE`: the support agent can never pay out |
+| Any of the above, when the target can't be read | Deny `TARGET_UNKNOWN` |
+
+Only refunds execute in this phase. If a mandate allowed any other action, the gate would deny it `ACTION_UNAVAILABLE` and send nothing. Step-ups are recorded and wait for approval, which comes in a later phase.
+
+The tickets in `guarded-actions.json` and the proposal files are simulated, and the people in them are illustrative.
+
 ## Project status
 
 Countersign is mid-build. The roadmap runs from 16 October to submission on 11 November 2026. Each phase is one user-visible feature on its own branch.
@@ -241,7 +293,9 @@ Countersign is mid-build. The roadmap runs from 16 October to submission on 11 N
 | 3 | Decide a refund from records: mandate schema, evaluator, PayPal verifiers, decide CLI | Done |
 | 4 | Tamper-evident audit log and `ledger verify` | Done |
 | 5 | Kikapu storefront and seed | Next |
-| 6 to 13 | Live execution, the gate over MCP, Resolve, phone approvals, claims vs records, disputes, payouts, the hosted judge path | Planned |
+| 6 | Live refund execution: `npm run propose` and `npm run reconcile` | Done |
+| 7 | The gate over MCP: principal keys, guarded and read-only tools, `npm run agent` | Done |
+| 8 to 13 | Resolve, phone approvals, claims vs records, disputes, payouts, the hosted judge path | Planned |
 | 14 to 18 | Bench, "Attack it yourself", the AG Studio Risk desk, the mandate compiler, the M-Pesa rail | Planned |
 | 19 to 20 | Smoke tests, monitoring and submission | Planned |
 
@@ -265,7 +319,7 @@ These were run by hand against live sandboxes on 16 October 2026. Findings are i
 | Part | Today |
 |---|---|
 | PayPal sandbox calls | Real, in the spikes, `npm run seed` and `npm run propose`. `npm run decide` runs on recorded record snapshots |
-| Support tickets | Simulated in `npm run propose`: each proposal file states the ticket and its sender. Real tickets come with Resolve |
+| Support tickets | Simulated in `npm run propose` and `npm run agent`: each proposal file states the ticket and its sender. Real tickets come with Resolve |
 | Carrier tracking | Simulated. PayPal only knows shipped or cancelled, so lost, stalled and delivered come from a carrier mock |
 | Kikapu Studio, Achieng, and every person and order in the fixtures | Illustrative |
 | M-Pesa | Partly real in spike S6; the rail itself is secondary and built last |

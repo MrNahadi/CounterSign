@@ -57,3 +57,7 @@
 ## T-011 (done)
 - `packages/rail-paypal/test/live-sandbox.test.ts` gained three LIVE=1 checks: made-up dispute and invoice IDs give `PayPalError` 404; last-day `searchTransactions` parses or passes on a 403 (app lacks Transaction Search); `listMerchantDisputes({ pageSize: 5 })` parses.
 - Gotcha: the loop can't reach the sandbox, so the 404 statuses are PayPal's documented answers, unverified live. If the sandbox answers 400 for the malformed dispute ID, change the assertion and note it.
+
+## T-012 (done)
+- README gained a "Connect an agent" section (URL, bearer key, tool table, demo decisions, only refunds execute, `npm run agent`) and the status table now lists phases 6 and 7 as done.
+- Gotcha: none. Phase 7 tickets are all done; next iteration runs the four Feedback commands and writes COMPLETE.
