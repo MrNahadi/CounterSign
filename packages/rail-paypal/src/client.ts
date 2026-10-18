@@ -110,6 +110,20 @@ export type TransactionSearchInput = {
   transactionId?: string;
 };
 
+// PayPal's dispute states, for filtering the merchant's disputes.
+export const DISPUTE_STATES = [
+  "REQUIRED_ACTION",
+  "REQUIRED_OTHER_PARTY_ACTION",
+  "UNDER_PAYPAL_REVIEW",
+  "RESOLVED",
+  "OPEN_INQUIRIES",
+  "APPEALABLE",
+] as const;
+export type DisputeState = (typeof DISPUTE_STATES)[number];
+
+// One page of the merchant's disputes: at most `pageSize` (1 to 50), optionally in one state.
+export type MerchantDisputesInput = { pageSize: number; disputeState?: DisputeState };
+
 export type PayPalClient = {
   createOrder(input: CreateOrderInput): Promise<PayPalOrder>;
   captureOrder(orderId: string, options: PostOptions): Promise<PayPalOrder>;
@@ -122,6 +136,8 @@ export type PayPalClient = {
   getRefund(refundId: string): Promise<PayPalRefund>;
   // Every dispute on the capture, reading up to five pages.
   listDisputes(captureId: string): Promise<PayPalDisputeList>;
+  // The first page of the merchant's disputes. `complete` is false when PayPal has more.
+  listMerchantDisputes(input: MerchantDisputesInput): Promise<PayPalDisputeList>;
   getDispute(disputeId: string): Promise<PayPalDisputeDetail>;
   getInvoice(invoiceId: string): Promise<PayPalInvoice>;
   // One page of up to 100 transactions in the range.
@@ -200,6 +216,11 @@ const transactionSearchSchema = z
       ctx.addIssue({ code: "custom", message: "Range over 31 days", path: ["endDate"] });
     }
   });
+
+const merchantDisputesSchema = z.object({
+  pageSize: z.number().int().min(1).max(50),
+  disputeState: z.enum(DISPUTE_STATES).optional(),
+});
 
 const header = z.string().min(1).max(4096);
 const verifyWebhookSchema = z.object({
@@ -567,6 +588,16 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
         path = page.next === null ? null : nextDisputesPath(call, answer, page.next);
       }
       return { disputes, complete: true };
+    },
+
+    async listMerchantDisputes(input) {
+      const call = "list-merchant-disputes";
+      const search = checkInput(call, merchantDisputesSchema, input);
+      const query = new URLSearchParams({ page_size: String(search.pageSize) });
+      if (search.disputeState !== undefined) query.set("dispute_state", search.disputeState);
+      const answer = await send({ call, method: "GET", path: `${DISPUTES_PATH}?${query}` });
+      const page = parse(call, answer, disputesPageSchema);
+      return { disputes: page.disputes, complete: page.next === null };
     },
 
     async getDispute(disputeId) {

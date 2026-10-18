@@ -4,7 +4,10 @@ export {
   type AddTrackerInput,
   type CreateOrderInput,
   createPayPalClient,
+  DISPUTE_STATES,
+  type DisputeState,
   type FetchLike,
+  type MerchantDisputesInput,
   type OrderItem,
   type PayPalClient,
   type PayPalClientOptions,
@@ -27,6 +30,7 @@ export {
 } from "./config";
 export { PayPalError, type PayPalErrorDetail, type PayPalErrorKind } from "./errors";
 export {
+  type PayPalAmount,
   type PayPalCapture,
   type PayPalDispute,
   type PayPalDisputeDetail,
@@ -41,5 +45,7 @@ export {
   type PayPalTransactionPage,
   REFUND_STATUSES,
   refundedTotal,
+  toPayPalAmount,
+  toPayPalDisplayAmount,
   type WebhookVerification,
 } from "./records";

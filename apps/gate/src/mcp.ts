@@ -2,7 +2,8 @@
 // with a new low-level `Server` and transport per request. A principal key in
 // `Authorization: Bearer` picks the principal and its mandate; anything else gets one fixed 401
 // before any MCP handling. Guarded tools hand their raw arguments to propose(), which is the only
-// validation, so every call, valid or not, is decided and recorded. No AI.
+// validation, so every call, valid or not, is decided and recorded. Read-only tools are answered
+// by the rail client and the carrier mock, and aren't recorded. No AI.
 
 import type { CarrierAdapter } from "@countersign/carrier-mock";
 import type { Database } from "@countersign/db";
@@ -21,6 +22,7 @@ import type { AgentResponse } from "./decide";
 import type { Principal, Principals } from "./principals";
 import { GUARDED_TOOLS, type GuardedTool, guardedToolArguments } from "./proposal";
 import { propose } from "./propose";
+import { callRead, isReadTool, READ_DESCRIPTIONS, READ_TOOLS, readToolArguments } from "./reads";
 
 export const MCP_PATH = "/mcp";
 export const MCP_BODY_LIMIT = "256kb";
@@ -83,6 +85,14 @@ const GUARDED_TOOL_LIST: Tool[] = GUARDED_TOOLS.map((tool) => ({
   inputSchema: z.toJSONSchema(guardedToolArguments(tool), { io: "input" }) as Tool["inputSchema"],
 }));
 
+const READ_TOOL_LIST: Tool[] = READ_TOOLS.map((tool) => ({
+  name: tool,
+  description: `${READ_DESCRIPTIONS[tool]} Read-only: nothing is decided or recorded.`,
+  inputSchema: z.toJSONSchema(readToolArguments(tool), { io: "input" }) as Tool["inputSchema"],
+}));
+
+const TOOL_LIST: Tool[] = [...GUARDED_TOOL_LIST, ...READ_TOOL_LIST];
+
 function answer(response: AgentResponse): CallToolResult {
   return {
     content: [{ type: "text", text: JSON.stringify(response) }],
@@ -143,10 +153,12 @@ function buildServer(principal: Principal, deps: McpDeps): Server {
     { name: "countersign-gate", version: "0.7.0" },
     { capabilities: { tools: {} } },
   );
-  server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: GUARDED_TOOL_LIST }));
-  server.setRequestHandler(CallToolRequestSchema, (request) =>
-    callGuarded(principal, request.params.name, request.params.arguments, deps),
-  );
+  server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: TOOL_LIST }));
+  server.setRequestHandler(CallToolRequestSchema, (request) => {
+    const { name, arguments: args } = request.params;
+    if (isReadTool(name)) return callRead(name, args, deps);
+    return callGuarded(principal, name, args, deps);
+  });
   return server;
 }
 

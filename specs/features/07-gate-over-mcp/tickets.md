@@ -119,16 +119,16 @@ Notes:
 
 ## T-009: Read-only tools
 
-Status: open
+Status: done
 Blocked by: T-002, T-008
 Tier: standard
 Slice: An MCP client reads an order, a refund, disputes, one dispute, an order's tracking with the simulated carrier's status, and transactions through the gate.
 Test seam: `createApp(...)` listening on `127.0.0.1` port 0, driven by the MCP SDK's `Client`, with the fake sandbox and carrier store
 Acceptance:
-- [ ] `tools/list` adds `get_order`, `get_refund`, `list_disputes`, `get_dispute`, `get_shipment_tracking` and `list_transactions` with PayPal's argument names
-- [ ] Each returns the record as `structuredContent` and JSON text, money as `{ value, currency_code }`; `get_shipment_tracking` labels carrier data simulated
-- [ ] A failing read, a malformed ID and a date range over 31 days answer `isError: true` with a fixed one-line message, with nothing from PayPal's body or any secret
-- [ ] No read adds an audit-log entry, and every read needs the principal key
+- [x] `tools/list` adds `get_order`, `get_refund`, `list_disputes`, `get_dispute`, `get_shipment_tracking` and `list_transactions` with PayPal's argument names
+- [x] Each returns the record as `structuredContent` and JSON text, money as `{ value, currency_code }`; `get_shipment_tracking` labels carrier data simulated
+- [x] A failing read, a malformed ID and a date range over 31 days answer `isError: true` with a fixed one-line message, with nothing from PayPal's body or any secret
+- [x] No read adds an audit-log entry, and every read needs the principal key
 Notes:
 
 ## T-010: The stand-in agent CLI

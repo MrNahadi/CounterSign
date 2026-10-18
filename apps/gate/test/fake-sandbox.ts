@@ -1,6 +1,7 @@
 import type {
   PayPalCapture,
   PayPalClient,
+  PayPalDispute,
   PayPalDisputeDetail,
   PayPalDisputeList,
   PayPalInvoice,
@@ -19,6 +20,8 @@ export type FakeSandbox = PayPalClient & {
   captures: Map<string, PayPalCapture>;
   orders: Map<string, PayPalOrder>;
   disputes: Map<string, PayPalDisputeList>;
+  // The merchant's disputes, as the first page of an unfiltered list answers them.
+  merchantDisputes: PayPalDispute[];
   // Disputes read by their own ID, as get dispute returns them.
   disputeDetails: Map<string, PayPalDisputeDetail>;
   invoices: Map<string, PayPalInvoice>;
@@ -51,6 +54,7 @@ export function createFakeSandbox(): FakeSandbox {
     captures: new Map(),
     orders: new Map(),
     disputes: new Map(),
+    merchantDisputes: [],
     disputeDetails: new Map(),
     invoices: new Map(),
     transactions: [],
@@ -84,6 +88,14 @@ export function createFakeSandbox(): FakeSandbox {
     async listDisputes(captureId) {
       enter("listDisputes", captureId);
       return structuredClone(sandbox.disputes.get(captureId) ?? { disputes: [], complete: true });
+    },
+    async listMerchantDisputes(input) {
+      enter("listMerchantDisputes", input);
+      const disputes = sandbox.merchantDisputes.slice(0, input.pageSize);
+      return structuredClone({
+        disputes,
+        complete: disputes.length === sandbox.merchantDisputes.length,
+      });
     },
     async getDispute(disputeId) {
       enter("getDispute", disputeId);

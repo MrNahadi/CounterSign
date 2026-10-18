@@ -11,6 +11,7 @@ import {
   writeTicket,
 } from "@countersign/db";
 import { appendEntries, verifyLog } from "@countersign/ledger";
+import { PayPalError } from "@countersign/rail-paypal";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -18,6 +19,7 @@ import { type AppDeps, createApp } from "../src/app";
 import { AgentResponseSchema } from "../src/decide";
 import { UNAUTHORIZED_BODY, UNRECORDED_MESSAGE } from "../src/mcp";
 import { loadPrincipals } from "../src/principals";
+import { READ_MESSAGES } from "../src/reads";
 import { mandateRef } from "../src/record";
 import { createFakeSandbox } from "./fake-sandbox";
 
@@ -91,6 +93,15 @@ const GUARDED = [
   "send_invoice",
   "pay_order",
   "create_payout",
+];
+
+const READS = [
+  "get_order",
+  "get_refund",
+  "list_disputes",
+  "get_dispute",
+  "get_shipment_tracking",
+  "list_transactions",
 ];
 
 let servers: Server[] = [];
@@ -205,7 +216,7 @@ describe("tools/list", () => {
   it("lists the seven guarded tools with input schemas from the normalization schemas", async () => {
     const client = await connect(await listen({ env: ENV }));
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name)).toEqual(GUARDED);
+    expect(tools.map((tool) => tool.name)).toEqual([...GUARDED, ...READS]);
 
     const refund = tools.find((tool) => tool.name === "create_refund");
     expect(refund?.inputSchema).toMatchObject({
@@ -226,7 +237,7 @@ describe("tools/list", () => {
     expect(justification.required).toEqual(["ticket_id"]);
 
     const extensions = ["provide_dispute_evidence", "make_offer", "create_payout"];
-    for (const tool of tools) {
+    for (const tool of tools.filter((t) => GUARDED.includes(t.name))) {
       expect(tool.description).toBeTruthy();
       const extension = "Countersign extension: PayPal's Agent Toolkit has no such tool.";
       expect(tool.description?.includes(extension)).toBe(extensions.includes(tool.name));
@@ -234,6 +245,375 @@ describe("tools/list", () => {
     }
     const payout = tools.find((tool) => tool.name === "create_payout");
     expect(payout?.inputSchema.required).toEqual(["receiver", "amount"]);
+  });
+});
+
+describe("tools/list for read-only tools", () => {
+  it("lists the six read-only tools with PayPal's argument names", async () => {
+    const client = await connect(await listen({ env: ENV }));
+    const { tools } = await client.listTools();
+    const args = Object.fromEntries(
+      tools
+        .filter((tool) => READS.includes(tool.name))
+        .map((tool) => [tool.name, Object.keys(tool.inputSchema.properties ?? {})]),
+    );
+    expect(args).toEqual({
+      get_order: ["id"],
+      get_refund: ["refund_id"],
+      list_disputes: ["disputed_transaction_id", "dispute_state", "page_size"],
+      get_dispute: ["dispute_id"],
+      get_shipment_tracking: ["order_id", "transaction_id"],
+      list_transactions: ["transaction_id", "start_date", "end_date"],
+    });
+    for (const tool of tools.filter((t) => READS.includes(t.name))) {
+      expect(tool.description).toContain("Read-only");
+      expect(tool.description).not.toContain("Countersign extension");
+      expect(tool.inputSchema.properties).not.toHaveProperty("justification");
+    }
+    const tracking = tools.find((tool) => tool.name === "get_shipment_tracking");
+    expect(tracking?.description).toContain("simulated");
+    expect(tools.find((t) => t.name === "get_order")?.inputSchema.required).toEqual(["id"]);
+  });
+});
+
+describe("tools/call for read-only tools", { timeout: SLOW }, () => {
+  let handle: DatabaseHandle;
+  let db: Database;
+
+  beforeAll(async () => {
+    handle = await createTestDatabase();
+    db = handle.db;
+  }, SLOW);
+
+  afterAll(async () => {
+    await handle.close();
+  });
+
+  const DISPUTE_ID = "PP-R-NKG-10049671";
+
+  function readWorld() {
+    const world = beat4World();
+    world.rail.refunds.set("REF-1", {
+      id: "REF-1",
+      status: "COMPLETED",
+      amount: usd(1800),
+      captureId: "CAP-1035",
+    });
+    world.rail.disputes.set("CAP-1035", {
+      disputes: [{ id: DISPUTE_ID, status: "WAITING_FOR_SELLER_RESPONSE" }],
+      complete: true,
+    });
+    world.rail.merchantDisputes = [
+      { id: DISPUTE_ID, status: "WAITING_FOR_SELLER_RESPONSE" },
+      { id: "PP-R-NKG-10049388", status: "RESOLVED" },
+    ];
+    world.rail.disputeDetails.set(DISPUTE_ID, {
+      id: DISPUTE_ID,
+      status: "WAITING_FOR_SELLER_RESPONSE",
+      amount: { minor: 450000, currency: "KES" },
+      captureIds: ["CAP-1035"],
+    });
+    world.rail.transactions = [
+      {
+        id: "CAP-1035",
+        status: "S",
+        amount: usd(1800),
+        direction: "credit",
+        initiatedAt: "2026-10-12T14:20:01.000Z",
+      },
+    ];
+    return world;
+  }
+
+  const gate = async (world: ReturnType<typeof readWorld>) =>
+    connect(
+      await listen({
+        db,
+        rail: () => world.rail,
+        carrier: world.carrier,
+        env: ENV,
+        clock: () => NOW,
+      }),
+    );
+
+  async function read(client: Client, name: string, args: Record<string, unknown>) {
+    const result = await client.callTool({ name, arguments: args });
+    const content = result.content as { type: string; text: string }[];
+    expect(result.isError).toBe(false);
+    expect(content).toHaveLength(1);
+    expect(JSON.parse(content[0]?.text ?? "")).toEqual(result.structuredContent);
+    return result.structuredContent as Record<string, unknown>;
+  }
+
+  async function refused(client: Client, name: string, args: Record<string, unknown>) {
+    const result = await client.callTool({ name, arguments: args });
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+    const content = result.content as { type: string; text: string }[];
+    expect(content).toHaveLength(1);
+    const text = content[0]?.text ?? "";
+    expect(text).not.toContain("\n");
+    return text;
+  }
+
+  it("reads an order, a refund, disputes, one dispute and transactions, with money as PayPal's", async () => {
+    const world = readWorld();
+    const client = await gate(world);
+    const dollars = { value: "18.00", currency_code: "USD" };
+
+    const order = await read(client, "get_order", { id: "ORD-1035" });
+    expect(order).toMatchObject({ id: "ORD-1035", status: "COMPLETED", payerEmail: BEAT4_PAYER });
+    expect(order.purchaseUnits).toEqual([
+      expect.objectContaining({
+        amount: dollars,
+        captures: [{ id: "CAP-1035", status: "COMPLETED", amount: dollars, orderId: "ORD-1035" }],
+      }),
+    ]);
+
+    expect(await read(client, "get_refund", { refund_id: "REF-1" })).toEqual({
+      id: "REF-1",
+      status: "COMPLETED",
+      amount: dollars,
+      captureId: "CAP-1035",
+    });
+
+    expect(await read(client, "list_disputes", { disputed_transaction_id: "CAP-1035" })).toEqual({
+      disputes: [{ id: DISPUTE_ID, status: "WAITING_FOR_SELLER_RESPONSE" }],
+      complete: true,
+    });
+    expect(await read(client, "list_disputes", { page_size: 1 })).toEqual({
+      disputes: [{ id: DISPUTE_ID, status: "WAITING_FOR_SELLER_RESPONSE" }],
+      complete: false,
+    });
+    await read(client, "list_disputes", { dispute_state: "REQUIRED_ACTION" });
+    const listed = world.rail.calls.filter((c) => c.call === "listMerchantDisputes");
+    expect(listed.map((c) => c.arg)).toEqual([
+      { pageSize: 1 },
+      { pageSize: 10, disputeState: "REQUIRED_ACTION" },
+    ]);
+
+    expect(await read(client, "get_dispute", { dispute_id: DISPUTE_ID })).toEqual({
+      id: DISPUTE_ID,
+      status: "WAITING_FOR_SELLER_RESPONSE",
+      amount: { value: "4500.00", currency_code: "KES" },
+      captureIds: ["CAP-1035"],
+    });
+
+    expect(await read(client, "list_transactions", { transaction_id: "CAP-1035" })).toEqual({
+      transactions: [
+        {
+          id: "CAP-1035",
+          status: "S",
+          amount: dollars,
+          direction: "credit",
+          initiatedAt: "2026-10-12T14:20:01.000Z",
+        },
+      ],
+      complete: true,
+    });
+  });
+
+  it("searches the last 31 days by the gate's clock when no range is given, and the agent's range otherwise", async () => {
+    const world = readWorld();
+    const client = await gate(world);
+    await read(client, "list_transactions", {});
+    await read(client, "list_transactions", {
+      start_date: "2026-10-01",
+      end_date: "2026-10-17T12:00:00+03:00",
+    });
+    const searches = world.rail.calls.filter((c) => c.call === "searchTransactions");
+    expect(searches.map((c) => c.arg)).toEqual([
+      { startDate: "2026-09-16T06:00:00.000Z", endDate: "2026-10-17T06:00:00.000Z" },
+      { startDate: "2026-10-01T00:00:00.000Z", endDate: "2026-10-17T09:00:00.000Z" },
+    ]);
+  });
+
+  it("returns an order's trackers with the simulated carrier's status and scan events", async () => {
+    const world = readWorld();
+    const order = world.rail.orders.get("ORD-1035");
+    order?.purchaseUnits[0]?.trackers.push({
+      id: "CAP-1035-TRKMISSING",
+      captureId: "CAP-1035",
+      trackingNumber: "TRKMISSING",
+      status: "SHIPPED",
+    });
+    const client = await gate(world);
+
+    const tracking = await read(client, "get_shipment_tracking", { order_id: "ORD-1035" });
+    expect(tracking).toEqual({
+      orderId: "ORD-1035",
+      trackers: [
+        {
+          id: "CAP-1035-TRK1035",
+          captureId: "CAP-1035",
+          trackingNumber: "TRK1035",
+          status: "SHIPPED",
+          shipment: {
+            carrier: "simulated",
+            lookup: "found",
+            carrierName: "Illustrative Post",
+            status: "stalled_10d",
+            scanEvents: [{ at: "2026-10-02T08:00:00Z", description: "Accepted", place: "Nairobi" }],
+            updatedAt: "2026-10-05T08:00:00Z",
+          },
+        },
+        {
+          id: "CAP-1035-TRKMISSING",
+          captureId: "CAP-1035",
+          trackingNumber: "TRKMISSING",
+          status: "SHIPPED",
+          shipment: { carrier: "simulated", lookup: "not_found" },
+        },
+      ],
+    });
+
+    const narrowed = await read(client, "get_shipment_tracking", {
+      order_id: "ORD-1035",
+      transaction_id: "CAP-OTHER",
+    });
+    expect(narrowed).toEqual({ orderId: "ORD-1035", trackers: [] });
+  });
+
+  it("answers a failing read with a fixed line holding nothing from PayPal's body", async () => {
+    const world = readWorld();
+    const leak = "secret-token-from-paypal-body";
+    world.rail.failures.getDispute = new PayPalError({
+      kind: "http",
+      call: "get-dispute",
+      status: 403,
+      paypalName: "NOT_AUTHORIZED",
+      paypalMessage: leak,
+      issues: [leak],
+      debugId: "fake-debug",
+    });
+    world.rail.failures.searchTransactions = new Error(`database at postgres://${leak}`);
+    const client = await gate(world);
+
+    expect(await refused(client, "get_order", { id: "ORD-404" })).toBe(
+      "The order read failed: PayPal has no such record.",
+    );
+    const dispute = await refused(client, "get_dispute", { dispute_id: DISPUTE_ID });
+    expect(dispute).toBe("The dispute read failed: PayPal answered HTTP 403.");
+    const search = await refused(client, "list_transactions", {});
+    expect(search).toBe("The transaction search read failed unexpectedly.");
+    for (const text of [dispute, search]) {
+      expect(text).not.toContain(leak);
+      expect(text).not.toContain("NOT_AUTHORIZED");
+    }
+  });
+
+  it("refuses a malformed ID, unknown arguments and a bad range before any call", async () => {
+    const world = readWorld();
+    const client = await gate(world);
+
+    expect(await refused(client, "get_order", { id: "ORD/../1" })).toBe(
+      READ_MESSAGES.invalidArguments("get_order"),
+    );
+    expect(await refused(client, "get_refund", {})).toBe(
+      READ_MESSAGES.invalidArguments("get_refund"),
+    );
+    expect(await refused(client, "get_dispute", { dispute_id: DISPUTE_ID, extra: 1 })).toBe(
+      READ_MESSAGES.invalidArguments("get_dispute"),
+    );
+    expect(await refused(client, "list_disputes", { page_size: 0 })).toBe(
+      READ_MESSAGES.invalidArguments("list_disputes"),
+    );
+    expect(
+      await refused(client, "list_transactions", {
+        start_date: "2026-09-01",
+        end_date: "2026-10-02T00:00:01Z",
+      }),
+    ).toBe(READ_MESSAGES.badRange);
+    expect(
+      await refused(client, "list_transactions", {
+        start_date: "2026-10-10",
+        end_date: "2026-10-01",
+      }),
+    ).toBe(READ_MESSAGES.badRange);
+    expect(await refused(client, "list_transactions", { start_date: "2026-08-01" })).toBe(
+      READ_MESSAGES.badRange,
+    );
+    expect(await refused(client, "list_transactions", { start_date: "last week" })).toBe(
+      READ_MESSAGES.badDate,
+    );
+    expect(world.rail.calls).toEqual([]);
+  });
+
+  it("answers a fixed line when the gate has no rail or carrier", async () => {
+    const client = await connect(await listen({ env: ENV, clock: () => NOW }));
+    expect(await refused(client, "get_order", { id: "ORD-1035" })).toBe(READ_MESSAGES.unavailable);
+    const world = readWorld();
+    const noCarrier = await connect(
+      await listen({
+        rail: () => world.rail,
+        env: ENV,
+        clock: () => NOW,
+      }),
+    );
+    expect(await refused(noCarrier, "get_shipment_tracking", { order_id: "ORD-1035" })).toBe(
+      READ_MESSAGES.carrierFailed,
+    );
+    const throwing = await connect(
+      await listen({
+        rail: () => {
+          throw new Error("PAYPAL_CLIENT_SECRET is unset");
+        },
+        env: ENV,
+        clock: () => NOW,
+      }),
+    );
+    expect(await refused(throwing, "get_order", { id: "ORD-1035" })).toBe(
+      READ_MESSAGES.unavailable,
+    );
+  });
+
+  it("writes nothing to the audit log, and needs the principal key", async () => {
+    await db.execute(sql`TRUNCATE audit_log, tickets`);
+    const world = readWorld();
+    const url = await listen({
+      db,
+      rail: () => world.rail,
+      carrier: world.carrier,
+      env: ENV,
+      clock: () => NOW,
+    });
+    const client = await connect(url);
+    for (const [name, args] of [
+      ["get_order", { id: "ORD-1035" }],
+      ["get_refund", { refund_id: "REF-1" }],
+      ["list_disputes", {}],
+      ["get_dispute", { dispute_id: DISPUTE_ID }],
+      ["get_shipment_tracking", { order_id: "ORD-1035" }],
+      ["list_transactions", {}],
+      ["get_order", { id: "ORD-404" }],
+    ] as const) {
+      await client.callTool({ name, arguments: args });
+    }
+    expect(await db.select().from(auditLog)).toEqual([]);
+
+    const calls = world.rail.calls.length;
+    for (const headers of [
+      {},
+      { Authorization: "Bearer not-the-key-but-long-enough-0123456789" },
+    ]) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          ...headers,
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name: "get_order", arguments: { id: "ORD-1035" } },
+        }),
+      });
+      expect(res.status).toBe(401);
+      expect(await res.json()).toEqual(UNAUTHORIZED_BODY);
+    }
+    expect(world.rail.calls).toHaveLength(calls);
   });
 });
 

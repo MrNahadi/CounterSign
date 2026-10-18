@@ -1,4 +1,4 @@
-import { formatMoney, type Money, parseMoney } from "@countersign/mandate";
+import { type Money, parseMoney } from "@countersign/mandate";
 import { z } from "zod";
 
 // PayPal's JSON, parsed with zod into the client's own records. Only the fields we use are
@@ -63,16 +63,23 @@ export const moneySchema = z
 
 export type PayPalAmount = { currency_code: string; value: string };
 
-// Money in PayPal's wire format: 4800 USD minor units is "48.00". Only USD is sent to PayPal,
-// so anything else, or an amount that doesn't read back to the same minor units, is null.
-export function toPayPalAmount(money: Money): PayPalAmount | null {
-  if (money.currency !== "USD" || !Number.isSafeInteger(money.minor) || money.minor <= 0) {
-    return null;
-  }
-  const value = formatMoney(money).replace(/^\$/, "").replaceAll(",", "");
+// Money in PayPal's wire format, for showing a record: 4800 USD minor units is "48.00", and
+// 450000 KES is "4500.00". Null for an amount that isn't a positive count of minor units.
+export function toPayPalDisplayAmount(money: Money): PayPalAmount | null {
+  if (!Number.isSafeInteger(money.minor) || money.minor <= 0) return null;
+  const whole = Math.trunc(money.minor / 100);
+  const cents = String(money.minor % 100).padStart(2, "0");
+  const value = `${whole}.${cents}`;
   const back = parseMoney(value, money.currency);
   if (!back.ok || back.money.minor !== money.minor) return null;
   return { currency_code: money.currency, value };
+}
+
+// Money in PayPal's wire format, for sending: only USD is sent to PayPal, so anything else, or an
+// amount that doesn't read back to the same minor units, is null.
+export function toPayPalAmount(money: Money): PayPalAmount | null {
+  if (money.currency !== "USD") return null;
+  return toPayPalDisplayAmount(money);
 }
 
 const captureSchema = z.object({ id: text, status: text, amount: moneySchema });

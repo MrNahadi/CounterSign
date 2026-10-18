@@ -1,4 +1,8 @@
-import type { TransactionSearchInput } from "@countersign/rail-paypal";
+import {
+  type TransactionSearchInput,
+  toPayPalAmount,
+  toPayPalDisplayAmount,
+} from "@countersign/rail-paypal";
 import { describe, expect, it } from "vitest";
 import {
   caught,
@@ -12,7 +16,8 @@ import {
   testClient,
 } from "./fake-paypal";
 
-// Phase 7's reads: get dispute, get invoice and transaction search (ADR 0028).
+// Phase 7's reads: get dispute, get invoice, transaction search (ADR 0028) and the merchant's
+// disputes, for the read-only list_disputes tool.
 
 const DISPUTE_ID = "PP-R-NKG-10049671";
 const INVOICE_ID = "INV2-Z56S-5LLA-Q52L-CPZ5";
@@ -34,6 +39,11 @@ const range: TransactionSearchInput = {
 
 // Each new call, so the shared failure cases run against all three.
 const calls = [
+  {
+    call: "list-merchant-disputes",
+    ok: () => reply(200, fixture("list-disputes-page-2")),
+    run: (client: ReturnType<typeof testClient>) => client.listMerchantDisputes({ pageSize: 10 }),
+  },
   {
     call: "get-dispute",
     ok: () => reply(200, fixture("get-dispute")),
@@ -86,6 +96,69 @@ describe("get dispute", () => {
     const error = await caught(testClient(fake).getDispute("PP-D/../1"));
     expect(error.kind).toBe("invalid_request");
     expect(fake.requests).toHaveLength(0);
+  });
+});
+
+describe("the merchant's disputes", () => {
+  it("reads one page with the page size and state, and says when more pages exist", async () => {
+    const fake = fakePayPal(() => reply(200, fixture("list-disputes-page-1")));
+    const list = await testClient(fake).listMerchantDisputes({
+      pageSize: 5,
+      disputeState: "REQUIRED_ACTION",
+    });
+    const [request] = fake.apiRequests();
+    expect(request?.method).toBe("GET");
+    expect(request?.path).toBe("/v1/customer/disputes");
+    expect(query(request).get("page_size")).toBe("5");
+    expect(query(request).get("dispute_state")).toBe("REQUIRED_ACTION");
+    expect(query(request).has("disputed_transaction_id")).toBe(false);
+    expect(list).toEqual({
+      disputes: [{ id: DISPUTE_ID, status: "WAITING_FOR_SELLER_RESPONSE" }],
+      complete: false,
+    });
+    expect(fake.apiRequests()).toHaveLength(1);
+  });
+
+  it("reads a last page as complete, and sends no state when none is asked for", async () => {
+    const fake = fakePayPal(() => reply(200, fixture("list-disputes-page-2")));
+    const list = await testClient(fake).listMerchantDisputes({ pageSize: 10 });
+    expect(query(fake.apiRequests()[0]).has("dispute_state")).toBe(false);
+    expect(list.complete).toBe(true);
+  });
+
+  it.each([
+    ["a page size of 0", { pageSize: 0 }],
+    ["a page size over 50", { pageSize: 51 }],
+    ["an unknown state", { pageSize: 10, disputeState: "OPEN" }],
+  ])("refuses %s before any call", async (_label, input) => {
+    const fake = fakePayPal(() => reply(200, fixture("list-disputes-page-2")));
+    const error = await caught(
+      testClient(fake).listMerchantDisputes(
+        input as Parameters<ReturnType<typeof testClient>["listMerchantDisputes"]>[0],
+      ),
+    );
+    expect(error.kind).toBe("invalid_request");
+    expect(fake.requests).toHaveLength(0);
+  });
+});
+
+describe("PayPal amounts", () => {
+  it("shows USD and KES with two decimals, and sends only USD", () => {
+    expect(toPayPalDisplayAmount({ minor: 4800, currency: "USD" })).toEqual({
+      currency_code: "USD",
+      value: "48.00",
+    });
+    expect(toPayPalDisplayAmount({ minor: 450005, currency: "KES" })).toEqual({
+      currency_code: "KES",
+      value: "4500.05",
+    });
+    expect(toPayPalAmount({ minor: 450000, currency: "KES" })).toBeNull();
+    expect(toPayPalAmount({ minor: 123456789, currency: "USD" })).toEqual({
+      currency_code: "USD",
+      value: "1234567.89",
+    });
+    expect(toPayPalDisplayAmount({ minor: 0, currency: "USD" })).toBeNull();
+    expect(toPayPalDisplayAmount({ minor: 1.5, currency: "USD" })).toBeNull();
   });
 });
 
