@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@countersign/graphite": "0.0.0",
+    "@countersign/mandate": "0.0.0",
     "@google/genai": "2.27.0",
     "ag-grid-community": "36.2.0",
     "ag-grid-react": "36.2.0",

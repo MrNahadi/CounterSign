@@ -111,8 +111,12 @@ _Avoid_: sync, settlement
 ### Records and verification
 
 **Ticket**:
-One message a customer sent to Resolve, kept in the ticket store with its channel, sender and attachments. The gate reads it by ID; the agent only names it, so it can't choose the sender a verifier sees.
+One message a customer sent to Resolve, kept in the ticket store with its channel, sender, thread and attachments. The gate reads it by ID; the agent only names it, so it can't choose the sender a verifier sees.
 _Avoid_: case, message (when you mean the stored ticket)
+
+**Thread**:
+The tickets one customer sent on one channel, in order, with Resolve's replies between them. Its ID is its first ticket's ID.
+_Avoid_: conversation, case
 
 **Record**:
 Data held by a rail, the carrier or the audit log, such as a capture, tracker, dispute or receipt. Records are the only input an allow can rest on.
@@ -277,8 +281,16 @@ _Avoid_: safe mode, guarded mode
 ### Demo
 
 **Resolve**:
-The reference AI support inbox for the merchant, where customers write in by email or simulated chat.
+The reference AI support inbox for the merchant, where customers write in by simulated email or simulated chat.
 _Avoid_: support bot, helpdesk
+
+**Agent run**:
+One pass of Resolve's agent over one ticket, in one mode: its model calls, tool calls, outcome and reply. Runs are kept beside the tickets, not in the audit log; the gate's decisions are in the audit log.
+_Avoid_: session, job, conversation
+
+**Run outcome**:
+How an agent run ended: replied, or a named stop or failure such as `model_stopped:SAFETY`, `step_cap` or `gate_unavailable`. Only a replied run has a reply.
+_Avoid_: result, status (the run's status is the coarser queued, running, replied, stopped, failed or not run)
 
 **Kikapu Studio**:
 The illustrative demo merchant, a Kisumu basket and bag maker.

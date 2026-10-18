@@ -1,0 +1,25 @@
+# 0030. Resolve owns message intake, threads, attachments and agent runs; both channels are simulated; the console reaches Resolve only through its own server routes
+
+Status: accepted, extends ADR 0029 (the ticket store gains a thread ID; nothing in 0029 changes)
+Decided-by: autopilot (delegated), phase 8 feature spec, 18 Oct 2026, under brief §14 v1.4. The answerer's rules escalate it, because it's a data model shared by three services and a service API. The planner session had no way to start the answerer agent, so it applied the answerer's rules itself. Decided by brief §10 trade-offs 1 (fail closed), 2 (honest evidence: simulation labelled), 3 (the judge path works every time) and 4 (a stranger understands it). The owner can overturn it (`.ralph/human.md`, Decided for you)
+Question: Phase 8 builds Resolve. Where do customer messages come in, how does a chat with several messages hang together, where do photos live, where is each agent run and its reply kept, and how does the console's inbox reach all that? Is the email channel real email?
+Decision:
+- **Both channels are simulated.** No email is received or sent and there's no WhatsApp integration (brief §5 Out of scope). An "email" is a message with a sender address and a subject typed into the console; a "chat" is the console's simulated chat page. Every ticket Resolve writes has `simulated: true`, and every screen that shows one says it's simulated. A reply is stored and shown in the thread, never delivered anywhere.
+- **`apps/resolve-agent` is the one service that takes messages in.** It writes the ticket (ADR 0029), its attachments and its agent run, runs the agent, and stores the reply. Its HTTP API (Express 5, as the gate): `POST /messages`, `GET /threads`, `GET /threads/:id`, `GET /attachments/:id`, `GET /health`. Every input is read with zod. On Render it's a private service (phase 13); locally it listens on `PORT`, default 8788.
+- **The console never talks to Resolve from the browser.** Its server routes call `RESOLVE_AGENT_URL` (default `http://127.0.0.1:8788`) and validate every answer with zod. The console holds no Gemini key, principal key or PayPal credential.
+- **Threads.** `tickets` gains `thread_id` (a migration; existing rows take their own ID). A message with no thread ID starts a thread whose ID is its ticket ID. A follow-up names the thread and must match its channel and sender, or it's refused. Tickets stay write-once.
+- **Attachments.** Images only: JPEG, PNG or WebP, recognised by their first bytes rather than the declared type, at most 3 per message and 2 MB each. The bytes live in a new write-once `ticket_attachments` table (ID, ticket ID, content type, size, bytes), written before the ticket that lists them.
+- **Agent runs.** A new `agent_runs` table, one row per run: ID, ticket ID, thread ID, mode (`protected` or `baseline`), model asked for and `modelVersion` reported, status (`queued`, `running`, `replied`, `stopped`, `failed`, `not_run`), outcome code, reply text, the full trace (ADR 0014) as JSON, and queued, started and finished times. Runs aren't hashed and aren't the audit log; the gate's decisions stay in the audit log, where they already are.
+- **One run at a time per Resolve process,** in arrival order, so the free tier's per-minute limit isn't hit by a burst. A run that was `queued` or `running` when the process stopped is marked `failed` with outcome `interrupted` at the next startup and never rerun on its own, since it may already have moved money in baseline mode.
+- **Mode per message.** The sender of a message (the console) chooses `protected` (the default) or `baseline`; the run records it. The inbox has the switch.
+- **A daily run cap.** `RESOLVE_DAILY_RUN_CAP` (default 200, counted per UTC day from `agent_runs`): past it, a message is still stored, and its run is `not_run` with outcome `daily_cap`. This is a first guard on AI spend; per-session rate limits and the spend cap of brief §5 item 9 come with phase 15.
+Basis:
+- Brief §5 item 6 ("A customer can get help from Resolve by email or in the simulated chat ... A judge can switch Resolve to baseline mode"), §5 Out of scope ("A WhatsApp Business API integration"), §8 ("Simulated parts are labeled on screen"; "The public demo can't run up unbounded AI cost"; "The agent never holds PayPal or Daraja credentials").
+- Original brief §11 ("email-style tickets and a WhatsApp-style chat. The chat UI is simulated") and §12 (Postgres as the shared store; resolve-agent as its own service).
+- ADR 0029 ("Resolve (phase 8) writes every incoming email or chat message"; "Phase 8 may add columns").
+- Spike S8: calls take 12 to 22 seconds on the free tier, so runs are asynchronous and the UI polls.
+Consequences:
+- The demo reset (phase 13) truncates `agent_runs` and `ticket_attachments` with `tickets`.
+- Phase 10's console reads decisions from the audit log and links them to runs by ticket ID.
+- Phase 14's bench runs tickets through the same harness, writing runs the same way.
+- Phase 15 adds rate limits and the spend cap in front of `POST /messages`.

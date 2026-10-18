@@ -1,6 +1,6 @@
 # Tech stack
 
-Derived from brief §8–§9 and ADRs 0001–0029 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
+Derived from brief §8–§9 and ADRs 0001–0031 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
 
 ## Runtime and tooling
 
@@ -24,7 +24,7 @@ Pin exact versions with no `^` or `~`. The build loop can't install packages. Si
 | tsx | 4.23.15 | `dependencies` of each Node service, and of the storefront for its seed script |
 | zod | 4.6.7 | root, shared |
 | @modelcontextprotocol/sdk | 1.32.1 | gate, resolve-agent |
-| express | 5.3.0 | gate |
+| express / @types/express | 5.3.0 / 5.0.6 | gate, resolve-agent (one copy; resolve-agent reuses the gate's pin from phase 8) |
 | drizzle-orm / drizzle-kit | 0.45.3 / 0.31.11 | packages/db (drizzle-kit as a devDependency; ADR 0021) |
 | postgres | 3.4.9 | packages/db (Render, Postgres 18) |
 | @electric-sql/pglite | 0.5.8 | packages/db (tests, and the local `.countersign/pglite` store; ADR 0021) |
@@ -49,16 +49,16 @@ Next.js and React stay on versions with the October 2026 security fixes (ADR 001
 apps/
   gate/                 Express 5 + MCP v1 (stateless Streamable HTTP): /mcp, approval API, PayPal webhooks, Daraja callbacks
   console/              Next.js: inbox, approvals page, audit console, Risk desk (AG Studio), mandate editor, bench, judge path
-  resolve-agent/        Gemini harness for Resolve (our own function-calling loop); protected mode talks to the gate, baseline mode to baseline-paypal-mcp
+  resolve-agent/        Express 5 service (port 8788): message intake, the run queue and the Gemini harness for Resolve (our own function-calling loop); protected mode talks to the gate, baseline mode to baseline-paypal-mcp (ADRs 0030, 0031); the `resolve` CLI and scenarios/
   baseline-paypal-mcp/  Isolated workspace holding @paypal/mcp + agent-toolkit; nothing imports it, it's spawned over stdio
   storefront/           Next.js Kikapu shop on PayPal JS SDK v6, the product and seed catalogs, and the seed script (`npm run seed`)
 packages/
   mandate/              Mandate schema, rule evaluator, compiler prompt
   verifiers/            Pure verifier functions over record snapshots, with fixtures
-  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds, disputes lookup and webhook signature verification from phase 6, ADR 0025; get dispute, get invoice and transaction search from phase 7)
+  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds, disputes lookup and webhook signature verification from phase 6, ADR 0025; get dispute, get invoice and transaction search from phase 7; `issueAccessToken()` for baseline mode's child process from phase 8)
   rail-mpesa/           Daraja client, callback parsing, receipt store
   ledger/               Hash chain, appends, `ledger verify` and its CLI; evidence export (phase 10)
-  db/                   Drizzle schema (audit_log, carrier_shipments, seed_orders, and tickets from phase 7; ADR 0029), migrations (with the append-only trigger), postgres.js and PGlite clients
+  db/                   Drizzle schema (audit_log, carrier_shipments, seed_orders, tickets from phase 7 (ADR 0029), and tickets.thread_id, ticket_attachments and agent_runs from phase 8 (ADR 0030)), migrations (with the append-only trigger), postgres.js and PGlite clients
   graphite/             Graphite tokens (byte-identical copy), Tailwind theme, AG Studio theme
   carrier-mock/         Carrier adapter interface, and the mock over carrier_shipments (stored status, never derived from the clock; ADR 0023)
 bench/                  cases/, runner, results/ (committed, dated)
@@ -115,10 +115,17 @@ specs/                  Brief, constitution, feature specs
 - Resolve's harness is our own function-calling loop over an MCP v1 client in both modes (ADRs 0011, 0014). The Risk desk calls Gemini from a console server route, never from the browser (ADR 0016).
 - Recheck these API details against current docs at spike S8.
 
+**Resolve** (from phase 8, ADRs 0030 and 0031)
+- Both channels are simulated: every ticket Resolve writes is `simulated: true`, and replies are stored, never sent. The console reaches Resolve only from server routes, at `RESOLVE_AGENT_URL`.
+- Protected and baseline modes differ only in the MCP transport. The system instruction is a byte-stable constant, and a test pins that both modes send the same instruction, config and user turn. The one local tool is `find_order` (the shop's order book over `seed_orders`; never the payer's email).
+- Runs execute one at a time per process, with at most 8 model calls and 12 tool calls. A run is retried (once, on the fallback model) only if it ended `model_unavailable` before any tool call; interrupted runs are marked failed, never rerun. `RESOLVE_DAILY_RUN_CAP` (default 200 per UTC day) bounds AI calls until phase 15's limits.
+- Baseline mode mints a fresh sandbox token per run through `@countersign/rail-paypal` and spawns `@paypal/mcp` from `apps/baseline-paypal-mcp` with `process.execPath`; nothing imports the toolkit.
+
 **Secrets and environment**
 - Real values live only in `.env.local` (git-ignored) and on Render. `.env.example` lists the names.
 - Load env with `tsx --env-file-if-exists=.env.local`, so scripts also run in cloud sessions, where the environment holds the values and there's no `.env.local`. Never print, log or commit a secret, `DATABASE_URL` included.
 - Principal keys (from phase 7) are environment variables, one per principal: `COUNTERSIGN_SUPPORT_AGENT_KEY` now, `COUNTERSIGN_OPS_AGENT_KEY` from phase 12. A key shorter than 32 characters counts as unset. The gate and Resolve read the same variable.
+- Service addresses (from phase 8): `GATE_MCP_URL` (Resolve's way to the gate, default `http://127.0.0.1:8787/mcp`) and `RESOLVE_AGENT_URL` (the console's way to Resolve, default `http://127.0.0.1:8788`).
 - Unit tests never need credentials. Tests that hit live sandboxes run only under `LIVE=1` and are not part of the Feedback commands.
 
 **Git**
