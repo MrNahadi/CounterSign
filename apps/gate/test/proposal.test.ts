@@ -1,6 +1,9 @@
+import { hashIntent } from "@countersign/mandate";
 import type {
   CaptureSnapshot,
   DisputeRecordSnapshot,
+  InvoiceSnapshot,
+  OrderSnapshot,
   RecordSnapshots,
 } from "@countersign/verifiers";
 import { describe, expect, it } from "vitest";
@@ -174,7 +177,7 @@ describe("normalizeProposal", () => {
     expect(deniedCode({ ...proposal, justification: undefined })).toBe("INVALID_PROPOSAL");
   });
 
-  it.each([["create_payout"], ["refund_everything"], ["CREATE_REFUND"], [""], ["toString"]])(
+  it.each([["transfer_funds"], ["refund_everything"], ["CREATE_REFUND"], [""], ["toString"]])(
     "denies the unknown tool %j as UNKNOWN_ACTION",
     (tool) => {
       expect(deniedCode({ ...proposal, tool })).toBe("UNKNOWN_ACTION");
@@ -182,8 +185,8 @@ describe("normalizeProposal", () => {
   );
 
   it("denies an unknown tool as UNKNOWN_ACTION whatever else is wrong", () => {
-    expect(deniedCode({ tool: "create_payout" })).toBe("UNKNOWN_ACTION");
-    expect(deniedCode({ tool: "create_payout", args: 7, principal: "admin" })).toBe(
+    expect(deniedCode({ tool: "transfer_funds" })).toBe("UNKNOWN_ACTION");
+    expect(deniedCode({ tool: "transfer_funds", args: 7, principal: "admin" })).toBe(
       "UNKNOWN_ACTION",
     );
   });
@@ -194,10 +197,10 @@ describe("normalizeProposal", () => {
       ok: false,
       reason: { code: "INVALID_PROPOSAL", detail: expect.stringContaining("args.amount") },
     });
-    const unknown = normalize({ ...proposal, tool: "create_payout" });
+    const unknown = normalize({ ...proposal, tool: "transfer_funds" });
     expect(unknown).toEqual({
       ok: false,
-      reason: { code: "UNKNOWN_ACTION", detail: expect.stringContaining("create_payout") },
+      reason: { code: "UNKNOWN_ACTION", detail: expect.stringContaining("transfer_funds") },
     });
   });
 });
@@ -403,5 +406,220 @@ describe("normalizeProposal for the dispute tools", () => {
 
   it("checks the arguments before the record, so a bad call with no record is INVALID_PROPOSAL", () => {
     expect(deniedDispute(withDisputeArgs(acceptClaim, { note: "" }), {})).toBe("INVALID_PROPOSAL");
+  });
+});
+
+const invoice: InvoiceSnapshot = {
+  call: "GET /v2/invoicing/invoices/{id}",
+  id: "INV2-K7QX-4M2D-9TLB-3HRW",
+  status: "DRAFT",
+  amount: { minor: 5600, currency: "USD" },
+};
+
+const order: OrderSnapshot = {
+  call: "GET /v2/checkout/orders/{id}",
+  id: "ORD-5010",
+  payerEmail: "wanjiru.k@example.com",
+  trackers: [],
+  amounts: [{ minor: 3200, currency: "KES" }],
+};
+
+const otherRecords: RecordSnapshots = { invoices: [invoice], orders: [order] };
+
+const sendInvoice = {
+  tool: "send_invoice",
+  args: {
+    invoice_id: "INV2-K7QX-4M2D-9TLB-3HRW",
+    note: "Thanks for your order.",
+    send_to_recipient: true,
+    additional_recipients: ["accounts@example.com"],
+  },
+  justification: { ticket_id: "TKT-5009" },
+};
+
+const payOrder = { tool: "pay_order", args: { id: "ORD-5010" } };
+
+const createPayout = {
+  tool: "create_payout",
+  args: {
+    receiver: "  Wanjiru.K@Example.com ",
+    amount: { value: "25.00", currency_code: "USD" },
+    note: "Goodwill credit.",
+  },
+};
+
+function normalizeOther(input: unknown, snapshots: RecordSnapshots = otherRecords) {
+  return normalize(input, snapshots);
+}
+
+function intentOf(input: unknown, snapshots: RecordSnapshots = otherRecords) {
+  const result = normalizeOther(input, snapshots);
+  if (!result.ok) throw new Error(`Expected an intent, got ${result.reason.detail}`);
+  return result.intent;
+}
+
+describe("normalizeProposal for send_invoice, pay_order and create_payout", () => {
+  it("makes send_invoice an intent on the invoice, for the invoice's amount", () => {
+    expect(normalizeOther(sendInvoice)).toEqual({
+      ok: true,
+      intent: {
+        principal: "support-agent",
+        rail: "paypal",
+        action: "paypal.invoice.send",
+        amount: { minor: 5600, currency: "USD" },
+        target: { kind: "invoice", invoiceId: "INV2-K7QX-4M2D-9TLB-3HRW" },
+        ticketId: "TKT-5009",
+        params: {
+          note: "Thanks for your order.",
+          sendToRecipient: true,
+          additionalRecipients: ["accounts@example.com"],
+        },
+        claim: null,
+        mandateVersion: 3,
+      },
+    });
+    const bare = intentOf({ tool: "send_invoice", args: { invoice_id: invoice.id } });
+    expect(bare.params).toEqual({ note: null, sendToRecipient: null, additionalRecipients: null });
+    expect(bare.ticketId).toBeNull();
+  });
+
+  it("makes pay_order an intent on the order, for its one purchase unit's amount", () => {
+    expect(normalizeOther(payOrder)).toEqual({
+      ok: true,
+      intent: {
+        principal: "support-agent",
+        rail: "paypal",
+        action: "paypal.order.capture",
+        amount: { minor: 3200, currency: "KES" },
+        target: { kind: "order", orderId: "ORD-5010" },
+        ticketId: null,
+        params: {},
+        claim: null,
+        mandateVersion: 3,
+      },
+    });
+  });
+
+  it("makes create_payout an intent on the lower-cased, trimmed receiver, for the agent's amount", () => {
+    expect(normalizeOther(createPayout)).toEqual({
+      ok: true,
+      intent: {
+        principal: "support-agent",
+        rail: "paypal",
+        action: "paypal.payout",
+        amount: { minor: 2500, currency: "USD" },
+        target: { kind: "payee", email: "wanjiru.k@example.com" },
+        ticketId: null,
+        params: { note: "Goodwill credit." },
+        claim: null,
+        mandateVersion: 3,
+      },
+    });
+    // The receiver's case and spacing don't change what executes.
+    const plain = {
+      ...createPayout,
+      args: { ...createPayout.args, receiver: "wanjiru.k@example.com" },
+    };
+    expect(hashIntent(intentOf(plain)).hash).toBe(hashIntent(intentOf(createPayout)).hash);
+    expect(
+      intentOf({ ...createPayout, args: { ...createPayout.args, note: undefined } }).params,
+    ).toEqual({
+      note: null,
+    });
+  });
+
+  it("changes the hash when a recipient or the note changes", () => {
+    const base = hashIntent(intentOf(sendInvoice)).hash;
+    const recipients = withDisputeArgs(sendInvoice, { additional_recipients: ["ap@example.com"] });
+    const note = withDisputeArgs(sendInvoice, { note: "Thanks again." });
+    expect(hashIntent(intentOf(recipients)).hash).not.toBe(base);
+    expect(hashIntent(intentOf(note)).hash).not.toBe(base);
+  });
+
+  it.each([
+    ["send_invoice with an empty note", withDisputeArgs(sendInvoice, { note: "" })],
+    [
+      "send_invoice with a non-boolean send flag",
+      withDisputeArgs(sendInvoice, { send_to_recipient: "yes" }),
+    ],
+    [
+      "send_invoice with a bad recipient",
+      withDisputeArgs(sendInvoice, { additional_recipients: ["nobody"] }),
+    ],
+    [
+      "send_invoice with over 100 recipients",
+      withDisputeArgs(sendInvoice, {
+        additional_recipients: Array.from({ length: 101 }, (_v, i) => `r${i}@example.com`),
+      }),
+    ],
+    ["send_invoice with an unknown key", withDisputeArgs(sendInvoice, { amount: 1 })],
+    ["pay_order with no ID", { tool: "pay_order", args: {} }],
+    ["pay_order with an unknown key", withDisputeArgs(payOrder, { order_id: "ORD-5010" })],
+    [
+      "create_payout with a bad receiver",
+      withDisputeArgs(createPayout, { receiver: "not an email" }),
+    ],
+    ["create_payout with no amount", withDisputeArgs(createPayout, { amount: undefined })],
+    [
+      "create_payout with a zero amount",
+      withDisputeArgs(createPayout, { amount: { value: "0.00", currency_code: "USD" } }),
+    ],
+    [
+      "create_payout in an unsupported currency",
+      withDisputeArgs(createPayout, { amount: { value: "5.00", currency_code: "EUR" } }),
+    ],
+    ["create_payout with an empty note", withDisputeArgs(createPayout, { note: "" })],
+    ["create_payout with an unknown key", withDisputeArgs(createPayout, { sender_batch_id: "B1" })],
+  ])("denies %s as INVALID_PROPOSAL", (_label, input) => {
+    expect(deniedCode(input, otherRecords)).toBe("INVALID_PROPOSAL");
+  });
+
+  it("denies a missing invoice or order as TARGET_UNKNOWN, naming it", () => {
+    expect(normalizeOther(sendInvoice, {})).toEqual({
+      ok: false,
+      reason: { code: "TARGET_UNKNOWN", detail: "No record of invoice INV2-K7QX-4M2D-9TLB-3HRW" },
+    });
+    expect(normalizeOther(payOrder, {})).toEqual({
+      ok: false,
+      reason: { code: "TARGET_UNKNOWN", detail: "No record of order ORD-5010" },
+    });
+  });
+
+  it("denies an order with several purchase units, or no amount, as TARGET_UNKNOWN", () => {
+    const amounts = [
+      { minor: 1200, currency: "USD" },
+      { minor: 800, currency: "USD" },
+    ];
+    expect(normalizeOther(payOrder, { orders: [{ ...order, amounts }] })).toEqual({
+      ok: false,
+      reason: {
+        code: "TARGET_UNKNOWN",
+        detail: "Order ORD-5010 has 2 purchase units, and Countersign captures only one",
+      },
+    });
+    const { amounts: _left, ...unread } = order;
+    expect(deniedCode(payOrder, { orders: [unread] })).toBe("TARGET_UNKNOWN");
+  });
+
+  it("denies an invoice or order in an unsupported currency as TARGET_UNKNOWN, naming it", () => {
+    const euro = { minor: 5600, currency: "EUR" };
+    expect(normalizeOther(sendInvoice, { invoices: [{ ...invoice, amount: euro }] })).toEqual({
+      ok: false,
+      reason: {
+        code: "TARGET_UNKNOWN",
+        detail: "Invoice INV2-K7QX-4M2D-9TLB-3HRW is in EUR, which Countersign doesn't support",
+      },
+    });
+    expect(normalizeOther(payOrder, { orders: [{ ...order, amounts: [euro] }] })).toEqual({
+      ok: false,
+      reason: {
+        code: "TARGET_UNKNOWN",
+        detail: "Order ORD-5010 is in EUR, which Countersign doesn't support",
+      },
+    });
+  });
+
+  it("pays out with no records at all, since the payout names its own amount", () => {
+    expect(normalizeOther(createPayout, {}).ok).toBe(true);
   });
 });

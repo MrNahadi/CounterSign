@@ -1,0 +1,48 @@
+{
+  "description": "A mandate that allows capturing an order, which Countersign can't carry out yet, so the capture is denied; a refund it allows is still allowed. Illustrative people and orders.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../mandates/order-capture-allowed.json",
+  "principal": "support-agent",
+  "records": {
+    "captures": [
+      {
+        "id": "CAP-2060",
+        "orderId": "ORD-2060",
+        "status": "COMPLETED",
+        "amount": { "minor": 6400, "currency": "USD" },
+        "refundedMinor": 0
+      }
+    ],
+    "orders": [
+      {
+        "id": "ORD-2060",
+        "payerEmail": "otieno.b@example.com",
+        "trackers": [{ "id": "CAP-2060-TRK2060", "trackingNumber": "TRK2060", "status": "SHIPPED" }]
+      },
+      {
+        "id": "ORD-5010",
+        "payerEmail": "wanjiru.k@example.com",
+        "trackers": [],
+        "amounts": [{ "minor": 3200, "currency": "USD" }]
+      }
+    ],
+    "disputes": [{ "id": "CAP-2060", "disputes": [] }],
+    "shipments": [{ "id": "TRK2060", "status": "lost" }],
+    "ticket": { "id": "TKT-2060", "senderEmail": "otieno.b@example.com", "attachments": [] },
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": { "tool": "pay_order", "args": { "id": "ORD-5010" } },
+      "expect": { "decision": "deny", "reasons": ["ACTION_UNAVAILABLE"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": { "capture_id": "CAP-2060" },
+        "justification": { "ticket_id": "TKT-2060", "claim": "not_received" }
+      },
+      "expect": { "decision": "allow", "reasons": [] }
+    }
+  ]
+}

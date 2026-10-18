@@ -10,6 +10,7 @@ export const CALLS = {
   order: "GET /v2/checkout/orders/{id}",
   disputes: "GET /v1/customer/disputes",
   dispute: "GET /v1/customer/disputes/{id}",
+  invoice: "GET /v2/invoicing/invoices/{id}",
   carrier: "carrier GET /shipments/{tracking_number}",
   ticket: "ticket",
   executions: "audit log executions",
@@ -37,10 +38,17 @@ export type TrackerSnapshot = {
   status: string;
 };
 
+// An amount as a record states it, with PayPal's currency code unchecked, so the gate can deny an
+// unsupported currency by name.
+export type RecordAmount = { minor: number; currency: string };
+
 export type OrderSnapshot = SnapshotSource & {
   // `payer.email_address`. Card orders may lack it.
   payerEmail: string | null;
   trackers: readonly TrackerSnapshot[];
+  // Each purchase unit's amount, in order, for capturing the order (ADR 0027). Absent when it
+  // wasn't read, which leaves the order's amount unknown.
+  amounts?: readonly RecordAmount[];
 };
 
 export type DisputeSnapshot = {
@@ -56,12 +64,18 @@ export type DisputesSnapshot = SnapshotSource & {
   disputes: readonly DisputeSnapshot[];
 };
 
-// One dispute's own record, read by its ID, for the actions that target it (ADR 0027). The amount
-// keeps PayPal's currency code unchecked, so the gate can deny an unsupported currency by name.
+// One dispute's own record, read by its ID, for the actions that target it (ADR 0027).
 export type DisputeRecordSnapshot = SnapshotSource & {
   // PayPal's dispute status, such as WAITING_FOR_SELLER_RESPONSE.
   status: string;
-  amount: { minor: number; currency: string };
+  amount: RecordAmount;
+};
+
+// One invoice's record, read by its ID, for sending it (ADR 0027).
+export type InvoiceSnapshot = SnapshotSource & {
+  // PayPal's invoice status, such as DRAFT.
+  status: string;
+  amount: RecordAmount;
 };
 
 // The carrier's record for one tracking number, which is its ID.
@@ -97,6 +111,7 @@ export type RecordSnapshots = {
   orders?: readonly OrderSnapshot[];
   disputes?: readonly DisputesSnapshot[];
   disputeRecords?: readonly DisputeRecordSnapshot[];
+  invoices?: readonly InvoiceSnapshot[];
   shipments?: readonly ShipmentSnapshot[];
   ticket?: TicketSnapshot;
   // The whole execution history, for every principal and every day: ledger.not_duplicate passes

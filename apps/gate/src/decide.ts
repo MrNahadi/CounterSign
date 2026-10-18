@@ -18,6 +18,7 @@ import {
 } from "@countersign/mandate";
 import { type RecordSnapshots, runVerifiers, todaysUsage } from "@countersign/verifiers";
 import { z } from "zod";
+import { isExecutable } from "./executable";
 import { normalizeProposal } from "./proposal";
 
 // How long a step-up waits for the merchant before it expires as a deny.
@@ -131,7 +132,15 @@ export function decide(input: DecideInput): Decided {
   const { hash, id, canonical } = hashIntent(intent);
   // The mandate's rules may require verifiers beyond the action's own set.
   const trace = runVerifiers(intent, records, requiredVerifiers(mandate, intent.action));
-  const { decision, reasons, matchedRules } = evaluate({ mandate, intent, trace, usage });
+  const evaluated = evaluate({ mandate, intent, trace, usage });
+  const { matchedRules } = evaluated;
+  let { decision, reasons } = evaluated;
+  // The mandate may allow what the gate has no call for yet, so nothing is sent.
+  if (decision === "allow" && !isExecutable(intent.action)) {
+    decision = "deny";
+    const detail = `The mandate allows ${intent.action}, but Countersign can't carry it out yet`;
+    reasons = [{ code: "ACTION_UNAVAILABLE", detail }];
+  }
   const record: DecisionRecord = {
     ...base,
     intent,

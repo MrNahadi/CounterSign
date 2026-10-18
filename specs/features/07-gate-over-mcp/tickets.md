@@ -47,16 +47,16 @@ Notes:
 
 ## T-004: Normalize send_invoice, pay_order and create_payout, and ACTION_UNAVAILABLE
 
-Status: open
+Status: done
 Blocked by: T-003
 Tier: standard
 Slice: Invoice sends, order captures and payouts become intents; the demo mandate holds the invoice and denies the capture and the payout; and an allow for any action the gate can't execute becomes a deny `ACTION_UNAVAILABLE`.
 Test seam: the proposal normalization and `decide` functions in `apps/gate/src/`, and fixture cases in `apps/gate/fixtures/cases/`
 Acceptance:
-- [ ] `send_invoice` takes the invoice's amount, `pay_order` the order's single purchase unit amount, `create_payout` the agent's amount and a lower-cased, trimmed receiver email; a missing invoice or order, or an order with several purchase units, is `TARGET_UNKNOWN`
-- [ ] The case-file schema gains invoice records and an order's amount; fixture cases give `send_invoice` step-up `ALWAYS_NEEDS_APPROVAL`, and `pay_order` and `create_payout` deny `NO_MATCHING_RULE`, under the demo mandate
-- [ ] With a fixture mandate that allows `paypal.order.capture`, `decide()` gives `pay_order` deny `ACTION_UNAVAILABLE`, keeping the intent, trace and matched rule; a refund allow is untouched
-- [ ] The "every code is reached" test covers 25 codes, and every earlier fixture case still passes
+- [x] `send_invoice` takes the invoice's amount, `pay_order` the order's single purchase unit amount, `create_payout` the agent's amount and a lower-cased, trimmed receiver email; a missing invoice or order, or an order with several purchase units, is `TARGET_UNKNOWN`
+- [x] The case-file schema gains invoice records and an order's amount; fixture cases give `send_invoice` step-up `ALWAYS_NEEDS_APPROVAL`, and `pay_order` and `create_payout` deny `NO_MATCHING_RULE`, under the demo mandate
+- [x] With a fixture mandate that allows `paypal.order.capture`, `decide()` gives `pay_order` deny `ACTION_UNAVAILABLE`, keeping the intent, trace and matched rule; a refund allow is untouched
+- [x] The "every code is reached" test covers 25 codes, and every earlier fixture case still passes
 Notes:
 
 ## T-005: The ticket store

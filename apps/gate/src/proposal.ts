@@ -12,10 +12,18 @@ import {
   isCurrency,
   isMinorUnits,
   type Money,
+  normalizePayeeEmail,
   parseMoney,
   type Reason,
 } from "@countersign/mandate";
-import { captureFor, disputeRecordFor, type RecordSnapshots } from "@countersign/verifiers";
+import {
+  captureFor,
+  disputeRecordFor,
+  invoiceFor,
+  orderRecordFor,
+  type RecordAmount,
+  type RecordSnapshots,
+} from "@countersign/verifiers";
 import { z } from "zod";
 
 // The tools the gate knows, by the guarded action each proposes. Anything else is UNKNOWN_ACTION.
@@ -24,6 +32,9 @@ const TOOLS = {
   accept_dispute_claim: "paypal.dispute.accept_claim",
   provide_dispute_evidence: "paypal.dispute.provide_evidence",
   make_offer: "paypal.dispute.make_offer",
+  send_invoice: "paypal.invoice.send",
+  pay_order: "paypal.order.capture",
+  create_payout: "paypal.payout",
 } as const satisfies Record<string, Action>;
 type Tool = keyof typeof TOOLS;
 
@@ -161,11 +172,45 @@ const MakeOfferProposal = z.strictObject({
   justification: OptionalJustification,
 });
 
+// An email address, as PayPal reads one.
+const Email = z.email().max(254);
+
+const SendInvoiceProposal = z.strictObject({
+  tool: z.literal("send_invoice"),
+  args: z.strictObject({
+    invoice_id: Id,
+    note: z.string().min(1).max(4000).optional(),
+    send_to_recipient: z.boolean().optional(),
+    additional_recipients: z.array(Email).max(100).optional(),
+  }),
+  justification: OptionalJustification,
+});
+
+const PayOrderProposal = z.strictObject({
+  tool: z.literal("pay_order"),
+  args: z.strictObject({ id: Id }),
+  justification: OptionalJustification,
+});
+
+const CreatePayoutProposal = z.strictObject({
+  tool: z.literal("create_payout"),
+  args: z.strictObject({
+    // Compared and hashed lower-cased and trimmed (ADR 0027).
+    receiver: z.string().transform(normalizePayeeEmail).pipe(Email),
+    amount: Amount,
+    note: z.string().min(1).max(4000).optional(),
+  }),
+  justification: OptionalJustification,
+});
+
 const PROPOSALS = {
   create_refund: CreateRefundProposal,
   accept_dispute_claim: AcceptDisputeClaimProposal,
   provide_dispute_evidence: ProvideDisputeEvidenceProposal,
   make_offer: MakeOfferProposal,
+  send_invoice: SendInvoiceProposal,
+  pay_order: PayOrderProposal,
+  create_payout: CreatePayoutProposal,
 } as const satisfies Record<Tool, z.ZodType>;
 
 export type ProposalInput = {
@@ -217,6 +262,18 @@ function normalizeRefund(
   return { ok: true, amount, target };
 }
 
+// A target record's amount, if Countersign can act on it; otherwise why the target is unknown.
+function recordMoney(label: string, amount: RecordAmount): { ok: true; money: Money } | Denial {
+  const { minor, currency } = amount;
+  if (!isCurrency(currency)) {
+    return targetUnknown(`${label} is in ${currency}, which Countersign doesn't support`);
+  }
+  if (!isMinorUnits(minor) || minor === 0) {
+    return targetUnknown(`${label} has no amount Countersign can read`);
+  }
+  return { ok: true, money: { minor, currency } };
+}
+
 // A dispute action always reads its dispute, which supplies the amount unless an offer states one.
 function normalizeDispute(
   disputeId: string,
@@ -226,22 +283,56 @@ function normalizeDispute(
 ): Normalizing {
   const record = disputeRecordFor(disputeId, records);
   if (!record) return targetUnknown(`No record of dispute ${disputeId}`);
-  const { minor, currency } = record.amount;
-  if (!isCurrency(currency)) {
-    return targetUnknown(
-      `Dispute ${disputeId} is in ${currency}, which Countersign doesn't support`,
-    );
-  }
-  if (!isMinorUnits(minor) || minor === 0) {
-    return targetUnknown(`Dispute ${disputeId} has no amount Countersign can read`);
-  }
+  const amount = recordMoney(`Dispute ${disputeId}`, record.amount);
+  if (!amount.ok) return amount;
+  const { currency } = amount.money;
   if (offerAmount && offerAmount.currency !== currency) {
     return invalid(
       `The offer is in ${offerAmount.currency}, but dispute ${disputeId} is in ${currency}`,
     );
   }
   const target: IntentTarget = { kind: "dispute", disputeId };
-  return { ok: true, amount: offerAmount ?? { minor, currency }, target, params };
+  return { ok: true, amount: offerAmount ?? amount.money, target, params };
+}
+
+// Sending an invoice moves its total, from the invoice's own record.
+function normalizeInvoice(
+  args: z.infer<typeof SendInvoiceProposal>["args"],
+  records: RecordSnapshots,
+): Normalizing {
+  const record = invoiceFor(args.invoice_id, records);
+  if (!record) return targetUnknown(`No record of invoice ${args.invoice_id}`);
+  const amount = recordMoney(`Invoice ${args.invoice_id}`, record.amount);
+  if (!amount.ok) return amount;
+  const params: IntentParams = {
+    note: args.note ?? null,
+    sendToRecipient: args.send_to_recipient ?? null,
+    additionalRecipients: args.additional_recipients ?? null,
+  };
+  return {
+    ok: true,
+    amount: amount.money,
+    target: { kind: "invoice", invoiceId: args.invoice_id },
+    params,
+  };
+}
+
+// Capturing an order moves its one purchase unit's amount. With several, which amount moves isn't
+// one thing the merchant could approve, so the target is unknown.
+function normalizeOrder(orderId: string, records: RecordSnapshots): Normalizing {
+  const record = orderRecordFor(orderId, records);
+  if (!record) return targetUnknown(`No record of order ${orderId}`);
+  const amounts = record.amounts ?? [];
+  const [only] = amounts;
+  if (!only) return targetUnknown(`Order ${orderId} has no amount Countersign can read`);
+  if (amounts.length > 1) {
+    return targetUnknown(
+      `Order ${orderId} has ${amounts.length} purchase units, and Countersign captures only one`,
+    );
+  }
+  const amount = recordMoney(`Order ${orderId}`, only);
+  if (!amount.ok) return amount;
+  return { ok: true, amount: amount.money, target: { kind: "order", orderId }, params: {} };
 }
 
 type Parsed = { [T in Tool]: z.infer<(typeof PROPOSALS)[T]> }[Tool];
@@ -263,6 +354,15 @@ function normalizeArgs(parsed: Parsed, records: RecordSnapshots): Normalizing {
     case "make_offer": {
       const { dispute_id, offer_type, offer_amount, note } = parsed.args;
       return normalizeDispute(dispute_id, records, { offerType: offer_type, note }, offer_amount);
+    }
+    case "send_invoice":
+      return normalizeInvoice(parsed.args, records);
+    case "pay_order":
+      return normalizeOrder(parsed.args.id, records);
+    case "create_payout": {
+      const { receiver, amount, note } = parsed.args;
+      const target: IntentTarget = { kind: "payee", email: receiver };
+      return { ok: true, amount, target, params: { note: note ?? null } };
     }
   }
 }

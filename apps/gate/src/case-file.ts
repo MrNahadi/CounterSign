@@ -28,6 +28,13 @@ function snapshotSchema<Shape extends z.ZodRawShape>(call: string, shape: Shape)
   return z.strictObject({ id: Id, ...shape }).transform((record) => ({ call, ...record }));
 }
 
+// An amount as a record states it. Its currency isn't limited here, so a case can hold one the
+// gate doesn't support.
+const RecordAmount = z.strictObject({
+  minor: Money.shape.minor,
+  currency: z.string().regex(/^[A-Z]{3}$/, "Must be a three-letter currency code"),
+});
+
 const Records = z.strictObject({
   captures: z
     .array(
@@ -44,6 +51,8 @@ const Records = z.strictObject({
       snapshotSchema(CALLS.order, {
         payerEmail: z.string().nullable(),
         trackers: z.array(z.strictObject({ id: Id, trackingNumber: Id, status: z.string() })),
+        // Each purchase unit's amount, in order.
+        amounts: z.array(RecordAmount).optional(),
       }),
     )
     .optional(),
@@ -54,18 +63,12 @@ const Records = z.strictObject({
       }),
     )
     .optional(),
-  // A dispute's own record. Its currency isn't limited here, so a case can hold one the gate
-  // doesn't support.
+  // A dispute's own record.
   disputeRecords: z
-    .array(
-      snapshotSchema(CALLS.dispute, {
-        status: z.string(),
-        amount: z.strictObject({
-          minor: Money.shape.minor,
-          currency: z.string().regex(/^[A-Z]{3}$/, "Must be a three-letter currency code"),
-        }),
-      }),
-    )
+    .array(snapshotSchema(CALLS.dispute, { status: z.string(), amount: RecordAmount }))
+    .optional(),
+  invoices: z
+    .array(snapshotSchema(CALLS.invoice, { status: z.string(), amount: RecordAmount }))
     .optional(),
   shipments: z
     .array(snapshotSchema(CALLS.carrier, { status: z.enum(SHIPMENT_STATUSES) }))

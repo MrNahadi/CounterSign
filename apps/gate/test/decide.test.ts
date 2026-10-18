@@ -106,8 +106,7 @@ describe("the fixture suite", () => {
 
   it("reaches every reason code", () => {
     const reached = new Set(expected.flatMap((each) => each.reasons));
-    // ACTION_UNAVAILABLE comes from decide() itself, which T-004 builds with its own case.
-    expect(REASON_CODES.filter((code) => !reached.has(code))).toEqual(["ACTION_UNAVAILABLE"]);
+    expect(REASON_CODES.filter((code) => !reached.has(code))).toEqual([]);
     expect(REASON_CODES).toHaveLength(25);
     expect(reached).toContain("NO_DAILY_LIMIT");
   });
@@ -258,6 +257,74 @@ describe("the decision record", () => {
         detail: "Dispute PP-D-4013 is in EUR, which Countersign doesn't support",
       },
     ]);
+  });
+
+  it("holds an invoice send for approval on the invoice's record", () => {
+    const decisionCase = load("invoice-order-payout.json");
+    expect(decisionCase.records.invoices?.[0]?.call).toBe("GET /v2/invoicing/invoices/{id}");
+    const { record, response } = decideAt(decisionCase, 0);
+    expect(record.intent).toMatchObject({
+      action: "paypal.invoice.send",
+      amount: { minor: 5600, currency: "USD" },
+      target: { kind: "invoice", invoiceId: "INV2-K7QX-4M2D-9TLB-3HRW" },
+    });
+    expect(record.matchedRules).toEqual(["dispute-and-invoice-actions"]);
+    expect(response.decision).toBe("pending_approval");
+  });
+
+  it("denies the demo mandate's order capture and payout NO_MATCHING_RULE, on their intents", () => {
+    const decisionCase = load("invoice-order-payout.json");
+    const capture = decideAt(decisionCase, 1).record;
+    expect(capture.intent).toMatchObject({
+      action: "paypal.order.capture",
+      amount: { minor: 3200, currency: "USD" },
+      target: { kind: "order", orderId: "ORD-5010" },
+    });
+    expect(capture.matchedRules).toEqual([]);
+    const payout = decideAt(decisionCase, 2).record;
+    expect(payout.intent).toMatchObject({
+      action: "paypal.payout",
+      amount: { minor: 2500, currency: "USD" },
+      target: { kind: "payee", email: "wanjiru.k@example.com" },
+    });
+    expect(payout.intentId).not.toBeNull();
+  });
+
+  it("denies an allowed action the gate can't carry out ACTION_UNAVAILABLE, keeping the rest", () => {
+    const decisionCase = load("action-unavailable.json");
+    const { record, response } = decideAt(decisionCase, 0);
+    expect(record.decision).toBe("deny");
+    expect(record.reasons).toEqual([
+      {
+        code: "ACTION_UNAVAILABLE",
+        detail: "The mandate allows paypal.order.capture, but Countersign can't carry it out yet",
+      },
+    ]);
+    expect(record.intent).toMatchObject({
+      action: "paypal.order.capture",
+      target: { kind: "order", orderId: "ORD-5010" },
+    });
+    expect(record.intentId).toMatch(/^int_/);
+    expect(record.trace).toEqual([]);
+    expect(record.matchedRules).toEqual(["capture-orders"]);
+    expect(response).toEqual({
+      decision: "denied",
+      intent_id: record.intentId,
+      reasons: record.reasons,
+      safe_reply_hint: REASONS.ACTION_UNAVAILABLE.hint,
+    });
+  });
+
+  it("leaves a refund allow under the same mandate untouched", () => {
+    const { record, response } = decideAt(load("action-unavailable.json"), 1);
+    expect(record.decision).toBe("allow");
+    expect(record.reasons).toEqual([]);
+    expect(record.matchedRules).toEqual(["refund-lost-parcel"]);
+    expect(response).toEqual({
+      decision: "allowed",
+      intent_id: record.intentId,
+      intent_hash: record.intentHash,
+    });
   });
 
   it("comes from a module that doesn't load case files", () => {

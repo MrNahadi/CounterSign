@@ -13,6 +13,7 @@ import {
   CALLS,
   type CaptureSnapshot,
   type DisputeRecordSnapshot,
+  type InvoiceSnapshot,
   type OrderSnapshot,
   type RecordSnapshots,
   recordRef,
@@ -48,6 +49,16 @@ export function disputeRecordFor(
   records: RecordSnapshots,
 ): DisputeRecordSnapshot | null {
   return records.disputeRecords?.find((record) => record.id === disputeId) ?? null;
+}
+
+// The invoice's record, if the records hold it.
+export function invoiceFor(invoiceId: string, records: RecordSnapshots): InvoiceSnapshot | null {
+  return records.invoices?.find((record) => record.id === invoiceId) ?? null;
+}
+
+// The order's record by its own ID, for an action that targets the order itself.
+export function orderRecordFor(orderId: string, records: RecordSnapshots): OrderSnapshot | null {
+  return records.orders?.find((record) => record.id === orderId) ?? null;
 }
 
 // The capture's order, as long as the capture's record says the money was captured on it.

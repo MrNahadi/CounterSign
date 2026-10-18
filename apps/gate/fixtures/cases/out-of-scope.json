@@ -20,7 +20,7 @@
   "proposals": [
     {
       "proposal": {
-        "tool": "create_payout",
+        "tool": "transfer_funds",
         "args": {
           "receiver": "musa.h@example.com",
           "amount": { "value": "500.00", "currency_code": "USD" }
