@@ -1,6 +1,6 @@
 # Tech stack
 
-Derived from brief §8–§9 and ADRs 0001–0026 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
+Derived from brief §8–§9 and ADRs 0001–0029 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
 
 ## Runtime and tooling
 
@@ -55,10 +55,10 @@ apps/
 packages/
   mandate/              Mandate schema, rule evaluator, compiler prompt
   verifiers/            Pure verifier functions over record snapshots, with fixtures
-  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds, disputes lookup and webhook signature verification from phase 6; ADR 0025)
+  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds, disputes lookup and webhook signature verification from phase 6, ADR 0025; get dispute, get invoice and transaction search from phase 7)
   rail-mpesa/           Daraja client, callback parsing, receipt store
   ledger/               Hash chain, appends, `ledger verify` and its CLI; evidence export (phase 10)
-  db/                   Drizzle schema (audit_log, carrier_shipments, seed_orders), migrations (with the append-only trigger), postgres.js and PGlite clients
+  db/                   Drizzle schema (audit_log, carrier_shipments, seed_orders, and tickets from phase 7; ADR 0029), migrations (with the append-only trigger), postgres.js and PGlite clients
   graphite/             Graphite tokens (byte-identical copy), Tailwind theme, AG Studio theme
   carrier-mock/         Carrier adapter interface, and the mock over carrier_shipments (stored status, never derived from the clock; ADR 0023)
 bench/                  cases/, runner, results/ (committed, dated)
@@ -80,7 +80,10 @@ specs/                  Brief, constitution, feature specs
 - An audit-log entry's hash covers its envelope `{ seq, entryType, refId, at, prevHash, payload }`. The payload is stored as the canonical text that was hashed, never as jsonb. A trigger rejects UPDATE and DELETE on `audit_log` (ADR 0022).
 - The decision path stays pure: `decide()` never touches the database. Callers record its result in the audit log afterwards.
 - Idempotency: `PayPal-Request-Id` is the intent hash, and `sender_batch_id` is the intent ID. Daraja calls are deduplicated in the audit log first. Non-decision POSTs (seed, storefront) use readable request IDs, `countersign-<area>-<id>-<step>`, so a rerun replays rather than repeats.
-- Executions (from phase 6, ADR 0026): the history read, the decision and the `execution.requested` entry are written in one audit-log transaction; the rail call happens after it commits, and `execution.result` is appended after the call. A request counts as executed unless its result says `failed`. A replay of an executed intent makes no rail call; any other replay re-sends the same request ID, within 6 hours only. Never hold the ledger lock across a network call.
+- Executions (from phase 6, ADR 0026): the history read, the decision and the `execution.requested` entry are written in one audit-log transaction; the rail call happens after it commits, and `execution.result` is appended after the call. A request counts as executed unless its result says `failed`. A replay of an executed intent makes no rail call; any other replay re-sends the same request ID, within 6 hours only, unless it was refused and another refund has since executed on its capture (then it's denied `DUPLICATE_REFUND`). An executed result keeps an intent in the history even if a later re-send is refused. Never hold the ledger lock across a network call.
+- Intent targets (from phase 7, ADR 0027): each guarded action hashes its own target (capture, dispute, invoice, order or payee) and, except a refund, the parameters that execute. A refund's hashed JSON is unchanged. Only refunds need a ticket. An amount the agent doesn't state comes from the target's record, and no record means deny `TARGET_UNKNOWN`.
+- The MCP surface (from phase 7, ADR 0028): `POST /mcp` only, stateless, one low-level `Server` per request; a principal key in `Authorization: Bearer` picks the principal and its mandate. Guarded tools keep the Agent Toolkit's names, and extensions are named as such. Every guarded call, valid or not, reaches the gate's own normalization and is recorded; nothing validates arguments before it. A guarded call's result is the agent response, never an MCP error. An allow for an action the gate can't execute yet is denied `ACTION_UNAVAILABLE`. Read-only tools are answered by `@countersign/rail-paypal` and the carrier mock, never by the Agent Toolkit, and aren't logged.
+- Tickets (from phase 7, ADR 0029): the ticket store is the `tickets` table. Resolve writes it, the gate reads a ticket by the ID the agent names, and a ticket is never changed once written. An unknown ticket ID leaves the ticket snapshot out (unknown, so it fails closed).
 - PayPal webhooks are verified with `verify-webhook-signature` over the exact raw body and `PAYPAL_WEBHOOK_ID`, and reconciliation re-reads the refund rather than trusting the event body (ADR 0025).
 - Only `@countersign/rail-paypal` calls PayPal REST or knows its JSON. It refuses any base URL but the sandbox's, caches one token per client, retries only GETs and POSTs with a request ID, and returns zod-parsed records in minor units (ADR 0024).
 
@@ -115,6 +118,7 @@ specs/                  Brief, constitution, feature specs
 **Secrets and environment**
 - Real values live only in `.env.local` (git-ignored) and on Render. `.env.example` lists the names.
 - Load env with `tsx --env-file-if-exists=.env.local`, so scripts also run in cloud sessions, where the environment holds the values and there's no `.env.local`. Never print, log or commit a secret, `DATABASE_URL` included.
+- Principal keys (from phase 7) are environment variables, one per principal: `COUNTERSIGN_SUPPORT_AGENT_KEY` now, `COUNTERSIGN_OPS_AGENT_KEY` from phase 12. A key shorter than 32 characters counts as unset. The gate and Resolve read the same variable.
 - Unit tests never need credentials. Tests that hit live sandboxes run only under `LIVE=1` and are not part of the Feedback commands.
 
 **Git**

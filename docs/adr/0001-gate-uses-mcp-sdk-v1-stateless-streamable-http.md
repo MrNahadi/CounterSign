@@ -1,6 +1,6 @@
 # 0001. The gate uses `@modelcontextprotocol/sdk` v1 (1.32.x) with stateless Streamable HTTP
 
-Status: accepted
+Status: accepted, amended by ADR 0028 (the low-level Server replaces registerTool)
 Decided-by: answerer (stated)
 Question: Phase 1 constitution, Q1. Which MCP server package should the gate use for a Streamable HTTP MCP server: `@modelcontextprotocol/sdk` v1.32 or the v2 split package `@modelcontextprotocol/server` 2.3?
 Decision: Pin `@modelcontextprotocol/sdk` 1.32.1 and use `McpServer` with `registerTool`. Serve it through `StreamableHTTPServerTransport` in stateless JSON mode: `sessionIdGenerator: undefined`, `enableJsonResponse: true`, and a new server and transport for each `POST /mcp`. `GET` and `DELETE /mcp` return 405. Don't use the v2 packages (`@modelcontextprotocol/server`, `/client`, `/node`, `/express`).

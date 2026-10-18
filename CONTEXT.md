@@ -40,6 +40,18 @@ _Avoid_: money tool, write action
 A kind of action that only reads rail data. It passes straight through the gate.
 _Avoid_: pass-through tool, safe action
 
+**Countersign extension**:
+A guarded action's MCP tool that PayPal's Agent Toolkit has no equivalent for, such as `provide_dispute_evidence`, `make_offer` or `create_payout`. Every other tool keeps PayPal's name.
+_Avoid_: custom tool, Countersign tool
+
+**Principal key**:
+The secret an agent presents to the gate's MCP server as a bearer token. It names exactly one principal, and through it the mandate. The agent never presents a rail credential.
+_Avoid_: API key, token (reserved for PayPal's access token)
+
+**Target**:
+The record an intent acts on: a capture for a refund, a dispute, an invoice, an order for a capture, or a payee for a payout.
+_Avoid_: object, resource
+
 **Intent**:
 One normalized proposal of a guarded action: rail, action, amount, currency, target and ticket. Its hash identifies it exactly.
 _Avoid_: request, proposal (as a noun for the stored thing), transaction
@@ -49,7 +61,7 @@ The agent's request to run one tool: the tool name, its PayPal-shaped arguments,
 _Avoid_: tool call, request
 
 **Intent hash**:
-SHA-256 over the canonical JSON of what would execute: the principal, rail, action, amount, currency, capture and ticket. The order isn't hashed. The decision record keeps the exact JSON it covers. An approval is bound to it.
+SHA-256 over the canonical JSON of what would execute: the principal, rail, action, amount, currency, target and ticket, plus, for actions other than a refund, the parameters that execute, such as a note or an offer type. A refund's target is its capture; the order isn't hashed. The decision record keeps the exact JSON it covers. An approval is bound to it.
 _Avoid_: fingerprint, checksum
 
 **Decision**:
@@ -85,7 +97,7 @@ What the rail call's `execution.result` entry records: executed (the refund is c
 _Avoid_: status, success
 
 **Replay**:
-A proposal whose intent was already requested. It isn't decided again: an executed intent gets the same answer and no rail call, and any other is re-sent with the same request ID within 6 hours.
+A proposal whose intent was already requested. It isn't decided again: an executed intent gets the same answer and no rail call, and any other is re-sent with the same request ID within 6 hours. A refused intent is denied `DUPLICATE_REFUND` instead once another refund has executed on its capture.
 _Avoid_: retry, duplicate
 
 **Unmatched refund**:
@@ -97,6 +109,10 @@ Matching an execution to the webhook or callback that confirms it.
 _Avoid_: sync, settlement
 
 ### Records and verification
+
+**Ticket**:
+One message a customer sent to Resolve, kept in the ticket store with its channel, sender and attachments. The gate reads it by ID; the agent only names it, so it can't choose the sender a verifier sees.
+_Avoid_: case, message (when you mean the stored ticket)
 
 **Record**:
 Data held by a rail, the carrier or the audit log, such as a capture, tracker, dispute or receipt. Records are the only input an allow can rest on.
