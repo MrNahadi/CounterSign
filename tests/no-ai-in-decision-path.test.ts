@@ -50,6 +50,7 @@ describe("no AI in the decision path", () => {
     "proposal.ts",
     "propose.ts",
     "record.ts",
+    "webhook.ts",
   ];
   it("the gate's decide and execute modules import no AI SDK", () => {
     const hits: string[] = [];

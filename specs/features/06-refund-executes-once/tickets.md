@@ -106,17 +106,17 @@ Notes:
 
 ## T-008: The PayPal webhook route
 
-Status: open
+Status: done
 Blocked by: T-001, T-002, T-003
 Tier: standard
 Slice: A verified `PAYMENT.CAPTURE.REFUNDED` webhook reconciles Countersign's refund in the audit log, once.
 Test seam: the gate's `createApp(deps)` with a fake PayPal client and PGlite, called through Express without a listening port
 Acceptance:
-- [ ] A verified event for a refund an `execution.result` names appends one `reconciliation` (source `webhook`) with the intent ID as ref and the refund as re-read with get refund
-- [ ] The same event ID again answers 200 and writes nothing; a refund nobody requested is logged with a null ref
-- [ ] Missing headers or an unreadable event is 400; a failed signature is 400; a missing `PAYPAL_WEBHOOK_ID`, a verification error or an unreadable refund is 503; none writes anything
-- [ ] Other event types answer 200 and write nothing; a body over 64 KB is refused; `/health` still works with no dependencies
-- [ ] Nothing the route logs or answers contains the body, a header value or a secret
+- [x] A verified event for a refund an `execution.result` names appends one `reconciliation` (source `webhook`) with the intent ID as ref and the refund as re-read with get refund
+- [x] The same event ID again answers 200 and writes nothing; a refund nobody requested is logged with a null ref
+- [x] Missing headers or an unreadable event is 400; a failed signature is 400; a missing `PAYPAL_WEBHOOK_ID`, a verification error or an unreadable refund is 503; none writes anything
+- [x] Other event types answer 200 and write nothing; a body over 64 KB is refused; `/health` still works with no dependencies
+- [x] Nothing the route logs or answers contains the body, a header value or a secret
 Notes:
 
 ## T-009: The reconcile CLI

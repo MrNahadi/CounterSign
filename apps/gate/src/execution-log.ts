@@ -378,3 +378,56 @@ export async function readIntentRecord(
     throw error;
   }
 }
+
+// --- What reconciliation needs -------------------------------------------------------------
+
+export type ReconciliationState = {
+  // Webhook event IDs already logged, so a redelivered event writes nothing.
+  events: Set<string>;
+  // Refund IDs already logged by any reconciliation.
+  refunds: Set<string>;
+  // For each refund ID a result names, the first result naming it and its intent.
+  results: Map<string, { seq: number; intentId: string }>;
+};
+
+export type ReconciliationStateRead =
+  | { known: true; state: ReconciliationState }
+  | { known: false; seq: number; detail: string };
+
+// Reads the results and reconciliations in the log, to match a refund PayPal reports to the
+// intent that made it (ADR 0026). An entry that can't be read makes it unknown, never skipped,
+// so a refund is never logged as unmatched because its result couldn't be read.
+export async function readReconciliationState(reader: Reader): Promise<ReconciliationStateRead> {
+  const rows: ChainRow[] = await reader
+    .select()
+    .from(auditLog)
+    .where(sql`${auditLog.entryType} IN ('execution.result', 'reconciliation')`)
+    .orderBy(asc(auditLog.seq));
+  try {
+    const state: ReconciliationState = {
+      events: new Set(),
+      refunds: new Set(),
+      results: new Map(),
+    };
+    for (const row of rows) {
+      if (row.entryType === "execution.result") {
+        const payload = parsePayload(row, ExecutionResultPayloadSchema);
+        if (row.refId === null) {
+          throw new Unreadable(row.seq, `execution.result #${row.seq} has no intent`);
+        }
+        const refundId = payload.refund?.id;
+        if (refundId !== undefined && !state.results.has(refundId)) {
+          state.results.set(refundId, { seq: row.seq, intentId: row.refId });
+        }
+      } else {
+        const payload = parsePayload(row, ReconciliationPayloadSchema);
+        if (payload.source === "webhook") state.events.add(payload.event.id);
+        state.refunds.add(payload.refund.id);
+      }
+    }
+    return { known: true, state };
+  } catch (error) {
+    if (error instanceof Unreadable) return { known: false, seq: error.seq, detail: error.message };
+    throw error;
+  }
+}

@@ -23,6 +23,8 @@ export type FakeSandbox = PayPalClient & {
   lostResponses: Partial<Record<FakeCall, unknown>>;
   // The status a new refund is created with.
   refundStatus: PayPalRefund["status"];
+  // What a webhook signature verification answers.
+  webhookVerification: "pass" | "fail";
   // Every call made, in order, with its first argument.
   calls: { call: FakeCall; arg: unknown }[];
 };
@@ -45,6 +47,7 @@ export function createFakeSandbox(): FakeSandbox {
     failures: {},
     lostResponses: {},
     refundStatus: "COMPLETED",
+    webhookVerification: "pass",
     calls: [],
     async createOrder() {
       throw new Error("createOrder isn't in the fake sandbox");
@@ -102,7 +105,7 @@ export function createFakeSandbox(): FakeSandbox {
     },
     async verifyWebhookSignature(input) {
       enter("verifyWebhookSignature", input);
-      return "pass";
+      return sandbox.webhookVerification;
     },
   };
 
