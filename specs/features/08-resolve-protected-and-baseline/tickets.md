@@ -31,17 +31,17 @@ Notes:
 
 ## T-003: The Gemini call and the response check
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: One model step is sent with the exact request shape requirements.md fixes, and its answer is either a usable content or a typed stop, with nothing read before the check.
 Test seam: the model module of `apps/resolve-agent/src/` (its env parser, request builder and checked call), with an injected `generateContent`
 Acceptance:
-- [ ] The env parser reads `GEMINI_API_KEY`, `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` with zod (exact `gemini-` IDs, never `-latest`; defaults per ADR 0017; empty fallback means none) and names a missing variable without showing any value
-- [ ] The client is built with `vertexai: false`, the 90 s timeout and the 408/5xx retry options; the config holds the system instruction, sorted declarations, `VALIDATED`, `MEDIUM`, the five safety categories at `OFF` and `maxOutputTokens` 8192, and no sampling or budget fields
-- [ ] A block reason, no candidate, each non-`STOP` finish reason (an unknown string and a missing one included) and empty parts each give `model_stopped:<reason>`
-- [ ] A 429 with a retry delay of 10 s or less waits once and retries; a longer delay, a second 429, or a 5xx or timeout after retries gives `model_unavailable`; any other API error gives `model_error`
-- [ ] The system instruction is the exact text in requirements.md, and a test pins it
+- [x] The env parser reads `GEMINI_API_KEY`, `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` with zod (exact `gemini-` IDs, never `-latest`; defaults per ADR 0017; empty fallback means none) and names a missing variable without showing any value
+- [x] The client is built with `vertexai: false`, the 90 s timeout and the 408/5xx retry options; the config holds the system instruction, sorted declarations, `VALIDATED`, `MEDIUM`, the five safety categories at `OFF` and `maxOutputTokens` 8192, and no sampling or budget fields
+- [x] A block reason, no candidate, each non-`STOP` finish reason (an unknown string and a missing one included) and empty parts each give `model_stopped:<reason>`
+- [x] A 429 with a retry delay of 10 s or less waits once and retries; a longer delay, a second 429, or a 5xx or timeout after retries gives `model_unavailable`; any other API error gives `model_error`
+- [x] The system instruction is the exact text in requirements.md, and a test pins it
 Notes:
 
 ## T-004: The schema sanitizer, and the gate's tool list as a fixture

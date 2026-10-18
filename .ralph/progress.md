@@ -13,3 +13,9 @@
 ## T-002 (done)
 - `@countersign/db` gains `agent_runs` (migration `0004_stale_beyonder.sql`) and `createRun`, `startRun`, `finishRun`, `readRun`, `readRunsByThread`, `countRunsOnDate(db, "YYYY-MM-DD")`, `markUnfinishedRunsInterrupted(db, finishedAt)`, with `AgentRun`, `NewRun`, `RunResult` types and `RUN_MODES`/`RUN_STATUSES`.
 - Gotcha: `finishRun` accepts a `queued` or `running` run (so `not_run` needs no start) and throws `AgentRunConflictError` on a final one, `AgentRunNotFoundError` on an unknown ID. `createRun` is always `queued`; `trace` is any JSON value (null when none). A `seq` bigserial column keeps creation order. The daily count uses the queued time as a UTC date.
+
+## T-003 (done)
+- `apps/resolve-agent/src/model.ts`: `SYSTEM_INSTRUCTION`, `parseModelEnv`, `geminiClientOptions`, `createGenerateContent(apiKey)`, `buildModelRequest({ model, contents, declarations })` (sorts by name), `checkResponse` and `callModel({ generateContent, request, sleep? })` returning `{ ok, response, content }` or `{ ok: false, outcome, response? }`.
+- Gotcha: stop reasons are the block or finish reason as given (if it matches `^[A-Z][A-Z0-9_]{0,63}$`, else `UNKNOWN`), plus `NO_CANDIDATE`, `FINISH_REASON_MISSING` and `NO_PARTS`. The console (T-012) needs words for those three.
+- Gotcha: a 429 retry delay is read from the `ApiError` message JSON (`error.details[]` RetryInfo `retryDelay: "Ns"`); no readable delay means `model_unavailable`. A non-API error (e.g. `fetch failed`) is `model_error`; DOMException `TimeoutError`/`AbortError` is `model_unavailable`. `callModel` does not time calls; T-005 measures latency.
+- zod resolves from the root `package.json` (4.6.7); resolve-agent does not list it, same as the other workspaces.
