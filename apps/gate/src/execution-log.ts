@@ -231,6 +231,8 @@ type IntentTrail = {
   first: Requested;
   // The intent's latest entry is a failed result, so its last attempt moved no money.
   lastFailed: boolean;
+  // A result said `executed`, so money moved whatever a later attempt says.
+  executed: boolean;
 };
 
 function buildHistory(rows: readonly ChainRow[]): ExecutionSnapshot[] {
@@ -263,7 +265,7 @@ function buildHistory(rows: readonly ChainRow[]): ExecutionSnapshot[] {
       } else {
         firsts.push(requested);
         // A second first request for one intent shouldn't happen; counting it is the safe side.
-        trails.set(payload.intentId, { first: requested, lastFailed: false });
+        trails.set(payload.intentId, { first: requested, lastFailed: false, executed: false });
       }
     } else if (row.entryType === "execution.result") {
       const payload = parsePayload(row, ExecutionResultPayloadSchema);
@@ -276,6 +278,7 @@ function buildHistory(rows: readonly ChainRow[]): ExecutionSnapshot[] {
         );
       }
       trail.lastFailed = payload.outcome === "failed";
+      if (payload.outcome === "executed") trail.executed = true;
     } else {
       parsePayload(row, ReconciliationPayloadSchema);
     }
@@ -284,7 +287,7 @@ function buildHistory(rows: readonly ChainRow[]): ExecutionSnapshot[] {
   return firsts
     .filter((first) => {
       const trail = trails.get(first.payload.intentId);
-      return !(trail?.first === first && trail.lastFailed);
+      return !(trail?.first === first && trail.lastFailed && !trail.executed);
     })
     .map(({ row, payload }) => ({
       call: CALLS.executions,
@@ -297,8 +300,8 @@ function buildHistory(rows: readonly ChainRow[]): ExecutionSnapshot[] {
 }
 
 // Reads the whole execution history. A request counts as executed unless the intent's latest
-// request or result is a failed result (ADR 0026): a request with no result, or an unknown
-// result, counts. Pass the deciding transaction so the read sees its own appends and holds the
+// request or result is a failed result and no result ever said `executed` (ADR 0026): a request
+// with no result, or an unknown result, counts, and a refund that moved money always counts. Pass the deciding transaction so the read sees its own appends and holds the
 // ledger's lock. A database that can't be read throws; an entry that can't be read makes the
 // history unknown, never skipped.
 export async function readExecutionHistory(reader: Reader): Promise<ExecutionHistory> {

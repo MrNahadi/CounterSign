@@ -272,6 +272,12 @@ describe("execution entries and the execution history", () => {
       expect(await readExecutionHistory(db)).toEqual({ known: true, executions: [snapshot(1)] });
     });
 
+    it("keeps an executed intent even when a later re-send is refused", async () => {
+      await append(request(1, 1), unknownResult(1, 1), replay(1, 1), executed(1, 3));
+      await append(replay(1, 1), failed(1, 5));
+      expect(await readExecutionHistory(db)).toEqual({ known: true, executions: [snapshot(1)] });
+    });
+
     it("sees the open transaction's own appends", async () => {
       const seen = await withAuditLog(db, async (log) => {
         await log.append(request(1, 1));
