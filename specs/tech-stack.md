@@ -1,6 +1,6 @@
 # Tech stack
 
-Derived from brief §8–§9 and ADRs 0001–0024 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
+Derived from brief §8–§9 and ADRs 0001–0026 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
 
 ## Runtime and tooling
 
@@ -55,7 +55,7 @@ apps/
 packages/
   mandate/              Mandate schema, rule evaluator, compiler prompt
   verifiers/            Pure verifier functions over record snapshots, with fixtures
-  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds and webhook signature verification from phase 6)
+  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds, disputes lookup and webhook signature verification from phase 6; ADR 0025)
   rail-mpesa/           Daraja client, callback parsing, receipt store
   ledger/               Hash chain, appends, `ledger verify` and its CLI; evidence export (phase 10)
   db/                   Drizzle schema (audit_log, carrier_shipments, seed_orders), migrations (with the append-only trigger), postgres.js and PGlite clients
@@ -80,6 +80,8 @@ specs/                  Brief, constitution, feature specs
 - An audit-log entry's hash covers its envelope `{ seq, entryType, refId, at, prevHash, payload }`. The payload is stored as the canonical text that was hashed, never as jsonb. A trigger rejects UPDATE and DELETE on `audit_log` (ADR 0022).
 - The decision path stays pure: `decide()` never touches the database. Callers record its result in the audit log afterwards.
 - Idempotency: `PayPal-Request-Id` is the intent hash, and `sender_batch_id` is the intent ID. Daraja calls are deduplicated in the audit log first. Non-decision POSTs (seed, storefront) use readable request IDs, `countersign-<area>-<id>-<step>`, so a rerun replays rather than repeats.
+- Executions (from phase 6, ADR 0026): the history read, the decision and the `execution.requested` entry are written in one audit-log transaction; the rail call happens after it commits, and `execution.result` is appended after the call. A request counts as executed unless its result says `failed`. A replay of an executed intent makes no rail call; any other replay re-sends the same request ID, within 6 hours only. Never hold the ledger lock across a network call.
+- PayPal webhooks are verified with `verify-webhook-signature` over the exact raw body and `PAYPAL_WEBHOOK_ID`, and reconciliation re-reads the refund rather than trusting the event body (ADR 0025).
 - Only `@countersign/rail-paypal` calls PayPal REST or knows its JSON. It refuses any base URL but the sandbox's, caches one token per client, retries only GETs and POSTs with a request ID, and returns zod-parsed records in minor units (ADR 0024).
 
 **Code**
