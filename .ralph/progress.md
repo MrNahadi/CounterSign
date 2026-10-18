@@ -49,3 +49,7 @@
 ## T-009 (done)
 - `apps/gate/src/reconcile-cli.ts` adds `runReconcile(args, env, { rail?, fetch?, now? })` (`RECONCILE_USAGE`, `EXIT_RECONCILED`/`EXIT_OPEN`/`EXIT_CANT_RUN`), `reconcile-main.ts` and the root `reconcile` script. `execution-log.ts` adds `readReconcileWork(reader)` (executed intents with their latest logged reconciliation, and open requests: no result or latest result `unknown`, oldest first).
 - Gotcha: a reconciliation is logged even for a `FAILED`/`CANCELLED` or wrong-amount refund; later runs don't re-read it but still list it from the logged reconciliation and exit 1. A refund that can't be re-read is listed, writes nothing, exits 1. PayPal variables are required even with an injected `rail`. An unmigrated PGlite directory can't be reached (open migrates), so the missing-table test drops the table.
+
+## T-010 (done)
+- `packages/rail-paypal/test/live-sandbox.test.ts` gains live checks (LIVE=1 only): made-up capture disputes empty and complete, made-up refund 404; vault refund twice with one request ID, `refundedTotal` 100 and get refund; webhook verify of a made-up event is `fail` (skipped naming `PAYPAL_WEBHOOK_ID`).
+- Gotcha: not run against the real sandbox here (no credentials); the webhook check assumes PayPal answers FAILURE rather than an HTTP error for a made-up cert URL, so confirm on the first LIVE run.

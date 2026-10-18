@@ -7,8 +7,11 @@ import { randomBytes } from "node:crypto";
 import {
   createPayPalClient,
   PAYPAL_ENV_NAMES,
+  PAYPAL_WEBHOOK_ID_NAME,
   type PayPalClient,
   PayPalError,
+  parsePayPalWebhookId,
+  refundedTotal,
 } from "@countersign/rail-paypal";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -26,6 +29,7 @@ const LiveEnvSchema = z.object({
 const live = LiveEnvSchema.safeParse(process.env);
 const vaultToken = present.safeParse(process.env[VAULT_ENV_NAME]);
 const vault = live.success && vaultToken.success;
+const webhookId = parsePayPalWebhookId(process.env);
 
 const ONE_DOLLAR = { minor: 100, currency: "USD" } as const;
 const ORDER_NUMBER = "KIK-LIVE";
@@ -139,6 +143,89 @@ describe.skipIf(!live.success)(`live PayPal sandbox (${needs})`, () => {
         expect(readCapture.amount).toEqual(ONE_DOLLAR);
         expect(readCapture.orderId).toBe(created.id);
         expectNoSecrets([created, read, readCapture]);
+      });
+    },
+    60_000,
+  );
+
+  it("lists no disputes for a made-up capture and reads a made-up refund as a 404", async () => {
+    await guarded(async () => {
+      const paypal = client();
+      const disputes = await paypal.listDisputes(`LIVE${runId.toUpperCase()}`);
+      expect(disputes).toEqual({ disputes: [], complete: true });
+
+      const error = await paypal.getRefund(`LIVE${runId.toUpperCase()}`).then(
+        () => null,
+        (caught: unknown) => caught,
+      );
+      expect(error).toBeInstanceOf(PayPalError);
+      expect((error as PayPalError).status).toBe(404);
+    });
+  }, 60_000);
+
+  it.skipIf(!vault)(
+    `refunds one $1.00 vault capture twice with one request ID (needs ${VAULT_ENV_NAME})`,
+    async () => {
+      await guarded(async () => {
+        if (!vaultToken.success) throw new Error(`${VAULT_ENV_NAME} is missing.`);
+        const paypal = client();
+
+        const created = await paypal.createOrder({
+          requestId: requestId("refund-create"),
+          referenceId: ORDER_NUMBER,
+          customId: runId,
+          invoiceId: `${ORDER_NUMBER}-REFUND-${runId}`,
+          items: [{ name: "Live check", sku: "live-check", quantity: 1, unitAmount: ONE_DOLLAR }],
+          vaultId: vaultToken.data,
+        });
+        const capture = created.purchaseUnits[0]?.captures[0];
+        if (!capture) throw new Error("The vault order has no capture.");
+
+        const refundInput = {
+          requestId: requestId("refund"),
+          captureId: capture.id,
+          amount: ONE_DOLLAR,
+          customId: `${runId}-intent`,
+        };
+        const first = await paypal.refundCapture(refundInput);
+        const second = await paypal.refundCapture(refundInput);
+        expect(second.id).toBe(first.id);
+        expect(["COMPLETED", "PENDING"]).toContain(first.status);
+        expect(first.amount).toEqual(ONE_DOLLAR);
+
+        const read = await paypal.getOrder(created.id);
+        expect(refundedTotal(read, capture.id)).toBe(100);
+
+        const readRefund = await paypal.getRefund(first.id);
+        expect(readRefund.id).toBe(first.id);
+        expect(readRefund.amount).toEqual(ONE_DOLLAR);
+        expect(readRefund.captureId).toBe(capture.id);
+        expectNoSecrets([created, first, second, read, readRefund]);
+      });
+    },
+    90_000,
+  );
+
+  it.skipIf(!webhookId.ok)(
+    `answers fail, not an error, for a made-up event (needs ${PAYPAL_WEBHOOK_ID_NAME})`,
+    async () => {
+      await guarded(async () => {
+        if (!webhookId.ok) throw new Error(`${PAYPAL_WEBHOOK_ID_NAME} is missing.`);
+        const result = await client().verifyWebhookSignature({
+          webhookId: webhookId.webhookId,
+          transmission: {
+            transmissionId: `live-${runId}`,
+            transmissionTime: new Date().toISOString(),
+            certUrl: "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-live-check",
+            authAlgo: "SHA256withRSA",
+            transmissionSig: "bGl2ZS1jaGVjaw==",
+          },
+          rawBody: JSON.stringify({
+            id: `WH-live-${runId}`,
+            event_type: "PAYMENT.CAPTURE.REFUNDED",
+          }),
+        });
+        expect(result).toBe("fail");
       });
     },
     60_000,

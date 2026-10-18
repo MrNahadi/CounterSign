@@ -135,14 +135,14 @@ Notes:
 
 ## T-010: Live sandbox checks for refunds, disputes and webhook verification
 
-Status: open
+Status: done
 Blocked by: T-001, T-002
 Tier: simple
 Slice: Under `LIVE=1`, the new calls run against the real sandbox and their responses parse with the client's schemas.
 Test seam: `packages/rail-paypal/test/live-sandbox.test.ts` (skipped unless `LIVE=1`)
 Acceptance:
-- [ ] With the `PAYPAL_*` variables: list disputes for a made-up capture ID returns a complete empty list; get refund for a made-up ID is a 404 `PayPalError`
-- [ ] With `PAYPAL_SEED_VAULT_TOKEN` too: a $1.00 vault order is captured and refunded twice with one request ID (same refund ID), then get order shows a refunded total of $1.00 and get refund reads it; otherwise skipped naming the variable
-- [ ] With `PAYPAL_WEBHOOK_ID` too: a made-up event and headers come back as a fail, not an error; otherwise skipped naming the variable
-- [ ] `npm test` skips the file cleanly, and no assertion can print a secret
+- [x] With the `PAYPAL_*` variables: list disputes for a made-up capture ID returns a complete empty list; get refund for a made-up ID is a 404 `PayPalError`
+- [x] With `PAYPAL_SEED_VAULT_TOKEN` too: a $1.00 vault order is captured and refunded twice with one request ID (same refund ID), then get order shows a refunded total of $1.00 and get refund reads it; otherwise skipped naming the variable
+- [x] With `PAYPAL_WEBHOOK_ID` too: a made-up event and headers come back as a fail, not an error; otherwise skipped naming the variable
+- [x] `npm test` skips the file cleanly, and no assertion can print a secret
 Notes:
