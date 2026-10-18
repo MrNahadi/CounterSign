@@ -48,7 +48,11 @@ describe("no AI in the decision path", () => {
     "execution-log.ts",
     "live-records.ts",
     "proposal.ts",
+    "propose-cli.ts",
+    "propose-main.ts",
     "propose.ts",
+    "reconcile-cli.ts",
+    "reconcile-main.ts",
     "record.ts",
     "webhook.ts",
   ];
