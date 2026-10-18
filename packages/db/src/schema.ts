@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  bigserial,
   boolean,
   check,
   customType,
@@ -135,3 +136,50 @@ export const ticketAttachments = pgTable(
 
 export type TicketAttachmentRow = typeof ticketAttachments.$inferSelect;
 export type NewTicketAttachmentRow = typeof ticketAttachments.$inferInsert;
+
+/** The two modes a run can use (ADR 0030). */
+export const RUN_MODES = ["protected", "baseline"] as const;
+export type RunMode = (typeof RUN_MODES)[number];
+
+/** A run's states (ADR 0030): `queued` and `running` are unfinished, the rest are final. */
+export const RUN_STATUSES = [
+  "queued",
+  "running",
+  "replied",
+  "stopped",
+  "failed",
+  "not_run",
+] as const;
+export type RunStatus = (typeof RUN_STATUSES)[number];
+
+// One row per agent run (ADR 0030). Not hashed and not the audit log. Times are ISO 8601 text
+// that passes the shared timestamp rule. `seq` keeps creation order when times tie.
+export const agentRuns = pgTable(
+  "agent_runs",
+  {
+    seq: bigserial("seq", { mode: "number" }).notNull().unique(),
+    id: text("id").primaryKey(),
+    ticketId: text("ticket_id").notNull(),
+    threadId: text("thread_id").notNull(),
+    mode: text("mode").notNull(),
+    model: text("model").notNull(),
+    modelVersions: jsonb("model_versions").$type<string[]>().notNull(),
+    status: text("status").notNull(),
+    outcome: text("outcome"),
+    reply: text("reply"),
+    trace: jsonb("trace").$type<unknown>(),
+    queuedAt: text("queued_at").notNull(),
+    startedAt: text("started_at"),
+    finishedAt: text("finished_at"),
+  },
+  (table) => [
+    check("agent_runs_mode_check", sql`${table.mode} IN ('protected', 'baseline')`),
+    check(
+      "agent_runs_status_check",
+      sql`${table.status} IN ('queued', 'running', 'replied', 'stopped', 'failed', 'not_run')`,
+    ),
+    index("agent_runs_thread_id_idx").on(table.threadId),
+  ],
+);
+
+export type AgentRunRow = typeof agentRuns.$inferSelect;

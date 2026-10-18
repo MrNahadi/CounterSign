@@ -9,3 +9,7 @@
 
 ### For the human
 - `packages/db/test/tickets.test.ts`'s phase 6 migration test expected exactly 1 migration to apply; it now expects every migration after phase 6 (`journal.entries.length - 2`). Same strictness, but it's an edit to an existing test.
+
+## T-002 (done)
+- `@countersign/db` gains `agent_runs` (migration `0004_stale_beyonder.sql`) and `createRun`, `startRun`, `finishRun`, `readRun`, `readRunsByThread`, `countRunsOnDate(db, "YYYY-MM-DD")`, `markUnfinishedRunsInterrupted(db, finishedAt)`, with `AgentRun`, `NewRun`, `RunResult` types and `RUN_MODES`/`RUN_STATUSES`.
+- Gotcha: `finishRun` accepts a `queued` or `running` run (so `not_run` needs no start) and throws `AgentRunConflictError` on a final one, `AgentRunNotFoundError` on an unknown ID. `createRun` is always `queued`; `trace` is any JSON value (null when none). A `seq` bigserial column keeps creation order. The daily count uses the queued time as a UTC date.

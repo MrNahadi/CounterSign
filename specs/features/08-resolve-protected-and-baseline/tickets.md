@@ -16,17 +16,17 @@ Notes:
 
 ## T-002: Agent runs in the store
 
-Status: open
+Status: done
 Blocked by: T-001
 Tier: simple
 Slice: A run is queued for a ticket, moves to running and then replied, and reads back with its reply, outcome, models and trace.
 Test seam: the run writer and readers exported by `@countersign/db`, over PGlite
 Acceptance:
-- [ ] The migration (or a second one) adds `agent_runs` with ADR 0030's columns; status and mode are checked by constraint
-- [ ] Runs can be created `queued`, started, and finished with a status, outcome, reply, model versions and trace; a finished run can't be finished again
-- [ ] Runs read back by ID and by thread, in creation order; the runs created on a given UTC date can be counted
-- [ ] Every `queued` or `running` run can be marked `failed` `interrupted` in one call, which returns how many it changed
-- [ ] Inputs are validated with zod, and times pass the shared timestamp rule
+- [x] The migration (or a second one) adds `agent_runs` with ADR 0030's columns; status and mode are checked by constraint
+- [x] Runs can be created `queued`, started, and finished with a status, outcome, reply, model versions and trace; a finished run can't be finished again
+- [x] Runs read back by ID and by thread, in creation order; the runs created on a given UTC date can be counted
+- [x] Every `queued` or `running` run can be marked `failed` `interrupted` in one call, which returns how many it changed
+- [x] Inputs are validated with zod, and times pass the shared timestamp rule
 Notes:
 
 ## T-003: The Gemini call and the response check

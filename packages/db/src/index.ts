@@ -3,6 +3,7 @@
 // that depends on drizzle-orm.
 export { and, asc, desc, eq, gt, sql } from "drizzle-orm";
 export * from "./client";
+export * from "./runs";
 export * from "./schema";
 export * from "./target";
 export * from "./tickets";
