@@ -47,7 +47,7 @@ function traceLine(entry: TraceEntry, width: number): string {
   return `    ${entry.verifier.padEnd(width)}  ${entry.result.padEnd(7)}  ${records}`;
 }
 
-function readable({ record }: Decided, index: number, count: number): string[] {
+export function decisionLines({ record }: Decided, index: number, count: number): string[] {
   const { intent } = record;
   const lines = [
     `Proposal ${index + 1} of ${count}`,
@@ -109,7 +109,7 @@ function render({ json, decisionCase, decided }: Prepared): string {
     `Mandate ${mandate.id} version ${mandate.version}, decided at ${now.toISOString()}`,
   ];
   decided.forEach((result, index) => {
-    lines.push("", ...readable(result, index, decided.length));
+    lines.push("", ...decisionLines(result, index, decided.length));
   });
   return `${lines.join("\n")}\n`;
 }

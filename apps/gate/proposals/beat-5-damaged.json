@@ -1,0 +1,18 @@
+{
+  "description": "Beat 5, the damaged floor basket, on live sandbox records: the payer of KIK-1037 sends a photo and asks for $240.00 back. Every check passes, but it's above the $50.00 the mandate lets the agent refund alone, so it steps up and waits for a person. The ticket is simulated. Illustrative people and orders.",
+  "mandate": "../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "proposals": [
+    {
+      "order": "KIK-1037",
+      "ticket": {
+        "id": "TKT-1037",
+        "sender": "payer",
+        "attachments": [{ "id": "ATT-1037-1", "contentType": "image/jpeg" }]
+      },
+      "args": { "amount": { "value": "240.00", "currency_code": "USD" } },
+      "justification": { "claim": "damaged" },
+      "expect": { "decision": "step_up", "reasons": ["ABOVE_AUTO_LIMIT"] }
+    }
+  ]
+}

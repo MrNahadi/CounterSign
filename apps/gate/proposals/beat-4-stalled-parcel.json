@@ -1,0 +1,14 @@
+{
+  "description": "Beat 4, the stalled parcel, on live sandbox records: the payer of KIK-1035 says her $18.00 coaster set never arrived, and the carrier shows it stalled for over ten days. Allowed, and the refund executes on PayPal. Run it a second time and it's a replay: allowed again, with no new refund. The ticket is simulated. Illustrative people and orders.",
+  "mandate": "../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "proposals": [
+    {
+      "order": "KIK-1035",
+      "ticket": { "id": "TKT-1035", "sender": "payer", "attachments": [] },
+      "args": { "amount": { "value": "18.00", "currency_code": "USD" } },
+      "justification": { "claim": "not_received" },
+      "expect": { "decision": "allow", "reasons": [] }
+    }
+  ]
+}

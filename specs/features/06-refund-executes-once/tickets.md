@@ -91,17 +91,17 @@ Notes:
 
 ## T-007: The propose CLI and demo proposal files
 
-Status: open
+Status: done
 Blocked by: T-006
 Tier: standard
 Slice: `npm run propose -- apps/gate/proposals/beat-4-stalled-parcel.json` decides on live records, executes once, and prints the decision, trace and refund ID.
 Test seam: the propose CLI's run function `(args, env, options)` with an injected fake sandbox and a PGlite directory, plus one child-process run
 Acceptance:
-- [ ] Proposal files are validated with zod; order numbers and `payer`, `buyer:A`, `buyer:B` senders resolve from `seed_orders`, and an unseeded order exits 2 with "Order KIK-1035 isn't seeded. Run npm run seed first."
-- [ ] The three demo files give their expected decisions against the fake sandbox and exit 0; a second beat 4 run prints "Replayed, no new refund."
-- [ ] A result that differs from the file's expectation prints "Expected … got …" and exits 1, as does an `unknown` outcome
-- [ ] Missing PayPal variables, no database and an unmigrated database exit 2 with the named reason; `--json` prints the responses with outcomes and refund IDs
-- [ ] The root `propose` script runs it; README gains "Refund on live records"; `CONTEXT.md` gains the new terms
+- [x] Proposal files are validated with zod; order numbers and `payer`, `buyer:A`, `buyer:B` senders resolve from `seed_orders`, and an unseeded order exits 2 with "Order KIK-1035 isn't seeded. Run npm run seed first."
+- [x] The three demo files give their expected decisions against the fake sandbox and exit 0; a second beat 4 run prints "Replayed, no new refund."
+- [x] A result that differs from the file's expectation prints "Expected … got …" and exits 1, as does an `unknown` outcome
+- [x] Missing PayPal variables, no database and an unmigrated database exit 2 with the named reason; `--json` prints the responses with outcomes and refund IDs
+- [x] The root `propose` script runs it; README gains "Refund on live records"; `CONTEXT.md` gains the new terms
 Notes:
 
 ## T-008: The PayPal webhook route

@@ -1,0 +1,42 @@
+{
+  "description": "Beat 3, the attack email, on live sandbox records: one ticket from buyer A asks for refunds on KIK-1038 to KIK-1042. Only KIK-1042 was paid for by the sender, and the carrier shows it delivered. KIK-1040 is still in transit, so no rule covers a not-received claim on it and it is denied before the payer is checked. The ticket is simulated. Illustrative people and orders.",
+  "mandate": "../../../packages/mandate/fixtures/kikapu-studio-v3.json",
+  "principal": "support-agent",
+  "proposals": [
+    {
+      "order": "KIK-1038",
+      "ticket": { "id": "TKT-3001", "sender": "buyer:A", "attachments": [] },
+      "args": { "amount": { "value": "48.00", "currency_code": "USD" } },
+      "justification": { "claim": "not_received" },
+      "expect": { "decision": "deny", "reasons": ["TICKET_NOT_FROM_PAYER"] }
+    },
+    {
+      "order": "KIK-1039",
+      "ticket": { "id": "TKT-3001", "sender": "buyer:A", "attachments": [] },
+      "args": { "amount": { "value": "36.00", "currency_code": "USD" } },
+      "justification": { "claim": "not_received" },
+      "expect": { "decision": "deny", "reasons": ["TICKET_NOT_FROM_PAYER"] }
+    },
+    {
+      "order": "KIK-1040",
+      "ticket": { "id": "TKT-3001", "sender": "buyer:A", "attachments": [] },
+      "args": { "amount": { "value": "24.00", "currency_code": "USD" } },
+      "justification": { "claim": "not_received" },
+      "expect": { "decision": "deny", "reasons": ["NO_MATCHING_RULE"] }
+    },
+    {
+      "order": "KIK-1041",
+      "ticket": { "id": "TKT-3001", "sender": "buyer:A", "attachments": [] },
+      "args": { "amount": { "value": "18.00", "currency_code": "USD" } },
+      "justification": { "claim": "not_received" },
+      "expect": { "decision": "deny", "reasons": ["TICKET_NOT_FROM_PAYER"] }
+    },
+    {
+      "order": "KIK-1042",
+      "ticket": { "id": "TKT-3001", "sender": "buyer:A", "attachments": [] },
+      "args": { "amount": { "value": "48.00", "currency_code": "USD" } },
+      "justification": { "claim": "not_received" },
+      "expect": { "decision": "step_up", "reasons": ["SHIPMENT_DELIVERED"] }
+    }
+  ]
+}

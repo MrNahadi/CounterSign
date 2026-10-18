@@ -76,6 +76,22 @@ _Avoid_: result, reply
 The rail call that carries out an allowed or approved intent, made at most once per intent.
 _Avoid_: payment, transaction
 
+**Execution request**:
+The `execution.requested` audit-log entry written with an allow, in the same transaction, before the rail call is made. A request counts as executed unless its result says failed.
+_Avoid_: pending refund, attempt
+
+**Execution outcome**:
+What the rail call's `execution.result` entry records: executed (the refund is completed or pending), failed (PayPal refused it or it failed), or unknown (no definite answer, so money may have moved).
+_Avoid_: status, success
+
+**Replay**:
+A proposal whose intent was already requested. It isn't decided again: an executed intent gets the same answer and no rail call, and any other is re-sent with the same request ID within 6 hours.
+_Avoid_: retry, duplicate
+
+**Unmatched refund**:
+A refund reconciled from PayPal that no execution result names, so Countersign didn't make it. Its reconciliation entry has no intent.
+_Avoid_: orphan refund, unknown refund
+
 **Reconciliation**:
 Matching an execution to the webhook or callback that confirms it.
 _Avoid_: sync, settlement

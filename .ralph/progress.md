@@ -33,5 +33,10 @@
 - Fake sandbox gains `lostResponses` (throws after the call takes effect), `refundStatus`, and refunds now appear on the order's purchase unit. The no-AI test now covers the gate's decide/execute modules.
 - Gotcha: a replay with no amount after a refund normalizes to a different amount (less left), so it's a new intent and is denied `DUPLICATE_REFUND`, not answered as a replay. Demo files give amounts.
 
+## T-007 (done)
+- `apps/gate/src/propose-cli.ts` adds `runPropose(args, env, { rail?, fetch?, now?, clock? })` (`ProposalFileSchema`, `PROPOSE_USAGE`, exit codes `EXIT_MATCHED`/`EXIT_DIFFERED`/`EXIT_CANT_RUN`), `propose-main.ts`, the root `propose` script, and `apps/gate/proposals/beat-{3,4,5}*.json`. A file proposal is `{ order | capture, ticket: { id, sender, attachments }, args, justification, expect }`; the CLI adds `capture_id` and `ticket_id` itself. The carrier is always `createDatabaseShipmentStore(db)`; tests seed `seed_orders` and `carrier_shipments` in a PGlite directory (`seededWorld()` in `test/propose-cli.test.ts`). `decide-cli.ts` now exports `decisionLines`, `case-file.ts` exports `readJson`.
+- Gotcha: the PayPal variables are required even when a fake `rail` is injected. In `--json` mode read problems and "Expected … got …" lines go to stderr.
+
 ### For the human
+- T-007: the spec expects four `TICKET_NOT_FROM_PAYER` denials in beat 3, but the seed catalog has KIK-1040 `in_transit`, and no rule covers a not-received claim in transit, so the mandate denies it `NO_MATCHING_RULE` before checking the payer. The demo file expects that (honest result, still a deny); the README table says so. If the demo should show four identical denials, change KIK-1040's status in the seed catalog or swap it for another buyer B order. No answerer sub-agent was reachable.
 - T-006: the spec doesn't say what a replay past the 6-hour window writes. I log it as a `decision` entry denying `DUPLICATE_REFUND` (so the proposal stays in the log) and write no replay request (so a failed intent doesn't block its capture again). No answerer sub-agent was reachable in this iteration; overturn if you prefer otherwise.

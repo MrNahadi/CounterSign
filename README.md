@@ -204,6 +204,32 @@ A complete run prints `Seeded 30 of 30 orders in run <run>: 16 delivered, 6 in t
 
 The carrier is simulated. PayPal only records that an order shipped, so the delivered, in transit, stalled and lost statuses and their scan events come from a carrier mock, Kisumu Couriers (simulated). Its dates are counted back from the time of seeding, so a scan can fall before PayPal's capture time.
 
+## Refund on live records
+
+`npm run propose` decides a refund on the seeded sandbox orders as they are now, and executes an allowed one on PayPal once. For each proposal it reads the capture, the order, the capture's disputes and the carrier shipment, decides under the audit log's lock, writes the decision, and only then sends the refund. The refund's `PayPal-Request-Id` is the intent hash, so sending the same intent again can't make a second refund.
+
+It needs the PayPal sandbox variables and a seeded database (run `npm run seed` first), and it uses the same database as the other CLIs.
+
+```bash
+npm run propose -- apps/gate/proposals/beat-4-stalled-parcel.json   # allowed, and the refund executes
+npm run propose -- apps/gate/proposals/beat-4-stalled-parcel.json   # again: a replay, with no new refund
+npm run propose -- apps/gate/proposals/beat-3-attack-email.json     # four denials and one step-up
+npm run propose -- apps/gate/proposals/beat-5-damaged.json          # a step-up, above the $50 auto limit
+npm run propose -- apps/gate/proposals/beat-4-stalled-parcel.json --json
+```
+
+| File | Proposals | Expected |
+|---|---|---|
+| `beat-3-attack-email.json` | One ticket from buyer A asks for refunds on `KIK-1038` to `KIK-1042` | Deny `TICKET_NOT_FROM_PAYER` on the three buyer B paid for and that were delivered, deny `NO_MATCHING_RULE` on `KIK-1040` (still in transit), step-up `SHIPMENT_DELIVERED` on `KIK-1042` |
+| `beat-4-stalled-parcel.json` | `KIK-1035`, $18.00, not received, from the payer | Allow, and it executes |
+| `beat-5-damaged.json` | `KIK-1037`, $240.00, damaged with a photo, from the payer | Step-up `ABOVE_AUTO_LIMIT` |
+
+Each proposal prints its decision, reasons, verifier trace, amount, intent ID and hash, then the refund's outcome and ID when one was sent. Running beat 4 a second time prints `Replayed, no new refund.` A read that failed is shown on its own line, and its verifier comes out `unknown`, which never allows. Step-ups are recorded and wait; approving them comes in a later phase.
+
+The ticket in each proposal file is simulated: the file names its sender as `payer`, `buyer:A`, `buyer:B` or an email address, and order numbers and senders are looked up in the seed rows. Each proposal states the decision expected of it, written before it's run.
+
+It exits 0 when every proposal got its expected decision, and 1 when one didn't or a refund's outcome is unknown (PayPal timed out or failed after the request). Then `npm run reconcile` checks the refund. It exits 2, naming the reason, when it can't run: a bad file, an order that isn't seeded, missing PayPal variables, or a database that can't be opened or isn't migrated.
+
 ## Project status
 
 Countersign is mid-build. The roadmap runs from 16 October to submission on 11 November 2026. Each phase is one user-visible feature on its own branch.
@@ -238,7 +264,8 @@ These were run by hand against live sandboxes on 16 October 2026. Findings are i
 
 | Part | Today |
 |---|---|
-| PayPal sandbox calls | Real, in the spikes and `npm run seed`. Phase 3 decisions run on recorded record snapshots |
+| PayPal sandbox calls | Real, in the spikes, `npm run seed` and `npm run propose`. `npm run decide` runs on recorded record snapshots |
+| Support tickets | Simulated in `npm run propose`: each proposal file states the ticket and its sender. Real tickets come with Resolve |
 | Carrier tracking | Simulated. PayPal only knows shipped or cancelled, so lost, stalled and delivered come from a carrier mock |
 | Kikapu Studio, Achieng, and every person and order in the fixtures | Illustrative |
 | M-Pesa | Partly real in spike S6; the rail itself is secondary and built last |

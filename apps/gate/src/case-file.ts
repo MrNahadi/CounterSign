@@ -109,7 +109,7 @@ export type DecisionCase = {
 
 export type CaseLoad = { ok: true; decisionCase: DecisionCase } | { ok: false; error: string };
 
-function readJson(path: string): { ok: true; json: unknown } | { ok: false; error: string } {
+export function readJson(path: string): { ok: true; json: unknown } | { ok: false; error: string } {
   let text: string;
   try {
     text = readFileSync(path, "utf8");
