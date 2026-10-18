@@ -64,3 +64,34 @@ export class PayPalConfigError extends Error {
     this.problems = problems;
   }
 }
+
+// The webhook ID is read apart from the client's three variables, so everything that doesn't
+// verify webhooks runs without it (ADR 0025). It exists once a webhook is registered.
+export const PAYPAL_WEBHOOK_ID_NAME = "PAYPAL_WEBHOOK_ID";
+
+export type PayPalWebhookIdParse =
+  | { ok: true; webhookId: string }
+  | { ok: false; missing: string[]; problems: string[] };
+
+export const webhookIdSchema = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
+
+export function parsePayPalWebhookId(
+  env: Readonly<Record<string, string | undefined>>,
+): PayPalWebhookIdParse {
+  const value = env[PAYPAL_WEBHOOK_ID_NAME];
+  if (!value) {
+    return {
+      ok: false,
+      missing: [PAYPAL_WEBHOOK_ID_NAME],
+      problems: [`${PAYPAL_WEBHOOK_ID_NAME} is missing.`],
+    };
+  }
+  if (!webhookIdSchema.safeParse(value).success) {
+    return {
+      ok: false,
+      missing: [],
+      problems: [`${PAYPAL_WEBHOOK_ID_NAME} is malformed. It should be a PayPal webhook ID.`],
+    };
+  }
+  return { ok: true, webhookId: value };
+}

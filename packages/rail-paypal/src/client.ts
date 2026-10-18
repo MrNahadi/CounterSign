@@ -1,18 +1,29 @@
 import type { Money } from "@countersign/mandate";
 import { z } from "zod";
-import { type PayPalConfig, PayPalConfigError, parsePayPalEnv } from "./config";
+import {
+  type PayPalConfig,
+  PayPalConfigError,
+  parsePayPalEnv,
+  SANDBOX_BASE_URL,
+  webhookIdSchema,
+} from "./config";
 import { PayPalError } from "./errors";
 import {
   captureRecordSchema,
+  disputesPageSchema,
   errorBodySchema,
   fieldPath,
   orderSchema,
   type PayPalCapture,
+  type PayPalDispute,
+  type PayPalDisputeList,
   type PayPalOrder,
   type PayPalRefund,
   refundSchema,
   tokenSchema,
   toPayPalAmount,
+  verificationSchema,
+  type WebhookVerification,
 } from "./records";
 
 // The only code that calls PayPal REST (ADR 0024). Sandbox only, one cached OAuth token per
@@ -69,6 +80,23 @@ export type RefundCaptureInput = PostOptions & {
   customId: string;
 };
 
+// The five `PAYPAL-*` headers PayPal sends with a webhook.
+export type WebhookTransmission = {
+  transmissionId: string;
+  transmissionTime: string;
+  certUrl: string;
+  authAlgo: string;
+  transmissionSig: string;
+};
+
+export type VerifyWebhookInput = {
+  webhookId: string;
+  transmission: WebhookTransmission;
+  // The event exactly as it arrived. It's spliced into the request unchanged, because
+  // re-serializing it would change the bytes PayPal signed (ADR 0025).
+  rawBody: string;
+};
+
 export type PayPalClient = {
   createOrder(input: CreateOrderInput): Promise<PayPalOrder>;
   captureOrder(orderId: string, options: PostOptions): Promise<PayPalOrder>;
@@ -79,6 +107,10 @@ export type PayPalClient = {
   // A replayed request ID answers with the first refund, not a second one.
   refundCapture(input: RefundCaptureInput): Promise<PayPalRefund>;
   getRefund(refundId: string): Promise<PayPalRefund>;
+  // Every dispute on the capture, reading up to five pages.
+  listDisputes(captureId: string): Promise<PayPalDisputeList>;
+  // Never retried. Throws when the check can't complete, so it's never mistaken for a pass.
+  verifyWebhookSignature(input: VerifyWebhookInput): Promise<WebhookVerification>;
 };
 
 // A token with less than this left is replaced before the next call.
@@ -86,6 +118,10 @@ const TOKEN_MARGIN_MS = 5 * 60_000;
 const MAX_RETRIES = 2;
 const MAX_RETRY_WAIT_MS = 10_000;
 const BACKOFF_MS = 250;
+const MAX_DISPUTE_PAGES = 5;
+const DISPUTES_PATH = "/v1/customer/disputes";
+// Hosts PayPal's sandbox links name. A next link anywhere else is not followed.
+const SANDBOX_LINK_HOSTS = new Set([new URL(SANDBOX_BASE_URL).host, "api.sandbox.paypal.com"]);
 
 const resourceId = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
 // PayPal accepts request IDs of up to 108 characters.
@@ -125,11 +161,26 @@ const refundCaptureSchema = z.object({
   customId: z.string().min(1).max(127),
 });
 
+const header = z.string().min(1).max(4096);
+const verifyWebhookSchema = z.object({
+  webhookId: webhookIdSchema,
+  transmission: z.object({
+    transmissionId: header,
+    transmissionTime: header,
+    certUrl: header,
+    authAlgo: header,
+    transmissionSig: header,
+  }),
+  rawBody: z.string(),
+});
+
 type CallSpec = {
   call: string;
   method: "GET" | "POST";
   path: string;
   body?: unknown;
+  // A body already serialized, sent as it is.
+  rawBody?: string;
   // POSTs that carry a PayPal-Request-Id replay rather than repeat, so they may be retried.
   requestId?: string;
 };
@@ -284,7 +335,7 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
       const response = await reach(spec.call, `${config.baseUrl}${spec.path}`, {
         method: spec.method,
         headers,
-        body: spec.body === undefined ? undefined : JSON.stringify(spec.body),
+        body: spec.rawBody ?? (spec.body === undefined ? undefined : JSON.stringify(spec.body)),
       });
       if (response.status === 401 && !reauthorized) {
         reauthorized = true;
@@ -331,6 +382,29 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
     const [issue] = parsed.error.issues;
     const field = issue && issue.path.length > 0 ? fieldPath(issue.path) : "the request";
     throw refuse(call, `${field} is missing or invalid`);
+  }
+
+  // A next link is followed only to the sandbox's disputes endpoint, and always sent to the
+  // client's own base URL.
+  function nextDisputesPath(call: string, answer: Answer, href: string): string {
+    let url: URL | null = null;
+    try {
+      url = new URL(href);
+    } catch {}
+    if (
+      url?.protocol !== "https:" ||
+      !SANDBOX_LINK_HOSTS.has(url.host) ||
+      url.pathname !== DISPUTES_PATH
+    ) {
+      throw new PayPalError({
+        kind: "invalid_response",
+        call,
+        status: answer.status,
+        debugId: answer.debugId,
+        field: "links.next",
+      });
+    }
+    return `${url.pathname}${url.search}`;
   }
 
   return {
@@ -440,6 +514,43 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
       return parse(call, answer, refundSchema);
     },
 
+    async listDisputes(captureId) {
+      const call = "list-disputes";
+      const id = checkId(call, captureId);
+      const disputes: PayPalDispute[] = [];
+      let path: string | null = `${DISPUTES_PATH}?disputed_transaction_id=${id}`;
+      for (let pages = 0; path !== null; pages += 1) {
+        if (pages === MAX_DISPUTE_PAGES) return { disputes, complete: false };
+        const answer = await send({ call, method: "GET", path });
+        const page = parse(call, answer, disputesPageSchema);
+        disputes.push(...page.disputes);
+        path = page.next === null ? null : nextDisputesPath(call, answer, page.next);
+      }
+      return { disputes, complete: true };
+    },
+
+    async verifyWebhookSignature(input) {
+      const call = "verify-webhook-signature";
+      const check = checkInput(call, verifyWebhookSchema, input);
+      if (!isJsonObject(check.rawBody)) throw refuse(call, "the event body isn't a JSON object");
+      const fields = JSON.stringify({
+        transmission_id: check.transmission.transmissionId,
+        transmission_time: check.transmission.transmissionTime,
+        cert_url: check.transmission.certUrl,
+        auth_algo: check.transmission.authAlgo,
+        transmission_sig: check.transmission.transmissionSig,
+        webhook_id: check.webhookId,
+      });
+      // No request ID, so `send` never retries it.
+      const answer = await send({
+        call,
+        method: "POST",
+        path: "/v1/notifications/verify-webhook-signature",
+        rawBody: `${fields.slice(0, -1)},"webhook_event":${check.rawBody}}`,
+      });
+      return parse(call, answer, verificationSchema);
+    },
+
     async getOrder(orderId) {
       const call = "get-order";
       const id = checkId(call, orderId);
@@ -447,4 +558,13 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
       return parse(call, answer, orderSchema);
     },
   };
+}
+
+function isJsonObject(text: string): boolean {
+  try {
+    const value: unknown = JSON.parse(text);
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  } catch {
+    return false;
+  }
 }

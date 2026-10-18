@@ -10,18 +10,25 @@ export {
   type PayPalClientOptions,
   type PostOptions,
   type RefundCaptureInput,
+  type VerifyWebhookInput,
+  type WebhookTransmission,
 } from "./client";
 export {
   PAYPAL_ENV_NAMES,
+  PAYPAL_WEBHOOK_ID_NAME,
   type PayPalConfig,
   PayPalConfigError,
   type PayPalEnvParse,
+  type PayPalWebhookIdParse,
   parsePayPalEnv,
+  parsePayPalWebhookId,
   SANDBOX_BASE_URL,
 } from "./config";
 export { PayPalError, type PayPalErrorDetail, type PayPalErrorKind } from "./errors";
 export {
   type PayPalCapture,
+  type PayPalDispute,
+  type PayPalDisputeList,
   type PayPalOrder,
   type PayPalPurchaseUnit,
   type PayPalRefund,
@@ -29,4 +36,5 @@ export {
   type PayPalTracker,
   REFUND_STATUSES,
   refundedTotal,
+  type WebhookVerification,
 } from "./records";

@@ -17,16 +17,16 @@ Notes:
 
 ## T-002: List disputes by capture, and webhook signature verification
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: The rail client says whether a capture has disputes, reading every page, and checks a webhook's signature over its exact raw body.
 Test seam: `listDisputes` and `verifyWebhookSignature` on the client, and the `PAYPAL_WEBHOOK_ID` parser, in `@countersign/rail-paypal`
 Acceptance:
-- [ ] List disputes filters by `disputed_transaction_id`, follows `next` links up to 5 pages, and returns each dispute's ID and status plus `complete: true`; a sixth page leaves `complete: false`
-- [ ] Verification sends the five transmission headers, the webhook ID and the raw body text unchanged (a body with odd spacing and key order is found byte for byte in the request); `SUCCESS` is a pass and `FAILURE` a fail
-- [ ] A verification that gets a 5xx, a network error or an unreadable answer throws a `PayPalError` and is made exactly once
-- [ ] A missing `PAYPAL_WEBHOOK_ID` is reported by name, and the client's other calls don't need it
+- [x] List disputes filters by `disputed_transaction_id`, follows `next` links up to 5 pages, and returns each dispute's ID and status plus `complete: true`; a sixth page leaves `complete: false`
+- [x] Verification sends the five transmission headers, the webhook ID and the raw body text unchanged (a body with odd spacing and key order is found byte for byte in the request); `SUCCESS` is a pass and `FAILURE` a fail
+- [x] A verification that gets a 5xx, a network error or an unreadable answer throws a `PayPalError` and is made exactly once
+- [x] A missing `PAYPAL_WEBHOOK_ID` is reported by name, and the client's other calls don't need it
 Notes:
 
 ## T-003: Execution entry types and the execution history

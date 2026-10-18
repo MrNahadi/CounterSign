@@ -216,6 +216,37 @@ export function refundedTotal(order: PayPalOrder, captureId: string): number | n
   return total;
 }
 
+// One dispute on a capture. Its status is PayPal's, kept as text: anything but RESOLVED is open.
+export type PayPalDispute = { id: string; status: string };
+
+// A capture's disputes. `complete` is false when the list had more pages than were read, so a
+// caller can't mistake a partial list for the whole one (ADR 0025).
+export type PayPalDisputeList = { disputes: PayPalDispute[]; complete: boolean };
+
+const linkSchema = z.object({ rel: z.string().optional(), href: z.string().optional() });
+
+// One page of `GET /v1/customer/disputes`. PayPal leaves `items` out of an empty page.
+export const disputesPageSchema = z
+  .object({
+    items: z.array(z.object({ dispute_id: text, status: text })).optional(),
+    links: z.array(linkSchema).optional(),
+  })
+  .transform((page) => ({
+    disputes: (page.items ?? []).map(
+      (item): PayPalDispute => ({ id: item.dispute_id, status: item.status }),
+    ),
+    next: page.links?.find((link) => link.rel === "next")?.href ?? null,
+  }));
+
+// What PayPal says of a webhook's signature. Only SUCCESS is a pass.
+export type WebhookVerification = "pass" | "fail";
+
+export const verificationSchema = z
+  .object({ verification_status: text })
+  .transform(
+    (answer): WebhookVerification => (answer.verification_status === "SUCCESS" ? "pass" : "fail"),
+  );
+
 // The body of a PayPal error. Every field is optional: an unreadable body still yields an error.
 export const errorBodySchema = z.object({
   name: z.string().optional(),
