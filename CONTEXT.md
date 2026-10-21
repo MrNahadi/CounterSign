@@ -194,6 +194,22 @@ _Avoid_: hold, escalation, manual review
 The merchant's answer to one step-up. It is single-use, bound to the intent's hash, and expires as a deny.
 _Avoid_: confirmation, sign-off
 
+**Step-up card**:
+One held intent as the merchant sees it on the approvals page: what's asked, for whom, why it waits, what the records say, and the time left. It stands for the intent's newest open step-up, a `decision` entry identified by its sequence number.
+_Avoid_: approval request, ticket (reserved for a customer's message)
+
+**Approval answer**:
+The audit-log `approval` entry for one tap on a card: approved, denied, or rejected with a code such as `HASH_MISMATCH` or `EXPIRED`. Only an approved or denied answer closes the step-up; a rejected one changes nothing.
+_Avoid_: approval event, response
+
+**Approver key**:
+The secret the merchant signs in to the approvals page with, `COUNTERSIGN_APPROVER_KEY`. It lets its holder answer step-ups and nothing else, and it's never a principal key.
+_Avoid_: admin password, merchant token
+
+**Executor**:
+The gate's code that carries out one kind of guarded action on its rail, used both for an allowed intent and for an approved one. An action with no executor can't execute yet.
+_Avoid_: runner, handler
+
 **Audit log**:
 The append-only, hash-chained record of every intent, decision, approval, execution and reconciliation.
 _Avoid_: ledger, history, event log

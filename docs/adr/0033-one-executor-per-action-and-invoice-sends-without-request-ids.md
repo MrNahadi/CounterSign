@@ -1,0 +1,18 @@
+# 0033. Allowed and approved intents run through one executor per action; an invoice send has no request ID, so it's sent at most once and never re-sent
+
+Status: accepted, extends ADR 0026 (execution entries) for actions other than a refund
+Decided-by: autopilot (delegated), phase 9 feature spec, 21 Oct 2026, under brief §14 v1.4. The answerer's rules escalate it, because it changes stored audit-log payloads. The planner session had no way to start the answerer agent, so it applied the answerer's rules itself. Decided by brief §10 trade-off 1 (fail-closed money safety), then 5 (PayPal depth). The owner can overturn it (`.ralph/human.md`, Decided for you)
+Question: Phase 9 adds the invoice-send call. Until now only refunds executed, and the execution entries assume a capture and a refund. How does an invoice send fit the request and result entries, how is it kept to one send when PayPal's send call takes no `PayPal-Request-Id`, and does it count in today's usage?
+Decision:
+- **One executor per executable action** (`paypal.refund`, `paypal.invoice.send`), used by both paths: an allowed proposal and an approved step-up. `EXECUTABLE_ACTIONS` lists exactly the actions with an executor, so `decide()` keeps denying an allow for any other `ACTION_UNAVAILABLE`, and an approval for any other is rejected `ACTION_UNAVAILABLE` (ADR 0032).
+- **Request entries grow, old ones still read.** `execution.requested` gains a third shape, for an approved intent: `replay: false`, `approvalSeq` in place of `decisionSeq`. New request entries also carry the intent's `target` (the hashed target object, ADR 0027). `captureId` stays, null for an invoice. Entries written before this phase read as before.
+- **Result entries grow too.** An invoice send's `execution.result` holds `invoice: { id, status }` in place of `refund`, where the status is what PayPal answered: `SENT` for 200, `SCHEDULED` for 202. Reconciliation ignores results without a refund.
+- **Invoice sends are sent at most once.** PayPal's `POST /v2/invoicing/invoices/{id}/send` takes no request ID, so the rail client sends it with none and never retries it. The one `execution.requested` entry per intent is the whole guarantee: a later proposal of the same invoice intent is decided again but can't execute (an approval answers `ALREADY_REQUESTED`), and an invoice intent is never re-sent, not even within ADR 0026's 6 hours, which apply to refunds only. A 4xx refusal is `failed`; anything else that isn't a 200 or 202 is `unknown` and counts as sent.
+- **Invoice sends count in today's usage**, like every executed money action (ADR 0026). That's the conservative side: it can only make a later refund step up sooner, never allow more.
+Basis:
+- Brief §5 item 1 (invoice send is a guarded action), §8 (fail closed; what you approve is what executes), roadmap item 9 ("this phase adds the invoice-send call").
+- PayPal Invoicing v2 OpenAPI (`https://developer.paypal.com/docs/api/invoicing/v2/schema.json`, read 21 Oct 2026): `invoices.send` lists no `PayPal-Request-Id`, takes an optional `notification` body (`send_to_invoicer`, `send_to_recipient`, `note`, `subject`, `additional_recipients`) and answers 200 or 202 with a `link_description`. `@paypal/agent-toolkit` 1.11.0's `send_invoice` posts `{ note, send_to_recipient, additional_recipients }` to the same path.
+- ADR 0024 (the client retries only GETs and POSTs with a request ID), ADR 0026, ADR 0027.
+Consequences:
+- An `unknown` invoice send isn't retried automatically; the operator checks it in the sandbox dashboard.
+- Phases 11 and 12 add their executors (dispute actions, payouts) the same way, each with its own result record.

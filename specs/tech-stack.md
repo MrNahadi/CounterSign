@@ -1,6 +1,6 @@
 # Tech stack
 
-Derived from brief §8–§9 and ADRs 0001–0031 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
+Derived from brief §8–§9 and ADRs 0001–0033 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
 
 ## Runtime and tooling
 
@@ -37,6 +37,7 @@ Pin exact versions with no `^` or `~`. The build loop can't install packages. Si
 | ag-grid-community / ag-grid-react | 36.2.0 | console |
 | tailwindcss / @tailwindcss/postcss | 4.3.3 | console, storefront, packages/graphite |
 | lucide-react | 1.58.0 | console, storefront |
+| uqr | 0.1.3 | console (the approvals page's QR code matrix; drawn as SVG with token classes) |
 | @biomejs/biome | 2.5.15 | root |
 | vitest | 4.1.12 | root |
 | @playwright/test | 1.64.1 | root |
@@ -55,9 +56,9 @@ apps/
 packages/
   mandate/              Mandate schema, rule evaluator, compiler prompt
   verifiers/            Pure verifier functions over record snapshots, with fixtures
-  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds, disputes lookup and webhook signature verification from phase 6, ADR 0025; get dispute, get invoice and transaction search from phase 7; `issueAccessToken()` for baseline mode's child process from phase 8)
+  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds, disputes lookup and webhook signature verification from phase 6, ADR 0025; get dispute, get invoice and transaction search from phase 7; `issueAccessToken()` for baseline mode's child process from phase 8; invoice send and draft invoices from phase 9, ADR 0033)
   rail-mpesa/           Daraja client, callback parsing, receipt store
-  ledger/               Hash chain, appends, `ledger verify` and its CLI; evidence export (phase 10)
+  ledger/               Hash chain, appends, `ledger verify` and its CLI (entry types: `mandate.version`, `decision`, `execution.requested`, `execution.result`, `reconciliation`, and `approval` from phase 9); evidence export (phase 10)
   db/                   Drizzle schema (audit_log, carrier_shipments, seed_orders, tickets from phase 7 (ADR 0029), and tickets.thread_id, ticket_attachments and agent_runs from phase 8 (ADR 0030)), migrations (with the append-only trigger), postgres.js and PGlite clients
   graphite/             Graphite tokens (byte-identical copy), Tailwind theme, AG Studio theme
   carrier-mock/         Carrier adapter interface, and the mock over carrier_shipments (stored status, never derived from the clock; ADR 0023)
@@ -121,11 +122,18 @@ specs/                  Brief, constitution, feature specs
 - Runs execute one at a time per process, with at most 8 model calls and 12 tool calls. A run is retried (once, on the fallback model) only if it ended `model_unavailable` before any tool call; interrupted runs are marked failed, never rerun. `RESOLVE_DAILY_RUN_CAP` (default 200 per UTC day) bounds AI calls until phase 15's limits.
 - Baseline mode mints a fresh sandbox token per run through `@countersign/rail-paypal` and spawns `@paypal/mcp` from `apps/baseline-paypal-mcp` with `process.execPath`; nothing imports the toolkit.
 
+**Approvals** (from phase 9, ADRs 0032 and 0033)
+- A step-up is a `decision` entry with decision `step_up`; its ID is the entry's `seq`, and open, answered and expired are worked out from the log and the clock, never stored. Every answer, rejections included, is an `approval` entry.
+- An approval executes the stored intent, bound by its hash; it never re-reads records or re-decides. The checks, the `approval` entry and the `execution.requested` entry (with `approvalSeq`) are one audit-log transaction; the rail call comes after commit.
+- Allowed and approved intents run through one executor per action. `EXECUTABLE_ACTIONS` lists exactly the actions with an executor (refund and invoice send from phase 9). An invoice send carries no request ID and is never re-sent.
+- The gate's approval API takes only `COUNTERSIGN_APPROVER_KEY`; principal keys never work there and the approver key never works on `/mcp`. The console keeps the key the approver typed in an HttpOnly, SameSite=Strict cookie and reaches the gate from server routes only.
+
 **Secrets and environment**
 - Real values live only in `.env.local` (git-ignored) and on Render. `.env.example` lists the names.
 - Load env with `tsx --env-file-if-exists=.env.local`, so scripts also run in cloud sessions, where the environment holds the values and there's no `.env.local`. Never print, log or commit a secret, `DATABASE_URL` included.
 - Principal keys (from phase 7) are environment variables, one per principal: `COUNTERSIGN_SUPPORT_AGENT_KEY` now, `COUNTERSIGN_OPS_AGENT_KEY` from phase 12. A key shorter than 32 characters counts as unset. The gate and Resolve read the same variable.
-- Service addresses (from phase 8): `GATE_MCP_URL` (Resolve's way to the gate, default `http://127.0.0.1:8787/mcp`) and `RESOLVE_AGENT_URL` (the console's way to Resolve, default `http://127.0.0.1:8788`).
+- Service addresses (from phase 8): `GATE_MCP_URL` (Resolve's way to the gate, default `http://127.0.0.1:8787/mcp`) and `RESOLVE_AGENT_URL` (the console's way to Resolve, default `http://127.0.0.1:8788`). From phase 9: `GATE_URL` (the console's way to the gate's approval API, default `http://127.0.0.1:8787`) and `CONSOLE_PUBLIC_URL` (optional, the address the QR code points at).
+- The approver key (from phase 9) is `COUNTERSIGN_APPROVER_KEY`, read by the gate only. Under 32 characters, or equal to a principal key, it counts as unset.
 - Unit tests never need credentials. Tests that hit live sandboxes run only under `LIVE=1` and are not part of the Feedback commands.
 
 **Git**
