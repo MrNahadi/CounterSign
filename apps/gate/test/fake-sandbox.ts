@@ -73,6 +73,9 @@ export function createFakeSandbox(): FakeSandbox {
     async addTracker() {
       throw new Error("addTracker isn't in the fake sandbox");
     },
+    async issueAccessToken() {
+      throw new Error("issueAccessToken isn't in the fake sandbox");
+    },
     async getOrder(orderId) {
       enter("getOrder", orderId);
       const order = sandbox.orders.get(orderId);

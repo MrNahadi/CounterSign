@@ -104,17 +104,17 @@ Notes:
 
 ## T-008: Baseline mode
 
-Status: open
+Status: done
 Blocked by: T-005, T-007
 Tier: standard
 Slice: The same ticket runs in baseline mode: the harness starts PayPal's own MCP server with a fresh token, the same agent works through PayPal's tools with no gate, and the child is closed afterwards.
 Test seam: the baseline-mode runner in `apps/resolve-agent/src/`, with an injected token issuer and transport factory
 Acceptance:
-- [ ] The child is started with `process.execPath`, `@paypal/mcp`'s entry point resolved from `apps/baseline-paypal-mcp`, and `--tools=all`; its env is the SDK's default environment plus `PAYPAL_ACCESS_TOKEN` and `PAYPAL_ENVIRONMENT=SANDBOX` only; stderr is ignored
-- [ ] The child is closed after a replied, a stopped and a failed run; a token or spawn failure ends `failed` `baseline_unavailable` with no model call
-- [ ] A protected and a baseline run of the same ticket send byte-identical system instructions, configs (declarations aside) and user turns, and both declare `find_order`
-- [ ] Baseline runs append nothing to the audit log, and are stored with mode `baseline`
-- [ ] Nothing outside `apps/baseline-paypal-mcp` imports `@paypal/mcp` or `@paypal/agent-toolkit`
+- [x] The child is started with `process.execPath`, `@paypal/mcp`'s entry point resolved from `apps/baseline-paypal-mcp`, and `--tools=all`; its env is the SDK's default environment plus `PAYPAL_ACCESS_TOKEN` and `PAYPAL_ENVIRONMENT=SANDBOX` only; stderr is ignored
+- [x] The child is closed after a replied, a stopped and a failed run; a token or spawn failure ends `failed` `baseline_unavailable` with no model call
+- [x] A protected and a baseline run of the same ticket send byte-identical system instructions, configs (declarations aside) and user turns, and both declare `find_order`
+- [x] Baseline runs append nothing to the audit log, and are stored with mode `baseline`
+- [x] Nothing outside `apps/baseline-paypal-mcp` imports `@paypal/mcp` or `@paypal/agent-toolkit`
 Notes:
 
 ## T-009: Resolve's HTTP API and run queue

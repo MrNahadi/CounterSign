@@ -47,3 +47,9 @@
 
 ## T-007 (done)
 - `createPayPalClient(...).issueAccessToken()` returns `{ accessToken, expiresAt }` (epoch ms from the client clock + `expires_in`). It makes its own OAuth call via the shared `requestToken()`, never reads or replaces the cached token, and the token joins the client's scrub list. The sandbox-only rule holds because the client cannot be built for another base URL.
+
+## T-008 (done)
+- `apps/resolve-agent/src/baseline.ts`: `runBaseline({ ...ModeRunInput, issueToken, createTransport? })`, `connectBaseline`, `baselineServer(token)`, `paypalMcpEntry()` (resolved via `@countersign/baseline-paypal-mcp/package.json`, then `@paypal/mcp/package.json`'s `bin`), `stdioTransport`, `paypalTokenIssuer(env)`. Shared start/connect/harness/finish moved to `src/runs.ts` (`executeRun`, `RunTrace`, `RunOutcome` now includes `baseline_unavailable`, `RunNotQueuedError`, `ModeRunInput`); `protected.ts` re-exports the types.
+- Gotcha: T-007 left `apps/gate/test/fake-sandbox.ts` without `issueAccessToken`, so `npm run typecheck` failed; it now throws "isn't in the fake sandbox".
+- Gotcha: InMemoryTransport's close re-enters the client side, so count child closes with the server's `onclose`, not by wrapping `close`.
+- `test/baseline.test.ts` scans every code file outside `apps/baseline-paypal-mcp` for imports of `@paypal/mcp` or `@paypal/agent-toolkit`; build sample strings from parts in tests so the scan doesn't flag them.
