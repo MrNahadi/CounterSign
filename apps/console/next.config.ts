@@ -11,7 +11,7 @@ try {
 }
 
 const config: NextConfig = {
-  transpilePackages: ["@countersign/graphite"],
+  transpilePackages: ["@countersign/graphite", "@countersign/mandate"],
 };
 
 export default config;

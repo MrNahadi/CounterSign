@@ -74,3 +74,13 @@
 ### For the human
 - requirements.md says resolve-agent's `dev` and `start` scripts load env with `--env-file-if-exists=.env.local`; they still run plain `tsx` (not part of T-011's acceptance).
 - `npm run lint` has one pre-existing warning (`void` in a union in `apps/resolve-agent/src/queue.ts`, from T-010).
+
+## T-012 (done)
+- Console inbox: `apps/console/src/resolve-schemas.ts` (zod for every Resolve answer, plus the MCP result and agent-response shapes), `src/resolve-routes.ts` (`resolveAgentUrl`, `loadThreads`, `loadThread`, `threadsRoute`, `threadRoute`, `attachmentRoute`, `RESOLVE_UNREACHABLE`; injected `fetch`), `src/inbox-view.ts` (`threadListItems`, `threadView`, `runView`, `toolRow`, `outcomeSentence`, `statusBadge`, `POLL_INTERVAL_MS`, `MONEY_TOOLS`). Routes under `app/api/resolve/` (threads, threads/[id], attachments/[id]). `/inbox` is a server page (`?thread=<id>` selects); `RefreshWhileWorking` calls `router.refresh()` every 2 s while any run is queued or running. Sidebar is `app/console-shell.tsx` + `app/console-nav.tsx`.
+- Resolve's `GET /threads/:id` adds `executions: [{ intent_id, outcome, refund_id, refund_status }]` per run (`src/executions.ts`, latest `execution.result` per allowed intent, read-only from `audit_log`).
+- Gotcha: never import `src/inbox-view.ts` (or `@countersign/mandate`) from a client component: mandate pulls in `node:crypto`. Build views on the server and pass plain props down.
+- Gotcha: `POST /api/resolve/messages` isn't built yet (T-013). The inbox header is where T-013's mode switch and "Simulate a message" go.
+- Gotcha: the daily-cap sentence is "Resolve didn't run: today's run limit is reached." with no number, since the console doesn't know `RESOLVE_DAILY_RUN_CAP`.
+
+### For the human
+- requirements.md's example "today's limit of 200 runs is reached" would need Resolve to report its cap; the inbox says "today's run limit is reached" instead.

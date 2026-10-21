@@ -161,18 +161,19 @@ Notes:
 
 ## T-012: The console inbox
 
-Status: open
+Status: done
 Blocked by: T-009
 Tier: standard
 Slice: The merchant opens `/inbox`, picks a thread, and reads the customer's messages, Resolve's reply and "What Resolve did", with the gate's decision and reasons as words beside their codes.
 Test seam: the inbox view-model functions and the console's Resolve route handlers in `apps/console/src/`, with an injected `fetch`, plus the Graphite design check
 Acceptance:
-- [ ] The console gains a sidebar nav (Inbox, theme control) and `@countersign/mandate` in `transpilePackages`; the inbox lists threads with channel icon, sender, subject or first line, time and status badge
-- [ ] The thread view shows messages, photos, replies and, per run, mode, model version, duration and one row per tool call; guarded calls show the decision and every reason as words with its code in inline code; an allowed refund shows its refund ID; baseline money calls are marked "No checks: straight to PayPal"; non-replied outcomes are one plain sentence each
-- [ ] While a run is queued or running the thread shows a working state and polls every 2 s until it ends
-- [ ] The routes validate input and Resolve's answers with zod and answer 502 with "Resolve isn't reachable. Start it, then try again." when Resolve is down or answers junk
-- [ ] Every new file passes the design check (semantic tokens only, Lucide icons, no emojis), and the view works in light and dark
+- [x] The console gains a sidebar nav (Inbox, theme control) and `@countersign/mandate` in `transpilePackages`; the inbox lists threads with channel icon, sender, subject or first line, time and status badge
+- [x] The thread view shows messages, photos, replies and, per run, mode, model version, duration and one row per tool call; guarded calls show the decision and every reason as words with its code in inline code; an allowed refund shows its refund ID; baseline money calls are marked "No checks: straight to PayPal"; non-replied outcomes are one plain sentence each
+- [x] While a run is queued or running the thread shows a working state and polls every 2 s until it ends
+- [x] The routes validate input and Resolve's answers with zod and answer 502 with "Resolve isn't reachable. Start it, then try again." when Resolve is down or answers junk
+- [x] Every new file passes the design check (semantic tokens only, Lucide icons, no emojis), and the view works in light and dark
 Notes:
+- Resolve's `GET /threads/:id` now adds `executions` to each run (the latest `execution.result` per allowed intent, read from the audit log), so the inbox can show an allowed refund's PayPal refund ID. The inbox renders on the server and polls with `router.refresh()`.
 
 ## T-013: Simulate a message, and the mode switch
 

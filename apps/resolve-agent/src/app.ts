@@ -11,6 +11,7 @@ import {
 } from "@countersign/db";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
+import { allowedIntentIds, readExecutions } from "./executions";
 import { storeMessage } from "./intake";
 import { DEFAULT_DAILY_RUN_CAP, utcDate } from "./limits";
 import { checkMessage } from "./messages";
@@ -169,12 +170,12 @@ export function createApp(deps: AppDeps) {
       message(res, 404, "There's no thread with that ID.");
       return;
     }
-    const runs = await readRunsByThread(db(), id.data);
-    res.json({
-      thread_id: id.data,
-      messages: tickets.map(ticketView),
-      runs: runs.map(runView),
-    });
+    const runs = [];
+    for (const run of await readRunsByThread(db(), id.data)) {
+      const executions = await readExecutions(db(), allowedIntentIds(run.trace));
+      runs.push({ ...runView(run), executions });
+    }
+    res.json({ thread_id: id.data, messages: tickets.map(ticketView), runs });
   });
 
   app.get("/attachments/:id", async (req, res) => {
