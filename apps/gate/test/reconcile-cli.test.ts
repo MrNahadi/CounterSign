@@ -63,7 +63,7 @@ async function logWith(items: readonly Seeded[]): Promise<string> {
           principal: "support-agent",
           rail: "paypal",
           action: "paypal.refund",
-          captureId: `CAP-${n}`,
+          target: { captureId: `CAP-${n}` },
           amount: usd(amount),
           decisionSeq: 1,
         }),

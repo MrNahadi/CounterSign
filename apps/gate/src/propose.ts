@@ -23,6 +23,7 @@ import {
   type IntentRecord,
   readExecutionHistory,
   readIntentRecord,
+  requestTarget,
 } from "./execution-log";
 import { type ReadProblem, readProposalRecords } from "./live-records";
 import { normalizeProposal } from "./proposal";
@@ -178,7 +179,7 @@ async function decideAndRecord(
         principal: intent.principal,
         rail: intent.rail,
         action: intent.action,
-        captureId,
+        target: requestTarget(intent.target),
         amount: intent.amount,
         decisionSeq: recorded.decision.seq,
       }),
@@ -237,6 +238,9 @@ async function answerReplay(
       });
     }
   }
+  // Requests written before phase 9 carry no target; they were all refunds on their capture.
+  const target = first.target ?? (first.captureId === null ? null : { captureId: first.captureId });
+  if (target === null) throw new Error("a requested intent has no target");
   const request = await log.append(
     executionRequestedEntry({
       at: ctx.now.toISOString(),
@@ -245,7 +249,7 @@ async function answerReplay(
       principal: first.principal,
       rail: first.rail,
       action: first.action,
-      captureId: first.captureId,
+      target,
       amount: first.amount,
       replayOf: { firstRequestSeq: firstRequest.seq, proposal: ctx.proposal },
     }),

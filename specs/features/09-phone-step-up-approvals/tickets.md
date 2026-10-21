@@ -17,16 +17,16 @@ Notes:
 
 ## T-002: Execution entries for approved and non-refund intents
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: An `execution.requested` entry pointing at an approval, and an invoice's request and result, are written and read back by every execution reader beside phase 6's entries.
 Test seam: the gate's execution-entry writers and readers (`readExecutionHistory`, `readIntentRecord`, the reconciliation state)
 Acceptance:
-- [ ] `execution.requested` gains the approved shape (`replay: false`, `approvalSeq`) and an optional `target` that new entries always carry; `captureId` stays, null for an invoice
-- [ ] `execution.result` gains `invoice: { id, status }` (`SENT` or `SCHEDULED` when executed) in place of `refund`
-- [ ] Entries in the shapes phases 6 to 8 wrote still read the same; a fixture log from phase 8's tests reads identically before and after
-- [ ] An executed invoice counts in the execution history (so in today's usage) with its amount; reconciliation ignores results without a refund
+- [x] `execution.requested` gains the approved shape (`replay: false`, `approvalSeq`) and an optional `target` that new entries always carry; `captureId` stays, null for an invoice
+- [x] `execution.result` gains `invoice: { id, status }` (`SENT` or `SCHEDULED` when executed) in place of `refund`
+- [x] Entries in the shapes phases 6 to 8 wrote still read the same; a fixture log from phase 8's tests reads identically before and after
+- [x] An executed invoice counts in the execution history (so in today's usage) with its amount; reconciliation ignores results without a refund
 Notes:
 
 ## T-003: Invoice send and draft invoices in the rail client

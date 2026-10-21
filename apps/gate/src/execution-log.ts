@@ -8,7 +8,9 @@ import {
   ACTIONS,
   CURRENCIES,
   IdSchema as Id,
+  type IntentTarget,
   type Money,
+  normalizePayeeEmail,
   RAILS,
   TimestampSchema,
 } from "@countersign/mandate";
@@ -26,25 +28,57 @@ const Hash = z.string().regex(/^[0-9a-f]{64}$/, "Must be a SHA-256 hash in lower
 
 // --- Payload schemas -----------------------------------------------------------------------
 
+// The intent's target as it's hashed (ADR 0027): only the ID that executes.
+export const RequestTargetSchema = z.union([
+  z.strictObject({ captureId: Id }),
+  z.strictObject({ disputeId: Id }),
+  z.strictObject({ invoiceId: Id }),
+  z.strictObject({ orderId: Id }),
+  z.strictObject({ email: z.string().min(1) }),
+]);
+export type RequestTarget = z.infer<typeof RequestTargetSchema>;
+
+export function requestTarget(target: IntentTarget): RequestTarget {
+  switch (target.kind) {
+    case "capture":
+      return { captureId: target.captureId };
+    case "dispute":
+      return { disputeId: target.disputeId };
+    case "invoice":
+      return { invoiceId: target.invoiceId };
+    case "order":
+      return { orderId: target.orderId };
+    case "payee":
+      return { email: normalizePayeeEmail(target.email) };
+  }
+}
+
+// Actions whose rail call carries no idempotency key, so the request ID is null (ADR 0033).
+const WITHOUT_REQUEST_ID: readonly string[] = ["paypal.invoice.send"];
+
 const RequestCommon = {
   intentId: Id,
   intentHash: Hash,
   principal: Id,
   rail: z.enum(RAILS),
   action: z.enum(ACTIONS),
-  // Null for an action with no capture, such as a payout.
+  // The target's capture; null for an action with none, such as an invoice send.
   captureId: Id.nullable(),
+  // Absent only in entries written before phase 9; new entries always carry it.
+  target: RequestTargetSchema.optional(),
   amount: MoneySchema,
-  // The rail's idempotency key: PayPal-Request-Id, always the intent hash (ADR 0003).
-  requestId: Hash,
+  // The rail's idempotency key: PayPal-Request-Id, the intent hash (ADR 0003), or null for an
+  // action whose call takes none (ADR 0033).
+  requestId: Hash.nullable(),
 };
 
 // `execution.requested`, ref the intent ID. Written before the rail call. A first request
-// points at the decision entry that allowed it; a replay points at the first request and keeps
-// the raw proposal it came with.
+// points at the decision entry that allowed it, or at the `approval` entry that approved it; a
+// replay points at the first request and keeps the raw proposal it came with.
 export const ExecutionRequestedPayloadSchema = z
-  .discriminatedUnion("replay", [
+  .union([
     z.strictObject({ ...RequestCommon, replay: z.literal(false), decisionSeq: Seq }),
+    z.strictObject({ ...RequestCommon, replay: z.literal(false), approvalSeq: Seq }),
     z.strictObject({
       ...RequestCommon,
       replay: z.literal(true),
@@ -53,10 +87,22 @@ export const ExecutionRequestedPayloadSchema = z
       proposalTruncated: z.boolean(),
     }),
   ])
-  .refine((payload) => payload.requestId === payload.intentHash, {
-    message: "The request ID must be the intent hash",
-    path: ["requestId"],
-  });
+  .refine(
+    (payload) =>
+      WITHOUT_REQUEST_ID.includes(payload.action)
+        ? payload.requestId === null
+        : payload.requestId === payload.intentHash,
+    {
+      message: "The request ID must be the intent hash, or null for an invoice send",
+      path: ["requestId"],
+    },
+  )
+  .refine(
+    (payload) =>
+      payload.target === undefined ||
+      payload.captureId === ("captureId" in payload.target ? payload.target.captureId : null),
+    { message: "The capture must be the target's capture", path: ["captureId"] },
+  );
 export type ExecutionRequestedPayload = z.infer<typeof ExecutionRequestedPayloadSchema>;
 
 // What PayPal said when it refused, never a token or header.
@@ -69,12 +115,21 @@ const RailErrorSchema = z.strictObject({
 const refundOf = (statuses: readonly [string, ...string[]]) =>
   z.strictObject({ id: Id, status: z.enum(statuses) });
 
-// `execution.result`, ref the intent ID. Its time is the entry's `at`.
-export const ExecutionResultPayloadSchema = z.discriminatedUnion("outcome", [
+// What PayPal answered a sent invoice with: 200 is `SENT`, 202 `SCHEDULED` (ADR 0033).
+export const INVOICE_SEND_STATUSES = ["SENT", "SCHEDULED"] as const;
+
+// `execution.result`, ref the intent ID. Its time is the entry's `at`. An executed result names
+// the refund it made, or for an invoice send the invoice it sent.
+export const ExecutionResultPayloadSchema = z.union([
   z.strictObject({
     requestSeq: Seq,
     outcome: z.literal("executed"),
     refund: refundOf(["COMPLETED", "PENDING"]),
+  }),
+  z.strictObject({
+    requestSeq: Seq,
+    outcome: z.literal("executed"),
+    invoice: z.strictObject({ id: Id, status: z.enum(INVOICE_SEND_STATUSES) }),
   }),
   z
     .strictObject({
@@ -131,11 +186,17 @@ export type ExecutionRequestInput = {
   principal: string;
   rail: (typeof RAILS)[number];
   action: (typeof ACTIONS)[number];
-  captureId: string | null;
+  // The hashed target; the entry's capture comes from it.
+  target: RequestTarget;
   amount: Money;
 } & (
-  | { decisionSeq: number; replayOf?: undefined }
-  | { replayOf: { firstRequestSeq: number; proposal: unknown }; decisionSeq?: undefined }
+  | { decisionSeq: number; approvalSeq?: undefined; replayOf?: undefined }
+  | { approvalSeq: number; decisionSeq?: undefined; replayOf?: undefined }
+  | {
+      replayOf: { firstRequestSeq: number; proposal: unknown };
+      decisionSeq?: undefined;
+      approvalSeq?: undefined;
+    }
 );
 
 function entry(entryType: string, refId: string | null, at: string, payload: unknown) {
@@ -144,21 +205,24 @@ function entry(entryType: string, refId: string | null, at: string, payload: unk
 }
 
 export function executionRequestedEntry(input: ExecutionRequestInput): EntryInput {
-  const { at, intentId, intentHash, principal, rail, action, captureId, amount } = input;
+  const { at, intentId, intentHash, principal, rail, action, target, amount } = input;
   const common = {
     intentId,
     intentHash,
     principal,
     rail,
     action,
-    captureId,
+    captureId: "captureId" in target ? target.captureId : null,
+    target,
     amount,
-    requestId: intentHash,
+    requestId: WITHOUT_REQUEST_ID.includes(action) ? null : intentHash,
   };
   const replay = input.replayOf;
   const payload =
     replay === undefined
-      ? { ...common, replay: false, decisionSeq: input.decisionSeq }
+      ? input.approvalSeq === undefined
+        ? { ...common, replay: false, decisionSeq: input.decisionSeq }
+        : { ...common, replay: false, approvalSeq: input.approvalSeq }
       : (() => {
           const { text, truncated } = proposalText(replay.proposal);
           return {
@@ -324,13 +388,19 @@ export async function readExecutionHistory(reader: Reader): Promise<ExecutionHis
 
 type FirstRequestPayload = Extract<ExecutionRequestedPayload, { replay: false }>;
 
+type Executed = Extract<ExecutionResultPayload, { outcome: "executed" }>;
+type ExecutedRefund = Extract<Executed, { refund: unknown }>["refund"];
+type ExecutedInvoice = Extract<Executed, { invoice: unknown }>["invoice"];
+
+// What an executed result made: a refund, or for an invoice send the invoice it sent.
+export type ExecutedRecord =
+  | { seq: number; refund: ExecutedRefund; invoice?: undefined }
+  | { seq: number; invoice: ExecutedInvoice; refund?: undefined };
+
 export type IntentRecord = {
   firstRequest: { seq: number; at: string; payload: FirstRequestPayload };
   // The first result that says `executed`, or null when none does.
-  executed: {
-    seq: number;
-    refund: Extract<ExecutionResultPayload, { outcome: "executed" }>["refund"];
-  } | null;
+  executed: ExecutedRecord | null;
   // The intent's latest result, or null when it has none yet.
   lastOutcome: ExecutionOutcome | null;
 };
@@ -371,7 +441,10 @@ export async function readIntentRecord(
         }
         trail.lastOutcome = payload.outcome;
         if (payload.outcome === "executed" && trail.executed === null) {
-          trail.executed = { seq: row.seq, refund: payload.refund };
+          trail.executed =
+            "refund" in payload
+              ? { seq: row.seq, refund: payload.refund }
+              : { seq: row.seq, invoice: payload.invoice };
         }
       }
     }
@@ -418,7 +491,8 @@ export async function readReconciliationState(reader: Reader): Promise<Reconcili
         if (row.refId === null) {
           throw new Unreadable(row.seq, `execution.result #${row.seq} has no intent`);
         }
-        const refundId = payload.refund?.id;
+        // A result without a refund, such as an invoice send's, has nothing to reconcile.
+        const refundId = "refund" in payload ? payload.refund?.id : undefined;
         if (refundId !== undefined && !state.results.has(refundId)) {
           state.results.set(refundId, { seq: row.seq, intentId: row.refId });
         }
@@ -507,7 +581,7 @@ export async function readReconcileWork(reader: Reader): Promise<ReconcileWorkRe
           throw new Unreadable(row.seq, `execution.result #${row.seq} comes before any request`);
         }
         intent.lastOutcome = payload.outcome;
-        if (payload.outcome === "executed" && intent.executed === null) {
+        if (payload.outcome === "executed" && "refund" in payload && intent.executed === null) {
           intent.executed = { seq: row.seq, refundId: payload.refund.id };
         }
       } else {

@@ -131,7 +131,7 @@ async function seedExecuted(): Promise<{ resultSeq: number }> {
       principal: "support-agent",
       rail: "paypal",
       action: "paypal.refund",
-      captureId: CAPTURE,
+      target: { captureId: CAPTURE },
       amount: usd(1800),
       decisionSeq: 1,
     }),
