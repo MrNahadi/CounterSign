@@ -31,14 +31,14 @@ Notes:
 
 ## T-003: Invoice send and draft invoices in the rail client
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: The PayPal client can create a draft invoice and send an invoice, against the fake PayPal server, with their answers zod-parsed.
 Test seam: `createPayPalClient(...).sendInvoice` and `.createDraftInvoice` from `@countersign/rail-paypal`, against `test/fake-paypal.ts`
 Acceptance:
-- [ ] `sendInvoice({ invoiceId, sendToRecipient, note?, additionalRecipients? })` posts to `/v2/invoicing/invoices/{id}/send` with `send_to_invoicer: true` and only the fields given, sends no `PayPal-Request-Id`, is never retried, and returns `SENT` for 200 and `SCHEDULED` for 202
-- [ ] A 4xx throws a `PayPalError` with name and issues; a 5xx or network failure throws without a retry
+- [x] `sendInvoice({ invoiceId, sendToRecipient, note?, additionalRecipients? })` posts to `/v2/invoicing/invoices/{id}/send` with `send_to_invoicer: true` and only the fields given, sends no `PayPal-Request-Id`, is never retried, and returns `SENT` for 200 and `SCHEDULED` for 202
+- [x] A 4xx throws a `PayPalError` with name and issues; a 5xx or network failure throws without a retry
 - [ ] `createDraftInvoice({ requestId, recipientEmail, items })` takes minor-unit amounts, posts with the readable request ID, and returns the new invoice ID
 - [ ] Contract tests cover each answer; no token appears in any error
 Notes:

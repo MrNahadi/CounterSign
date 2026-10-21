@@ -10,3 +10,8 @@
 - `execution-log.ts`: `execution.requested` has a third shape (`replay: false`, `approvalSeq`) and an optional hashed `target` (`requestTarget(intent.target)`); `execution.result` has an executed `invoice: { id, status: SENT|SCHEDULED }` variant. Both schemas are now `z.union`, not discriminated unions. `IntentRecord.executed` is `ExecutedRecord` (`{ seq, refund }` or `{ seq, invoice }`). Fixture of a phase 8 log: `apps/gate/test/fixtures/phase8-execution-log.ts`.
 - Gotcha: the writer takes `target` instead of `captureId` (capture derived from it) and requires it. `requestId` is null for `paypal.invoice.send` (no PayPal-Request-Id, ADR 0033) and the intent hash for every other action; the schema enforces both, and that the capture matches the target.
 - Gotcha: an invoice request with no result yet shows in `readReconcileWork().open` (the reconcile CLI lists it as a request with no outcome, capture "none"). Left as is: it's the fail-closed side.
+
+## T-003 done
+- `sendInvoice` (200 -> `SENT`, 202 -> `SCHEDULED`, other 2xx throws `invalid_response`; no request ID, never retried) and `createDraftInvoice` (returns the invoice ID from an `id` or an `href`) in `@countersign/rail-paypal`; tests in `packages/rail-paypal/test/invoice-send.test.ts`.
+- Gotcha: `apps/gate/test/fake-sandbox.ts` got minimal `sendInvoice`/`createDraftInvoice` (records calls, `invoiceSendStatus`, `failures`) only to satisfy the `PayPalClient` type. T-004 must extend it (4xx, network failure, recording the request) as the requirements say.
+- The one lint warning (`apps/resolve-agent/src/queue.ts` void type) predates this ticket.

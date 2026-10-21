@@ -86,6 +86,28 @@ export type RefundCaptureInput = PostOptions & {
   customId: string;
 };
 
+export type SendInvoiceInput = {
+  invoiceId: string;
+  sendToRecipient: boolean;
+  note?: string;
+  additionalRecipients?: string[];
+};
+
+// What PayPal did with a send: `SENT` for HTTP 200, `SCHEDULED` for HTTP 202.
+export type InvoiceSendStatus = "SENT" | "SCHEDULED";
+
+export type DraftInvoiceItem = {
+  name: string;
+  quantity: number;
+  // Only USD is sent to PayPal.
+  unitAmount: Money;
+};
+
+export type CreateDraftInvoiceInput = PostOptions & {
+  recipientEmail: string;
+  items: DraftInvoiceItem[];
+};
+
 // The five `PAYPAL-*` headers PayPal sends with a webhook.
 export type WebhookTransmission = {
   transmissionId: string;
@@ -140,6 +162,11 @@ export type PayPalClient = {
   listMerchantDisputes(input: MerchantDisputesInput): Promise<PayPalDisputeList>;
   getDispute(disputeId: string): Promise<PayPalDisputeDetail>;
   getInvoice(invoiceId: string): Promise<PayPalInvoice>;
+  // Sends a draft invoice. PayPal's send call takes no request ID, so this carries none and is
+  // never retried, not even after a 5xx or a network failure (ADR 0033). A 4xx throws.
+  sendInvoice(input: SendInvoiceInput): Promise<InvoiceSendStatus>;
+  // Creates a draft invoice and answers with its ID. For live checks and demos.
+  createDraftInvoice(input: CreateDraftInvoiceInput): Promise<string>;
   // One page of up to 100 transactions in the range.
   searchTransactions(input: TransactionSearchInput): Promise<PayPalTransactionPage>;
   // Never retried. Throws when the check can't complete, so it's never mistaken for a pass.
@@ -224,6 +251,39 @@ const merchantDisputesSchema = z.object({
   pageSize: z.number().int().min(1).max(50),
   disputeState: z.enum(DISPUTE_STATES).optional(),
 });
+
+const emailSchema = z.string().min(3).max(254).includes("@");
+
+const sendInvoiceSchema = z.object({
+  invoiceId: resourceId,
+  sendToRecipient: z.boolean(),
+  note: z.string().min(1).max(4000).optional(),
+  additionalRecipients: z.array(emailSchema).min(1).max(100).optional(),
+});
+
+const createDraftInvoiceSchema = z.object({
+  requestId: requestIdSchema,
+  recipientEmail: emailSchema,
+  items: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(200),
+        quantity: z.number().int().min(1).max(1000),
+        unitAmount: z.object({ minor: z.number().int().positive(), currency: z.string() }),
+      }),
+    )
+    .min(1)
+    .max(100),
+});
+
+// PayPal answers a new draft with its link, or with the invoice itself.
+const draftInvoiceAnswerSchema = z.union([
+  z.object({ id: resourceId }).transform((answer) => answer.id),
+  z
+    .object({ href: z.string() })
+    .transform((answer) => answer.href.split("?")[0]?.split("/").pop() ?? "")
+    .pipe(resourceId),
+]);
 
 const header = z.string().min(1).max(4096);
 const verifyWebhookSchema = z.object({
@@ -619,6 +679,57 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
       const id = checkId(call, invoiceId);
       const answer = await send({ call, method: "GET", path: `/v2/invoicing/invoices/${id}` });
       return parse(call, answer, invoiceSchema);
+    },
+
+    async sendInvoice(input) {
+      const call = "send-invoice";
+      const invoice = checkInput(call, sendInvoiceSchema, input);
+      // No request ID, so `send` never retries it.
+      const answer = await send({
+        call,
+        method: "POST",
+        path: `/v2/invoicing/invoices/${encodeURIComponent(invoice.invoiceId)}/send`,
+        body: {
+          send_to_invoicer: true,
+          send_to_recipient: invoice.sendToRecipient,
+          ...(invoice.note === undefined ? {} : { note: invoice.note }),
+          ...(invoice.additionalRecipients === undefined
+            ? {}
+            : { additional_recipients: invoice.additionalRecipients }),
+        },
+      });
+      if (answer.status === 200) return "SENT";
+      if (answer.status === 202) return "SCHEDULED";
+      throw new PayPalError({
+        kind: "invalid_response",
+        call,
+        status: answer.status,
+        debugId: answer.debugId,
+        field: "status",
+      });
+    },
+
+    async createDraftInvoice(input) {
+      const call = "create-draft-invoice";
+      const draft = checkInput(call, createDraftInvoiceSchema, input);
+      const items = draft.items.map((item, index) => {
+        if (item.unitAmount.currency !== "USD") throw refuse(call, "only USD is sent to PayPal");
+        const unitAmount = toPayPalAmount({ minor: item.unitAmount.minor, currency: "USD" });
+        if (!unitAmount) throw refuse(call, `items[${index}].unitAmount is invalid`);
+        return { name: item.name, quantity: String(item.quantity), unit_amount: unitAmount };
+      });
+      const answer = await send({
+        call,
+        method: "POST",
+        path: "/v2/invoicing/invoices",
+        requestId: draft.requestId,
+        body: {
+          detail: { currency_code: "USD" },
+          primary_recipients: [{ billing_info: { email_address: draft.recipientEmail } }],
+          items,
+        },
+      });
+      return parse(call, answer, draftInvoiceAnswerSchema);
     },
 
     async searchTransactions(input) {

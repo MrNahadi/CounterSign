@@ -34,6 +34,10 @@ export type FakeSandbox = PayPalClient & {
   lostResponses: Partial<Record<FakeCall, unknown>>;
   // The status a new refund is created with.
   refundStatus: PayPalRefund["status"];
+  // What a send invoice call answers (T-004 extends this fake with more control).
+  invoiceSendStatus: "SENT" | "SCHEDULED";
+  // IDs of the draft invoices it created.
+  createdInvoices: string[];
   // What a webhook signature verification answers.
   webhookVerification: "pass" | "fail";
   // Every call made, in order, with its first argument.
@@ -60,6 +64,8 @@ export function createFakeSandbox(): FakeSandbox {
     transactions: [],
     refunds: new Map(),
     failures: {},
+    invoiceSendStatus: "SENT",
+    createdInvoices: [],
     lostResponses: {},
     refundStatus: "COMPLETED",
     webhookVerification: "pass",
@@ -111,6 +117,16 @@ export function createFakeSandbox(): FakeSandbox {
       const invoice = sandbox.invoices.get(invoiceId);
       if (!invoice) throw notFound("get-invoice");
       return structuredClone(invoice);
+    },
+    async sendInvoice(input) {
+      enter("sendInvoice", input);
+      return answer("sendInvoice", sandbox.invoiceSendStatus);
+    },
+    async createDraftInvoice(input) {
+      enter("createDraftInvoice", input);
+      const id = `INV2-FAKE-${String(sandbox.createdInvoices.length + 1).padStart(4, "0")}`;
+      sandbox.createdInvoices.push(id);
+      return answer("createDraftInvoice", id);
     },
     async searchTransactions(input) {
       enter("searchTransactions", input);
