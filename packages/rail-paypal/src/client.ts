@@ -144,6 +144,9 @@ export type PayPalClient = {
   searchTransactions(input: TransactionSearchInput): Promise<PayPalTransactionPage>;
   // Never retried. Throws when the check can't complete, so it's never mistaken for a pass.
   verifyWebhookSignature(input: VerifyWebhookInput): Promise<WebhookVerification>;
+  // A sandbox token minted by its own OAuth call, never the cached one and never cached itself.
+  // For baseline mode's child process only. `expiresAt` is milliseconds since the epoch.
+  issueAccessToken(): Promise<{ accessToken: string; expiresAt: number }>;
 };
 
 // A token with less than this left is replaced before the next call.
@@ -269,7 +272,7 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
   let cached: { token: string; expiresAt: number } | undefined;
   let pending: Promise<string> | undefined;
 
-  async function fetchToken(): Promise<string> {
+  async function requestToken(): Promise<{ token: string; expiresAt: number }> {
     const call = "oauth-token";
     const response = await reach(call, `${config.baseUrl}/v1/oauth2/token`, {
       method: "POST",
@@ -285,8 +288,12 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
     const token = tokenSchema.safeParse(answer.body);
     if (!token.success) throw unreadable(call, answer, token.error);
     credentials.add(token.data.access_token);
-    cached = { token: token.data.access_token, expiresAt: now() + token.data.expires_in * 1000 };
-    return token.data.access_token;
+    return { token: token.data.access_token, expiresAt: now() + token.data.expires_in * 1000 };
+  }
+
+  async function fetchToken(): Promise<string> {
+    cached = await requestToken();
+    return cached.token;
   }
 
   // Concurrent callers share one token request.
@@ -631,6 +638,11 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
         path: `/v1/reporting/transactions?${query}`,
       });
       return parse(call, answer, transactionPageSchema);
+    },
+
+    async issueAccessToken() {
+      const { token, expiresAt } = await requestToken();
+      return { accessToken: token, expiresAt };
     },
 
     async verifyWebhookSignature(input) {

@@ -91,15 +91,15 @@ Notes:
 
 ## T-007: A fresh sandbox token for baseline mode
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: The PayPal rail client hands out a freshly minted sandbox access token and its expiry, for baseline mode's child process only.
 Test seam: `createPayPalClient(...)`'s new `issueAccessToken()` in `@countersign/rail-paypal`, against the fake PayPal and recorded OAuth fixture
 Acceptance:
-- [ ] Returns a token minted by its own OAuth call (not the client's cached one) with its expiry time from `expires_in`
-- [ ] Refuses any base URL but the sandbox's, as every other call does
-- [ ] A failed or unreadable OAuth answer is a `PayPalError` whose message holds neither the client secret nor any token
+- [x] Returns a token minted by its own OAuth call (not the client's cached one) with its expiry time from `expires_in`
+- [x] Refuses any base URL but the sandbox's, as every other call does
+- [x] A failed or unreadable OAuth answer is a `PayPalError` whose message holds neither the client secret nor any token
 Notes:
 
 ## T-008: Baseline mode

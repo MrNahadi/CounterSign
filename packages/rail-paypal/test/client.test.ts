@@ -228,6 +228,66 @@ describe("the OAuth token", () => {
   });
 });
 
+describe("issueAccessToken", () => {
+  it("mints its own token with its expiry, leaving the cached one alone", async () => {
+    let issued = 0;
+    const fake = fakePayPal(
+      () => reply(200, fixture("get-order-completed")),
+      () => tokenReply(`${FAKE_TOKEN}-${++issued}`, 900),
+    );
+    const paypal = client(fake, { now: () => 1_000_000 });
+    await paypal.getOrder(ORDER_ID);
+    const minted = await paypal.issueAccessToken();
+
+    expect(minted).toEqual({ accessToken: `${FAKE_TOKEN}-2`, expiresAt: 1_000_000 + 900_000 });
+    expect(fake.tokenRequests()).toHaveLength(2);
+    expect(fake.tokenRequests()[1]?.body).toBe("grant_type=client_credentials");
+    expect((await paypal.issueAccessToken()).accessToken).toBe(`${FAKE_TOKEN}-3`);
+    await paypal.getOrder(ORDER_ID);
+    expect(fake.tokenRequests()).toHaveLength(3);
+    expect(fake.apiRequests()[1]?.headers.authorization).toBe(`Bearer ${FAKE_TOKEN}-1`);
+  });
+
+  it("can't be built for any base URL but the sandbox's, so it never calls one", () => {
+    const fake = fakePayPal(() => reply(200, {}));
+    expect(() =>
+      createPayPalClient({
+        env: { ...sandboxEnv, PAYPAL_BASE_URL: "https://api-m.paypal.com" },
+        fetch: fake.fetch,
+      }),
+    ).toThrow(PayPalConfigError);
+    expect(fake.requests).toEqual([]);
+  });
+
+  it("fails a refused OAuth call as a PayPalError without the secret", async () => {
+    const fake = fakePayPal(
+      () => reply(200, {}),
+      () =>
+        reply(401, {
+          error: "invalid_client",
+          error_description: `Bad secret ${FAKE_SECRET}`,
+        }),
+    );
+    const error = await caught(client(fake).issueAccessToken());
+    expect(error.call).toBe("oauth-token");
+    expect(error.status).toBe(401);
+  });
+
+  it("fails an unreadable OAuth answer as a PayPalError without any token", async () => {
+    for (const body of [
+      { access_token: FAKE_TOKEN },
+      { access_token: FAKE_TOKEN, expires_in: 0 },
+    ]) {
+      const fake = fakePayPal(
+        () => reply(200, {}),
+        () => reply(200, body),
+      );
+      const error = await caught(client(fake).issueAccessToken());
+      expect(error.kind).toBe("invalid_response");
+    }
+  });
+});
+
 describe("get order", () => {
   it("parses a completed order into the client's record, money in minor units", async () => {
     const fake = fakePayPal(() => reply(200, fixture("get-order-completed")));

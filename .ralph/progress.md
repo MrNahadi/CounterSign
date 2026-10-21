@@ -44,3 +44,6 @@
 
 ### For the human
 - `apps/resolve-agent/test/protected.test.ts` imports `@countersign/carrier-mock` and `@countersign/ledger`, which aren't in resolve-agent's `devDependencies` (they resolve through the workspace root). Adding them needs a lockfile update, which the loop doesn't do.
+
+## T-007 (done)
+- `createPayPalClient(...).issueAccessToken()` returns `{ accessToken, expiresAt }` (epoch ms from the client clock + `expires_in`). It makes its own OAuth call via the shared `requestToken()`, never reads or replaces the cached token, and the token joins the client's scrub list. The sandbox-only rule holds because the client cannot be built for another base URL.
