@@ -226,9 +226,10 @@ function readEnv(
     problems.push(error instanceof Error ? error.message : "RESOLVE_DAILY_RUN_CAP isn't valid.");
   }
   if (problems.length > 0 || !modelEnv.ok) {
+    const named = new Set(problems.join(" ").match(/\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b/g));
     return {
       ok: false,
-      error: `The resolve CLI can't start in ${mode} mode. ${problems.join(" ")} Put them in .env.local.`,
+      error: `The resolve CLI can't start in ${mode} mode. ${problems.join(" ")} Put ${named.size === 1 ? "it" : "them"} in .env.local.`,
     };
   }
   return {

@@ -429,7 +429,9 @@ describe("resolve CLI, when it can't run", { timeout: SLOW }, () => {
       GEMINI_API_KEY: GEMINI_KEY,
       COUNTERSIGN_SUPPORT_AGENT_KEY: "short-key",
     });
-    expect(short.stderr).toContain("Set COUNTERSIGN_SUPPORT_AGENT_KEY");
+    expect(short.stderr).toBe(
+      "The resolve CLI can't start in protected mode. Set COUNTERSIGN_SUPPORT_AGENT_KEY, 32 or more characters. Put it in .env.local.\n",
+    );
     expect(short.stderr).not.toContain("short-key");
     expect(short.stderr).not.toContain(GEMINI_KEY);
 
