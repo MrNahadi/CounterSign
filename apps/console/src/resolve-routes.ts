@@ -1,6 +1,9 @@
 import type { z } from "zod";
 import {
   AttachmentIdSchema,
+  type MessageAccepted,
+  MessageAcceptedSchema,
+  MessageRequestSchema,
   PHOTO_TYPES,
   ResolveMessageSchema,
   type ThreadDetail,
@@ -20,6 +23,10 @@ export const NO_THREAD = "There's no thread with that ID.";
 export const NO_PHOTO = "There's no photo with that ID.";
 export const REQUEST_TIMEOUT_MS = 10_000;
 export const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
+export const MAX_MESSAGE_BYTES = 10 * 1024 * 1024;
+export const BAD_MESSAGE =
+  "The message isn't valid. Check its fields and photos, then send it again.";
+export const MESSAGE_TOO_LARGE = "The message is larger than 10 MB.";
 
 export type ResolveEnv = Readonly<Record<string, string | undefined>>;
 
@@ -46,14 +53,22 @@ export function resolveAgentUrl(env: ResolveEnv): URL | null {
   }
 }
 
-async function call(deps: ResolveDeps, path: string): Promise<Response | null> {
+async function call(
+  deps: ResolveDeps,
+  path: string,
+  post?: { json: string },
+): Promise<Response | null> {
   const base = resolveAgentUrl(deps.env);
   if (base === null) return null;
   const url = new URL(path, base);
   try {
     return await (deps.fetch ?? fetch)(url, {
-      method: "GET",
-      headers: { accept: "application/json" },
+      method: post === undefined ? "GET" : "POST",
+      headers:
+        post === undefined
+          ? { accept: "application/json" }
+          : { accept: "application/json", "content-type": "application/json" },
+      ...(post === undefined ? {} : { body: post.json }),
       cache: "no-store",
       redirect: "error",
       signal: AbortSignal.timeout(deps.timeoutMs ?? REQUEST_TIMEOUT_MS),
@@ -139,4 +154,66 @@ export async function attachmentRoute(id: unknown, deps: ResolveDeps): Promise<R
       "Cache-Control": "private, max-age=31536000, immutable",
     },
   });
+}
+
+/** Reads at most `limit` bytes of a request body as text; null when it's longer. */
+async function readLimited(request: Request, limit: number): Promise<string | null> {
+  const declared = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > limit) return null;
+  if (request.body === null) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+export async function sendToResolve(
+  input: unknown,
+  deps: ResolveDeps,
+): Promise<Answer<MessageAccepted>> {
+  const message = MessageRequestSchema.safeParse(input);
+  if (!message.success) return { ok: false, status: 400, message: BAD_MESSAGE };
+  const response = await call(deps, "/messages", { json: JSON.stringify(message.data) });
+  if (response?.status === 400) {
+    const refusal = await readJson(response, ResolveMessageSchema);
+    return refusal === null ? unreachable : { ok: false, status: 400, message: refusal.message };
+  }
+  if (response?.status !== 202) return unreachable;
+  const accepted = await readJson(response, MessageAcceptedSchema);
+  return accepted === null ? unreachable : { ok: true, value: accepted };
+}
+
+/** `POST /api/resolve/messages`: one simulated customer message, checked, then sent to Resolve. */
+export async function messagesRoute(request: Request, deps: ResolveDeps): Promise<Response> {
+  let text: string | null;
+  try {
+    text = await readLimited(request, MAX_MESSAGE_BYTES);
+  } catch {
+    return json(400, { message: BAD_MESSAGE });
+  }
+  if (text === null) return json(400, { message: MESSAGE_TOO_LARGE });
+  let input: unknown;
+  try {
+    input = JSON.parse(text);
+  } catch {
+    return json(400, { message: BAD_MESSAGE });
+  }
+  const answer = await sendToResolve(input, deps);
+  return answer.ok ? json(202, answer.value) : json(answer.status, { message: answer.message });
 }

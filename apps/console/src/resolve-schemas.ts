@@ -97,6 +97,42 @@ export const ThreadDetailSchema = z.object({
   runs: z.array(RunSchema),
 });
 
+// What the console sends to Resolve's `POST /messages` (requirements.md, "Messages in"). Resolve
+// checks every rule again, including each photo's first bytes; this keeps junk from leaving.
+export const MAX_PHOTOS = 3;
+export const MAX_SUBJECT_CHARS = 200;
+export const MAX_BODY_CHARS = 4_000;
+const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+// 2 MB of bytes is at most this many base64 characters.
+const MAX_PHOTO_BASE64_CHARS = Math.ceil((2 * 1024 * 1024) / 3) * 4;
+
+export const MessageRequestSchema = z.strictObject({
+  channel: Channel,
+  thread_id: ThreadIdSchema.optional(),
+  sender_email: z.email().max(254).optional(),
+  sender_phone: z
+    .string()
+    .regex(/^\+?[0-9][0-9 ()-]{3,30}$/)
+    .optional(),
+  subject: z.string().max(MAX_SUBJECT_CHARS).regex(/\S/).optional(),
+  body: z.string().max(MAX_BODY_CHARS).regex(/\S/),
+  attachments: z
+    .array(
+      z.strictObject({
+        content_type: z.enum(PHOTO_TYPES),
+        data: z.string().min(1).max(MAX_PHOTO_BASE64_CHARS).regex(BASE64),
+      }),
+    )
+    .max(MAX_PHOTOS),
+  mode: Mode,
+});
+
+export const MessageAcceptedSchema = z.object({
+  ticket_id: ThreadIdSchema,
+  thread_id: ThreadIdSchema,
+  run_id: z.string().min(1).max(64),
+});
+
 /** Resolve's one-sentence refusal. */
 export const ResolveMessageSchema = z.object({ message: z.string().min(1).max(500) });
 
@@ -132,3 +168,7 @@ export type ToolStep = z.infer<typeof ToolStepSchema>;
 export type Run = z.infer<typeof RunSchema>;
 export type ThreadDetail = z.infer<typeof ThreadDetailSchema>;
 export type RunStatus = (typeof RUN_STATUSES)[number];
+export type MessageRequest = z.infer<typeof MessageRequestSchema>;
+export type MessageAccepted = z.infer<typeof MessageAcceptedSchema>;
+export type Mode = z.infer<typeof Mode>;
+export type Channel = z.infer<typeof Channel>;

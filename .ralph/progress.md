@@ -84,3 +84,8 @@
 
 ### For the human
 - requirements.md's example "today's limit of 200 runs is reached" would need Resolve to report its cap; the inbox says "today's run limit is reached" instead.
+
+## T-013 (done)
+- Composer: `apps/console/src/composer.ts` (`messageRequest(form, mode)` returns the `POST /messages` body or `{ field, problem }`; `checkPhoto`, `toBase64`, `sendMessage(request, { fetch })`, `BASELINE_NOTE`, `SIMULATED_NOTE`, `MODE_OPTIONS`, `CHANNEL_OPTIONS`, `parseMode`, `MODE_STORAGE_KEY`). Route: `messagesRoute(request, deps)` and `sendToResolve(input, deps)` in `src/resolve-routes.ts` (10 MB read limit, strict `MessageRequestSchema`, Resolve's 400 sentence passed on, 202 `{ ticket_id, thread_id, run_id }`), wired at `app/api/resolve/messages/route.ts`. UI: `app/inbox/inbox-header.tsx` (client: mode switch, Baseline note, native `<dialog>` that becomes a bottom sheet under 640px).
+- Gotcha: `composer.ts` is imported by a client component, so it and `resolve-routes.ts`/`resolve-schemas.ts` must stay browser-safe (no `Buffer`, no mandate, no `server-only`). T-014's chat page can reuse `messageRequest`/`sendMessage` with `channel: "chat"`.
+- Gotcha: Tailwind v4 preflight zeroes `<dialog>` margins, so the dialog needs `sm:m-auto` (desktop) and `mt-auto mb-0` (sheet) explicitly. Field errors use `aria-invalid:inset-ring-danger-border-default`.

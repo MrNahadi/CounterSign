@@ -177,17 +177,18 @@ Notes:
 
 ## T-013: Simulate a message, and the mode switch
 
-Status: open
+Status: done
 Blocked by: T-012
 Tier: standard
 Slice: From the inbox header the merchant (or a judge) switches between Protected and Baseline and sends a simulated email or chat message with a photo; the new thread opens and Resolve's run appears in it.
 Test seam: the composer's form-to-request function and the messages route handler in `apps/console/src/`, with an injected `fetch`, plus the design check
 Acceptance:
-- [ ] A Protected | Baseline segmented control, default Protected, sets the next message's mode; Baseline shows requirements.md's one-line explanation
-- [ ] The dialog takes channel, sender email (and phone for chat), subject for email, body and up to 3 photos, checks type and 2 MB in the browser, and says "Simulated: no email is sent or received."
-- [ ] Sending posts through `POST /api/resolve/messages` as base64 and selects the new thread; a 400 from Resolve shows its sentence in the dialog
-- [ ] The design check passes, and the dialog works in light and dark and at phone width
+- [x] A Protected | Baseline segmented control, default Protected, sets the next message's mode; Baseline shows requirements.md's one-line explanation
+- [x] The dialog takes channel, sender email (and phone for chat), subject for email, body and up to 3 photos, checks type and 2 MB in the browser, and says "Simulated: no email is sent or received."
+- [x] Sending posts through `POST /api/resolve/messages` as base64 and selects the new thread; a 400 from Resolve shows its sentence in the dialog
+- [x] The design check passes, and the dialog works in light and dark and at phone width
 Notes:
+- The mode is kept per browser in localStorage (`countersign-resolve-mode`), default Protected. The console route checks the request with a strict zod copy of Resolve's message shape (`MessageRequestSchema`) and refuses anything else with one sentence before it reaches Resolve.
 
 ## T-014: The customer's simulated chat
 

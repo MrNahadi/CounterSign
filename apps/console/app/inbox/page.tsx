@@ -5,6 +5,7 @@ import Link from "next/link";
 import { listIsWorking, POLL_INTERVAL_MS, threadListItems, threadView } from "../../src/inbox-view";
 import { loadThread, loadThreads } from "../../src/resolve-routes";
 import { ConsoleShell } from "../console-shell";
+import { InboxHeader } from "./inbox-header";
 import { Notice, ThreadDetail, ThreadList } from "./inbox-parts";
 import { RefreshWhileWorking } from "./refresh-while-working";
 
@@ -29,9 +30,7 @@ export default async function InboxPage({ searchParams }: PageProps<"/inbox">) {
   return (
     <ConsoleShell>
       <RefreshWhileWorking active={working} intervalMs={POLL_INTERVAL_MS} />
-      <header className="flex items-center gap-3 px-6 pt-5 pb-4">
-        <h1 className="text-heading-6 font-semibold tracking-heading">Inbox</h1>
-      </header>
+      <InboxHeader />
       {list.ok ? null : (
         <div className="px-6 pb-6">
           <Notice>{list.message}</Notice>
