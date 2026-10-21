@@ -106,6 +106,55 @@ Unit tests and the decide CLI need no secrets. The integration spikes and the AI
 
 Copy `.env.example` to `.env.local` and fill in your own sandbox values. Never commit real ones.
 
+## Try Resolve
+
+Resolve is the reference support inbox for Kikapu Studio. Customers write in by simulated email or simulated chat, and Resolve's agent (Gemini) answers. It acts on money in one of two modes:
+
+- **Protected mode** (the default): the agent reaches PayPal only through the gate, which checks every money call against the records and the mandate.
+- **Baseline mode**: the agent is wired straight to PayPal's own MCP server with no checks. It moves real sandbox money. It is there only for comparison.
+
+### Start it
+
+Run the three services, each in its own terminal, with the variables below set in `.env.local`:
+
+```bash
+npm run dev --workspace @countersign/gate           # port 8787
+npm run dev --workspace @countersign/resolve-agent  # port 8788
+npm run dev --workspace @countersign/console        # port 3000
+```
+
+Then open `http://localhost:3000/inbox`. The inbox lists threads and shows each agent run: its tool calls, the gate's decision and reasons, the outcome and the reply. Use the mode switch in the inbox header to pick protected or baseline, and "Simulate a message" to send one. The customer's side is `http://localhost:3000/chat`, a simulated chat that follows the same mode.
+
+### Run a scenario from the terminal
+
+```bash
+npm run resolve -- apps/resolve-agent/scenarios/beat-3-attack-email.json
+npm run resolve -- apps/resolve-agent/scenarios/beat-4-stalled-parcel.json --mode baseline
+```
+
+`npm run resolve -- <message file> [--mode protected|baseline] [--json] [--pglite <dir>]` runs the message file in-process and prints each tool call, the outcome and the reply. The scenario files live in `apps/resolve-agent/scenarios/`.
+
+### Variables
+
+Names only; set the values in `.env.local`.
+
+| Variable | Used for |
+|---|---|
+| `GEMINI_API_KEY` | Resolve's agent. Unset, runs end "not run" |
+| `GEMINI_MODEL`, `GEMINI_FALLBACK_MODEL` | The model Resolve asks for (default `gemini-3.5-flash-lite`) and the one retried once if the first is unavailable before any tool call (default `gemini-3.1-flash-lite`, empty for none) |
+| `RESOLVE_DAILY_RUN_CAP` | Runs allowed per UTC day (default 200). Past it, a message is stored and its run ends "not run" |
+| `COUNTERSIGN_SUPPORT_AGENT_KEY` | The agent's key to the gate (at least 32 characters). Protected mode only |
+| `GATE_MCP_URL` | Where the gate listens (default `http://127.0.0.1:8787/mcp`) |
+| `RESOLVE_AGENT_URL` | Where the console finds Resolve, read in server code only |
+| `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BASE_URL` | Sandbox access; baseline mode mints a fresh token for each run |
+| `DATABASE_URL` | Postgres for tickets, runs and the audit log. Without it, a local PGlite folder |
+
+### What is simulated
+
+Every message is simulated and every person in it is illustrative, as is Kikapu Studio. Carrier tracking comes from a mock. In baseline mode the PayPal calls are real sandbox calls: a refund there moves sandbox money, and nothing checks it first.
+
+The only AI role in this phase is Resolve's agent. The gate, the mandate evaluator, the verifiers and the audit log use no AI.
+
 ## Try a decision
 
 The decide CLI runs a **decision case**: a moment in time, a mandate, record snapshots and proposals, each labeled with the decision expected of it before it was run.
@@ -295,7 +344,8 @@ Countersign is mid-build. The roadmap runs from 16 October to submission on 11 N
 | 5 | Kikapu storefront and seed | Next |
 | 6 | Live refund execution: `npm run propose` and `npm run reconcile` | Done |
 | 7 | The gate over MCP: principal keys, guarded and read-only tools, `npm run agent` | Done |
-| 8 to 13 | Resolve, phone approvals, claims vs records, disputes, payouts, the hosted judge path | Planned |
+| 8 | Resolve in protected and baseline modes: the inbox, the simulated chat and `npm run resolve` | Done; live Gemini and PayPal checks (`LIVE=1`) have not been run |
+| 9 to 13 | Phone approvals, claims vs records, disputes, payouts, the hosted judge path | Planned |
 | 14 to 18 | Bench, "Attack it yourself", the AG Studio Risk desk, the mandate compiler, the M-Pesa rail | Planned |
 | 19 to 20 | Smoke tests, monitoring and submission | Planned |
 
@@ -319,7 +369,7 @@ These were run by hand against live sandboxes on 16 October 2026. Findings are i
 | Part | Today |
 |---|---|
 | PayPal sandbox calls | Real, in the spikes, `npm run seed` and `npm run propose`. `npm run decide` runs on recorded record snapshots |
-| Support tickets | Simulated in `npm run propose` and `npm run agent`: each proposal file states the ticket and its sender. Real tickets come with Resolve |
+| Support tickets | Simulated in `npm run propose` and `npm run agent`: each proposal file states the ticket and its sender. Resolve's tickets are simulated too |
 | Carrier tracking | Simulated. PayPal only knows shipped or cancelled, so lost, stalled and delivered come from a carrier mock |
 | Kikapu Studio, Achieng, and every person and order in the fixtures | Illustrative |
 | M-Pesa | Partly real in spike S6; the rail itself is secondary and built last |

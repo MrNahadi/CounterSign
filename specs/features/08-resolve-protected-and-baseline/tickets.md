@@ -219,13 +219,13 @@ Notes:
 
 ## T-016: README and glossary
 
-Status: open
+Status: done
 Blocked by: T-011, T-013
 Tier: simple
 Slice: A developer reading the README can start Resolve, the gate and the console, send a simulated message in each mode, and knows what's simulated and what moves sandbox money.
 Test seam: the README and `CONTEXT.md`, plus the existing suite staying green
 Acceptance:
-- [ ] A README section covers starting the three services, `/inbox` and `/chat`, the mode switch, `npm run resolve` on the scenario files, the env variables by name only, that every message is simulated and every person illustrative, and that baseline mode moves real sandbox money with no checks
-- [ ] It names the Gemini model variable, the daily run cap and the AI roles in this phase (Resolve's agent only), and the project status section lists phase 8
-- [ ] `CONTEXT.md` terms used match the glossary (thread, agent run, run outcome, baseline mode, protected mode)
+- [x] A README section covers starting the three services, `/inbox` and `/chat`, the mode switch, `npm run resolve` on the scenario files, the env variables by name only, that every message is simulated and every person illustrative, and that baseline mode moves real sandbox money with no checks
+- [x] It names the Gemini model variable, the daily run cap and the AI roles in this phase (Resolve's agent only), and the project status section lists phase 8
+- [x] `CONTEXT.md` terms used match the glossary (thread, agent run, run outcome, baseline mode, protected mode)
 Notes:

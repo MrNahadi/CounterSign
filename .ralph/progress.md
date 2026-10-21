@@ -102,3 +102,7 @@
 ## T-015 (done)
 - `apps/resolve-agent/test/live.test.ts`: under `LIVE=1` with `GEMINI_API_KEY`, (1) the gate fixture's tools plus `find_order` in one `VALIDATED` request pass `callModel`'s check; (2) the real loop runs a short ticket against an in-memory stand-in MCP server and logs `modelVersion`. With `PAYPAL_BASE_URL`, `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` too: `connectBaseline` spawns `@paypal/mcp`, lists tools, and one request with them plus `find_order` must pass; no PayPal tool is called. `harness.ts` now exports `declare` and `listServerTools` for it.
 - Gotcha: the loop can't reach Gemini or PayPal, so these checks were only seen skipped; they have never run live. Run `LIVE=1 npm test -- apps/resolve-agent/test/live.test.ts` with the variables set.
+
+## T-016 (done)
+- README gains "Try Resolve" (start, /inbox, /chat, mode switch, npm run resolve, variable names, simulated vs real sandbox money) and phase 8 in the status table. CONTEXT.md already had thread, agent run, run outcome, baseline mode and protected mode, so it was unchanged.
+- Gotcha: .env.example is off limits to the loop, so the README variable list comes from requirements.md; check it against .env.example.
