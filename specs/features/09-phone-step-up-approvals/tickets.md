@@ -2,17 +2,17 @@
 
 ## T-001: The `approval` entry and the step-up reader
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: A beat 5 step-up decided by `propose()` reads back as an open card, and after an `approval` entry for its intent it reads as answered, with `ledger verify` passing over both.
 Test seam: `@countersign/ledger`'s entry types and verify, and the gate's approval-entry writer and step-up reader (list and by ID), over PGlite
 Acceptance:
-- [ ] `ENTRY_TYPES` gains `approval`; `ledger verify` and `tail` accept it, and the existing ledger tests pass unchanged
-- [ ] The approval payload (ADR 0032) is a strict zod schema; its writer refuses any other shape, so nothing invalid is appended
-- [ ] The reader finds step-ups (decision `step_up` with an intent), works out open, answered and expired from the log and an injected time, lists one open card per intent (its newest open step-up) and the last 20 answered or expired ones, and says not found for any other `seq`
-- [ ] A deny for an intent answers every earlier step-up of that intent; a later step-up of it stays open
-- [ ] An unreadable decision or approval entry makes the read unknown, never skipped
+- [x] `ENTRY_TYPES` gains `approval`; `ledger verify` and `tail` accept it, and the existing ledger tests pass unchanged
+- [x] The approval payload (ADR 0032) is a strict zod schema; its writer refuses any other shape, so nothing invalid is appended
+- [x] The reader finds step-ups (decision `step_up` with an intent), works out open, answered and expired from the log and an injected time, lists one open card per intent (its newest open step-up) and the last 20 answered or expired ones, and says not found for any other `seq`
+- [x] A deny for an intent answers every earlier step-up of that intent; a later step-up of it stays open
+- [x] An unreadable decision or approval entry makes the read unknown, never skipped
 Notes:
 
 ## T-002: Execution entries for approved and non-refund intents

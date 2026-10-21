@@ -10,13 +10,14 @@ import {
 
 // Every entry type the ledger knows. Later phases add theirs here; anything else is never
 // appended, and verification reports it. Phase 6 adds the execution types (ADR 0026), whose
-// payloads the gate defines.
+// payloads the gate defines. Phase 9 adds the merchant's answer to a step-up (ADR 0032).
 export const ENTRY_TYPES = [
   "mandate.version",
   "decision",
   "execution.requested",
   "execution.result",
   "reconciliation",
+  "approval",
 ] as const;
 export type EntryType = (typeof ENTRY_TYPES)[number];
 

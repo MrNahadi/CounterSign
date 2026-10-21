@@ -67,13 +67,14 @@ function problemsOf(rows: ChainRow[]) {
 }
 
 describe("entry types", () => {
-  it("are mandate.version, decision and phase 6's execution types, in one list", () => {
+  it("are mandate.version, decision, phase 6's execution types and phase 9's approval, in one list", () => {
     expect(ENTRY_TYPES).toEqual([
       "mandate.version",
       "decision",
       "execution.requested",
       "execution.result",
       "reconciliation",
+      "approval",
     ]);
   });
 });
@@ -259,7 +260,7 @@ describe("verifyChain", () => {
   });
 
   it("reports an unknown entry type", () => {
-    const rows = chain([specs[0] as Spec, { ...(specs[1] as Spec), entryType: "approval" }]);
+    const rows = chain([specs[0] as Spec, { ...(specs[1] as Spec), entryType: "payout.batch" }]);
     expect(problemsOf(rows)).toEqual([{ seq: 2, problem: "UNKNOWN_ENTRY_TYPE" }]);
   });
 

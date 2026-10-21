@@ -188,7 +188,11 @@ describe("appending to and verifying the audit_log table", () => {
 
   describe("rejects bad input and leaves the table unchanged", () => {
     const cases: [string, EntryInput, string][] = [
-      ["an unknown entry type", { ...decision(2), entryType: "approval" }, "UNKNOWN_ENTRY_TYPE"],
+      [
+        "an unknown entry type",
+        { ...decision(2), entryType: "payout.batch" },
+        "UNKNOWN_ENTRY_TYPE",
+      ],
       [
         "an execution type that isn't one",
         { ...decision(2), entryType: "execution.refunded" },

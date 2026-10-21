@@ -186,6 +186,39 @@ describe("ledger tail", { timeout: SLOW }, () => {
     expectLine(lines[1] ?? "", entries[11] as ChainRow);
   });
 
+  it("verifies and prints an approval entry after a decision", async () => {
+    const other = freshDir();
+    const appended = await withDirectory(other, async (db) => {
+      const result = await appendEntries(db, [
+        decision(1),
+        {
+          entryType: "approval",
+          refId: "int_1",
+          at: "2026-10-17T09:05:00.000Z",
+          payload: {
+            stepUpSeq: 1,
+            intentHash: "a".repeat(64),
+            answer: "deny",
+            outcome: "denied",
+            approver: "merchant",
+            channel: "cli",
+          },
+        },
+      ]);
+      if (!result.ok) throw new Error(result.rejection.detail);
+      return result.entries;
+    });
+    const verified = await runLedgerCli(["verify", "--pglite", other], {});
+    expect(verified).toEqual({
+      exitCode: EXIT_OK,
+      stdout: `Audit log intact: 2 entries. Head #2 ${appended[1]?.hash}.\n`,
+      stderr: "",
+    });
+    const tail = await runLedgerCli(["tail", "--pglite", other], {});
+    const [, , line = ""] = tail.stdout.trimEnd().split("\n");
+    expectLine(line, appended[1] as ChainRow);
+  });
+
   it("shows a null ref as a dash", async () => {
     const other = freshDir();
     await withDirectory(other, async (db) => {
