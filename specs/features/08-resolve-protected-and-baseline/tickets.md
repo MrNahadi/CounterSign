@@ -133,16 +133,16 @@ Notes:
 
 ## T-010: Daily cap, interrupted runs and the fallback rerun
 
-Status: open
+Status: done
 Blocked by: T-009
 Tier: simple
 Slice: A runaway or broken day can't spend unbounded AI calls or rerun a run that may have moved money, and a quota failure falls back to the second model once.
 Test seam: Resolve's app factory and run queue, with PGlite, a scripted model and an injected clock
 Acceptance:
 - [ ] Past `RESOLVE_DAILY_RUN_CAP` (default 200, positive integer, counted per UTC date), a message is stored and its run is `not_run` `daily_cap` with no model call; a bad cap value is refused at startup, naming the variable
-- [ ] At startup, `queued` and `running` runs become `failed` `interrupted`, and none is rerun
-- [ ] A `model_unavailable` run with no tool call is followed by one new run on `GEMINI_FALLBACK_MODEL` (when set and different); a run with any tool call isn't rerun
-- [ ] With no `GEMINI_API_KEY`, runs end `not_run` `not_configured`
+- [x] At startup, `queued` and `running` runs become `failed` `interrupted`, and none is rerun
+- [x] A `model_unavailable` run with no tool call is followed by one new run on `GEMINI_FALLBACK_MODEL` (when set and different); a run with any tool call isn't rerun
+- [x] With no `GEMINI_API_KEY`, runs end `not_run` `not_configured`
 Notes:
 
 ## T-011: The resolve CLI and scenario files

@@ -1,5 +1,6 @@
-import { type Database, finishRun, readRun } from "@countersign/db";
+import { createRun, type Database, finishRun, readRun } from "@countersign/db";
 import { runBaseline, type TokenIssuer, type TransportFactory } from "./baseline";
+import { newId } from "./intake";
 import type { GenerateContent } from "./model";
 import { type ProtectedEnv, runProtected } from "./protected";
 
@@ -7,8 +8,11 @@ import { type ProtectedEnv, runProtected } from "./protected";
 // messages doesn't hit the free tier's per-minute limit. The queue knows only run IDs; the mode
 // runner reads the run and starts the right mode.
 
-/** Runs one queued run to its end. Its own errors are logged by the queue, never thrown on. */
-export type ModeRunner = (runId: string) => Promise<void>;
+/**
+ * Runs one queued run to its end. Its own errors are logged by the queue, never thrown on. It may
+ * return the ID of a new queued run to follow it (the fallback rerun); the queue runs that next.
+ */
+export type ModeRunner = (runId: string) => Promise<string | undefined | void>;
 
 export type RunQueue = {
   /** Adds a run to the back of the queue. It starts once every run before it has ended. */
@@ -19,18 +23,29 @@ export type RunQueue = {
 
 export function createRunQueue(runner: ModeRunner, log?: (line: string) => void): RunQueue {
   let tail: Promise<void> = Promise.resolve();
-  return {
+  const queue: RunQueue = {
     enqueue(runId) {
-      tail = tail.then(() =>
-        runner(runId).catch((error: unknown) => {
+      tail = tail.then(async () => {
+        try {
+          const followUp = await runner(runId);
+          if (typeof followUp === "string") queue.enqueue(followUp);
+        } catch (error: unknown) {
           // Only the error's name: its message could carry anything a dependency put in it.
           const name = error instanceof Error ? error.name : "an unknown error";
           log?.(`Run ${runId} ended with ${name}; it stays as stored.`);
-        }),
-      );
+        }
+      });
     },
-    idle: () => tail,
+    // A run can queue its follow-up while it ends, so wait until the tail stops moving.
+    idle: async () => {
+      let seen: Promise<void>;
+      do {
+        seen = tail;
+        await seen;
+      } while (seen !== tail);
+    },
   };
+  return queue;
 }
 
 export type ModeRunnerDeps = {
@@ -41,7 +56,17 @@ export type ModeRunnerDeps = {
   issueToken: TokenIssuer;
   createTransport?: TransportFactory;
   clock: () => Date;
+  /** `GEMINI_FALLBACK_MODEL`: the model for the one rerun after `model_unavailable`. Null for none. */
+  fallbackModel?: string | null;
   log?: (line: string) => void;
+};
+
+// True when the run's trace holds a tool call. A run that ran any tool is never rerun.
+const ranATool = (trace: unknown): boolean => {
+  const steps = (trace as { steps?: unknown } | null)?.steps;
+  return (
+    !Array.isArray(steps) || steps.some((step) => (step as { kind?: unknown })?.kind === "tool")
+  );
 };
 
 /** Starts each run in the mode it was queued with; with no model, ends it `not_configured`. */
@@ -69,14 +94,37 @@ export function createModeRunner(deps: ModeRunnerDeps): ModeRunner {
       clock: deps.clock,
       ...(deps.log ? { log: deps.log } : {}),
     };
-    if (run.mode === "protected") {
-      await runProtected({ ...common, env: deps.protectedEnv });
-    } else {
-      await runBaseline({
-        ...common,
-        issueToken: deps.issueToken,
-        ...(deps.createTransport ? { createTransport: deps.createTransport } : {}),
-      });
+    const finished =
+      run.mode === "protected"
+        ? await runProtected({ ...common, env: deps.protectedEnv })
+        : await runBaseline({
+            ...common,
+            issueToken: deps.issueToken,
+            ...(deps.createTransport ? { createTransport: deps.createTransport } : {}),
+          });
+
+    // One rerun on the fallback model, only when the model was unavailable before any tool ran.
+    const fallback = deps.fallbackModel;
+    if (
+      finished.outcome !== "model_unavailable" ||
+      !fallback ||
+      fallback === run.model ||
+      ranATool(finished.trace)
+    ) {
+      return;
     }
+    const rerunId = newId("run");
+    await createRun(deps.db, {
+      id: rerunId,
+      ticketId: run.ticketId,
+      threadId: run.threadId,
+      mode: run.mode,
+      model: fallback,
+      queuedAt: deps.clock().toISOString(),
+    });
+    deps.log?.(
+      `Run ${runId}: model_unavailable; rerunning once as ${rerunId} on the fallback model.`,
+    );
+    return rerunId;
   };
 }

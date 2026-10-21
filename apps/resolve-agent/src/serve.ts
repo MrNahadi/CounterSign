@@ -3,12 +3,14 @@ import type { AddressInfo } from "node:net";
 import {
   type DatabaseHandle,
   type Environment,
+  markUnfinishedRunsInterrupted,
   openDatabase,
   resolveDatabaseTarget,
 } from "@countersign/db";
 import { z } from "zod";
 import { createApp } from "./app";
 import { paypalTokenIssuer } from "./baseline";
+import { parseDailyCap } from "./limits";
 import { createGenerateContent, DEFAULT_MODEL, parseModelEnv } from "./model";
 import { parseProtectedEnv } from "./protected";
 import { createModeRunner, createRunQueue } from "./queue";
@@ -44,12 +46,19 @@ export type Serving = { server: Server; port: number; close: () => Promise<void>
 export async function serve(env: Environment, options: ServeOptions = {}): Promise<Serving> {
   const log = options.log ?? ((line: string) => console.error(line));
   const port = parsePort(env);
+  const dailyCap = parseDailyCap(env);
 
   let handle: DatabaseHandle | undefined;
   try {
     handle = await openDatabase(resolveDatabaseTarget(env, options.pgliteDir));
   } catch {
     log("resolve-agent started without a database; messages will answer 503.");
+  }
+
+  if (handle) {
+    // Runs the last process left queued or running may have moved money: failed, never rerun.
+    const swept = await markUnfinishedRunsInterrupted(handle.db, new Date().toISOString());
+    if (swept > 0) log(`${swept} unfinished ${swept === 1 ? "run" : "runs"} marked interrupted.`);
   }
 
   const modelEnv = parseModelEnv(env);
@@ -76,13 +85,14 @@ export async function serve(env: Environment, options: ServeOptions = {}): Promi
           protectedEnv,
           issueToken: paypalTokenIssuer(env),
           clock: () => new Date(),
+          fallbackModel: modelEnv.ok ? modelEnv.config.fallbackModel : null,
           log,
         }),
         log,
       )
     : createRunQueue(async () => {}, log);
 
-  const app = createApp({ ...(handle ? { db: handle.db } : {}), model, queue, log });
+  const app = createApp({ ...(handle ? { db: handle.db } : {}), model, queue, dailyCap, log });
   const server = app.listen(port, options.host ?? "0.0.0.0");
   await new Promise<void>((resolve, reject) => {
     server.once("listening", resolve);

@@ -1,6 +1,8 @@
 import {
   type AgentRun,
+  countRunsOnDate,
   type Database,
+  finishRun,
   listThreads,
   readAttachment,
   readRunsByThread,
@@ -10,6 +12,7 @@ import {
 import express, { type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { storeMessage } from "./intake";
+import { DEFAULT_DAILY_RUN_CAP, utcDate } from "./limits";
 import { checkMessage } from "./messages";
 import type { RunQueue } from "./queue";
 
@@ -24,6 +27,8 @@ export type AppDeps = {
   /** The model each new run asks for (`GEMINI_MODEL`). */
   model: string;
   queue: RunQueue;
+  /** Runs allowed per UTC date (`RESOLVE_DAILY_RUN_CAP`). Defaults to 200. */
+  dailyCap?: number;
   /** The edge's clock: each ticket's received time and its run's queued time. */
   clock?: () => Date;
   log?: (line: string) => void;
@@ -94,19 +99,40 @@ export function createApp(deps: AppDeps) {
       message(res, 400, checked.problem);
       return;
     }
+    // A message past the day's cap is still stored; its run ends `not_run` with no model call.
+    const arrivedAt = clock();
+    const capped =
+      (await countRunsOnDate(db(), utcDate(arrivedAt))) >= (deps.dailyCap ?? DEFAULT_DAILY_RUN_CAP);
     let stored: Awaited<ReturnType<typeof storeMessage>>;
     try {
       stored = await storeMessage(db(), checked.value.message, {
         mode: checked.value.mode,
         model: deps.model,
-        clock,
+        clock: () => arrivedAt,
       });
     } catch (error) {
       deps.log?.(`A message couldn't be stored: ${error instanceof Error ? error.name : "error"}.`);
       message(res, 500, "Resolve couldn't store the message. Try again.");
       return;
     }
-    deps.queue.enqueue(stored.runId);
+    if (capped) {
+      try {
+        await finishRun(db(), stored.runId, {
+          status: "not_run",
+          outcome: "daily_cap",
+          reply: null,
+          modelVersions: [],
+          trace: null,
+          finishedAt: clock().toISOString(),
+        });
+      } catch (error) {
+        deps.log?.(
+          `A capped run couldn't be closed: ${error instanceof Error ? error.name : "error"}.`,
+        );
+      }
+    } else {
+      deps.queue.enqueue(stored.runId);
+    }
     res.status(202).json({
       ticket_id: stored.ticketId,
       thread_id: stored.threadId,
