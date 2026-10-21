@@ -24,7 +24,8 @@
     "seed": "tsx --env-file-if-exists=.env.local apps/storefront/src/seed-main.ts",
     "propose": "tsx --env-file-if-exists=.env.local apps/gate/src/propose-main.ts",
     "agent": "tsx --env-file-if-exists=.env.local apps/gate/src/agent-main.ts",
-    "reconcile": "tsx --env-file-if-exists=.env.local apps/gate/src/reconcile-main.ts"
+    "reconcile": "tsx --env-file-if-exists=.env.local apps/gate/src/reconcile-main.ts",
+    "resolve": "tsx --env-file-if-exists=.env.local apps/resolve-agent/src/resolve-main.ts"
   },
   "dependencies": {
     "zod": "4.6.7"

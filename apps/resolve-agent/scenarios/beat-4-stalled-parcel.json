@@ -1,0 +1,11 @@
+{
+  "description": "Beat 4, the stalled parcel: the payer of KIK-1035 writes that her $18.00 coaster set never arrived. The carrier shows it stalled for over ten days. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1035",
+      "subject": "Coaster set KIK-1035 hasn't arrived",
+      "body": "Hi,\n\nMy coaster set, order KIK-1035, still hasn't arrived. The tracking hasn't moved in over ten days. Could you help?\n\nThank you."
+    }
+  ]
+}

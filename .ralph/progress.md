@@ -64,3 +64,13 @@
 - `src/limits.ts`: `parseDailyCap(env)` (default 200, throws naming `RESOLVE_DAILY_RUN_CAP`), `utcDate`. `createApp({ dailyCap })` counts runs on the arrival's UTC date before storing; a capped message is stored and its run finished `not_run` `daily_cap`, never enqueued. `serve` parses the cap before opening the database and sweeps `queued`/`running` runs to `failed` `interrupted` before listening.
 - Fallback: `ModeRunner` may now return a follow-up run ID, which the queue enqueues next; `createModeRunner({ fallbackModel })` creates that run (same ticket, thread and mode) after a `model_unavailable` run whose trace has no `tool` step. `queue.idle()` now waits until the tail stops moving.
 - Gotcha: `createApp` reads the clock once per message and passes it to `storeMessage`, so test clocks that tick aren't advanced twice. Tests for model behaviour must use baseline mode unless a gate key is set (protected without a key ends `gate_unavailable` before any model call).
+
+## T-011 (done)
+- `apps/resolve-agent/src/resolve-cli.ts`: `runResolve(args, env, { db?, generateContent?, issueToken?, createTransport?, clock? })`, `MessageFileSchema`, `RESOLVE_USAGE`, exit codes; `resolve-main.ts` entry; root `resolve` script. Each message is built into a `POST /messages` body and goes through `checkMessage`, then `storeMessage`, then the server's `createModeRunner` (so fallback reruns and `not_configured` behave the same); the daily cap applies too. Scenarios in `apps/resolve-agent/scenarios/` (beat 5's photo is `beat-5-damaged-basket.jpg`, a drawn 320x240 JPEG).
+- Gotcha: the CLI refuses to start (exit 2) without `GEMINI_API_KEY`, and in protected mode without `COUNTERSIGN_SUPPORT_AGENT_KEY`; in baseline mode without the PayPal variables unless `issueToken` is injected. Exit is decided by each message's last run (a fallback rerun that replied counts as replied).
+- Gotcha: the guarded agent response has no PayPal refund ID (only `intent_id`), so the CLI prints the intent for an allowed call. T-012's "allowed refund shows its PayPal refund ID" will need it from the audit log's `execution.result`, not the tool result.
+- Test scripts find the ticket being answered from the user turn's `Ticket ID: tkt_...` line.
+
+### For the human
+- requirements.md says resolve-agent's `dev` and `start` scripts load env with `--env-file-if-exists=.env.local`; they still run plain `tsx` (not part of T-011's acceptance).
+- `npm run lint` has one pre-existing warning (`void` in a union in `apps/resolve-agent/src/queue.ts`, from T-010).

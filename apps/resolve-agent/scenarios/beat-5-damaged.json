@@ -1,0 +1,12 @@
+{
+  "description": "Beat 5, the damaged floor basket: the payer of KIK-1037 sends a photo of a split in the weave and asks for her $240.00 back. The photo is an illustrative drawing, and the message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1037",
+      "subject": "Floor basket KIK-1037 arrived damaged",
+      "body": "Hello,\n\nMy floor basket, order KIK-1037, arrived today with a split down the side of the weave. I've attached a photo. I'd like a refund of the $240.00 I paid.\n\nThanks.",
+      "attachments": ["beat-5-damaged-basket.jpg"]
+    }
+  ]
+}

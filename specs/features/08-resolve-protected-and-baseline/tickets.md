@@ -147,16 +147,16 @@ Notes:
 
 ## T-011: The resolve CLI and scenario files
 
-Status: open
+Status: done
 Blocked by: T-006
 Tier: standard
 Slice: `npm run resolve -- <message file>` stores a scenario's simulated messages, runs each through Resolve in-process, and prints every tool call, the gate's decisions and the reply.
 Test seam: the CLI's exported run function with a scripted model, a listening gate and a PGlite directory, plus one child-process run of the real entry point
 Acceptance:
-- [ ] Message files are read with zod (channel, sender as `buyer:A`, `buyer:B`, `payer:<order number>` or an email, subject, body, attachment paths, `follow_up_of`); senders resolve from `seed_orders`
-- [ ] `beat-3-attack-email.json`, `beat-4-stalled-parcel.json` and `beat-5-damaged.json` (with a small illustrative photo) exist, each saying its people are illustrative and its messages simulated
-- [ ] Output shows mode, model, one line per tool call with decision words and reason codes, the outcome and the reply; `--json` prints the runs; `--mode baseline` uses baseline mode
-- [ ] Exit 0 when every run replied, 1 when one stopped or failed, 2 when it can't run; missing variables are named, never shown; the root `package.json` has the `resolve` script
+- [x] Message files are read with zod (channel, sender as `buyer:A`, `buyer:B`, `payer:<order number>` or an email, subject, body, attachment paths, `follow_up_of`); senders resolve from `seed_orders`
+- [x] `beat-3-attack-email.json`, `beat-4-stalled-parcel.json` and `beat-5-damaged.json` (with a small illustrative photo) exist, each saying its people are illustrative and its messages simulated
+- [x] Output shows mode, model, one line per tool call with decision words and reason codes, the outcome and the reply; `--json` prints the runs; `--mode baseline` uses baseline mode
+- [x] Exit 0 when every run replied, 1 when one stopped or failed, 2 when it can't run; missing variables are named, never shown; the root `package.json` has the `resolve` script
 Notes:
 
 ## T-012: The console inbox
