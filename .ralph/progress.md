@@ -28,3 +28,10 @@
 
 ### For the human
 - The gate's advertised input schemas no longer carry `$schema` (ADR 0014's "Gemini-safe by construction"). Validation is unchanged.
+
+## T-005 (done)
+- `apps/resolve-agent/src/harness.ts`: `runHarness({ db, client, generateContent, model, ticketId, threadId, now?, sleep? })` returns `{ status, outcome, reply, modelVersions, toolCallCount, trace }` (`trace` is `{ tools, rewrites, steps }`, steps `kind: "model" | "tool"`). Also exports `findOrder(db, args)`, `FIND_ORDER`, `NO_ORDER`, `MAX_MODEL_CALLS`, `MAX_TOOL_CALLS`, `TicketNotInThreadError`.
+- Gotcha: the harness does not write `agent_runs`; T-006 maps the result to `finishRun`. `toolCallCount` is there for T-010's "rerun only if no tool call ran". A listTools failure ends `tool_transport_failed`; T-006 must check `gate_unavailable` before calling the harness.
+- Gotcha: limits are "at most": a 9th model call or a batch that would take tool calls past 12 ends `step_cap`, and the whole over-limit batch is refused (no partial batch). An undeclared name anywhere in a response refuses the whole response. A server tool named `find_order` is shadowed by the local one.
+- Gotcha: `find_order` not-found and malformed args both go back as `isError` results (`{ error }` to the model). Amounts use `toPayPalDisplayAmount` from `@countersign/rail-paypal`. A call with no ID gets `local_<step>_<n>`.
+- Gotcha: the request's `contents` array is the live history, so tests snapshot it (`structuredClone`) to assert what a call saw.

@@ -61,17 +61,17 @@ Notes:
 
 ## T-005: The harness loop, with find_order
 
-Status: open
+Status: done
 Blocked by: T-003, T-004
 Tier: standard
 Slice: A ticket runs through the function-calling loop against any MCP client: the model looks up an order, calls a tool, gets its result back, and replies; every step is in the trace.
 Test seam: the harness's run function in `apps/resolve-agent/src/`, with a scripted model and an MCP SDK `Client` over `InMemoryTransport` to a small in-process `Server`, and a PGlite `seed_orders` row
 Acceptance:
-- [ ] Tools are listed (all pages), joined by `find_order`, sorted and sanitized once per run; the user turn renders the thread, then the ticket's ID, channel, sender, subject, time, body and photos as inline image parts
-- [ ] Calls run in order and return as one user turn of `functionResponse` parts with matching IDs and names; `isError` results go back as `error`; the model's content is appended unchanged, thought signature included
-- [ ] An undeclared tool name, a transport failure, 8 model calls, 12 tool calls and an empty reply each end the run with requirements.md's outcome and no further tool call; a failed response check runs none of its calls
-- [ ] `find_order` answers a seeded order's numbers, IDs, amount and tracking number, never the payer's email, and "No order with that number." otherwise; a malformed order number goes back as an error
-- [ ] The trace holds every model call's step, model version, finish reason, token counts and latency, and every tool call's arguments, result and latency
+- [x] Tools are listed (all pages), joined by `find_order`, sorted and sanitized once per run; the user turn renders the thread, then the ticket's ID, channel, sender, subject, time, body and photos as inline image parts
+- [x] Calls run in order and return as one user turn of `functionResponse` parts with matching IDs and names; `isError` results go back as `error`; the model's content is appended unchanged, thought signature included
+- [x] An undeclared tool name, a transport failure, 8 model calls, 12 tool calls and an empty reply each end the run with requirements.md's outcome and no further tool call; a failed response check runs none of its calls
+- [x] `find_order` answers a seeded order's numbers, IDs, amount and tracking number, never the payer's email, and "No order with that number." otherwise; a malformed order number goes back as an error
+- [x] The trace holds every model call's step, model version, finish reason, token counts and latency, and every tool call's arguments, result and latency
 Notes:
 
 ## T-006: Protected mode end to end against the real gate
