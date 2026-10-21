@@ -39,8 +39,8 @@ Test seam: `createPayPalClient(...).sendInvoice` and `.createDraftInvoice` from 
 Acceptance:
 - [x] `sendInvoice({ invoiceId, sendToRecipient, note?, additionalRecipients? })` posts to `/v2/invoicing/invoices/{id}/send` with `send_to_invoicer: true` and only the fields given, sends no `PayPal-Request-Id`, is never retried, and returns `SENT` for 200 and `SCHEDULED` for 202
 - [x] A 4xx throws a `PayPalError` with name and issues; a 5xx or network failure throws without a retry
-- [ ] `createDraftInvoice({ requestId, recipientEmail, items })` takes minor-unit amounts, posts with the readable request ID, and returns the new invoice ID
-- [ ] Contract tests cover each answer; no token appears in any error
+- [x] `createDraftInvoice({ requestId, recipientEmail, items })` takes minor-unit amounts, posts with the readable request ID, and returns the new invoice ID
+- [x] Contract tests cover each answer; no token appears in any error
 Notes:
 
 ## T-004: One executor per action, and invoice send made executable
