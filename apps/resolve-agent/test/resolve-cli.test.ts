@@ -38,6 +38,15 @@ import {
 
 const SLOW = 60_000;
 const NOW = new Date("2026-10-21T09:00:00Z");
+// A clock that moves a second per read, so messages in one thread have distinct received times
+// (a thread orders by received time, then by ticket ID, which is random).
+const ticking = () => {
+  let at = NOW.getTime();
+  return () => {
+    at += 1000;
+    return new Date(at);
+  };
+};
 const KEY = "test-support-agent-key-0123456789abcdef";
 const GEMINI_KEY = "test-gemini-key-not-real-0123456789";
 const TOKEN = "A21AA-illustrative-sandbox-token-0123456789";
@@ -325,7 +334,7 @@ describe("resolve CLI, protected mode against the real gate", { timeout: SLOW },
     const result = await runResolve(
       [path],
       { ...ENV, GATE_MCP_URL: url },
-      { db: handle.db, generateContent: model.generateContent, clock: () => NOW },
+      { db: handle.db, generateContent: model.generateContent, clock: ticking() },
     );
 
     expect(result.exitCode).toBe(EXIT_REPLIED);

@@ -192,16 +192,16 @@ Notes:
 
 ## T-014: The customer's simulated chat
 
-Status: open
+Status: done
 Blocked by: T-012
 Tier: standard
 Slice: A customer opens `/chat` on a phone, gives an email address, sends a message with a photo, and sees Resolve's reply arrive in the same thread.
 Test seam: the chat view-model functions in `apps/console/src/` and the existing Resolve routes, with an injected `fetch`, plus the design check
 Acceptance:
-- [ ] The page is laid out for a phone and says "Simulated chat. Kikapu Studio is an illustrative shop."
-- [ ] The first message starts a chat thread; later ones are sent as follow-ups in it; replies appear in order, with a working state while a run is in progress
-- [ ] It shows messages and replies only, never the trace, tool calls or decisions; a stopped or failed run shows "Resolve couldn't answer this one. The shop will reply soon."
-- [ ] The design check passes, with hit targets of at least 24px and a 40px send button, in light and dark
+- [x] The page is laid out for a phone and says "Simulated chat. Kikapu Studio is an illustrative shop."
+- [x] The first message starts a chat thread; later ones are sent as follow-ups in it; replies appear in order, with a working state while a run is in progress
+- [x] It shows messages and replies only, never the trace, tool calls or decisions; a stopped or failed run shows "Resolve couldn't answer this one. The shop will reply soon."
+- [x] The design check passes, with hit targets of at least 24px and a 40px send button, in light and dark
 Notes:
 
 ## T-015: Live checks for Gemini and PayPal's server
