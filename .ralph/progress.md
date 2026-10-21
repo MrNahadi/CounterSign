@@ -98,3 +98,7 @@
 - The chat reads the existing `GET /api/resolve/threads/[id]`, so the browser receives the whole thread answer (trace included) even though the page shows only messages and replies. A chat-only route that strips runs to replies would close that, if it matters for the hosted demo.
 - `readThread` orders ties on received time by random ticket ID; two messages in one thread within the same millisecond can come back out of order. A sequence column would fix it.
 - Nothing links to `/chat` yet; T-016's README should name it.
+
+## T-015 (done)
+- `apps/resolve-agent/test/live.test.ts`: under `LIVE=1` with `GEMINI_API_KEY`, (1) the gate fixture's tools plus `find_order` in one `VALIDATED` request pass `callModel`'s check; (2) the real loop runs a short ticket against an in-memory stand-in MCP server and logs `modelVersion`. With `PAYPAL_BASE_URL`, `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` too: `connectBaseline` spawns `@paypal/mcp`, lists tools, and one request with them plus `find_order` must pass; no PayPal tool is called. `harness.ts` now exports `declare` and `listServerTools` for it.
+- Gotcha: the loop can't reach Gemini or PayPal, so these checks were only seen skipped; they have never run live. Run `LIVE=1 npm test -- apps/resolve-agent/test/live.test.ts` with the variables set.

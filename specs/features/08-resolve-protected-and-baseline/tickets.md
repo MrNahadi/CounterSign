@@ -206,15 +206,15 @@ Notes:
 
 ## T-015: Live checks for Gemini and PayPal's server
 
-Status: open
+Status: done
 Blocked by: T-008
 Tier: simple
 Slice: Under `LIVE=1`, the real model accepts both modes' tool lists in `VALIDATED` mode and runs one short ticket to a reply, and PayPal's server starts with a fresh token and lists its tools.
 Test seam: `apps/resolve-agent/test/live.test.ts` (runs only with `LIVE=1` and the variables it needs set)
 Acceptance:
-- [ ] With `GEMINI_API_KEY`: one request with the gate's fixture tool list plus `find_order` answers 200 and passes the response check; a short ticket against an in-process stand-in MCP server runs the real loop to a reply, recording `modelVersion`
-- [ ] With the PayPal variables too: `@paypal/mcp` spawns with a fresh token and lists its tools, and one `VALIDATED` request with them plus `find_order` answers 200; no PayPal tool is called
-- [ ] Without `LIVE=1` every check is skipped and `npm test` stays green with no credentials
+- [x] With `GEMINI_API_KEY`: one request with the gate's fixture tool list plus `find_order` answers 200 and passes the response check; a short ticket against an in-process stand-in MCP server runs the real loop to a reply, recording `modelVersion`
+- [x] With the PayPal variables too: `@paypal/mcp` spawns with a fresh token and lists its tools, and one `VALIDATED` request with them plus `find_order` answers 200; no PayPal tool is called
+- [x] Without `LIVE=1` every check is skipped and `npm test` stays green with no credentials
 Notes:
 
 ## T-016: README and glossary

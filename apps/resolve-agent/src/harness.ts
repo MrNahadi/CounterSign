@@ -165,7 +165,7 @@ export async function findOrder(db: Database, args: unknown): Promise<ToolResult
 
 // ---- Tools ----
 
-async function listServerTools(client: Client) {
+export async function listServerTools(client: Client) {
   const tools: { name: string; description?: string; inputSchema: unknown }[] = [];
   let cursor: string | undefined;
   do {
@@ -176,7 +176,7 @@ async function listServerTools(client: Client) {
   return tools;
 }
 
-function declare(tools: { name: string; description?: string; inputSchema: unknown }[]) {
+export function declare(tools: { name: string; description?: string; inputSchema: unknown }[]) {
   const rewrites: HarnessTrace["rewrites"] = [];
   const declarations: ToolDeclaration[] = tools
     .filter((tool) => tool.name !== FIND_ORDER)
