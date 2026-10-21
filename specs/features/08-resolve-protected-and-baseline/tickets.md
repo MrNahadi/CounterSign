@@ -76,17 +76,17 @@ Notes:
 
 ## T-006: Protected mode end to end against the real gate
 
-Status: open
+Status: done
 Blocked by: T-001, T-002, T-005
 Tier: standard
 Slice: Beat 4's message, stored as a ticket, runs in protected mode against a listening gate: the scripted agent finds the order, proposes the refund, the gate allows it and refunds once, and the run is stored as replied.
 Test seam: the protected-mode runner in `apps/resolve-agent/src/` (store a message, run it, finish the run), with `createApp` from `@countersign/gate`, its fake sandbox and a shared PGlite handle
 Acceptance:
-- [ ] Connects to `GATE_MCP_URL` with the principal key as a bearer token; lists the gate's 13 tools plus `find_order`
-- [ ] Beat 4 is allowed with exactly one refund in the fake sandbox; the audit log's decision entry names the ticket; the run is `replied` with the gate's agent response in its trace
-- [ ] Beat 3's scripted five `create_refund` calls get 4 denials and 1 step-up, as phase 7's file expects; `ledger verify` passes
-- [ ] No key, a short key, a wrong key and no gate each end `failed` `gate_unavailable` with no model call
-- [ ] No fake principal key, PayPal secret or token appears in the run row, the trace or any log line
+- [x] Connects to `GATE_MCP_URL` with the principal key as a bearer token; lists the gate's 13 tools plus `find_order`
+- [x] Beat 4 is allowed with exactly one refund in the fake sandbox; the audit log's decision entry names the ticket; the run is `replied` with the gate's agent response in its trace
+- [x] Beat 3's scripted five `create_refund` calls get 4 denials and 1 step-up, as phase 7's file expects; `ledger verify` passes
+- [x] No key, a short key, a wrong key and no gate each end `failed` `gate_unavailable` with no model call
+- [x] No fake principal key, PayPal secret or token appears in the run row, the trace or any log line
 Notes:
 
 ## T-007: A fresh sandbox token for baseline mode

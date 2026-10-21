@@ -35,3 +35,12 @@
 - Gotcha: limits are "at most": a 9th model call or a batch that would take tool calls past 12 ends `step_cap`, and the whole over-limit batch is refused (no partial batch). An undeclared name anywhere in a response refuses the whole response. A server tool named `find_order` is shadowed by the local one.
 - Gotcha: `find_order` not-found and malformed args both go back as `isError` results (`{ error }` to the model). Amounts use `toPayPalDisplayAmount` from `@countersign/rail-paypal`. A call with no ID gets `local_<step>_<n>`.
 - Gotcha: the request's `contents` array is the live history, so tests snapshot it (`structuredClone`) to assert what a call saw.
+
+## T-006 (done)
+- `apps/resolve-agent/src/intake.ts`: `newId("tkt"|"att"|"run")` (prefix plus 128 random bits) and `storeMessage(db, message, { mode, model, clock })`, which writes attachments, then the simulated ticket, then a queued run, and returns `{ ticketId, threadId, runId }`. It does no thread or attachment validation; T-009's API must check the thread (exists, same channel and sender) and the attachments first.
+- `apps/resolve-agent/src/protected.ts`: `parseProtectedEnv(env)` (`{ gateUrl, key }`, key null under 32 chars, URL null unless http(s)), `connectGate(env)` (MCP `Client` or null on any failure), `runProtected({ db, runId, env, generateContent, clock, now?, sleep?, log? })` returning the finished `AgentRun`. Stored trace is `RunTrace` = harness trace plus `mode`. `RunOutcome` adds `gate_unavailable`.
+- Gotcha: `runProtected` throws `RunNotQueuedError` unless the run is queued and protected. An unexpected harness exception leaves the run `running` (T-010's interrupted sweep catches it). T-008 should reuse `RunTrace` and the same finish shape for baseline.
+- Gotcha: the e2e test imports `@countersign/gate/src/app`, `@countersign/gate/test/fake-sandbox` and `@countersign/gate/proposals/beat-3-attack-email.json` by package subpath (the gate has no `exports` field), and `@countersign/carrier-mock` and `@countersign/ledger`, which resolve-agent doesn't list (hoisted workspace links).
+
+### For the human
+- `apps/resolve-agent/test/protected.test.ts` imports `@countersign/carrier-mock` and `@countersign/ledger`, which aren't in resolve-agent's `devDependencies` (they resolve through the workspace root). Adding them needs a lockfile update, which the loop doesn't do.
