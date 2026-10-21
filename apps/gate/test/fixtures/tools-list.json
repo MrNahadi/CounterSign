@@ -1,0 +1,558 @@
+{
+  "tools": [
+    {
+      "name": "create_refund",
+      "description": "Refund a captured payment, in full or in part. Name the support ticket in justification.ticket_id. Countersign decides each call against the merchant's mandate and answers allowed, pending approval or denied, with reasons.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "capture_id": {
+            "type": "string",
+            "pattern": "^\\S(?:.*\\S)?$"
+          },
+          "amount": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "currency_code": {
+                "type": "string"
+              }
+            },
+            "required": ["value", "currency_code"],
+            "additionalProperties": false
+          },
+          "note_to_payer": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "invoice_id": {
+            "type": "string",
+            "pattern": "^\\S(?:.*\\S)?$"
+          },
+          "justification": {
+            "type": "object",
+            "properties": {
+              "ticket_id": {
+                "type": "string",
+                "pattern": "^\\S(?:.*\\S)?$"
+              },
+              "claim": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": ["not_received", "damaged", "wrong_item"]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": ["ticket_id"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["capture_id", "justification"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "accept_dispute_claim",
+      "description": "Accept the buyer's claim in a dispute, which refunds them the disputed amount. Countersign decides each call against the merchant's mandate and answers allowed, pending approval or denied, with reasons.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "dispute_id": {
+            "type": "string",
+            "pattern": "^\\S(?:.*\\S)?$"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "justification": {
+            "type": "object",
+            "properties": {
+              "ticket_id": {
+                "type": "string",
+                "pattern": "^\\S(?:.*\\S)?$"
+              },
+              "claim": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": ["not_received", "damaged", "wrong_item"]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["dispute_id", "note"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "provide_dispute_evidence",
+      "description": "Countersign extension: PayPal's Agent Toolkit has no such tool. Provide evidence for a dispute, such as proof of fulfillment or of a refund. Countersign decides each call against the merchant's mandate and answers allowed, pending approval or denied, with reasons.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "dispute_id": {
+            "type": "string",
+            "pattern": "^\\S(?:.*\\S)?$"
+          },
+          "evidence": {
+            "minItems": 1,
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "evidence_type": {
+                  "type": "string",
+                  "enum": [
+                    "PROOF_OF_FULFILLMENT",
+                    "PROOF_OF_REFUND",
+                    "PROOF_OF_DELIVERY_SIGNATURE",
+                    "PROOF_OF_RECEIPT_COPY",
+                    "RETURN_POLICY",
+                    "BILLING_AGREEMENT",
+                    "PROOF_OF_RESHIPMENT",
+                    "ITEM_DESCRIPTION",
+                    "POLICE_REPORT",
+                    "AFFIDAVIT",
+                    "PAID_WITH_OTHER_METHOD",
+                    "COPY_OF_CONTRACT",
+                    "TERMINAL_ATM_RECEIPT",
+                    "PRICE_DIFFERENCE_REASON",
+                    "SOURCE_CONVERSION_RATE",
+                    "BANK_STATEMENT",
+                    "CREDIT_DUE_REASON",
+                    "REQUEST_CREDIT_RECEIPT",
+                    "PROOF_OF_RETURN",
+                    "CREATE",
+                    "CHANGE_REASON",
+                    "PROOF_OF_REFUND_OUTSIDE_PAYPAL",
+                    "RECEIPT_OF_MERCHANDISE",
+                    "CUSTOMS_DOCUMENT",
+                    "CUSTOMS_FEE_RECEIPT",
+                    "INFORMATION_ON_RESOLUTION",
+                    "ADDITIONAL_INFORMATION_OF_ITEM",
+                    "DETAILS_OF_PURCHASE",
+                    "PROOF_OF_SIGNIFICANT_DIFFERENCE",
+                    "PROOF_OF_SOFTWARE_OR_SERVICE_NOT_AS_DESCRIBED",
+                    "PROOF_OF_CONFISCATION",
+                    "PROOF_OF_DAMAGE",
+                    "COPY_OF_LAW_ENFORCEMENT_AGENCY_REPORT",
+                    "ADDITIONAL_PROOF_OF_SHIPMENT",
+                    "PROOF_OF_DENIAL_BY_CARRIER",
+                    "VALID_SUPPORTING_DOCUMENT",
+                    "LEGIBLE_SUPPORTING_DOCUMENT",
+                    "RETURN_TRACKING_INFORMATION",
+                    "DELIVERY_RECEIPT",
+                    "PROOF_OF_INSTORE_RECEIPT",
+                    "ADDITIONAL_TRACKING_INFORMATION",
+                    "PROOF_OF_SHIPMENT_POSTAGE",
+                    "ONLINE_TRACKING_INFORMATION",
+                    "PROOF_OF_INSTORE_REFUND",
+                    "PROOF_FOR_SOFTWARE_OR_SERVICE_DELIVERED",
+                    "RETURN_ADDRESS_SHIPPING_LABEL",
+                    "OTHER"
+                  ]
+                },
+                "notes": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                },
+                "tracking_numbers": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^\\S(?:.*\\S)?$"
+                  }
+                }
+              },
+              "required": ["evidence_type", "notes"],
+              "additionalProperties": false
+            }
+          },
+          "justification": {
+            "type": "object",
+            "properties": {
+              "ticket_id": {
+                "type": "string",
+                "pattern": "^\\S(?:.*\\S)?$"
+              },
+              "claim": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": ["not_received", "damaged", "wrong_item"]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["dispute_id", "evidence"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "make_offer",
+      "description": "Countersign extension: PayPal's Agent Toolkit has no such tool. Offer the buyer a refund, a return or a replacement to settle a dispute. Countersign decides each call against the merchant's mandate and answers allowed, pending approval or denied, with reasons.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "dispute_id": {
+            "type": "string",
+            "pattern": "^\\S(?:.*\\S)?$"
+          },
+          "offer_type": {
+            "type": "string",
+            "enum": [
+              "REFUND",
+              "REFUND_WITH_RETURN",
+              "REFUND_WITH_REPLACEMENT",
+              "REPLACEMENT_WITHOUT_REFUND"
+            ]
+          },
+          "offer_amount": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "currency_code": {
+                "type": "string"
+              }
+            },
+            "required": ["value", "currency_code"],
+            "additionalProperties": false
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "justification": {
+            "type": "object",
+            "properties": {
+              "ticket_id": {
+                "type": "string",
+                "pattern": "^\\S(?:.*\\S)?$"
+              },
+              "claim": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": ["not_received", "damaged", "wrong_item"]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["dispute_id", "offer_type", "note"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "send_invoice",
+      "description": "Send an invoice to its recipients. Countersign decides each call against the merchant's mandate and answers allowed, pending approval or denied, with reasons.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "invoice_id": {
+            "type": "string",
+            "pattern": "^\\S(?:.*\\S)?$"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "send_to_recipient": {
+            "type": "boolean"
+          },
+          "additional_recipients": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 254,
+              "format": "email",
+              "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+            }
+          },
+          "justification": {
+            "type": "object",
+            "properties": {
+              "ticket_id": {
+                "type": "string",
+                "pattern": "^\\S(?:.*\\S)?$"
+              },
+              "claim": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": ["not_received", "damaged", "wrong_item"]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["invoice_id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "pay_order",
+      "description": "Capture payment for an approved order. Countersign decides each call against the merchant's mandate and answers allowed, pending approval or denied, with reasons.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^\\S(?:.*\\S)?$"
+          },
+          "justification": {
+            "type": "object",
+            "properties": {
+              "ticket_id": {
+                "type": "string",
+                "pattern": "^\\S(?:.*\\S)?$"
+              },
+              "claim": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": ["not_received", "damaged", "wrong_item"]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_payout",
+      "description": "Countersign extension: PayPal's Agent Toolkit has no such tool. Send money to a PayPal account by email address. Countersign decides each call against the merchant's mandate and answers allowed, pending approval or denied, with reasons.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "receiver": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "currency_code": {
+                "type": "string"
+              }
+            },
+            "required": ["value", "currency_code"],
+            "additionalProperties": false
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "justification": {
+            "type": "object",
+            "properties": {
+              "ticket_id": {
+                "type": "string",
+                "pattern": "^\\S(?:.*\\S)?$"
+              },
+              "claim": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": ["not_received", "damaged", "wrong_item"]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["receiver", "amount"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_order",
+      "description": "Read an order: its status, payer, amounts, captures, refunds and trackers. Read-only: nothing is decided or recorded.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{1,64}$"
+          }
+        },
+        "required": ["id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_refund",
+      "description": "Read a refund: its status, amount and the capture it refunds. Read-only: nothing is decided or recorded.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "refund_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{1,64}$"
+          }
+        },
+        "required": ["refund_id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_disputes",
+      "description": "List disputes. With disputed_transaction_id, every dispute on that capture; without it, the first page of the merchant's disputes (page_size, default 10), optionally in one dispute_state. Read-only: nothing is decided or recorded.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "disputed_transaction_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{1,64}$"
+          },
+          "dispute_state": {
+            "type": "string",
+            "enum": [
+              "REQUIRED_ACTION",
+              "REQUIRED_OTHER_PARTY_ACTION",
+              "UNDER_PAYPAL_REVIEW",
+              "RESOLVED",
+              "OPEN_INQUIRIES",
+              "APPEALABLE"
+            ]
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_dispute",
+      "description": "Read a dispute: its status, amount and the captures it disputes. Read-only: nothing is decided or recorded.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "dispute_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{1,64}$"
+          }
+        },
+        "required": ["dispute_id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_shipment_tracking",
+      "description": "Read an order's trackers and, for each tracking number, the carrier's status and scan events. transaction_id narrows it to one capture. Carrier data is simulated: Countersign's carrier mock stands in for a tracking API. Read-only: nothing is decided or recorded.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{1,64}$"
+          },
+          "transaction_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{1,64}$"
+          }
+        },
+        "required": ["order_id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_transactions",
+      "description": "Search transactions in a range of at most 31 days (ISO 8601 start_date and end_date; default the last 31 days), optionally for one transaction_id. Read-only: nothing is decided or recorded.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{1,64}$"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              }
+            ]
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  ]
+}

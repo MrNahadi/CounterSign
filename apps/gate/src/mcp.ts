@@ -78,17 +78,25 @@ function describe(tool: GuardedTool): string {
   return [extension ? EXTENSION : null, text, DECIDED].filter(Boolean).join(" ");
 }
 
+// The advertised schema leaves out the `$schema` dialect marker, which Gemini refuses, so Resolve's
+// sanitizer makes no rewrite on any gate tool (ADR 0014: Gemini-safe by construction). The zod
+// schemas still validate every argument.
+function advertised(schema: z.ZodType): Tool["inputSchema"] {
+  const { $schema: _dialect, ...rest } = z.toJSONSchema(schema, { io: "input" });
+  return rest as Tool["inputSchema"];
+}
+
 // Built once: the schemas never change while the gate runs.
 const GUARDED_TOOL_LIST: Tool[] = GUARDED_TOOLS.map((tool) => ({
   name: tool,
   description: describe(tool),
-  inputSchema: z.toJSONSchema(guardedToolArguments(tool), { io: "input" }) as Tool["inputSchema"],
+  inputSchema: advertised(guardedToolArguments(tool)),
 }));
 
 const READ_TOOL_LIST: Tool[] = READ_TOOLS.map((tool) => ({
   name: tool,
   description: `${READ_DESCRIPTIONS[tool]} Read-only: nothing is decided or recorded.`,
-  inputSchema: z.toJSONSchema(readToolArguments(tool), { io: "input" }) as Tool["inputSchema"],
+  inputSchema: advertised(readToolArguments(tool)),
 }));
 
 const TOOL_LIST: Tool[] = [...GUARDED_TOOL_LIST, ...READ_TOOL_LIST];

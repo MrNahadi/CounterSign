@@ -19,3 +19,12 @@
 - Gotcha: stop reasons are the block or finish reason as given (if it matches `^[A-Z][A-Z0-9_]{0,63}$`, else `UNKNOWN`), plus `NO_CANDIDATE`, `FINISH_REASON_MISSING` and `NO_PARTS`. The console (T-012) needs words for those three.
 - Gotcha: a 429 retry delay is read from the `ApiError` message JSON (`error.details[]` RetryInfo `retryDelay: "Ns"`); no readable delay means `model_unavailable`. A non-API error (e.g. `fetch failed`) is `model_error`; DOMException `TimeoutError`/`AbortError` is `model_unavailable`. `callModel` does not time calls; T-005 measures latency.
 - zod resolves from the root `package.json` (4.6.7); resolve-agent does not list it, same as the other workspaces.
+
+## T-004 (done)
+- `apps/resolve-agent/src/sanitize.ts`: `sanitizeSchema(inputSchema)` returns `{ schema, rewrites }`; each rewrite is `{ rule, path, detail }` (rules in `SCHEMA_REWRITE_RULES`, `path` a JSON Pointer into the output). Pure; output shares no objects with the input. `$defs`/`definitions` are dropped (refs are inlined from the original root); a non-object root becomes `{ type: "object" }`.
+- `apps/gate/test/fixtures/tools-list.json` is the gate's exact `tools/list` answer (`{ tools }`, all pages); `apps/gate/test/tools-list.test.ts` fails on drift. Resolve's test reads it via `createRequire(...).resolve("@countersign/gate/test/fixtures/tools-list.json")`.
+- Gotcha: `z.toJSONSchema` emits `$schema` at each tool's root, which the sanitizer must remove. The gate's `mcp.ts` now strips it (`advertised()`), so the sanitizer makes no rewrite on gate tools. Re-record the fixture when a gate schema changes on purpose.
+- Gotcha: `erasableSyntaxOnly` forbids constructor parameter properties (`constructor(private x)`).
+
+### For the human
+- The gate's advertised input schemas no longer carry `$schema` (ADR 0014's "Gemini-safe by construction"). Validation is unchanged.

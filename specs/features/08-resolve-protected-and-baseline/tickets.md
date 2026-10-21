@@ -46,17 +46,18 @@ Notes:
 
 ## T-004: The schema sanitizer, and the gate's tool list as a fixture
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: Any MCP tool's input schema becomes a Gemini-safe declaration, and the gate's own schemas pass through untouched.
 Test seam: the sanitizer exported from `apps/resolve-agent/src/`, and `apps/gate/test/fixtures/tools-list.json` with the gate test that checks it
 Acceptance:
-- [ ] Each ADR 0014 rewrite has a case: `$schema`/`$id`/`$comment` removed, `true` and `false` subschemas, boolean exclusive bounds, tuple `items`, `required` filtered to declared properties, non-recursive `$ref`s inlined and recursive ones replaced with `{}`, `[T, "null"]` inside `items`, inferred `type`
-- [ ] It's pure (the input is never changed) and reports each rewrite it made
-- [ ] The gate gains a recorded `tools-list.json` and a test that fails when its live `tools/list` answer differs from it
-- [ ] The sanitizer makes no rewrite on any tool in that fixture
+- [x] Each ADR 0014 rewrite has a case: `$schema`/`$id`/`$comment` removed, `true` and `false` subschemas, boolean exclusive bounds, tuple `items`, `required` filtered to declared properties, non-recursive `$ref`s inlined and recursive ones replaced with `{}`, `[T, "null"]` inside `items`, inferred `type`
+- [x] It's pure (the input is never changed) and reports each rewrite it made
+- [x] The gate gains a recorded `tools-list.json` and a test that fails when its live `tools/list` answer differs from it
+- [x] The sanitizer makes no rewrite on any tool in that fixture
 Notes:
+- The gate's `tools/list` now leaves `$schema` out of each advertised schema (zod still validates arguments), so the sanitizer is a no-op on every gate tool.
 
 ## T-005: The harness loop, with find_order
 
