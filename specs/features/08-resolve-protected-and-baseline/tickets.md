@@ -119,16 +119,16 @@ Notes:
 
 ## T-009: Resolve's HTTP API and run queue
 
-Status: open
+Status: done
 Blocked by: T-006
 Tier: standard
 Slice: A message posted to Resolve is stored and answered 202; its run executes in the background; the thread then reads back with Resolve's reply.
 Test seam: Resolve's app factory listening on `127.0.0.1` port 0, with PGlite, a scripted model and an injected mode runner
 Acceptance:
-- [ ] `POST /messages` validates per requirements.md (channel, senders, subject, body, up to 3 JPEG/PNG/WebP photos of 2 MB checked by their first bytes, mode, thread match, no unknown keys) and answers 400 with one sentence and stores nothing on any failure
-- [ ] On success it stores attachments, ticket (`simulated: true`) and a `queued` run, and answers 202 with the ticket, thread and run IDs
-- [ ] Runs execute one at a time in the order queued; `GET /threads` and `GET /threads/:id` return threads, messages, runs, replies and traces; `GET /attachments/:id` returns the bytes with their content type
-- [ ] `server.ts` wires the database, model, gate URL, key and PayPal config from the environment, binds `0.0.0.0` and `PORT` (default 8788), and still answers `/health` with none of them set
+- [x] `POST /messages` validates per requirements.md (channel, senders, subject, body, up to 3 JPEG/PNG/WebP photos of 2 MB checked by their first bytes, mode, thread match, no unknown keys) and answers 400 with one sentence and stores nothing on any failure
+- [x] On success it stores attachments, ticket (`simulated: true`) and a `queued` run, and answers 202 with the ticket, thread and run IDs
+- [x] Runs execute one at a time in the order queued; `GET /threads` and `GET /threads/:id` return threads, messages, runs, replies and traces; `GET /attachments/:id` returns the bytes with their content type
+- [x] `server.ts` wires the database, model, gate URL, key and PayPal config from the environment, binds `0.0.0.0` and `PORT` (default 8788), and still answers `/health` with none of them set
 Notes:
 
 ## T-010: Daily cap, interrupted runs and the fallback rerun
