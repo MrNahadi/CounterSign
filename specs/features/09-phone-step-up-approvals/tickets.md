@@ -175,13 +175,13 @@ Notes:
 
 ## T-013: Live checks for invoice send and approvals
 
-Status: open
+Status: done
 Blocked by: T-005
 Tier: simple
 Slice: Under `LIVE=1` with the PayPal variables, a real draft invoice is created, approved through `answerStepUp` and sent once in the sandbox.
 Test seam: `packages/rail-paypal/test/live-sandbox.test.ts` and `apps/gate/test/approvals-live.test.ts`, skipped without `LIVE=1`
 Acceptance:
-- [ ] The rail-paypal live test creates a draft to an `example.com` recipient, sends it, and expects a 4xx on a second send
+- [x] The rail-paypal live test creates a draft to an `example.com` recipient, sends it, and expects a 4xx on a second send
 - [ ] The gate live test decides a `send_invoice` step-up on a fresh draft, approves it and checks one send and its result entry
 - [ ] Both skip cleanly without `LIVE=1` or the variables, and stay out of the Feedback commands
 Notes:

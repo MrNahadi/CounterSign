@@ -295,3 +295,33 @@ describe.skipIf(!live.success)(`live PayPal sandbox (${needs})`, () => {
     60_000,
   );
 });
+
+// An invoice send has no request ID, so the second send is PayPal's own refusal to check: a
+// sent invoice can't be sent again (a 4xx). The recipient is on example.com, so nothing real
+// is emailed. It sends one sandbox invoice per run.
+describe.skipIf(!live.success)(`live PayPal sandbox invoice send (${needs})`, () => {
+  it("creates a draft to an example.com recipient, sends it once, and gets a 4xx on a second send", async () => {
+    await guarded(async () => {
+      const paypal = client();
+      const invoiceId = await paypal.createDraftInvoice({
+        requestId: requestId("invoice-draft"),
+        recipientEmail: `live-${runId}@example.com`,
+        items: [{ name: "Live check", quantity: 1, unitAmount: ONE_DOLLAR }],
+      });
+      expect(invoiceId.length).toBeGreaterThan(0);
+
+      const sent = await paypal.sendInvoice({ invoiceId, sendToRecipient: true });
+      expect(["SENT", "SCHEDULED"]).toContain(sent);
+
+      const second = await paypal.sendInvoice({ invoiceId, sendToRecipient: true }).then(
+        () => null,
+        (caught: unknown) => caught,
+      );
+      expect(second).toBeInstanceOf(PayPalError);
+      const status = (second as PayPalError).status;
+      expect(status).toBeGreaterThanOrEqual(400);
+      expect(status).toBeLessThan(500);
+      expectNoSecrets([invoiceId, sent]);
+    });
+  }, 90_000);
+});

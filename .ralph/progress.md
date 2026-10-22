@@ -67,3 +67,7 @@
 ## T-012 done
 - Resolve's `GET /threads/:id` runs gain `held` (`heldCalls(trace)` + `readHeld(db, calls, now)` in `apps/resolve-agent/src/executions.ts`): per `pending_approval` intent, state approved|denied|expired|waiting plus outcome and refund/invoice record. Console `RunSchema.held` defaults to `[]`; inbox rows show "Approved by you" (refund or invoice ID), "Denied by you", "Expired, so denied", "Waiting for approval".
 - Gotcha: a rejected or unreadable `approval` entry is no answer (call stays waiting, or expired past `expires_at`); expiry uses the app's injected clock. A pending response without `expires_at` never shows expired.
+
+## T-013 done
+- Live checks added, both skipped without `LIVE=1` and the PayPal variables: invoice send in `packages/rail-paypal/test/live-sandbox.test.ts` and a send_invoice step-up in `apps/gate/test/approvals-live.test.ts`. Not run against PayPal here (loop cannot reach it).
+- Gotcha: the gate live test uses an `example.com` ticket sender that matches the draft recipient, and an empty carrier store.
