@@ -8,6 +8,7 @@ import type {
   PayPalOrder,
   PayPalRefund,
   PayPalTransaction,
+  SendInvoiceInput,
 } from "@countersign/rail-paypal";
 import { PayPalError } from "@countersign/rail-paypal";
 
@@ -34,8 +35,11 @@ export type FakeSandbox = PayPalClient & {
   lostResponses: Partial<Record<FakeCall, unknown>>;
   // The status a new refund is created with.
   refundStatus: PayPalRefund["status"];
-  // What a send invoice call answers (T-004 extends this fake with more control).
-  invoiceSendStatus: "SENT" | "SCHEDULED";
+  // What the next send invoice calls answer, in order; when empty, `invoiceSendAnswer`.
+  invoiceSendAnswers: InvoiceSendAnswer[];
+  invoiceSendAnswer: InvoiceSendAnswer;
+  // Every send invoice request, in order, as the rail client received it.
+  invoiceSends: SendInvoiceInput[];
   // IDs of the draft invoices it created.
   createdInvoices: string[];
   // What a webhook signature verification answers.
@@ -43,6 +47,14 @@ export type FakeSandbox = PayPalClient & {
   // Every call made, in order, with its first argument.
   calls: { call: FakeCall; arg: unknown }[];
 };
+
+// What a send invoice call answers: PayPal's 200 (`SENT`) or 202 (`SCHEDULED`), an error status
+// such as a 4xx refusal or a 5xx, or a network failure after the request may have arrived.
+export type InvoiceSendAnswer =
+  | "SENT"
+  | "SCHEDULED"
+  | { status: number; name?: string; issues?: string[] }
+  | "network";
 
 export function httpError(call: string, status: number, name = "ERROR"): PayPalError {
   return new PayPalError({ kind: "http", call, status, paypalName: name, debugId: "fake-debug" });
@@ -64,7 +76,9 @@ export function createFakeSandbox(): FakeSandbox {
     transactions: [],
     refunds: new Map(),
     failures: {},
-    invoiceSendStatus: "SENT",
+    invoiceSendAnswers: [],
+    invoiceSendAnswer: "SENT",
+    invoiceSends: [],
     createdInvoices: [],
     lostResponses: {},
     refundStatus: "COMPLETED",
@@ -120,7 +134,22 @@ export function createFakeSandbox(): FakeSandbox {
     },
     async sendInvoice(input) {
       enter("sendInvoice", input);
-      return answer("sendInvoice", sandbox.invoiceSendStatus);
+      sandbox.invoiceSends.push(structuredClone(input));
+      const next = sandbox.invoiceSendAnswers.shift() ?? sandbox.invoiceSendAnswer;
+      if (next === "network") {
+        throw new PayPalError({ kind: "network", call: "send-invoice", status: null });
+      }
+      if (typeof next === "object") {
+        throw new PayPalError({
+          kind: "http",
+          call: "send-invoice",
+          status: next.status,
+          paypalName: next.name ?? "ERROR",
+          issues: next.issues ?? [],
+          debugId: "fake-debug",
+        });
+      }
+      return answer("sendInvoice", next);
     },
     async createDraftInvoice(input) {
       enter("createDraftInvoice", input);

@@ -113,9 +113,13 @@ function executionLines({ result }: Ran): string[] {
   const { execution } = result;
   if (execution === null) return ["  Execution None, nothing was sent"];
   const lines = [`  Outcome   ${execution.outcome}`];
-  lines.push(
-    `  Refund    ${execution.refund === null ? "None" : `${execution.refund.id} ${execution.refund.status}`}`,
-  );
+  if (execution.invoice !== undefined) {
+    lines.push(`  Invoice   ${execution.invoice.id} ${execution.invoice.status}`);
+  } else {
+    lines.push(
+      `  Refund    ${execution.refund === null ? "None" : `${execution.refund.id} ${execution.refund.status}`}`,
+    );
+  }
   if (execution.error) {
     const { name, issues, debugId } = execution.error;
     const parts = [name ?? "No error name", ...issues, `debug ID ${debugId ?? "none"}`];

@@ -15,3 +15,13 @@
 - `sendInvoice` (200 -> `SENT`, 202 -> `SCHEDULED`, other 2xx throws `invalid_response`; no request ID, never retried) and `createDraftInvoice` (returns the invoice ID from an `id` or an `href`) in `@countersign/rail-paypal`; tests in `packages/rail-paypal/test/invoice-send.test.ts`.
 - Gotcha: `apps/gate/test/fake-sandbox.ts` got minimal `sendInvoice`/`createDraftInvoice` (records calls, `invoiceSendStatus`, `failures`) only to satisfy the `PayPalClient` type. T-004 must extend it (4xx, network failure, recording the request) as the requirements say.
 - The one lint warning (`apps/resolve-agent/src/queue.ts` void type) predates this ticket.
+
+## T-004 done
+- `apps/gate/src/executors.ts`: `EXECUTORS` (refund, invoice send), `execute(rail, db, job, clock)` runs one `ExecutionJob` and appends `execution.result`; `Execution`/`RailRefusal` moved there (re-exported from `propose.ts`). `Execution.invoice` is optional (absent for refunds) so existing `toEqual` tests pass unchanged. `EXECUTABLE_ACTIONS` is a const tuple with `ExecutableAction`; `isExecutable` is a type guard. T-005 should build an `ExecutionJob` from the stored intent and call `execute`.
+- Invoice send: absent `sendToRecipient` is sent as `true` (PayPal's default); an empty recipients list is left out. 4xx or invalid_request -> failed, anything else -> unknown.
+- A re-proposed allowed invoice intent is decided again (decision entry written, allow) but gets no second `execution.requested`; `execution` reports the trail with `sent: false` (unreadable trail -> unknown, not sent). Decided without the answerer (no Agent tool in this run); see "For the human".
+- Fake sandbox: `invoiceSendAnswer` / `invoiceSendAnswers` queue (`"SENT" | "SCHEDULED" | { status, name?, issues? } | "network"`) and an `invoiceSends` log; `invoiceSendStatus` is gone.
+- Tests: `apps/gate/test/propose-invoice.test.ts` (mandate = shipped v3 with invoice send and accept-claim allowed).
+
+### For the human
+- T-004: no reason code covers "this invoice intent was already sent", so a re-proposed allowed invoice intent answers `allowed` again with no second send (ADR 0033 says "decided again but can't execute"). Revisit if the agent should get a deny instead. Only reachable under a mandate that allows invoice sends outright (the shipped one steps them up).

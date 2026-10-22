@@ -1,30 +1,31 @@
 // propose(): one guarded PayPal proposal decided on live records, the stored ticket and the
-// execution history, and, only for an allowed refund, executed once (brief §6 steps 1 to 6, ADRs
-// 0026 and 0029). Live reads happen first, outside any transaction: the records the action
-// targets, and the ticket its justification names, from the ticket store. Then one audit-log
-// transaction, under the ledger's lock, reads the history, answers a refund's replay or decides,
-// and writes the decision entry and, for an allowed refund, the `execution.requested` entry, so a
-// second intent on the same capture always sees the first one's request. The refund is sent after
-// that commits, and its result is appended in its own transaction. Every other action is only
-// decided and recorded: decide() denies an allow for it ACTION_UNAVAILABLE. No AI, and the lock
-// is never held across a network call.
+// execution history, and, when allowed, executed once (brief §6 steps 1 to 6, ADRs 0026, 0029 and
+// 0033). Live reads happen first, outside any transaction: the records the action targets, and
+// the ticket its justification names, from the ticket store. Then one audit-log transaction,
+// under the ledger's lock, reads the history, answers a refund's replay or decides, and writes the
+// decision entry and, for an allowed intent, the `execution.requested` entry, so a second intent
+// on the same capture always sees the first one's request. The intent runs through its action's
+// executor after that commits, and its result is appended in its own transaction. An allowed
+// invoice intent that was already requested is never sent again. An allow for an action without
+// an executor is denied ACTION_UNAVAILABLE by decide(). No AI, and the lock is never held across
+// a network call.
 
 import type { CarrierAdapter } from "@countersign/carrier-mock";
 import type { Database } from "@countersign/db";
-import { type AuditLogWriter, appendEntry, type ChainRow, withAuditLog } from "@countersign/ledger";
-import { hashIntent, type Mandate, type Money, REASONS } from "@countersign/mandate";
-import { type PayPalClient, PayPalError, type PayPalRefund } from "@countersign/rail-paypal";
+import { type AuditLogWriter, type ChainRow, withAuditLog } from "@countersign/ledger";
+import { hashIntent, type Mandate, REASONS } from "@countersign/mandate";
+import type { PayPalClient } from "@countersign/rail-paypal";
 import type { RecordSnapshots } from "@countersign/verifiers";
 import { type AgentResponse, type DecisionRecord, decide } from "./decide";
+import { isExecutable } from "./executable";
 import {
-  type ExecutionOutcome,
   executionRequestedEntry,
-  executionResultEntry,
   type IntentRecord,
   readExecutionHistory,
   readIntentRecord,
   requestTarget,
 } from "./execution-log";
+import { type Execution, type ExecutionJob, execute } from "./executors";
 import { type ReadProblem, readProposalRecords } from "./live-records";
 import { normalizeProposal } from "./proposal";
 import { appendDecision, type RecordProblem, recordingFailure } from "./record";
@@ -57,21 +58,7 @@ export type ProposeSeqs = {
   request: number | null;
 };
 
-export type RailRefusal = { name: string | null; issues: string[]; debugId: string | null };
-
-// What happened when the refund was sent, or, for a replay of an executed intent, what the log
-// already says happened.
-export type Execution = {
-  outcome: ExecutionOutcome;
-  refund: { id: string; status: string } | null;
-  error: RailRefusal | null;
-  // The `execution.result` entry; null when no rail call was made or the result couldn't be
-  // written (then `resultProblem` says why).
-  resultSeq: number | null;
-  resultProblem: string | null;
-  // False for a replay of an executed intent: no rail call, no new refund.
-  sent: boolean;
-};
+export type { Execution, RailRefusal } from "./executors";
 
 export type ProposeResult =
   | {
@@ -100,22 +87,17 @@ export type ProposeResult =
   // Recording failed, so nothing was written and nothing executes.
   | { ok: false; problem: RecordProblem; detail: string; problems: ReadProblem[] };
 
-// A refund to send once the transaction commits.
-type Send = {
-  requestSeq: number;
-  intentId: string;
-  intentHash: string;
-  captureId: string;
-  amount: Money;
-};
-
 type Planned =
   | {
       replay: false;
       response: AgentResponse;
       record: DecisionRecord;
       seqs: ProposeSeqs;
-      send: Send | null;
+      // The intent to carry out once the transaction commits.
+      send: ExecutionJob | null;
+      // An allowed intent that wasn't sent, because it was already requested once or its trail
+      // couldn't be read: what the log says instead.
+      unsent: Execution | null;
     }
   | {
       replay: true;
@@ -124,7 +106,7 @@ type Planned =
       intentHash: string;
       firstRequestSeq: number;
       requestSeq: number;
-      send: Send | null;
+      send: ExecutionJob | null;
       // For a replay of an executed intent, the result already in the log.
       executed: IntentRecord["executed"];
     };
@@ -162,29 +144,54 @@ async function decideAndRecord(
   const recorded = await appendDecision(log, { proposal, principal, mandate, decided: result });
   const { record } = result;
   let request: ChainRow | null = null;
-  let send: Send | null = null;
+  let send: ExecutionJob | null = null;
+  let unsent: Execution | null = null;
   if (record.decision === "allow") {
     const { intent, intentId, intentHash } = record;
     if (intent === null || intentId === null || intentHash === null) {
       throw new Error("an allowed decision has no intent");
     }
-    // Only a refund executes in this phase, and a refund always targets a capture.
-    if (intent.target.kind !== "capture") throw new Error("an allowed decision targets no capture");
-    const { captureId } = intent.target;
-    request = await log.append(
-      executionRequestedEntry({
-        at: record.decidedAt,
+    // decide() denies an allow for an action without an executor ACTION_UNAVAILABLE.
+    const { action } = intent;
+    if (!isExecutable(action)) throw new Error(`an allowed decision for ${action} can't execute`);
+    const target = requestTarget(intent.target);
+    if (action === "paypal.refund" && !("captureId" in target)) {
+      throw new Error("an allowed refund targets no capture");
+    }
+    if (action === "paypal.invoice.send" && !("invoiceId" in target)) {
+      throw new Error("an allowed invoice send targets no invoice");
+    }
+    // A refund intent already requested is answered as a replay before it's decided. Any other
+    // is decided again but sent at most once (ADR 0033), so its trail is read first, under the
+    // same lock.
+    const earlier =
+      action === "paypal.refund" ? null : await alreadyRequested(log, intentId, action);
+    if (earlier !== null) {
+      unsent = earlier;
+    } else {
+      request = await log.append(
+        executionRequestedEntry({
+          at: record.decidedAt,
+          intentId,
+          intentHash,
+          principal: intent.principal,
+          rail: intent.rail,
+          action,
+          target,
+          amount: intent.amount,
+          decisionSeq: recorded.decision.seq,
+        }),
+      );
+      send = {
+        requestSeq: request.seq,
         intentId,
         intentHash,
-        principal: intent.principal,
-        rail: intent.rail,
-        action: intent.action,
-        target: requestTarget(intent.target),
+        action,
+        target,
         amount: intent.amount,
-        decisionSeq: recorded.decision.seq,
-      }),
-    );
-    send = { requestSeq: request.seq, intentId, intentHash, captureId, amount: intent.amount };
+        ...(intent.params === undefined ? {} : { params: intent.params }),
+      };
+    }
   }
   return {
     replay: false,
@@ -196,6 +203,36 @@ async function decideAndRecord(
       request: request?.seq ?? null,
     },
     send,
+    unsent,
+  };
+}
+
+// For an intent that isn't replayed, such as an invoice send: what the log says when it was
+// already requested, or null when it never was. An unreadable trail counts as requested, so
+// nothing is sent (brief §10 trade-off 1).
+async function alreadyRequested(
+  log: AuditLogWriter,
+  intentId: string,
+  action: string,
+): Promise<Execution | null> {
+  const read = await readIntentRecord(log.tx, intentId);
+  const unsent = { refund: null, error: null, resultProblem: null, sent: false };
+  if (!read.known) {
+    return {
+      ...unsent,
+      outcome: "unknown",
+      resultSeq: null,
+      resultProblem: `Intent ${intentId}'s earlier entries can't be read (entry #${read.seq}), so the ${action} wasn't sent.`,
+    };
+  }
+  const { trail } = read;
+  if (trail === null) return null;
+  return {
+    ...unsent,
+    outcome: trail.executed !== null ? "executed" : (trail.lastOutcome ?? "unknown"),
+    refund: trail.executed?.refund ?? null,
+    ...(trail.executed?.invoice === undefined ? {} : { invoice: trail.executed.invoice }),
+    resultSeq: trail.executed?.seq ?? null,
   };
 }
 
@@ -254,14 +291,16 @@ async function answerReplay(
       replayOf: { firstRequestSeq: firstRequest.seq, proposal: ctx.proposal },
     }),
   );
-  const send: Send | null =
+  // Replays are refunds only, so the job is a refund on the first request's capture.
+  const send: ExecutionJob | null =
     trail.executed !== null || first.captureId === null
       ? null
       : {
           requestSeq: request.seq,
           intentId: first.intentId,
           intentHash,
-          captureId: first.captureId,
+          action: "paypal.refund",
+          target: { captureId: first.captureId },
           amount: first.amount,
         };
   if (trail.executed === null && send === null) {
@@ -279,84 +318,6 @@ async function answerReplay(
   };
 }
 
-// One attempt's result, as the `execution.result` payload holds it.
-type Attempt =
-  | { outcome: "executed"; refund: { id: string; status: "COMPLETED" | "PENDING" } }
-  | {
-      outcome: "failed";
-      refund?: { id: string; status: "FAILED" | "CANCELLED" };
-      error?: RailRefusal;
-    }
-  | { outcome: "unknown"; error?: RailRefusal };
-
-function refusal(error: PayPalError): RailRefusal {
-  return { name: error.paypalName, issues: [...error.issues], debugId: error.debugId };
-}
-
-// What a refund call's answer means (ADR 0026): anything not definitely refused may have moved
-// money, so it's unknown, never failed.
-function outcomeOf(answer: { refund: PayPalRefund } | { error: unknown }): Attempt {
-  if ("refund" in answer) {
-    const { id, status } = answer.refund;
-    if (status === "COMPLETED" || status === "PENDING") {
-      return { outcome: "executed", refund: { id, status } };
-    }
-    return { outcome: "failed", refund: { id, status } };
-  }
-  const { error } = answer;
-  if (!(error instanceof PayPalError)) return { outcome: "unknown" };
-  const refused =
-    error.kind === "invalid_request" ||
-    (error.kind === "http" && error.status !== null && error.status >= 400 && error.status < 500);
-  return { outcome: refused ? "failed" : "unknown", error: refusal(error) };
-}
-
-async function sendRefund(
-  rail: PayPalClient,
-  db: Database,
-  send: Send,
-  clock: () => Date,
-): Promise<Execution> {
-  let answer: { refund: PayPalRefund } | { error: unknown };
-  try {
-    const refund = await rail.refundCapture({
-      captureId: send.captureId,
-      amount: send.amount,
-      customId: send.intentId,
-      requestId: send.intentHash,
-    });
-    answer = { refund };
-  } catch (error) {
-    answer = { error };
-  }
-  const attempt = outcomeOf(answer);
-  const execution: Execution = {
-    outcome: attempt.outcome,
-    refund: "refund" in attempt ? (attempt.refund ?? null) : null,
-    error: "error" in attempt ? (attempt.error ?? null) : null,
-    resultSeq: null,
-    resultProblem: null,
-    sent: true,
-  };
-  try {
-    const appended = await appendEntry(
-      db,
-      executionResultEntry({
-        at: clock().toISOString(),
-        intentId: send.intentId,
-        requestSeq: send.requestSeq,
-        ...attempt,
-      }),
-    );
-    if (appended.ok) execution.resultSeq = appended.entry.seq;
-    else execution.resultProblem = `${appended.rejection.problem}: ${appended.rejection.detail}`;
-  } catch {
-    // A fixed line, so nothing the database error carries leaks.
-    execution.resultProblem = "The result couldn't be written to the audit log.";
-  }
-  return execution;
-}
-
 export async function propose(input: ProposeInput): Promise<ProposeResult> {
   const { mandate, principal, proposal, now, rail, carrier, db } = input;
   const clock = input.clock ?? (() => new Date());
@@ -366,7 +327,7 @@ export async function propose(input: ProposeInput): Promise<ProposeResult> {
   const { problems } = live;
 
   // 2. One transaction under the ledger's lock: history, then a refund replay's answer or a
-  // decision and, for an allowed refund, the request.
+  // decision and, for an allowed intent never requested before, the request.
   let planned: Planned;
   try {
     planned = await withAuditLog(db, async (log): Promise<Planned> => {
@@ -399,12 +360,20 @@ export async function propose(input: ProposeInput): Promise<ProposeResult> {
     throw error;
   }
 
-  // 3. After the commit: send the refund and log its result.
-  const execution = planned.send === null ? null : await sendRefund(rail, db, planned.send, clock);
+  // 3. After the commit: carry out the intent through its executor and log the result.
+  const execution = planned.send === null ? null : await execute(rail, db, planned.send, clock);
 
   if (!planned.replay) {
-    const { response, record, seqs } = planned;
-    return { ok: true, replay: false, response, record, problems, seqs, execution };
+    const { response, record, seqs, unsent } = planned;
+    return {
+      ok: true,
+      replay: false,
+      response,
+      record,
+      problems,
+      seqs,
+      execution: execution ?? unsent,
+    };
   }
   const { response, intentId, intentHash, firstRequestSeq, requestSeq, executed } = planned;
   const replayed: Execution = execution ?? {

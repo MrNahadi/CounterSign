@@ -45,17 +45,17 @@ Notes:
 
 ## T-004: One executor per action, and invoice send made executable
 
-Status: open
+Status: done
 Blocked by: T-002, T-003
 Tier: standard
 Slice: `propose()` executes an allowed refund exactly as before and, under a mandate that allows it, an allowed invoice send once, both through the same executors an approval will use.
 Test seam: `propose()` and the gate's executor module, with the fake sandbox and PGlite
 Acceptance:
-- [ ] `EXECUTABLE_ACTIONS` is `paypal.refund` and `paypal.invoice.send`; every other allow is still denied `ACTION_UNAVAILABLE`
-- [ ] Every existing propose, replay, reconcile and MCP test passes unchanged
-- [ ] An allowed invoice send writes its request (with target), sends once with the hashed note and recipients, and logs `SENT`, `SCHEDULED`, `failed` or `unknown` as ADR 0033 says
-- [ ] Proposing the same allowed invoice intent again never sends a second time
-- [ ] The gate's fake sandbox gains invoice send with selectable answers and a call log
+- [x] `EXECUTABLE_ACTIONS` is `paypal.refund` and `paypal.invoice.send`; every other allow is still denied `ACTION_UNAVAILABLE`
+- [x] Every existing propose, replay, reconcile and MCP test passes unchanged
+- [x] An allowed invoice send writes its request (with target), sends once with the hashed note and recipients, and logs `SENT`, `SCHEDULED`, `failed` or `unknown` as ADR 0033 says
+- [x] Proposing the same allowed invoice intent again never sends a second time
+- [x] The gate's fake sandbox gains invoice send with selectable answers and a call log
 Notes:
 
 ## T-005: Answering a step-up
