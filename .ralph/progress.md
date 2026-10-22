@@ -71,3 +71,7 @@
 ## T-013 done
 - Live checks added, both skipped without `LIVE=1` and the PayPal variables: invoice send in `packages/rail-paypal/test/live-sandbox.test.ts` and a send_invoice step-up in `apps/gate/test/approvals-live.test.ts`. Not run against PayPal here (loop cannot reach it).
 - Gotcha: the gate live test uses an `example.com` ticket sender that matches the draft recipient, and an empty carrier store.
+
+## T-014 done
+- README gains "Approve from your phone" (key, `/approvals`, QR, CLI, variables) and the phase 9 status row; `CONTEXT.md` already had approver key, step-up card and approval answer.
+- Gotcha: `npm test` takes about 3 minutes; run it in the background. Lint shows one pre-existing warning in `apps/resolve-agent/src/queue.ts`.

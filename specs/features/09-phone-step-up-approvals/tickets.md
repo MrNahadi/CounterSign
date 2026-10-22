@@ -188,12 +188,12 @@ Notes:
 
 ## T-014: README and glossary
 
-Status: open
+Status: done
 Blocked by: T-010, T-011
 Tier: simple
 Slice: The README tells someone new how to approve a held refund from their phone, and the glossary names the new terms.
 Test seam: none (docs); the Feedback commands still pass
 Acceptance:
-- [ ] README gains "Approve from your phone": start the services, `/approvals`, the approver key, the QR code, `npm run approvals`, and the variable names (`COUNTERSIGN_APPROVER_KEY`, `GATE_URL`, `CONSOLE_PUBLIC_URL`); the status table gains phase 9
-- [ ] `CONTEXT.md` has approver key, step-up card and approval answer if any is missing
+- [x] README gains "Approve from your phone": start the services, `/approvals`, the approver key, the QR code, `npm run approvals`, and the variable names (`COUNTERSIGN_APPROVER_KEY`, `GATE_URL`, `CONSOLE_PUBLIC_URL`); the status table gains phase 9
+- [x] `CONTEXT.md` has approver key, step-up card and approval answer if any is missing
 Notes:

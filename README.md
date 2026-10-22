@@ -273,11 +273,39 @@ npm run propose -- apps/gate/proposals/beat-4-stalled-parcel.json --json
 | `beat-4-stalled-parcel.json` | `KIK-1035`, $18.00, not received, from the payer | Allow, and it executes |
 | `beat-5-damaged.json` | `KIK-1037`, $240.00, damaged with a photo, from the payer | Step-up `ABOVE_AUTO_LIMIT` |
 
-Each proposal prints its decision, reasons, verifier trace, amount, intent ID and hash, then the refund's outcome and ID when one was sent. Running beat 4 a second time prints `Replayed, no new refund.` A read that failed is shown on its own line, and its verifier comes out `unknown`, which never allows. Step-ups are recorded and wait; approving them comes in a later phase.
+Each proposal prints its decision, reasons, verifier trace, amount, intent ID and hash, then the refund's outcome and ID when one was sent. Running beat 4 a second time prints `Replayed, no new refund.` A read that failed is shown on its own line, and its verifier comes out `unknown`, which never allows. Step-ups are recorded and wait for the merchant; see "Approve from your phone".
 
 The ticket in each proposal file is simulated: the file names its sender as `payer`, `buyer:A`, `buyer:B` or an email address, and order numbers and senders are looked up in the seed rows. Each proposal states the decision expected of it, written before it's run.
 
 It exits 0 when every proposal got its expected decision, and 1 when one didn't or a refund's outcome is unknown (PayPal timed out or failed after the request). Then `npm run reconcile` checks the refund. It exits 2, naming the reason, when it can't run: a bad file, an order that isn't seeded, missing PayPal variables, or a database that can't be opened or isn't migrated.
+
+## Approve from your phone
+
+When the gate holds an intent, it becomes a card the merchant answers with one tap. An approval is bound to the intent's hash, works once, and expires as a deny after 15 minutes. An approved refund or invoice send executes once, from the stored intent. Dispute actions, payouts and order captures can't run yet, and their card says so.
+
+1. Set the approver key in `.env.local`: `COUNTERSIGN_APPROVER_KEY`, at least 32 characters and different from every principal key. Unset or too short, every approval route answers 401 and the gate's startup line names the variable.
+2. Start the gate and the console (see "Run the apps"), and propose a refund that steps up, such as `beat-5-damaged.json` above.
+3. Open `http://localhost:3000/approvals` and sign in with the approver key. The card shows the action, amount, order, claim, photos, why it's waiting, what the records say and the time left. Approve or Deny answers it. The page refreshes every 3 seconds.
+4. To use a phone, open the approvals page on a screen 768px wide or more and scan the QR code. The phone has to reach the console, so use a LAN address or the hosted URL, not `127.0.0.1`. Set `CONSOLE_PUBLIC_URL` if the console's own address isn't the one the phone should open.
+
+The same answers are available in the terminal, against the database the other CLIs use:
+
+```bash
+npm run approvals -- list
+npm run approvals -- show <id>
+npm run approvals -- approve <id> --hash <intent hash>
+npm run approvals -- deny <id>
+```
+
+`approve` needs the PayPal sandbox variables. It exits 0 for an approved or denied answer, 1 for a rejected one or a failed execution, and 2 when it can't run.
+
+| Variable | Used for |
+|---|---|
+| `COUNTERSIGN_APPROVER_KEY` | The gate's approval API and the approver login (at least 32 characters). Names only here; never commit the value |
+| `GATE_URL` | Where the console's server routes find the gate (default `http://127.0.0.1:8787`). Server only |
+| `CONSOLE_PUBLIC_URL` | Optional. The console's public address, used for the QR code |
+
+The page installs as a web app named "Approvals". No AI runs anywhere on the approval path.
 
 ## Connect an agent
 
@@ -345,7 +373,8 @@ Countersign is mid-build. The roadmap runs from 16 October to submission on 11 N
 | 6 | Live refund execution: `npm run propose` and `npm run reconcile` | Done |
 | 7 | The gate over MCP: principal keys, guarded and read-only tools, `npm run agent` | Done |
 | 8 | Resolve in protected and baseline modes: the inbox, the simulated chat and `npm run resolve` | Done; live Gemini and PayPal checks (`LIVE=1`) have not been run |
-| 9 to 13 | Phone approvals, claims vs records, disputes, payouts, the hosted judge path | Planned |
+| 9 | Phone step-up approvals: the approval API, the `/approvals` page with a QR code, `npm run approvals` | Done; live checks (`LIVE=1`) have not been run |
+| 10 to 13 | Claims vs records, disputes, payouts, the hosted judge path | Planned |
 | 14 to 18 | Bench, "Attack it yourself", the AG Studio Risk desk, the mandate compiler, the M-Pesa rail | Planned |
 | 19 to 20 | Smoke tests, monitoring and submission | Planned |
 
