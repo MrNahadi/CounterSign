@@ -119,16 +119,16 @@ Notes:
 
 ## T-009: Console approval routes and the approver login
 
-Status: open
+Status: done
 Blocked by: T-006
 Tier: standard
 Slice: The console signs the approver in with the key, keeps it in an HttpOnly cookie, and lists and answers cards through its own routes.
 Test seam: the route handlers and zod schemas in `apps/console/src/` (approval routes, session), with an injected `fetch`
 Acceptance:
-- [ ] `POST /api/approvals/session` checks the key against the gate and sets `countersign_approver` (`HttpOnly`, `SameSite=Strict`, `Path=/`, 12 hours, `Secure` over HTTPS); a wrong key sets nothing; `DELETE` clears it
-- [ ] `GET /api/approvals`, `GET /api/approvals/[id]` and `POST /api/approvals/[id]` forward the cookie's key as the bearer to `GATE_URL` and validate the request and every answer with zod
-- [ ] A gate 401 clears the cookie and answers 401 "Sign in again."; an unreachable gate or junk answer gives 502 with the fixed sentence
-- [ ] No answer, error or log holds the key; the routes stay browser-safe where a client component imports them
+- [x] `POST /api/approvals/session` checks the key against the gate and sets `countersign_approver` (`HttpOnly`, `SameSite=Strict`, `Path=/`, 12 hours, `Secure` over HTTPS); a wrong key sets nothing; `DELETE` clears it
+- [x] `GET /api/approvals`, `GET /api/approvals/[id]` and `POST /api/approvals/[id]` forward the cookie's key as the bearer to `GATE_URL` and validate the request and every answer with zod
+- [x] A gate 401 clears the cookie and answers 401 "Sign in again."; an unreachable gate or junk answer gives 502 with the fixed sentence
+- [x] No answer, error or log holds the key; the routes stay browser-safe where a client component imports them
 Notes:
 
 ## T-010: The approvals page
