@@ -380,6 +380,7 @@ describe("get capture", () => {
       status: "COMPLETED",
       amount: { minor: 4800, currency: "USD" },
       orderId: VAULT_ORDER_ID,
+      createTime: "2026-10-17T10:02:11Z",
     });
   });
 

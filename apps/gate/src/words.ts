@@ -1,7 +1,7 @@
 // The words the merchant reads for actions, verifiers and the records they read. Display only:
 // nothing in the decision path imports this module.
 
-import type { Action, VerifierName } from "@countersign/mandate";
+import type { Action, Decision, VerifierName } from "@countersign/mandate";
 import { CALLS } from "@countersign/verifiers";
 
 export const ACTION_WORDS: Record<Action, string> = {
@@ -47,4 +47,31 @@ const SOURCE_WORDS: Record<string, string> = {
 // A record's source in words, by the call it came from. A call with no words shows as itself.
 export function sourceWords(call: string): string {
   return Object.hasOwn(SOURCE_WORDS, call) ? (SOURCE_WORDS[call] ?? call) : call;
+}
+
+export const DECISION_WORDS: Record<Decision, string> = {
+  allow: "Allowed",
+  step_up: "Step-up",
+  deny: "Denied",
+};
+
+// PayPal's dispute reasons in words. A reason PayPal adds later shows as itself.
+const DISPUTE_REASON_WORDS: Record<string, string> = {
+  MERCHANDISE_OR_SERVICE_NOT_RECEIVED: "Item not received",
+  MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED: "Item not as described",
+  UNAUTHORISED: "Payment not authorised",
+  CREDIT_NOT_PROCESSED: "Refund not processed",
+  DUPLICATE_TRANSACTION: "Charged twice",
+  INCORRECT_AMOUNT: "Wrong amount charged",
+  PAYMENT_BY_OTHER_MEANS: "Paid another way",
+  CANCELED_RECURRING_BILLING: "Cancelled recurring payment",
+  PROBLEM_WITH_REMITTANCE: "Problem with the payment",
+  OTHER: "Other",
+};
+
+/** A dispute reason in words, by PayPal's reason code. */
+export function disputeReasonWords(reason: string): string {
+  return Object.hasOwn(DISPUTE_REASON_WORDS, reason)
+    ? (DISPUTE_REASON_WORDS[reason] ?? reason)
+    : reason;
 }

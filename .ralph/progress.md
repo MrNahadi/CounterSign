@@ -26,3 +26,11 @@
 - `readDisputeState` now also returns `firstSeqs` (dispute ID to its first `dispute.received` seq).
 - Fake sandbox: `requireEvidence`/`adjudicate` answer 200 (404 for an unknown dispute, injected failures apply). accept claim, make offer and provide evidence still throw until T-008.
 - `list`/`show` print PayPal's raw reason codes; there are no dispute reason words yet (T-006/T-012 will need them, `words.ts` is the place).
+
+## T-006 (done)
+- New `apps/gate/src/dispute-evidence.ts`: `buildEvidencePack(disputeId, { db, rail, carrier, now })` answers `{ ok, facts, documents, suggested }` or `{ ok: false, code: DISPUTE_UNREADABLE | NO_CAPTURE | STORE_FAILED, message }` (fixed sentences in `PACK_MESSAGES`, for T-007's tool errors). Facts are camelCase; T-007 maps them to snake_case. New `evidence-pdf.ts` (`buildEvidencePdf`, `winAnsi`, section/label constants). `words.ts` gains `DECISION_WORDS` and `disputeReasonWords`.
+- Decisions come from `readDecisionRows` (q = capture ID, exact target match), so they carry no sender or ticket text. Document IDs are `doc_` + 24 hex of sha256([disputeId, kind, sha256, createdAt]); a rebuild at the same time with the same bytes is `unchanged`.
+- Gotcha: a capture with no Countersign decisions has no export (`exportEvidence` is `not_found`), so that pack stores only the PDF and `facts.audit` is null. The PDF still prints the Audit log section saying so.
+- Gotcha: `PayPalCapture` gains optional `createTime` (from `create_time`, only on get capture; a malformed one is dropped, never fails the read). It is the facts' capture time.
+- Gotcha: the PDF test reads text by decoding content streams and the `<hex> Tj` strings (see `pdfText` in dispute-evidence.test.ts); `save({ useObjectStreams: false })` keeps that simple.
+- Fulfilment is suggested only for a SHIPPED tracker whose carrier status is delivered.

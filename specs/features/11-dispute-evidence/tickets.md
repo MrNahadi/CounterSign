@@ -74,17 +74,17 @@ Notes:
 
 ## T-006: Evidence facts and documents
 
-Status: open
+Status: done
 Blocked by: T-001, T-003
 Tier: standard
 Slice: For one dispute, the gate builds the facts from records, stores the export JSON and the evidence PDF, and suggests evidence items.
 Test seam: the gate's evidence-pack function (dispute ID in; facts, document rows and suggested items out), over PGlite with the fake sandbox and the carrier mock
 Acceptance:
-- [ ] For a dispute on a delivered, tracked seed capture with an earlier step-up and a refund, the facts hold every field in requirements.md, and no payer email, ticket sender or ticket text
-- [ ] The stored export passes `checkEvidence`; the PDF reads back with `pdf-lib` with the sections, the simulated-carrier and illustrative lines and the export's SHA-256, under 1 MB and at most 6 pages
-- [ ] Each document row's SHA-256 matches its bytes
-- [ ] The suggested items follow the fixed table (delivered → fulfilment with tracking numbers; completed refund → refund with IDs; otherwise other)
-- [ ] An unreadable tracker or carrier read is listed as not available; an unreadable dispute or one with no capture isn't built and says which
+- [x] For a dispute on a delivered, tracked seed capture with an earlier step-up and a refund, the facts hold every field in requirements.md, and no payer email, ticket sender or ticket text
+- [x] The stored export passes `checkEvidence`; the PDF reads back with `pdf-lib` with the sections, the simulated-carrier and illustrative lines and the export's SHA-256, under 1 MB and at most 6 pages
+- [x] Each document row's SHA-256 matches its bytes
+- [x] The suggested items follow the fixed table (delivered → fulfilment with tracking numbers; completed refund → refund with IDs; otherwise other)
+- [x] An unreadable tracker or carrier read is listed as not available; an unreadable dispute or one with no capture isn't built and says which
 Notes:
 
 ## T-007: `prepare_dispute_evidence`, and documents in `provide_dispute_evidence`

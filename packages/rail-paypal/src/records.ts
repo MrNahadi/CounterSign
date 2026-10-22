@@ -10,6 +10,9 @@ export type PayPalCapture = {
   amount: Money;
   // The order the capture belongs to. Null when PayPal doesn't say.
   orderId: string | null;
+  // When PayPal created the capture, as PayPal's date-time. Only a capture read on its own
+  // carries it, and only when PayPal sends it.
+  createTime?: string;
 };
 
 // PayPal's record that one capture shipped under a tracking number. Its ID is the capture ID,
@@ -87,6 +90,8 @@ const captureSchema = z.object({ id: text, status: text, amount: moneySchema });
 // A capture read on its own carries its order's ID in supplementary_data.
 export const captureRecordSchema = captureSchema
   .extend({
+    // Only shown, never decided on, so a malformed one is dropped rather than failing the read.
+    create_time: z.string().min(1).max(64).optional().catch(undefined),
     supplementary_data: z
       .object({ related_ids: z.object({ order_id: z.string().optional() }).optional() })
       .optional(),
@@ -97,6 +102,7 @@ export const captureRecordSchema = captureSchema
       status: capture.status,
       amount: capture.amount,
       orderId: capture.supplementary_data?.related_ids?.order_id || null,
+      ...(capture.create_time ? { createTime: capture.create_time } : {}),
     }),
   );
 
