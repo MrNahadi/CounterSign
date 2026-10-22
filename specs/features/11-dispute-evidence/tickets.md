@@ -18,15 +18,15 @@ Notes:
 
 ## T-002: The `dispute.received` entry
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: The ledger accepts a `dispute.received` entry, and the gate can build one and read which disputes and webhook event IDs are already recorded.
 Test seam: `@countersign/ledger`'s append and verify, and the gate's dispute-entry builder and reader, over PGlite
 Acceptance:
-- [ ] `ENTRY_TYPES` includes `dispute.received`; appends and `ledger verify` work with it; the ledger's existing tests pass
-- [ ] The builder makes the payload in requirements.md from a re-read dispute, with `refId` the dispute ID, for both `webhook` and `poll` sources
-- [ ] The reader returns the recorded dispute IDs and event IDs; an unreadable `dispute.received` payload makes the state unknown
+- [x] `ENTRY_TYPES` includes `dispute.received`; appends and `ledger verify` work with it; the ledger's existing tests pass
+- [x] The builder makes the payload in requirements.md from a re-read dispute, with `refId` the dispute ID, for both `webhook` and `poll` sources
+- [x] The reader returns the recorded dispute IDs and event IDs; an unreadable `dispute.received` payload makes the state unknown
 Notes:
 
 ## T-003: The evidence documents and dispute drafts tables
