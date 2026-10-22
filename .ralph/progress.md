@@ -25,3 +25,8 @@
 
 ### For the human
 - T-004: no reason code covers "this invoice intent was already sent", so a re-proposed allowed invoice intent answers `allowed` again with no second send (ADR 0033 says "decided again but can't execute"). Revisit if the agent should get a deny instead. Only reachable under a mandate that allows invoice sends outright (the shipped one steps them up).
+
+## T-005 done
+- `apps/gate/src/answer-step-up.ts`: `answerStepUp({ db, rail, stepUpSeq, answer, intentHash, channel, now, clock? })` returns `{ kind: "answered", outcome, code, stepUpSeq, intentId, approvalSeq, requestSeq, execution }` or `not_found` / `input_error` / `unknown` (step-up log unreadable, nothing written) / `recording_failed`. `answer` and `intentHash` are `unknown` and zod-read; a malformed hash is an input error (the approval schema can't store it). Tests: `apps/gate/test/answer-step-up.test.ts`.
+- HASH_MISMATCH also checks `hashIntent(stored intent)` hash and ID. An unreadable intent trail rejects ALREADY_REQUESTED (counts as requested). The approved refund's later replay through `propose()` already works (first request carries `target`).
+- Gotcha: in tests, a "changed amount" refund on CAP-1037 must stay within the $240 capture ($230 works); $250 is denied, not stepped up. A $30 refund on CAP-1037 is allowed and executes.

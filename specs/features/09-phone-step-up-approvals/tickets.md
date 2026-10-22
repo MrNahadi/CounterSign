@@ -60,18 +60,18 @@ Notes:
 
 ## T-005: Answering a step-up
 
-Status: open
+Status: done
 Blocked by: T-001, T-004
 Tier: standard
 Slice: Approving beat 5's step-up with its hash executes exactly that $240.00 refund once; every other answer is denied or rejected with its code and nothing moves.
 Test seam: `answerStepUp()` in `apps/gate/src/`, with the fake sandbox, PGlite and an injected clock
 Acceptance:
-- [ ] Approve writes `approval` then `execution.requested` (with `approvalSeq`) in one transaction, then one refund with the intent hash as request ID, then its result; the answer carries the outcome and refund
-- [ ] Deny writes a `denied` entry and makes no rail call
-- [ ] Each rejection code in requirements.md, in order, writes a `rejected` entry and makes no rail call: `HASH_MISMATCH`, `ALREADY_ANSWERED`, `EXPIRED`, `ALREADY_REQUESTED`, `ACTION_UNAVAILABLE`, `DUPLICATE_REFUND`
-- [ ] A `seq` that isn't a step-up is `not_found` and writes nothing; an unreadable history rejects `DUPLICATE_REFUND` for a refund
-- [ ] Two approvals of one step-up started together make one refund; an approved invoice step-up sends once
-- [ ] The agent's later replay of an approved refund intent is answered from the log, with no second refund
+- [x] Approve writes `approval` then `execution.requested` (with `approvalSeq`) in one transaction, then one refund with the intent hash as request ID, then its result; the answer carries the outcome and refund
+- [x] Deny writes a `denied` entry and makes no rail call
+- [x] Each rejection code in requirements.md, in order, writes a `rejected` entry and makes no rail call: `HASH_MISMATCH`, `ALREADY_ANSWERED`, `EXPIRED`, `ALREADY_REQUESTED`, `ACTION_UNAVAILABLE`, `DUPLICATE_REFUND`
+- [x] A `seq` that isn't a step-up is `not_found` and writes nothing; an unreadable history rejects `DUPLICATE_REFUND` for a refund
+- [x] Two approvals of one step-up started together make one refund; an approved invoice step-up sends once
+- [x] The agent's later replay of an approved refund intent is answered from the log, with no second refund
 Notes:
 
 ## T-006: The approver key and the approval API
