@@ -43,3 +43,9 @@
 - Shared sign-in is `apps/console/app/sign-in.tsx`: `<SignIn title line message />` (message "Sign in again." after a gate 401). Approvals uses `APPROVALS_COPY.signInLine`. Pages call loaders with the key from `approverKeyFromHeader`; a 401 answer means show the sign-in with `APPROVAL_ROUTE_MESSAGES.signInAgain`.
 - Query objects for loaders are string-valued (as URL params); use `queryOf(request)` in routes. Schemas strip unknown fields; stored hashes accept any 1-128 char text so tampered rows still render.
 - Gotcha: `uqr` was missing from node_modules (typecheck failed); `npm ci` fixed it.
+
+## T-009 (done)
+- Added `apps/console/src/decisions-view.ts` (`decisionsView(page, { decision, q }, now)`, `rowStatusWords`, `chainView(answer, now)`, `decisionFiltersOf(searchParams)`, `DECISIONS_COPY`, `DECISION_BADGES`) and `apps/console/app/decisions/page.tsx`; sidebar gains Decisions (`Scale`) and Audit log (`ScrollText`); `/` now redirects to `/decisions`. Tests in `apps/console/test/decisions-view.test.ts` and `console-setup.test.ts`.
+- `chainView` takes a loader `Answer<ChainVerdict>`; a failed verify shows "Chain not checked" (neutral) with the gate's sentence, never intact. T-010/T-011 can reuse it and `DECISION_BADGES`.
+- Segments and paging are plain links (`aria-current`), the search is a GET form, so the page stays a server component. Rows link through the When cell (a row can also hold the "Waiting for you" link to `/approvals`).
+- The sidebar nav now scrolls sideways on a phone (4 links). `/audit` 404s until T-011.

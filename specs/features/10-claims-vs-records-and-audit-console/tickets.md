@@ -116,16 +116,16 @@ Notes:
 
 ## T-009: The Decisions page
 
-Status: open
+Status: done
 Blocked by: T-008
 Tier: standard
 Slice: Signed in, `/decisions` shows every decision in a Graphite table with its badge, why and status, filters by decision, searches, pages back, and shows the chain's state; the sidebar reaches it and `/` redirects to it.
 Test seam: the decision-list view model in `apps/console/src/` over recorded gate answers, plus the Graphite design check
 Acceptance:
-- [ ] Rows show when, ticket sender with claim words, action, amount, the Allowed / Step-up / Denied badge with its tone, why (words with code, or "Allowed by rule …"), the status words in requirements.md, and the record ID; each links to `/decisions/<seq>`; unreadable rows say so
-- [ ] The segmented control's counts, the search field, "Older decisions" paging and the empty-log sentence come from the view model
-- [ ] The chain card shows intact with entries and time, or broken with the problem count and a link to `/audit`
-- [ ] The sidebar gains Decisions and Audit log after Approvals (Lucide icons); `/` redirects to `/decisions`; signed out, the shared sign-in shows the decisions line
+- [x] Rows show when, ticket sender with claim words, action, amount, the Allowed / Step-up / Denied badge with its tone, why (words with code, or "Allowed by rule …"), the status words in requirements.md, and the record ID; each links to `/decisions/<seq>`; unreadable rows say so
+- [x] The segmented control's counts, the search field, "Older decisions" paging and the empty-log sentence come from the view model
+- [x] The chain card shows intact with entries and time, or broken with the problem count and a link to `/audit`
+- [x] The sidebar gains Decisions and Audit log after Approvals (Lucide icons); `/` redirects to `/decisions`; signed out, the shared sign-in shows the decisions line
 - [ ] The design check passes; the table scrolls inside its box at phone width
 Notes:
 

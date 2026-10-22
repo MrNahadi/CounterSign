@@ -1,12 +1,14 @@
 "use client";
 
-import { ClipboardCheck, Inbox, type LucideIcon } from "lucide-react";
+import { ClipboardCheck, Inbox, type LucideIcon, Scale, ScrollText } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/inbox", label: "Inbox", Icon: Inbox },
   { href: "/approvals", label: "Approvals", Icon: ClipboardCheck },
+  { href: "/decisions", label: "Decisions", Icon: Scale },
+  { href: "/audit", label: "Audit log", Icon: ScrollText },
 ];
 
 const openCards = (count: number) => ` open ${count === 1 ? "card" : "cards"}`;
@@ -16,7 +18,10 @@ const openCards = (count: number) => ` open ${count === 1 ? "card" : "cards"}`;
 export function ConsoleNav({ openApprovals = null }: { openApprovals?: number | null }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Console" className="flex flex-row gap-1 md:flex-col">
+    <nav
+      aria-label="Console"
+      className="flex min-w-0 flex-row gap-1 overflow-x-auto md:flex-col md:overflow-visible"
+    >
       {items.map(({ href, label, Icon }) => {
         const current = pathname === href || pathname.startsWith(`${href}/`);
         const count =
@@ -28,7 +33,7 @@ export function ConsoleNav({ openApprovals = null }: { openApprovals?: number | 
             key={href}
             href={href}
             aria-current={current ? "page" : undefined}
-            className={`flex h-8 items-center gap-2 rounded-lg px-2 text-body-sm font-semimedium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out ${
+            className={`flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-2 text-body-sm font-semimedium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out ${
               current
                 ? "bg-transparent-hover text-primary-foreground"
                 : "text-secondary-foreground hover:bg-transparent-hover hover:text-primary-foreground"

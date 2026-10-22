@@ -27,6 +27,25 @@ describe("console setup", () => {
     expect(read("../app/console-shell.tsx")).toContain("<ConsoleNav openApprovals={count} />");
   });
 
+  it("has Decisions and Audit log after Approvals, and / redirects to Decisions", () => {
+    const nav = read("../app/console-nav.tsx");
+    const approvals = nav.indexOf('href: "/approvals"');
+    const decisions = nav.indexOf('{ href: "/decisions", label: "Decisions", Icon: Scale }');
+    const audit = nav.indexOf('{ href: "/audit", label: "Audit log", Icon: ScrollText }');
+    expect(approvals).toBeGreaterThan(-1);
+    expect(decisions).toBeGreaterThan(approvals);
+    expect(audit).toBeGreaterThan(decisions);
+    expect(nav).toMatch(/import \{[^}]*\bScale\b[^}]*\bScrollText\b[^}]*\} from "lucide-react"/);
+    expect(read("../app/page.tsx")).toContain('redirect("/decisions")');
+  });
+
+  it("shows the shared sign-in with the decisions line, and scrolls the table in its box", () => {
+    const page = read("../app/decisions/page.tsx");
+    expect(page).toContain("line={AUDIT_ROUTE_MESSAGES.signInLine}");
+    expect(page).toContain("APPROVAL_ROUTE_MESSAGES.signInAgain");
+    expect(page).toMatch(/className="overflow-x-auto[^"]*"\s*>\s*<table/);
+  });
+
   it("keeps Resolve's address out of browser code", () => {
     for (const path of ["../app/console-nav.tsx", "../app/inbox/refresh-while-working.tsx"]) {
       expect(read(path)).not.toContain("RESOLVE_AGENT_URL");
