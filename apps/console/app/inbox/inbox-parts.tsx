@@ -140,6 +140,14 @@ function ToolCall({ row }: { row: ToolRow }) {
           ))}
         </ul>
       ) : null}
+      {row.decisionHref !== null ? (
+        <Link
+          href={row.decisionHref}
+          className="self-start text-body-sm font-medium text-brand-foreground hover:underline"
+        >
+          Claims vs records
+        </Link>
+      ) : null}
       {row.refundId !== null && row.decision !== null ? (
         <p className="text-body-sm text-secondary-foreground">
           PayPal refund <Code>{row.refundId}</Code>

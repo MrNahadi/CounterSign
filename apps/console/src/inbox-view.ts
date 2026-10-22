@@ -81,6 +81,8 @@ export type ToolRow = {
   invoiceId: string | null;
   /** A baseline money call: no Countersign checks. */
   noChecks: boolean;
+  /** The decision page for a guarded call whose proposal became an intent. */
+  decisionHref: string | null;
 };
 
 export type RunView = {
@@ -317,6 +319,7 @@ export function toolRow(step: ToolStep, run: Pick<Run, "mode" | "executions" | "
     refundId: null,
     invoiceId: null,
     noChecks: run.mode === "baseline" && MONEY_TOOLS.includes(step.name),
+    decisionHref: null,
   };
   if (step.result === null) return { ...row, result: "The connection to the tool failed." };
   const result = CallToolResultSchema.safeParse(step.result);
@@ -348,6 +351,10 @@ export function toolRow(step: ToolStep, run: Pick<Run, "mode" | "executions" | "
         ...row,
         result: shown.label,
         decision: { label: shown.label, tone: shown.tone, reasons },
+        decisionHref:
+          response.intent_id === null
+            ? null
+            : `/decisions/intent/${encodeURIComponent(response.intent_id)}`,
         refundId:
           step.name === "create_refund"
             ? (execution?.refund_id ?? heldCall?.refund_id ?? null)

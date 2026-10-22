@@ -378,6 +378,25 @@ describe("What happened to a held call", () => {
   });
 });
 
+describe("Claims vs records links", () => {
+  it("links a guarded call with an intent to its decision, and nothing else", () => {
+    const view = runView(parseRun(protectedRun));
+    expect(view.toolRows.map((row) => [row.name, row.decisionHref])).toEqual([
+      ["find_order", null],
+      ["create_refund", `/decisions/intent/${INTENT}`],
+      ["create_refund", null],
+      ["accept_dispute_claim", "/decisions/intent/int_aaaaaaaaaaaaaaaaaaaaaaaa"],
+      ["find_order", null],
+      ["get_order", null],
+    ]);
+  });
+
+  it("gives a baseline call no link", () => {
+    const view = runView(parseRun(baselineRun));
+    expect(view.toolRows.every((row) => row.decisionHref === null)).toBe(true);
+  });
+});
+
 describe("What Resolve did, baseline", () => {
   const view = runView(parseRun(baselineRun));
 

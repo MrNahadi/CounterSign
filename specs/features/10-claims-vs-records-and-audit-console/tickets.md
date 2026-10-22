@@ -171,14 +171,14 @@ Notes:
 
 ## T-013: Inbox links to decisions
 
-Status: open
+Status: done
 Blocked by: T-010
 Tier: simple
 Slice: Each guarded call in Resolve's inbox links "Claims vs records" to its decision page, so the agent's trace shows the two columns one tap away.
 Test seam: `toolRow` in `apps/console/src/inbox-view.ts` over recorded runs
 Acceptance:
-- [ ] A guarded call with an intent ID gets a link to `/decisions/intent/<intent ID>`; one without an intent, and every read-only call, gets none
-- [ ] The existing inbox tests pass unchanged
+- [x] A guarded call with an intent ID gets a link to `/decisions/intent/<intent ID>`; one without an intent, and every read-only call, gets none
+- [x] The existing inbox tests pass unchanged
 Notes:
 
 ## T-014: README, glossary and phase 10 status

@@ -64,3 +64,6 @@
 - `CardSchema` now requires `claims` (reuses `ClaimPairSchema`); `approvals-view.ts` gains `claimPairView`, `ClaimPairView`, `VERDICT_BADGES` (decision-view re-exports it) and `CardView.claims`; the board renders `ClaimPairs` in place of the old checks list (two columns from md, stacked below; column widened to `md:max-w-3xl`). `CardView.checks` is still built but no longer rendered.
 - Client-safe import allowlists in approvals-view and approval-routes tests now include `./audit-schemas` (plain zod).
 - `npm test` takes about 5 minutes; run it in the foreground with a long timeout.
+
+## T-013 (done)
+- `ToolRow.decisionHref` in `apps/console/src/inbox-view.ts` (`/decisions/intent/<intent_id>` for a protected guarded call with an intent; null otherwise); inbox-parts renders a "Claims vs records" link. Tests in `apps/console/test/inbox-view.test.ts`.
