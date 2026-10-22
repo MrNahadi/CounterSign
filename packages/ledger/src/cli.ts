@@ -1,7 +1,8 @@
-// The ledger CLI: `verify` re-walks the audit log and says whether it's intact, and `tail`
-// shows its last entries. Returns the output and exit code rather than writing them, so tests
-// can call it directly. No message ever holds DATABASE_URL or a password.
+// The ledger CLI: `verify` re-walks the audit log and says whether it's intact, `tail`
+// shows its last entries, and `check-export` re-hashes an evidence file with no database.
+// Returns the output and exit code rather than writing them, so tests can call it directly. No message ever holds DATABASE_URL or a password.
 
+import { readFile } from "node:fs/promises";
 import {
   auditLog,
   type DatabaseHandle,
@@ -19,11 +20,13 @@ import {
 } from "@countersign/db";
 import { z } from "zod";
 import type { ChainRow, ChainVerdict } from "./chain";
+import { checkEvidence, type EvidenceCheck } from "./evidence";
 import { verifyLog } from "./log";
 
 export type LedgerCliResult = { exitCode: number; stdout: string; stderr: string };
 
-export const LEDGER_USAGE = "Usage: npm run ledger -- verify | tail [count] [--pglite <dir>]";
+export const LEDGER_USAGE =
+  "Usage: npm run ledger -- verify | tail [count] | check-export <file> [--pglite <dir>]";
 
 export const EXIT_OK = 0;
 export const EXIT_BROKEN = 1;
@@ -42,9 +45,16 @@ const CommandSchema = z.discriminatedUnion("command", [
       .transform(([count]) => (count === undefined ? DEFAULT_TAIL_COUNT : Number(count)))
       .pipe(z.int().positive()),
   }),
+  z.object({
+    command: z.literal("check-export"),
+    extra: z.tuple([z.string().min(1)]),
+  }),
 ]);
 
-type Command = { command: "verify" } | { command: "tail"; count: number };
+type Command =
+  | { command: "verify" }
+  | { command: "tail"; count: number }
+  | { command: "check-export"; file: string };
 
 const failure = (error: string): LedgerCliResult => ({
   exitCode: EXIT_NO_DATABASE,
@@ -58,9 +68,14 @@ function parseCommand(args: readonly string[]): Command | string {
   const [command, ...extra] = args;
   const parsed = CommandSchema.safeParse({ command, extra });
   if (!parsed.success) return LEDGER_USAGE;
-  return parsed.data.command === "verify"
-    ? { command: "verify" }
-    : { command: "tail", count: parsed.data.extra };
+  switch (parsed.data.command) {
+    case "verify":
+      return { command: "verify" };
+    case "tail":
+      return { command: "tail", count: parsed.data.extra };
+    case "check-export":
+      return { command: "check-export", file: parsed.data.extra[0] };
+  }
 }
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
@@ -84,6 +99,55 @@ export function formatVerdict(verdict: ChainVerdict): LedgerCliResult {
     ...verdict.problems.map(({ seq, problem, detail }) => `#${seq} ${problem} ${detail}`),
   ];
   return { exitCode: EXIT_BROKEN, stdout: `${lines.join("\n")}\n`, stderr: "" };
+}
+
+// What `check-export` prints for a checked file: the intact sentence and head, or one line per
+// problem. A file that says the log was broken when it was exported also exits 1, with a line
+// saying so, since its head can't be trusted.
+export function formatEvidenceCheck(check: Extract<EvidenceCheck, { ok: true }>): LedgerCliResult {
+  const { file, problems } = check;
+  const lines = problems.map(({ seq, problem, detail }) => `#${seq} ${problem} ${detail}`);
+  if (!file.chain.intact) {
+    lines.push(
+      `The audit log was broken when this was exported: ${plural(file.chain.problem_count, "problem", "problems")}.`,
+    );
+  }
+  if (lines.length > 0) {
+    return { exitCode: EXIT_BROKEN, stdout: `${lines.map(printable).join("\n")}\n`, stderr: "" };
+  }
+  const entries = plural(file.entries.length, "entry", "entries");
+  const head =
+    file.chain.head === null
+      ? "The log was empty at export."
+      : `The log's head at export was #${file.chain.head.seq} ${printable(file.chain.head.hash)}.`;
+  return {
+    exitCode: EXIT_OK,
+    stdout: `Evidence intact: ${entries}, each matching its hash. ${head}\n`,
+    stderr: "",
+  };
+}
+
+async function checkExportFile(path: string): Promise<LedgerCliResult> {
+  const name = printable(path);
+  let text: string;
+  try {
+    text = await readFile(path, "utf8");
+  } catch (error) {
+    const code =
+      error instanceof Error && "code" in error && typeof error.code === "string"
+        ? ` (${error.code})`
+        : "";
+    return failure(`Couldn't read ${name}${code}.`);
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return failure(`Couldn't read ${name}. It isn't JSON.`);
+  }
+  const check = checkEvidence(value);
+  if (!check.ok) return failure(`Couldn't read ${name}. ${printable(check.error)}`);
+  return formatEvidenceCheck(check);
 }
 
 const TailRowSchema = z.object({
@@ -177,6 +241,7 @@ export async function runLedgerCli(
   if (!option.ok) return failure(`${option.error} ${LEDGER_USAGE}`);
   const command = parseCommand(option.rest);
   if (typeof command === "string") return failure(command);
+  if (command.command === "check-export") return checkExportFile(command.file);
   const target = resolveDatabaseTarget(env, option.pgliteDir);
 
   return withTarget(target, async (handle) => {

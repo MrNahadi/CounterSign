@@ -11,3 +11,8 @@
 - Output is already snake_case. Row `status` is `{ kind, execution }`; kinds: executed, failed, unknown, pending, not_executable, open, approved, denied, expired, and also `unknown` for a step-up whose answer entry can't be read (console should show "Not confirmed yet"). Detail returns null for not-found, `{ readable: false, problem, payload, ... }` for unreadable.
 - Exported `IntentSchema`, `TraceEntrySchema`, `ReasonSchema` from approval-log and `amountOf`, `targetOf`, `ticketOf` from approval-cards for reuse.
 - Verify isn't in the reader: T-005 can wrap `verifyLog` directly. Reason code for beat 3's sender mismatch is `TICKET_NOT_FROM_PAYER`; KIK-1039 matches `refund-lost-parcel` (its require fails).
+
+## T-003 (done)
+- Added `packages/ledger/src/evidence.ts`: `buildEvidence(db, { scope, seqs, exportedAt })` (fresh `verifyLog`, then `readRowsBySeq`; throws `EvidenceRowsMissingError` for a seq not in the log, zod error for empty seqs), `checkEvidence(value)` (`{ ok, file, problems }` or `{ ok: false, error }`), `EvidenceFileSchema`, `EVIDENCE_FORMAT`, `EVIDENCE_CHECK`. CLI gains `check-export <file>` (no database opened). Tests in `packages/ledger/test/evidence.test.ts`.
+- File keys are snake_case: `chain` is `{ intact, entry_count, head: { seq, hash } | null, problem_count }`; entries `{ seq, entry_type, ref_id, at, payload, prev_hash, hash }`. A broken chain's head is the highest-seq stored row (verdicts don't carry one). Problem codes: `SEQ_ORDER`, `NOT_CANONICAL`, `HASH_MISMATCH`.
+- `check-export` also exits 1 (with the line "The audit log was broken when this was exported: N problems.") when the file's `chain.intact` is false, failing closed. T-004/T-007 must pass `exportedAt` from an injected clock and select seqs themselves.

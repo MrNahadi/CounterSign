@@ -34,16 +34,16 @@ Notes:
 
 ## T-003: The evidence file and `ledger check-export`
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: Chosen audit-log rows become a `countersign-evidence-v1` file with the chain verdict and head, and `npm run ledger -- check-export <file>` re-hashes every row in it.
 Test seam: `@countersign/ledger`'s evidence builder, `checkEvidence` and `runLedgerCli`, over PGlite
 Acceptance:
-- [ ] The file holds `format`, `exported_at`, `scope`, `chain` (from a fresh verify), the rows exactly as stored in ascending `seq`, and the fixed `check` sentence; it's validated by an exported zod schema
-- [ ] `checkEvidence` passes on a built file, and names the `seq` when a payload character, a hash, the `seq` order or a payload's canonical form is changed
-- [ ] `check-export` exits 0 with the intact sentence and head, 1 with one line per problem, 2 for an unreadable or invalid file; the usage line names it; one child-process run
-- [ ] The existing ledger tests pass unchanged, and the ledger still imports no AI SDK
+- [x] The file holds `format`, `exported_at`, `scope`, `chain` (from a fresh verify), the rows exactly as stored in ascending `seq`, and the fixed `check` sentence; it's validated by an exported zod schema
+- [x] `checkEvidence` passes on a built file, and names the `seq` when a payload character, a hash, the `seq` order or a payload's canonical form is changed
+- [x] `check-export` exits 0 with the intact sentence and head, 1 with one line per problem, 2 for an unreadable or invalid file; the usage line names it; one child-process run
+- [x] The existing ledger tests pass unchanged, and the ledger still imports no AI SDK
 Notes:
 
 ## T-004: Evidence selection by intent and by capture

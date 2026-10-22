@@ -1,4 +1,4 @@
-// Entry point for `npm run ledger -- verify | tail [count]`.
+// Entry point for `npm run ledger -- verify | tail [count] | check-export <file>`.
 
 import { runLedgerCli } from "./cli";
 
