@@ -62,6 +62,14 @@ describe("console setup", () => {
     expect(read("../app/decisions/[seq]/copy-reply.tsx")).not.toContain("@countersign/mandate");
   });
 
+  it("shows the audit log behind the shared sign-in, scrolling its table in its box", () => {
+    const page = read("../app/audit/page.tsx");
+    expect(page).toContain("line={AUDIT_ROUTE_MESSAGES.signInLine}");
+    expect(page).toContain("APPROVAL_ROUTE_MESSAGES.signInAgain");
+    expect(page).toMatch(/className="overflow-x-auto[^"]*"\s*>\s*<table/);
+    expect(page).toContain("title={hash.full}");
+  });
+
   it("keeps Resolve's address out of browser code", () => {
     for (const path of ["../app/console-nav.tsx", "../app/inbox/refresh-while-working.tsx"]) {
       expect(read(path)).not.toContain("RESOLVE_AGENT_URL");

@@ -55,3 +55,7 @@
 - Trail sentences are `Piece[]` (`{text}|{mono}|{code}`) so sandbox IDs render mono. An unknown or pending execution (or a step-up whose answer can't be read) says "PayPal hasn't confirmed it yet." rather than "No money moved." (fail closed; not in requirements' copy list).
 - A malformed seq or intent ID shows the not-found sentence (the loader's 400), like a 404. Hash tooltips use `title` plus an sr-only full value.
 - Biome flags array-index keys; key rows by content (check, verifier, call-id).
+
+## T-011 (done)
+- Added `apps/console/src/audit-view.ts` (`auditView(page, verdict|null, now)`, `verdictView`, `auditHref`, `auditParamsOf`, `AUDIT_COPY`) and `apps/console/app/audit/page.tsx`. Tests in `apps/console/test/audit-view.test.ts` and `console-setup.test.ts`.
+- "Check the chain" is a link to `/audit?check=1` (the server page runs verify only then; "Older entries" keeps `check=1`). No client JS. Decision rows link via the summary; only type `decision` links.

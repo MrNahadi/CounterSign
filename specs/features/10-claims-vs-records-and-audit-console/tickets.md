@@ -146,15 +146,15 @@ Notes:
 
 ## T-011: The Audit log page
 
-Status: open
+Status: done
 Blocked by: T-008
 Tier: simple
 Slice: `/audit` lists every audit-log entry newest first and checks the chain on demand, showing the verdict, head and any problems.
 Test seam: the audit-log view model in `apps/console/src/` over recorded gate answers, plus the Graphite design check
 Acceptance:
-- [ ] The table shows seq, when, type, summary, ref and a truncated hash with its full value in a tooltip; decision rows link to their page; "Older entries" pages back
-- [ ] "Check the chain" shows "Chain intact: N entries. Head #S <hash>." or "Chain broken: N problems." with one line per problem
-- [ ] Signed out, the shared sign-in shows; the design check passes
+- [x] The table shows seq, when, type, summary, ref and a truncated hash with its full value in a tooltip; decision rows link to their page; "Older entries" pages back
+- [x] "Check the chain" shows "Chain intact: N entries. Head #S <hash>." or "Chain broken: N problems." with one line per problem
+- [x] Signed out, the shared sign-in shows; the design check passes
 Notes:
 
 ## T-012: Two columns on the approvals card
