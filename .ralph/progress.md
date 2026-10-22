@@ -63,3 +63,7 @@
 ## T-011 done
 - `apps/console/src/qr-view.ts` (`approvalsUrl`, `requestOrigin`, `qrView` -> run-length rects with a 4-module quiet zone, `QR_COPY`), `app/manifest.ts` (no colours), and an `OpenOnPhone` section in the approvals board (`hidden md:flex`, `fill-current` modules on `bg-container`). Tests: `apps/console/test/qr-view.test.ts`.
 - Gotcha: `uqr` was declared in the lockfile but missing from `node_modules` in this checkout; `npm install --ignore-scripts` installed it with no file changes. The QR shows only on the signed-in page, built on the server from `CONSOLE_PUBLIC_URL` or the request's host headers; a non-http(s) public URL is ignored.
+
+## T-012 done
+- Resolve's `GET /threads/:id` runs gain `held` (`heldCalls(trace)` + `readHeld(db, calls, now)` in `apps/resolve-agent/src/executions.ts`): per `pending_approval` intent, state approved|denied|expired|waiting plus outcome and refund/invoice record. Console `RunSchema.held` defaults to `[]`; inbox rows show "Approved by you" (refund or invoice ID), "Denied by you", "Expired, so denied", "Waiting for approval".
+- Gotcha: a rejected or unreadable `approval` entry is no answer (call stays waiting, or expired past `expires_at`); expiry uses the app's injected clock. A pending response without `expires_at` never shows expired.

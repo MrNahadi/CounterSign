@@ -55,6 +55,7 @@ const detail = {
       finished_at: null,
       trace: null,
       executions: [],
+      held: [],
     },
   ],
 };

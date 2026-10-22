@@ -145,6 +145,11 @@ function ToolCall({ row }: { row: ToolRow }) {
           PayPal refund <Code>{row.refundId}</Code>
         </p>
       ) : null}
+      {row.invoiceId !== null && row.decision !== null ? (
+        <p className="text-body-sm text-secondary-foreground">
+          PayPal invoice <Code>{row.invoiceId}</Code>
+        </p>
+      ) : null}
     </li>
   );
 }

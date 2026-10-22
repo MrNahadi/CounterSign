@@ -3,7 +3,7 @@ import { createTestDatabase, type DatabaseHandle, finishRun, startRun } from "@c
 import { appendEntry } from "@countersign/ledger";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app";
-import { allowedIntentIds, readExecutions } from "../src/executions";
+import { allowedIntentIds, heldCalls, readExecutions, readHeld } from "../src/executions";
 import { storeMessage } from "../src/intake";
 import { createRunQueue } from "../src/queue";
 
@@ -140,5 +140,114 @@ describe("allowed intents and their executions", () => {
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  });
+});
+
+describe("held calls and what happened to them", () => {
+  const HELD_APPROVED = "int_111111111111111111111111";
+  const HELD_DENIED = "int_222222222222222222222222";
+  const HELD_EXPIRED = "int_333333333333333333333333";
+  const HELD_WAITING = "int_444444444444444444444444";
+  const HELD_REJECTED = "int_555555555555555555555555";
+  const FUTURE = "2026-10-20T08:15:00.000Z";
+  const PAST = "2026-10-20T07:45:00.000Z";
+
+  const held = (intentId: string, expiresAt: string) =>
+    toolStep({
+      decision: "pending_approval",
+      intent_id: intentId,
+      reasons: [{ code: "AMOUNT_OVER_CAP", detail: "x" }],
+      expires_at: expiresAt,
+    });
+
+  const heldTrace = {
+    steps: [
+      held(HELD_APPROVED, FUTURE),
+      held(HELD_APPROVED, FUTURE),
+      held(HELD_DENIED, FUTURE),
+      held(HELD_EXPIRED, PAST),
+      held(HELD_WAITING, FUTURE),
+      held(HELD_REJECTED, PAST),
+      toolStep({ decision: "allowed", intent_id: ALLOWED }),
+    ],
+  };
+
+  const answer = (intentId: string, outcome: string, extra: object = {}) =>
+    appendEntry(handle.db, {
+      entryType: "approval",
+      refId: intentId,
+      at: NOW.toISOString(),
+      payload: {
+        stepUpSeq: 1,
+        intentHash: "a".repeat(64),
+        answer: outcome === "denied" ? "deny" : "approve",
+        outcome,
+        approver: "merchant",
+        channel: "approvals_page",
+        ...extra,
+      },
+    });
+
+  it("finds each held intent once, with its expiry", () => {
+    expect(heldCalls(heldTrace).map((call) => call.intentId)).toEqual([
+      HELD_APPROVED,
+      HELD_DENIED,
+      HELD_EXPIRED,
+      HELD_WAITING,
+      HELD_REJECTED,
+    ]);
+    expect(heldCalls(heldTrace)[0]?.expiresAt).toBe(FUTURE);
+    expect(heldCalls(null)).toEqual([]);
+  });
+
+  it("reports approved with the refund, denied, expired and waiting", async () => {
+    await answer(HELD_APPROVED, "approved");
+    await result(HELD_APPROVED, {
+      requestSeq: 2,
+      outcome: "executed",
+      refund: { id: "4XJ12345AB", status: "COMPLETED" },
+    });
+    await answer(HELD_DENIED, "denied");
+    await answer(HELD_REJECTED, "rejected", { code: "EXPIRED" });
+    const views = await readHeld(handle.db, heldCalls(heldTrace), NOW);
+    const by = (id: string) => views.find((view) => view.intent_id === id);
+    expect(by(HELD_APPROVED)).toMatchObject({
+      state: "approved",
+      outcome: "executed",
+      refund_id: "4XJ12345AB",
+      refund_status: "COMPLETED",
+      invoice_id: null,
+    });
+    expect(by(HELD_DENIED)?.state).toBe("denied");
+    expect(by(HELD_EXPIRED)?.state).toBe("expired");
+    expect(by(HELD_WAITING)?.state).toBe("waiting");
+    expect(by(HELD_REJECTED)?.state).toBe("expired");
+  });
+
+  it("reports an approved invoice send, and an approval with no result yet", async () => {
+    await answer(HELD_APPROVED, "approved");
+    await answer(HELD_DENIED, "approved");
+    await result(HELD_DENIED, {
+      requestSeq: 3,
+      outcome: "executed",
+      invoice: { id: "INV2-AB12", status: "SENT" },
+    });
+    const views = await readHeld(handle.db, heldCalls(heldTrace), NOW);
+    expect(views.find((view) => view.intent_id === HELD_APPROVED)).toMatchObject({
+      state: "approved",
+      outcome: null,
+      refund_id: null,
+    });
+    expect(views.find((view) => view.intent_id === HELD_DENIED)).toMatchObject({
+      state: "approved",
+      invoice_id: "INV2-AB12",
+      invoice_status: "SENT",
+    });
+  });
+
+  it("never reads an unreadable answer as approved", async () => {
+    await answer(HELD_WAITING, "maybe");
+    const views = await readHeld(handle.db, heldCalls(heldTrace), NOW);
+    expect(views.find((view) => view.intent_id === HELD_WAITING)?.state).toBe("waiting");
   });
 });

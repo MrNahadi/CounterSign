@@ -75,6 +75,17 @@ export const ExecutionSchema = z.object({
   refund_status: Nullable,
 });
 
+/** What happened to a call the gate held. Older answers have no `held` and read as none. */
+export const HeldSchema = z.object({
+  intent_id: z.string(),
+  state: z.enum(["approved", "denied", "expired", "waiting"]),
+  outcome: z.enum(["executed", "failed", "unknown"]).nullable(),
+  refund_id: Nullable,
+  refund_status: Nullable,
+  invoice_id: Nullable,
+  invoice_status: Nullable,
+});
+
 export const RunSchema = z.object({
   run_id: z.string().min(1),
   ticket_id: ThreadIdSchema,
@@ -89,6 +100,7 @@ export const RunSchema = z.object({
   finished_at: Time.nullable(),
   trace: TraceSchema.nullable(),
   executions: z.array(ExecutionSchema),
+  held: z.array(HeldSchema).default([]),
 });
 
 export const ThreadDetailSchema = z.object({

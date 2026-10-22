@@ -162,15 +162,15 @@ Notes:
 
 ## T-012: What happened to held calls, in the inbox
 
-Status: open
+Status: done
 Blocked by: T-001, T-002
 Tier: simple
 Slice: In the inbox, beat 5's "Waiting for approval" row turns into "Approved by you" with the refund ID once the merchant approves.
 Test seam: resolve-agent's execution read (`GET /threads/:id`'s per-run executions) and the console's inbox view model
 Acceptance:
-- [ ] For each `pending_approval` call in a run's trace, Resolve reports the latest answer for that intent (approved, denied, expired by its `expires_at`, or waiting) and, for approved, the execution outcome and refund or invoice ID
-- [ ] The console schema and inbox rows show "Approved by you" with the ID, "Denied by you", "Expired, so denied" or "Waiting for approval"
-- [ ] Old answers without the new fields still parse
+- [x] For each `pending_approval` call in a run's trace, Resolve reports the latest answer for that intent (approved, denied, expired by its `expires_at`, or waiting) and, for approved, the execution outcome and refund or invoice ID
+- [x] The console schema and inbox rows show "Approved by you" with the ID, "Denied by you", "Expired, so denied" or "Waiting for approval"
+- [x] Old answers without the new fields still parse
 Notes:
 
 ## T-013: Live checks for invoice send and approvals

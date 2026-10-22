@@ -11,7 +11,7 @@ import {
 } from "@countersign/db";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
-import { allowedIntentIds, readExecutions } from "./executions";
+import { allowedIntentIds, heldCalls, readExecutions, readHeld } from "./executions";
 import { storeMessage } from "./intake";
 import { DEFAULT_DAILY_RUN_CAP, utcDate } from "./limits";
 import { checkMessage } from "./messages";
@@ -173,7 +173,8 @@ export function createApp(deps: AppDeps) {
     const runs = [];
     for (const run of await readRunsByThread(db(), id.data)) {
       const executions = await readExecutions(db(), allowedIntentIds(run.trace));
-      runs.push({ ...runView(run), executions });
+      const held = await readHeld(db(), heldCalls(run.trace), clock());
+      runs.push({ ...runView(run), executions, held });
     }
     res.json({ thread_id: id.data, messages: tickets.map(ticketView), runs });
   });

@@ -56,7 +56,13 @@ export type ThreadListItem = {
 };
 
 export type DecisionView = {
-  label: "Allowed" | "Waiting for approval" | "Denied";
+  label:
+    | "Allowed"
+    | "Waiting for approval"
+    | "Approved by you"
+    | "Denied by you"
+    | "Expired, so denied"
+    | "Denied";
   tone: Tone;
   reasons: { words: string; code: string }[];
 };
@@ -71,6 +77,8 @@ export type ToolRow = {
   decision: DecisionView | null;
   /** PayPal's refund ID, for an allowed refund the gate executed or a baseline refund. */
   refundId: string | null;
+  /** PayPal's invoice ID, for a held invoice send the merchant approved. */
+  invoiceId: string | null;
   /** A baseline money call: no Countersign checks. */
   noChecks: boolean;
 };
@@ -291,7 +299,15 @@ function answerObject(structured: unknown, text: string | null): Record<string, 
 
 const str = (value: unknown) => (typeof value === "string" && value !== "" ? value : null);
 
-export function toolRow(step: ToolStep, run: Pick<Run, "mode" | "executions">): ToolRow {
+/** What a held call turned into, once the merchant answered or the step-up ran out. */
+const HELD_STATES = {
+  approved: { label: "Approved by you", tone: "positive" },
+  denied: { label: "Denied by you", tone: "danger" },
+  expired: { label: "Expired, so denied", tone: "danger" },
+  waiting: { label: "Waiting for approval", tone: "warning" },
+} as const;
+
+export function toolRow(step: ToolStep, run: Pick<Run, "mode" | "executions" | "held">): ToolRow {
   const row: ToolRow = {
     id: step.id,
     name: step.name,
@@ -299,6 +315,7 @@ export function toolRow(step: ToolStep, run: Pick<Run, "mode" | "executions">): 
     result: "Answered.",
     decision: null,
     refundId: null,
+    invoiceId: null,
     noChecks: run.mode === "baseline" && MONEY_TOOLS.includes(step.name),
   };
   if (step.result === null) return { ...row, result: "The connection to the tool failed." };
@@ -313,7 +330,12 @@ export function toolRow(step: ToolStep, run: Pick<Run, "mode" | "executions">): 
     const decided = AgentResponseSchema.safeParse(result.data.structuredContent);
     if (decided.success) {
       const response = decided.data;
-      const shown = DECISIONS[response.decision];
+      const heldCall =
+        response.decision === "pending_approval"
+          ? run.held.find((entry) => entry.intent_id === response.intent_id)
+          : undefined;
+      const shown =
+        heldCall === undefined ? DECISIONS[response.decision] : HELD_STATES[heldCall.state];
       const reasons =
         response.decision === "allowed"
           ? []
@@ -326,7 +348,11 @@ export function toolRow(step: ToolStep, run: Pick<Run, "mode" | "executions">): 
         ...row,
         result: shown.label,
         decision: { label: shown.label, tone: shown.tone, reasons },
-        refundId: step.name === "create_refund" ? (execution?.refund_id ?? null) : null,
+        refundId:
+          step.name === "create_refund"
+            ? (execution?.refund_id ?? heldCall?.refund_id ?? null)
+            : null,
+        invoiceId: heldCall?.state === "approved" ? heldCall.invoice_id : null,
       };
     }
   }

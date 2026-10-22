@@ -75,6 +75,7 @@ const run = (runId: string, ticketId: string, extra: Partial<Run> = {}): Run => 
   executions: [
     { intent_id: "int_1", outcome: "executed", refund_id: "REF-1", refund_status: "COMPLETED" },
   ],
+  held: [],
   ...extra,
 });
 

@@ -325,6 +325,59 @@ describe("What Resolve did, protected", () => {
   });
 });
 
+describe("What happened to a held call", () => {
+  const HELD = "int_aaaaaaaaaaaaaaaaaaaaaaaa";
+  const held = (extra: object) => ({
+    intent_id: HELD,
+    state: "waiting",
+    outcome: null,
+    refund_id: null,
+    refund_status: null,
+    invoice_id: null,
+    invoice_status: null,
+    ...extra,
+  });
+  const row = (entry: unknown, run: object = protectedRun) =>
+    runView(parseRun({ ...run, held: entry === null ? undefined : [entry] })).toolRows[3];
+
+  it("reads an old answer with no held field as still waiting", () => {
+    expect(row(null)?.decision?.label).toBe("Waiting for approval");
+    expect(row(held({}))?.decision?.label).toBe("Waiting for approval");
+  });
+
+  it("shows approved with the refund ID, denied, and expired", () => {
+    const refund = {
+      ...protectedRun,
+      trace: {
+        ...protectedRun.trace,
+        steps: protectedRun.trace.steps.map((step) =>
+          "id" in step && step.id === "call_5" ? { ...step, name: "create_refund" } : step,
+        ),
+      },
+    };
+    const approved = row(
+      held({ state: "approved", outcome: "executed", refund_id: "4XJ12345AB" }),
+      refund,
+    );
+    expect(approved?.decision).toMatchObject({ label: "Approved by you", tone: "positive" });
+    expect(approved?.refundId).toBe("4XJ12345AB");
+    expect(row(held({ state: "denied" }))?.decision).toMatchObject({
+      label: "Denied by you",
+      tone: "danger",
+    });
+    expect(row(held({ state: "expired" }))?.decision).toMatchObject({
+      label: "Expired, so denied",
+      tone: "danger",
+    });
+  });
+
+  it("shows an approved invoice's ID", () => {
+    const sent = row(held({ state: "approved", outcome: "executed", invoice_id: "INV2-AB12" }));
+    expect(sent?.invoiceId).toBe("INV2-AB12");
+    expect(sent?.refundId).toBeNull();
+  });
+});
+
 describe("What Resolve did, baseline", () => {
   const view = runView(parseRun(baselineRun));
 
