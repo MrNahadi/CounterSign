@@ -1,6 +1,6 @@
 # Tech stack
 
-Derived from brief §8–§9 and ADRs 0001–0033 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
+Derived from brief §8–§9 and ADRs 0001–0034 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
 
 ## Runtime and tooling
 
@@ -48,7 +48,7 @@ Next.js and React stay on versions with the October 2026 security fixes (ADR 001
 
 ```text
 apps/
-  gate/                 Express 5 + MCP v1 (stateless Streamable HTTP): /mcp, approval API, PayPal webhooks, Daraja callbacks
+  gate/                 Express 5 + MCP v1 (stateless Streamable HTTP): /mcp, approval API, read-only audit API (phase 10), PayPal webhooks, Daraja callbacks
   console/              Next.js: inbox, approvals page, audit console, Risk desk (AG Studio), mandate editor, bench, judge path
   resolve-agent/        Express 5 service (port 8788): message intake, the run queue and the Gemini harness for Resolve (our own function-calling loop); protected mode talks to the gate, baseline mode to baseline-paypal-mcp (ADRs 0030, 0031); the `resolve` CLI and scenarios/
   baseline-paypal-mcp/  Isolated workspace holding @paypal/mcp + agent-toolkit; nothing imports it, it's spawned over stdio
@@ -58,7 +58,7 @@ packages/
   verifiers/            Pure verifier functions over record snapshots, with fixtures
   rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds, disputes lookup and webhook signature verification from phase 6, ADR 0025; get dispute, get invoice and transaction search from phase 7; `issueAccessToken()` for baseline mode's child process from phase 8; invoice send and draft invoices from phase 9, ADR 0033)
   rail-mpesa/           Daraja client, callback parsing, receipt store
-  ledger/               Hash chain, appends, `ledger verify` and its CLI (entry types: `mandate.version`, `decision`, `execution.requested`, `execution.result`, `reconciliation`, and `approval` from phase 9); evidence export (phase 10)
+  ledger/               Hash chain, appends, `ledger verify` and its CLI (entry types: `mandate.version`, `decision`, `execution.requested`, `execution.result`, `reconciliation`, and `approval` from phase 9); the evidence file and `ledger check-export` (phase 10, ADR 0034)
   db/                   Drizzle schema (audit_log, carrier_shipments, seed_orders, tickets from phase 7 (ADR 0029), and tickets.thread_id, ticket_attachments and agent_runs from phase 8 (ADR 0030)), migrations (with the append-only trigger), postgres.js and PGlite clients
   graphite/             Graphite tokens (byte-identical copy), Tailwind theme, AG Studio theme
   carrier-mock/         Carrier adapter interface, and the mock over carrier_shipments (stored status, never derived from the clock; ADR 0023)
@@ -104,6 +104,7 @@ specs/                  Brief, constitution, feature specs
 - Every screen uses `@countersign/graphite`: Tailwind v4 restricted to Graphite semantic tokens, so classes equal token names (`bg-container`, `text-secondary-foreground`). Tailwind's default palette is removed (ADR 0006).
 - No raw hex colors, no emojis, Lucide icons only. Light is the default and dark must work.
 - Load fonts with DESIGN.md's Google Fonts link, not `next/font`.
+- Console view models live in `apps/console/src/` and are tested there; pages and components only render them. Client components never import `@countersign/mandate` or a module that does (such as `inbox-view`), because it pulls in `node:crypto`: build views on the server and pass plain props. Shared client-safe pieces live in `apps/console/app/ui.tsx` (badges, inline code, notices, spinners).
 - A Vitest design check (`packages/graphite/test/design-check.test.ts`) fails on raw hex or color functions, emojis, default Tailwind palette classes, palette steps in app code, drift between `packages/graphite/graphite-tokens.css` and `Graphite Design/graphite-tokens.css`, or a semantic token missing from `packages/graphite/tailwind.css`. It has no per-line escape.
 
 **AI calls** (ADRs 0013–0017)
@@ -127,6 +128,14 @@ specs/                  Brief, constitution, feature specs
 - An approval executes the stored intent, bound by its hash; it never re-reads records or re-decides. The checks, the `approval` entry and the `execution.requested` entry (with `approvalSeq`) are one audit-log transaction; the rail call comes after commit.
 - Allowed and approved intents run through one executor per action. `EXECUTABLE_ACTIONS` lists exactly the actions with an executor (refund and invoice send from phase 9). An invoice send carries no request ID and is never re-sent.
 - The gate's approval API takes only `COUNTERSIGN_APPROVER_KEY`; principal keys never work there and the approver key never works on `/mcp`. The console keeps the key the approver typed in an HttpOnly, SameSite=Strict cookie and reaches the gate from server routes only.
+- The `pending_approval` agent response carries no intent hash; the approver gets it from the card. A re-proposed allowed invoice intent is decided again and answers `allowed`, but is never sent a second time.
+
+**Audit console** (from phase 10, ADR 0034)
+- Claims vs records is built once, in the gate (`claimsVsRecords`), and shown as it comes on the phone card, the console and the `audit` CLI. It's display only: the decision path never imports it, and nothing reads a message to judge it. The records column shows the checks that decided (the matched rules' `require` and `when` facts, or the action's `when` facts when nothing matched).
+- The agent response never carries records. Resolve's inbox links a guarded call to `/decisions/intent/<intent ID>`.
+- The console reads the audit log only through the gate's read-only audit API (`/audit/*`), opened by the approver key and the approvals sign-in cookie. Nothing on it appends to the log.
+- A reader for display lists an unreadable entry as unreadable, with its problem; only readers that guard money (approvals, executions) treat one as making everything unknown.
+- Evidence exports (`countersign-evidence-v1`) carry whole rows as stored, the chain verdict and head; `npm run ledger -- check-export <file>` re-hashes them. A format change is a new version, never an edit of v1.
 
 **Secrets and environment**
 - Real values live only in `.env.local` (git-ignored) and on Render. `.env.example` lists the names.
