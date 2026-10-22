@@ -246,9 +246,21 @@ _Avoid_: root hash, seed
 The last audit-log entry's sequence number and hash. `ledger verify` prints it, so it can be compared with a copy kept elsewhere.
 _Avoid_: tip, latest hash
 
+**Dispute**:
+A buyer's claim against a payment, opened in PayPal's Resolution Center. Its arrival is a `dispute.received` audit-log entry, from the webhook or from `npm run disputes -- sync`.
+_Avoid_: chargeback (a chargeback is one kind of dispute), case
+
 **Evidence pack**:
-The facts drawn from the audit log and tracking to defend a dispute.
+The facts drawn from records (the dispute, capture, trackers, simulated carrier status, refunds, Countersign's decisions on the capture and the capture's evidence export) to defend a dispute, stored as evidence documents. Built without AI.
 _Avoid_: dispute bundle
+
+**Evidence document**:
+One write-once file of an evidence pack: the evidence PDF that's sent to PayPal, or the evidence export JSON beside it. Its SHA-256 is inside the intent that submits it, so an approval binds its exact bytes.
+_Avoid_: attachment (reserved for a customer's photo on a ticket)
+
+**Dispute draft**:
+One Resolve run that turns a dispute into a `provide_dispute_evidence` proposal. Code sets the evidence types, tracking numbers, refund IDs and documents; Gemini writes only the notes, or a fixed template does when the model is unavailable.
+_Avoid_: dispute run, evidence job
 
 ### M-Pesa rail
 

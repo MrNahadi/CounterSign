@@ -1,6 +1,6 @@
 # Tech stack
 
-Derived from brief §8–§9 and ADRs 0001–0034 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
+Derived from brief §8–§9 and ADRs 0001–0035 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
 
 ## Runtime and tooling
 
@@ -38,6 +38,7 @@ Pin exact versions with no `^` or `~`. The build loop can't install packages. Si
 | tailwindcss / @tailwindcss/postcss | 4.3.3 | console, storefront, packages/graphite |
 | lucide-react | 1.58.0 | console, storefront |
 | uqr | 0.1.3 | console (the approvals page's QR code matrix; drawn as SVG with token classes) |
+| pdf-lib | 1.17.1 | gate (the dispute evidence PDF, phase 11; ADR 0035) |
 | @biomejs/biome | 2.5.15 | root |
 | vitest | 4.1.12 | root |
 | @playwright/test | 1.64.1 | root |
@@ -48,18 +49,18 @@ Next.js and React stay on versions with the October 2026 security fixes (ADR 001
 
 ```text
 apps/
-  gate/                 Express 5 + MCP v1 (stateless Streamable HTTP): /mcp, approval API, read-only audit API (phase 10), PayPal webhooks, Daraja callbacks
+  gate/                 Express 5 + MCP v1 (stateless Streamable HTTP): /mcp, approval API, read-only audit API (phase 10), PayPal webhooks (refunds; disputes from phase 11), Daraja callbacks, the `disputes` CLI and the evidence PDF (phase 11, ADR 0035)
   console/              Next.js: inbox, approvals page, audit console, Risk desk (AG Studio), mandate editor, bench, judge path
-  resolve-agent/        Express 5 service (port 8788): message intake, the run queue and the Gemini harness for Resolve (our own function-calling loop); protected mode talks to the gate, baseline mode to baseline-paypal-mcp (ADRs 0030, 0031); the `resolve` CLI and scenarios/
+  resolve-agent/        Express 5 service (port 8788): message intake, the run queue and the Gemini harness for Resolve (our own function-calling loop); protected mode talks to the gate, baseline mode to baseline-paypal-mcp (ADRs 0030, 0031); dispute drafts from phase 11 (`POST /disputes`, ADR 0035); the `resolve` CLI and scenarios/
   baseline-paypal-mcp/  Isolated workspace holding @paypal/mcp + agent-toolkit; nothing imports it, it's spawned over stdio
   storefront/           Next.js Kikapu shop on PayPal JS SDK v6, the product and seed catalogs, and the seed script (`npm run seed`)
 packages/
   mandate/              Mandate schema, rule evaluator, compiler prompt
   verifiers/            Pure verifier functions over record snapshots, with fixtures
-  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds, disputes lookup and webhook signature verification from phase 6, ADR 0025; get dispute, get invoice and transaction search from phase 7; `issueAccessToken()` for baseline mode's child process from phase 8; invoice send and draft invoices from phase 9, ADR 0033)
+  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds, disputes lookup and webhook signature verification from phase 6, ADR 0025; get dispute, get invoice and transaction search from phase 7; `issueAccessToken()` for baseline mode's child process from phase 8; invoice send and draft invoices from phase 9, ADR 0033; accept claim, make offer, provide evidence and the sandbox-only require evidence and adjudicate from phase 11, ADR 0035)
   rail-mpesa/           Daraja client, callback parsing, receipt store
-  ledger/               Hash chain, appends, `ledger verify` and its CLI (entry types: `mandate.version`, `decision`, `execution.requested`, `execution.result`, `reconciliation`, and `approval` from phase 9); the evidence file and `ledger check-export` (phase 10, ADR 0034)
-  db/                   Drizzle schema (audit_log, carrier_shipments, seed_orders, tickets from phase 7 (ADR 0029), and tickets.thread_id, ticket_attachments and agent_runs from phase 8 (ADR 0030)), migrations (with the append-only trigger), postgres.js and PGlite clients
+  ledger/               Hash chain, appends, `ledger verify` and its CLI (entry types: `mandate.version`, `decision`, `execution.requested`, `execution.result`, `reconciliation`, `approval` from phase 9, and `dispute.received` from phase 11); the evidence file and `ledger check-export` (phase 10, ADR 0034)
+  db/                   Drizzle schema (audit_log, carrier_shipments, seed_orders, tickets from phase 7 (ADR 0029), and tickets.thread_id, ticket_attachments and agent_runs from phase 8 (ADR 0030), and evidence_documents and dispute_drafts from phase 11 (ADR 0035)), migrations (with the append-only trigger), postgres.js and PGlite clients
   graphite/             Graphite tokens (byte-identical copy), Tailwind theme, AG Studio theme
   carrier-mock/         Carrier adapter interface, and the mock over carrier_shipments (stored status, never derived from the clock; ADR 0023)
 bench/                  cases/, runner, results/ (committed, dated)
@@ -137,11 +138,18 @@ specs/                  Brief, constitution, feature specs
 - A reader for display lists an unreadable entry as unreadable, with its problem; only readers that guard money (approvals, executions) treat one as making everything unknown.
 - Evidence exports (`countersign-evidence-v1`) carry whole rows as stored, the chain verdict and head; `npm run ledger -- check-export <file>` re-hashes them. A format change is a new version, never an edit of v1.
 
+**Disputes** (from phase 11, ADR 0035)
+- A dispute arrives as one `dispute.received` entry, from a verified `CUSTOMER.DISPUTE.CREATED` webhook (re-read, never the body) or from `npm run disputes -- sync`. The gate then nudges Resolve (`POST /disputes`, best effort, 2 s); nothing depends on the nudge.
+- Evidence packs are built without AI from records and stored write-once in `evidence_documents` (PDF and export JSON). The PDF's `{ id, name, sha256 }` is inside the `provide_dispute_evidence` intent hash, and the executor refuses bytes whose SHA-256 differs.
+- `prepare_dispute_evidence` is a non-guarded extension: it moves no money and never answers a payer email, ticket text or credential.
+- Resolve's drafter makes one structured Gemini call that writes notes only; code sets evidence types, tracking numbers, refund IDs and documents. Without the model it uses the fixed template (`drafted_by: template`).
+- Dispute actions (accept claim, make offer, provide evidence) are sent once with no request ID and never retried, like invoice sends. Executed ones count in today's usage.
+
 **Secrets and environment**
 - Real values live only in `.env.local` (git-ignored) and on Render. `.env.example` lists the names.
 - Load env with `tsx --env-file-if-exists=.env.local`, so scripts also run in cloud sessions, where the environment holds the values and there's no `.env.local`. Never print, log or commit a secret, `DATABASE_URL` included.
 - Principal keys (from phase 7) are environment variables, one per principal: `COUNTERSIGN_SUPPORT_AGENT_KEY` now, `COUNTERSIGN_OPS_AGENT_KEY` from phase 12. A key shorter than 32 characters counts as unset. The gate and Resolve read the same variable.
-- Service addresses (from phase 8): `GATE_MCP_URL` (Resolve's way to the gate, default `http://127.0.0.1:8787/mcp`) and `RESOLVE_AGENT_URL` (the console's way to Resolve, default `http://127.0.0.1:8788`). From phase 9: `GATE_URL` (the console's way to the gate's approval API, default `http://127.0.0.1:8787`) and `CONSOLE_PUBLIC_URL` (optional, the address the QR code points at).
+- Service addresses (from phase 8): `GATE_MCP_URL` (Resolve's way to the gate, default `http://127.0.0.1:8787/mcp`) and `RESOLVE_AGENT_URL` (the console's way to Resolve, default `http://127.0.0.1:8788`). From phase 9: `GATE_URL` (the console's way to the gate's approval API, default `http://127.0.0.1:8787`) and `CONSOLE_PUBLIC_URL` (optional, the address the QR code points at). From phase 11 the gate also reads `RESOLVE_AGENT_URL` (for the dispute nudge). `PAYPAL_LIVE_DISPUTE_ID` (optional) names a sandbox dispute for phase 11's `LIVE=1` check.
 - The approver key (from phase 9) is `COUNTERSIGN_APPROVER_KEY`, read by the gate only. Under 32 characters, or equal to a principal key, it counts as unset.
 - Unit tests never need credentials. Tests that hit live sandboxes run only under `LIVE=1` and are not part of the Feedback commands.
 
