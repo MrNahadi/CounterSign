@@ -45,17 +45,17 @@ Notes:
 
 ## T-004: The dispute webhook and the nudge
 
-Status: open
+Status: done
 Blocked by: T-001, T-002
 Tier: standard
 Slice: A signed `CUSTOMER.DISPUTE.CREATED` event makes the gate re-read the dispute, record `dispute.received` once, and tell Resolve.
 Test seam: `handlePayPalWebhook` with a fake verifier, fake rail and an injected fetch, and the gate's webhook route over HTTP
 Acceptance:
-- [ ] A verified event appends one `dispute.received` built from the re-read dispute, never from the event body
-- [ ] A redelivered event ID answers "Already recorded." and writes nothing; `.UPDATED` and `.RESOLVED` are ignored
-- [ ] A bad signature, a missing `dispute_id`, an unreadable dispute and a log that can't be written answer as requirements.md says
-- [ ] After a new entry, `POST <RESOLVE_AGENT_URL>/disputes` is sent once with the dispute ID; a failing or slow fetch (over 2 s) changes no answer
-- [ ] Refund webhooks still reconcile as before
+- [x] A verified event appends one `dispute.received` built from the re-read dispute, never from the event body
+- [x] A redelivered event ID answers "Already recorded." and writes nothing; `.UPDATED` and `.RESOLVED` are ignored
+- [x] A bad signature, a missing `dispute_id`, an unreadable dispute and a log that can't be written answer as requirements.md says
+- [x] After a new entry, `POST <RESOLVE_AGENT_URL>/disputes` is sent once with the dispute ID; a failing or slow fetch (over 2 s) changes no answer
+- [x] Refund webhooks still reconcile as before
 Notes:
 
 ## T-005: The `disputes` CLI

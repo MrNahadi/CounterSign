@@ -15,3 +15,8 @@
 ## T-003 (done)
 - `@countersign/db`: tables `evidence_documents` (write-once trigger, TRUNCATE allowed) and `dispute_drafts` (`id` PK, `dispute_id` unique, `seq` for order), one migration `0005_absent_screwball.sql`. New `evidence.ts`: `writeEvidenceDocument` (computes `size` and `sha256`; same contents is `unchanged`, other contents throws), `readEvidenceDocument`, `listEvidenceDocuments(disputeId)`, `sha256Hex`.
 - Gotcha: `dispute_drafts` has no helpers yet; T-009 adds them. `dispute_id` is unique, so a "Draft again" on a failed draft must replace or update that row, not insert a second.
+
+## T-004 (done)
+- `webhook.ts`: `CUSTOMER.DISPUTE.CREATED` reads `resource.dispute_id`, re-reads with `getDispute`, appends `dispute.received` (once per event ID, checked again under the lock) and answers "Recorded." / "Already recorded."; `.UPDATED`/`.RESOLVED` stay "Event type not handled."; unreadable dispute or log is 503. Refund handling moved unchanged into `reconcileRefund`.
+- New `apps/gate/src/nudge.ts`: `nudgeResolve(disputeId, { env, fetch? })` returns whether Resolve took it (2xx within `NUDGE_TIMEOUT_MS` 2000), never throws; `resolveAgentUrl(env)` defaults to `http://127.0.0.1:8788`. The webhook fires it without awaiting. `AppDeps` and `WebhookDeps` gain `fetch?: NudgeFetch`.
+- Gotcha for T-005: the CLI should `await nudgeResolve` and print the "Resolve wasn't reachable" line when it answers false. A new event ID for an already-recorded dispute appends again (ADR 0035: one entry per webhook event ID); only polling dedupes per dispute.

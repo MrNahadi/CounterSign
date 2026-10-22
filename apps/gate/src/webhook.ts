@@ -1,21 +1,27 @@
-// The PayPal webhook (ADR 0025, ADR 0026). A verified PAYMENT.CAPTURE.REFUNDED event is
+// The PayPal webhook (ADR 0025, ADR 0026, ADR 0035). A verified PAYMENT.CAPTURE.REFUNDED event is
 // reconciled in the audit log, once per event ID, from the refund as re-read from PayPal, never
-// from the event body. No AI. Nothing here logs or answers with the body, a header or a secret.
+// from the event body. A verified CUSTOMER.DISPUTE.CREATED event appends one `dispute.received`
+// entry per event ID, from the dispute as re-read, and then nudges Resolve. No AI. Nothing here
+// logs or answers with the body, a header or a secret.
 
 import type { Database } from "@countersign/db";
 import { withAuditLog } from "@countersign/ledger";
 import { IdSchema } from "@countersign/mandate";
 import {
   type PayPalClient,
+  type PayPalDisputeDetail,
   PayPalError,
   type PayPalRefund,
   parsePayPalWebhookId,
 } from "@countersign/rail-paypal";
 import { z } from "zod";
+import { disputeReceivedEntry, readDisputeState } from "./dispute-log";
 import { readReconciliationState, reconciliationEntry } from "./execution-log";
+import { type NudgeFetch, nudgeResolve } from "./nudge";
 
 export const WEBHOOK_BODY_LIMIT = "64kb";
 export const REFUNDED_EVENT = "PAYMENT.CAPTURE.REFUNDED";
+export const DISPUTE_CREATED_EVENT = "CUSTOMER.DISPUTE.CREATED";
 
 export type WebhookAnswer = { status: 200 | 400 | 413 | 503; message: string };
 
@@ -23,6 +29,8 @@ export type WebhookAnswer = { status: 200 | 400 | 413 | 503; message: string };
 export const ANSWERS = {
   reconciled: { status: 200, message: "Reconciled." },
   duplicate: { status: 200, message: "Already reconciled." },
+  recorded: { status: 200, message: "Recorded." },
+  alreadyRecorded: { status: 200, message: "Already recorded." },
   ignored: { status: 200, message: "Event type not handled." },
   badRequest: { status: 400, message: "Bad request." },
   badSignature: { status: 400, message: "Signature not verified." },
@@ -46,14 +54,17 @@ const EventSchema = z.object({
   resource: z.unknown().optional(),
 });
 const RefundResourceSchema = z.object({ id: IdSchema });
+const DisputeResourceSchema = z.object({ dispute_id: IdSchema });
 
 export type WebhookDeps = {
   db?: Database;
   // Throws when the rail client can't be built, such as with PayPal's variables missing.
   rail?: () => PayPalClient;
   env: Readonly<Record<string, string | undefined>>;
-  // The time a reconciliation is logged at. Not part of any decision.
+  // The time a reconciliation or a dispute is logged at. Not part of any decision.
   clock: () => Date;
+  // The nudge's way to Resolve, for tests. Defaults to the global fetch.
+  fetch?: NudgeFetch;
 };
 
 export type WebhookRequest = {
@@ -129,7 +140,20 @@ export async function handlePayPalWebhook(
   // 3. The event.
   const event = eventOf(rawBody);
   if (event === null) return ANSWERS.badRequest;
-  if (event.event_type !== REFUNDED_EVENT) return ANSWERS.ignored;
+  const verified = { db, rail, event, deps };
+  if (event.event_type === REFUNDED_EVENT) return reconcileRefund(verified);
+  if (event.event_type === DISPUTE_CREATED_EVENT) return recordDispute(verified);
+  return ANSWERS.ignored;
+}
+
+type VerifiedEvent = {
+  db: Database;
+  rail: PayPalClient;
+  event: { id: string; event_type: string; resource?: unknown };
+  deps: WebhookDeps;
+};
+
+async function reconcileRefund({ db, rail, event, deps }: VerifiedEvent): Promise<WebhookAnswer> {
   const resource = RefundResourceSchema.safeParse(event.resource);
   if (!resource.success) return ANSWERS.badRequest;
 
@@ -173,4 +197,49 @@ export async function handlePayPalWebhook(
     // The log couldn't be read or written, or the refund can't be recorded as it is.
     return ANSWERS.unavailable;
   }
+}
+
+async function recordDispute({ db, rail, event, deps }: VerifiedEvent): Promise<WebhookAnswer> {
+  const resource = DisputeResourceSchema.safeParse(event.resource);
+  if (!resource.success) return ANSWERS.badRequest;
+
+  let answer: WebhookAnswer;
+  let dispute: PayPalDisputeDetail;
+  try {
+    // 4. A redelivered event writes nothing. Checked again under the lock below.
+    const before = await readDisputeState(db);
+    if (!before.known) return ANSWERS.unavailable;
+    if (before.state.events.has(event.id)) return ANSWERS.alreadyRecorded;
+
+    // 5. The dispute as PayPal has it now, read outside the ledger's lock.
+    try {
+      dispute = await rail.getDispute(resource.data.dispute_id);
+    } catch {
+      return ANSWERS.unavailable;
+    }
+
+    answer = await withAuditLog(db, async (log) => {
+      const read = await readDisputeState(log.tx);
+      if (!read.known) return ANSWERS.unavailable;
+      if (read.state.events.has(event.id)) return ANSWERS.alreadyRecorded;
+      await log.append(
+        disputeReceivedEntry({
+          at: deps.clock().toISOString(),
+          source: "webhook",
+          event: { id: event.id, type: event.event_type },
+          dispute,
+        }),
+      );
+      return ANSWERS.recorded;
+    });
+  } catch {
+    // The log couldn't be read or written, or the dispute can't be recorded as it is.
+    return ANSWERS.unavailable;
+  }
+
+  // 6. The answer is decided. The nudge runs after it and never changes it.
+  if (answer === ANSWERS.recorded) {
+    void nudgeResolve(dispute.id, { env: deps.env, ...(deps.fetch ? { fetch: deps.fetch } : {}) });
+  }
+  return answer;
 }

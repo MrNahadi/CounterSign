@@ -10,6 +10,7 @@ import { mountApprovals } from "./approvals-api";
 import { approverLines, loadApprover } from "./approver";
 import { mountAudit } from "./audit-api";
 import { mountMcp } from "./mcp";
+import type { NudgeFetch } from "./nudge";
 import { loadPrincipals, MIN_KEY_LENGTH, type Principals } from "./principals";
 import { ANSWERS, handlePayPalWebhook, WEBHOOK_BODY_LIMIT, type WebhookAnswer } from "./webhook";
 
@@ -26,6 +27,8 @@ export type AppDeps = {
   principals?: Principals;
   // Where startup lines go. Never given a secret's value.
   log?: (line: string) => void;
+  // The dispute nudge's way to Resolve, for tests. Defaults to the global fetch.
+  fetch?: NudgeFetch;
 };
 
 // The startup lines about principal keys and the mandate: variable names only, never values.
@@ -71,6 +74,7 @@ export function createApp(deps: AppDeps = {}) {
     ...(railOnce ? { rail: railOnce } : {}),
     env: deps.env ?? {},
     clock: deps.clock ?? (() => new Date()),
+    ...(deps.fetch ? { fetch: deps.fetch } : {}),
   };
 
   const principals = deps.principals ?? loadPrincipals({ env: webhookDeps.env });
