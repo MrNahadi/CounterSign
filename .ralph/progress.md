@@ -59,3 +59,7 @@
 - `ConsoleShell` is now async and server-only: it reads the open-card count itself (2 s timeout, null without the cookie) unless the page passes `openApprovals`. `ConsoleNav` takes `openApprovals`. On phones the sidebar hides the "Countersign" word (sr-only) so the row fits.
 - Shared client-safe UI moved to `app/ui.tsx` (`Badge`, `Code`, `Notice`, `Working`, `Spinner`); `formatTime` moved to `src/time.ts` (re-exported from inbox-view). Never import `inbox-view`/`inbox-parts` into a client component: they pull in `@countersign/mandate`.
 - Choices: an expired card (local clock or state) offers no buttons and shows the EXPIRED sentence; an approved invoice with status SCHEDULED says "Approved. Invoice … is scheduled to send." (requirements only list "is sent"). Answered cards stay on the page with their outcome after the poll drops them. T-011 adds the QR code to this page.
+
+## T-011 done
+- `apps/console/src/qr-view.ts` (`approvalsUrl`, `requestOrigin`, `qrView` -> run-length rects with a 4-module quiet zone, `QR_COPY`), `app/manifest.ts` (no colours), and an `OpenOnPhone` section in the approvals board (`hidden md:flex`, `fill-current` modules on `bg-container`). Tests: `apps/console/test/qr-view.test.ts`.
+- Gotcha: `uqr` was declared in the lockfile but missing from `node_modules` in this checkout; `npm install --ignore-scripts` installed it with no file changes. The QR shows only on the signed-in page, built on the server from `CONSOLE_PUBLIC_URL` or the request's host headers; a non-http(s) public URL is ignored.

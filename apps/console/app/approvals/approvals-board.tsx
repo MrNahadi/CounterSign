@@ -16,6 +16,7 @@ import {
   signIn,
   signOut,
 } from "../../src/approvals-view";
+import { QR_COPY, type QrView } from "../../src/qr-view";
 import { Badge, Code, Notice, Spinner } from "../ui";
 
 // The approvals page (ADR 0032), phone first: the approver signs in with the key, sees each held
@@ -336,12 +337,43 @@ function Recent({ lines }: { lines: RecentLine[] }) {
 type Answered = { card: CardView; outcome: Outcome };
 
 /** Signed in: the open cards, newest first, and the recent answers, re-read every 3 seconds. */
+/** The approvals URL as a QR code, from 768px up: foreground modules on a container background. */
+function OpenOnPhone({ qr }: { qr: QrView }) {
+  return (
+    <section className="hidden flex-col items-start gap-3 md:flex" aria-label={QR_COPY.heading}>
+      <h2 className="text-body-sm font-medium">{QR_COPY.heading}</h2>
+      <svg
+        role="img"
+        aria-label={qr.label}
+        viewBox={`0 0 ${qr.size} ${qr.size}`}
+        shapeRendering="crispEdges"
+        className="size-40 rounded-lg bg-container text-primary-foreground shadow-border"
+      >
+        <title>{qr.label}</title>
+        {qr.rects.map((rect) => (
+          <rect
+            key={`${rect.x}-${rect.y}`}
+            x={rect.x}
+            y={rect.y}
+            width={rect.width}
+            height={1}
+            className="fill-current"
+          />
+        ))}
+      </svg>
+      <p className="text-body-sm text-secondary-foreground">{QR_COPY.line}</p>
+    </section>
+  );
+}
+
 export function ApprovalsBoard({
   view,
   problem,
+  qr = null,
 }: {
   view: PageView | null;
   problem: string | null;
+  qr?: QrView | null;
 }) {
   const router = useRouter();
   const [answered, setAnswered] = useState<Record<string, Answered>>({});
@@ -403,6 +435,7 @@ export function ApprovalsBoard({
           <Recent lines={view.recent} />
         </>
       ) : null}
+      {qr !== null ? <OpenOnPhone qr={qr} /> : null}
     </div>
   );
 }

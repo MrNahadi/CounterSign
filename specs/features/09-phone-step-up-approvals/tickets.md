@@ -148,16 +148,16 @@ Notes:
 
 ## T-011: The QR code and the manifest
 
-Status: open
+Status: done
 Blocked by: T-010
 Tier: simple
 Slice: On desktop, the approvals page shows a QR code that opens the same page on a phone, and the page can be added to a phone's home screen.
 Test seam: the QR view model in `apps/console/src/` (URL choice and module matrix to SVG rects), and `app/manifest.ts`'s output
 Acceptance:
-- [ ] The URL is `CONSOLE_PUBLIC_URL` plus `/approvals` when set, else the request origin plus `/approvals`
-- [ ] The SVG comes from `uqr`'s matrix for that URL, with a quiet zone, token classes only and a text label; shown at 768px and up
-- [ ] The manifest has the name, short name, start URL and `standalone`, and no colour values
-- [ ] The design check passes
+- [x] The URL is `CONSOLE_PUBLIC_URL` plus `/approvals` when set, else the request origin plus `/approvals`
+- [x] The SVG comes from `uqr`'s matrix for that URL, with a quiet zone, token classes only and a text label; shown at 768px and up
+- [x] The manifest has the name, short name, start URL and `standalone`, and no colour values
+- [x] The design check passes
 Notes:
 
 ## T-012: What happened to held calls, in the inbox

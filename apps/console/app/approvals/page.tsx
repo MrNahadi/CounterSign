@@ -7,6 +7,7 @@ import {
   loadApprovals,
 } from "../../src/approval-routes";
 import { pageView } from "../../src/approvals-view";
+import { approvalsUrl, qrView, requestOrigin } from "../../src/qr-view";
 import { ConsoleShell } from "../console-shell";
 import { ApprovalsBoard, SignIn } from "./approvals-board";
 
@@ -17,7 +18,8 @@ export const metadata: Metadata = { title: "Approvals · Countersign console" };
 export const dynamic = "force-dynamic";
 
 export default async function ApprovalsPage() {
-  const key = approverKeyFromHeader((await headers()).get("cookie"));
+  const requestHeaders = await headers();
+  const key = approverKeyFromHeader(requestHeaders.get("cookie"));
   if (key === null) {
     return (
       <ConsoleShell openApprovals={null}>
@@ -40,10 +42,15 @@ export default async function ApprovalsPage() {
       </ConsoleShell>
     );
   }
+  const url = approvalsUrl({
+    publicUrl: process.env.CONSOLE_PUBLIC_URL,
+    origin: requestOrigin(requestHeaders),
+  });
+  const qr = url === null ? null : qrView(url);
   const view = pageView(answer.value, new Date());
   return (
     <ConsoleShell openApprovals={view.openCount}>
-      <ApprovalsBoard view={view} problem={null} />
+      <ApprovalsBoard view={view} problem={null} qr={qr} />
     </ConsoleShell>
   );
 }
