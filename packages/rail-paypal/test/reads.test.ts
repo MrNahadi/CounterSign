@@ -71,10 +71,58 @@ describe("get dispute", () => {
     expect(record).toEqual({
       id: DISPUTE_ID,
       status: "WAITING_FOR_SELLER_RESPONSE",
+      reason: "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+      lifeCycleStage: "INQUIRY",
       amount: { minor: 1800, currency: "USD" },
+      sellerResponseDueDate: "2026-10-26T09:12:44.000Z",
       captureIds: [CAPTURE_ID],
+      linkNames: ["self", "accept_claim"],
     });
     expectNoSecrets(record);
+  });
+
+  it("reads a dispute under review: no due date, every link PayPal offers by name", async () => {
+    const fake = fakePayPal(() => reply(200, fixture("get-dispute-under-review")));
+    const record = await testClient(fake).getDispute("PP-D-27803");
+    expect(record).toMatchObject({
+      status: "UNDER_REVIEW",
+      lifeCycleStage: "CHARGEBACK",
+      amount: { minor: 24000, currency: "USD" },
+      sellerResponseDueDate: null,
+      captureIds: ["3C679366HH908993F"],
+      linkNames: [
+        "self",
+        "provide_evidence",
+        "accept_claim",
+        "make_offer",
+        "require_evidence",
+        "adjudicate",
+      ],
+    });
+  });
+
+  it("keeps unknown reasons, stages and link names as text, and reads no links as none", async () => {
+    const { links: _gone, seller_response_due_date: _due, ...rest } = fixture("get-dispute");
+    const fake = fakePayPal(() =>
+      reply(200, { ...rest, reason: "SOME_NEW_REASON", dispute_life_cycle_stage: "NEW_STAGE" }),
+    );
+    const record = await testClient(fake).getDispute(DISPUTE_ID);
+    expect(record).toMatchObject({
+      reason: "SOME_NEW_REASON",
+      lifeCycleStage: "NEW_STAGE",
+      sellerResponseDueDate: null,
+      linkNames: [],
+    });
+  });
+
+  it("refuses a dispute with no reason or life-cycle stage, naming the field", async () => {
+    for (const field of ["reason", "dispute_life_cycle_stage"]) {
+      const { [field]: _gone, ...rest } = fixture("get-dispute");
+      const fake = fakePayPal(() => reply(200, rest));
+      const error = await caught(testClient(fake).getDispute(DISPUTE_ID));
+      expect(error.kind).toBe("invalid_response");
+      expect(error.field).toBe(field);
+    }
   });
 
   it("reads a dispute with no disputed transactions as naming no captures", async () => {

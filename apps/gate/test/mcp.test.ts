@@ -399,8 +399,12 @@ describe("tools/call for read-only tools", { timeout: SLOW }, () => {
     expect(await read(client, "get_dispute", { dispute_id: DISPUTE_ID })).toEqual({
       id: DISPUTE_ID,
       status: "WAITING_FOR_SELLER_RESPONSE",
+      reason: "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+      lifeCycleStage: "INQUIRY",
       amount: { value: "4500.00", currency_code: "KES" },
+      sellerResponseDueDate: null,
       captureIds: ["CAP-1035"],
+      linkNames: [],
     });
 
     expect(await read(client, "list_transactions", { transaction_id: "CAP-1035" })).toEqual({

@@ -42,7 +42,7 @@ function fakeCheckout() {
         body: { access_token: "FAKE-ACCESS-TOKEN", expires_in: 32400, token_type: "Bearer" },
       });
     }
-    const body = init.body ? (JSON.parse(init.body) as Json) : null;
+    const body = typeof init.body === "string" ? (JSON.parse(init.body) as Json) : null;
     seen.push({ method: init.method, path, requestId, body });
     const replay = requestId ? replies.get(requestId) : undefined;
     if (replay) return json(replay);

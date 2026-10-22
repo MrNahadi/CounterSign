@@ -224,6 +224,21 @@ describe.skipIf(!live.success)(`live PayPal sandbox (${needs})`, () => {
     });
   }, 60_000);
 
+  it("reads the merchant's first dispute in full, when there is one", async () => {
+    await guarded(async () => {
+      const paypal = client();
+      const [first] = (await paypal.listMerchantDisputes({ pageSize: 1 })).disputes;
+      if (!first) return;
+      const dispute = await paypal.getDispute(first.id);
+      expect(dispute.id).toBe(first.id);
+      expect(dispute.reason.length).toBeGreaterThan(0);
+      expect(dispute.lifeCycleStage.length).toBeGreaterThan(0);
+      expect(Number.isInteger(dispute.amount.minor)).toBe(true);
+      expect(dispute.linkNames).toContain("self");
+      expectNoSecrets(dispute);
+    });
+  }, 60_000);
+
   it.skipIf(!vault)(
     `refunds one $1.00 vault capture twice with one request ID (needs ${VAULT_ENV_NAME})`,
     async () => {

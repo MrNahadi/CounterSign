@@ -23,8 +23,9 @@ export type FakeSandbox = PayPalClient & {
   disputes: Map<string, PayPalDisputeList>;
   // The merchant's disputes, as the first page of an unfiltered list answers them.
   merchantDisputes: PayPalDispute[];
-  // Disputes read by their own ID, as get dispute returns them.
-  disputeDetails: Map<string, PayPalDisputeDetail>;
+  // Disputes read by their own ID, as get dispute returns them. Fields left out read as a
+  // dispute waiting for the seller: reason not received, inquiry stage, no due date, no links.
+  disputeDetails: Map<string, DisputeDetailSeed>;
   invoices: Map<string, PayPalInvoice>;
   // Every transaction search answers with these, filtered by transaction ID when one is given.
   transactions: PayPalTransaction[];
@@ -55,6 +56,12 @@ export type InvoiceSendAnswer =
   | "SCHEDULED"
   | { status: number; name?: string; issues?: string[] }
   | "network";
+
+export type DisputeDetailSeed = Pick<
+  PayPalDisputeDetail,
+  "id" | "status" | "amount" | "captureIds"
+> &
+  Partial<PayPalDisputeDetail>;
 
 export function httpError(call: string, status: number, name = "ERROR"): PayPalError {
   return new PayPalError({ kind: "http", call, status, paypalName: name, debugId: "fake-debug" });
@@ -93,6 +100,21 @@ export function createFakeSandbox(): FakeSandbox {
     async addTracker() {
       throw new Error("addTracker isn't in the fake sandbox");
     },
+    async acceptClaim() {
+      throw new Error("acceptClaim isn't in the fake sandbox");
+    },
+    async makeOffer() {
+      throw new Error("makeOffer isn't in the fake sandbox");
+    },
+    async provideEvidence() {
+      throw new Error("provideEvidence isn't in the fake sandbox");
+    },
+    async requireEvidence() {
+      throw new Error("requireEvidence isn't in the fake sandbox");
+    },
+    async adjudicate() {
+      throw new Error("adjudicate isn't in the fake sandbox");
+    },
     async issueAccessToken() {
       throw new Error("issueAccessToken isn't in the fake sandbox");
     },
@@ -124,7 +146,13 @@ export function createFakeSandbox(): FakeSandbox {
       enter("getDispute", disputeId);
       const dispute = sandbox.disputeDetails.get(disputeId);
       if (!dispute) throw notFound("get-dispute");
-      return structuredClone(dispute);
+      return structuredClone({
+        reason: "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+        lifeCycleStage: "INQUIRY",
+        sellerResponseDueDate: null,
+        linkNames: [],
+        ...dispute,
+      });
     },
     async getInvoice(invoiceId) {
       enter("getInvoice", invoiceId);

@@ -2,18 +2,18 @@
 
 ## T-001: The rail client's dispute calls
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: `@countersign/rail-paypal` reads a dispute in full and can accept a claim, make an offer, provide evidence with PDF documents, and, in the sandbox, require evidence and adjudicate.
 Test seam: the PayPal client's public methods against the fake PayPal server, plus one `LIVE=1` case
 Acceptance:
-- [ ] Get dispute returns reason, life-cycle stage, seller response due date (or null), captures and link names; the existing dispute tests still pass
-- [ ] Accept claim, make offer, require evidence and adjudicate send the paths and bodies in requirements.md, with offer amounts converted from minor units inside the client
-- [ ] Provide evidence sends `multipart/form-data` with an `input` JSON part and `file1…` parts carrying each document's name and content type, and the fake server checks the parts
-- [ ] None of the new calls sends `PayPal-Request-Id` or retries after a 5xx or a network error
-- [ ] Inputs are refused before sending: more than 5 documents, one over 1 MB, a name outside PayPal's pattern, notes outside 1 to 2000 characters
-- [ ] Under `LIVE=1`, listing the merchant's disputes works and, when one exists, reading it does too
+- [x] Get dispute returns reason, life-cycle stage, seller response due date (or null), captures and link names; the existing dispute tests still pass
+- [x] Accept claim, make offer, require evidence and adjudicate send the paths and bodies in requirements.md, with offer amounts converted from minor units inside the client
+- [x] Provide evidence sends `multipart/form-data` with an `input` JSON part and `file1…` parts carrying each document's name and content type, and the fake server checks the parts
+- [x] None of the new calls sends `PayPal-Request-Id` or retries after a 5xx or a network error
+- [x] Inputs are refused before sending: more than 5 documents, one over 1 MB, a name outside PayPal's pattern, notes outside 1 to 2000 characters
+- [x] Under `LIVE=1`, listing the merchant's disputes works and, when one exists, reading it does too
 Notes:
 
 ## T-002: The `dispute.received` entry

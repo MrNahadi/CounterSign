@@ -245,32 +245,49 @@ export const disputesPageSchema = z
     next: page.links?.find((link) => link.rel === "next")?.href ?? null,
   }));
 
-// One dispute read by its ID: its amount and the captures it disputes (the seller-side
-// transaction IDs). A disputed transaction with no seller-side ID names no capture.
+// One dispute read by its ID: its reason, life-cycle stage, amount, seller response due date,
+// the captures it disputes (the seller-side transaction IDs) and the names of the links PayPal
+// offers on it (such as `provide_evidence` or `accept_claim`). PayPal's values are kept as text,
+// unknown ones included. A disputed transaction with no seller-side ID names no capture.
 export type PayPalDisputeDetail = {
   id: string;
   status: string;
+  reason: string;
+  lifeCycleStage: string;
   amount: Money;
+  // PayPal's date-time, or null when the dispute has none.
+  sellerResponseDueDate: string | null;
   captureIds: string[];
+  linkNames: string[];
 };
 
 export const disputeDetailSchema = z
   .object({
     dispute_id: text,
     status: text,
+    reason: text,
+    dispute_life_cycle_stage: text,
     dispute_amount: moneySchema,
+    seller_response_due_date: z.string().nullable().optional(),
     disputed_transactions: z
       .array(z.object({ seller_transaction_id: z.string().optional() }))
       .optional(),
+    links: z.array(linkSchema).optional(),
   })
   .transform(
     (dispute): PayPalDisputeDetail => ({
       id: dispute.dispute_id,
       status: dispute.status,
+      reason: dispute.reason,
+      lifeCycleStage: dispute.dispute_life_cycle_stage,
       amount: dispute.dispute_amount,
+      sellerResponseDueDate: dispute.seller_response_due_date || null,
       captureIds: (dispute.disputed_transactions ?? []).flatMap((transaction) =>
         transaction.seller_transaction_id ? [transaction.seller_transaction_id] : [],
       ),
+      linkNames: [
+        ...new Set((dispute.links ?? []).flatMap((link) => (link.rel ? [link.rel] : []))),
+      ],
     }),
   );
 

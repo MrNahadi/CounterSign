@@ -138,7 +138,10 @@ export function fakeSandbox(options: { emails?: Record<string, string> } = {}) {
     const path = new URL(url).pathname;
     const headers = new Headers(init.headers);
     const requestId = headers.get("paypal-request-id");
-    const body = init.body && path !== "/v1/oauth2/token" ? (JSON.parse(init.body) as Json) : null;
+    const body =
+      typeof init.body === "string" && path !== "/v1/oauth2/token"
+        ? (JSON.parse(init.body) as Json)
+        : null;
     if (path === "/v1/oauth2/token") {
       return json({
         status: 200,

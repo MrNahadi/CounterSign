@@ -1,0 +1,9 @@
+{
+  "links": [
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-D-27803",
+      "rel": "self",
+      "method": "GET"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type { Money } from "@countersign/mandate";
 import { z } from "zod";
 import {
@@ -37,7 +38,12 @@ import {
 
 export type FetchLike = (
   url: string,
-  init: { method: string; headers: Record<string, string>; body?: string },
+  // A multipart body (provide evidence) is sent as bytes; every other body is text.
+  init: {
+    method: string;
+    headers: Record<string, string>;
+    body?: string | Uint8Array<ArrayBuffer>;
+  },
 ) => Promise<Response>;
 
 export type PayPalClientOptions = {
@@ -146,6 +152,68 @@ export type DisputeState = (typeof DISPUTE_STATES)[number];
 // One page of the merchant's disputes: at most `pageSize` (1 to 50), optionally in one state.
 export type MerchantDisputesInput = { pageSize: number; disputeState?: DisputeState };
 
+// What a dispute action is sent with. Notes and names are checked against PayPal's limits
+// before anything is sent.
+export type AcceptClaimInput = { disputeId: string; note: string };
+
+export const OFFER_TYPES = [
+  "REFUND",
+  "REFUND_WITH_RETURN",
+  "REFUND_WITH_REPLACEMENT",
+  "REPLACEMENT_WITHOUT_REFUND",
+] as const;
+export type OfferType = (typeof OFFER_TYPES)[number];
+
+export type MakeOfferInput = {
+  disputeId: string;
+  note: string;
+  offerType: OfferType;
+  // Only USD is sent to PayPal.
+  offerAmount?: Money;
+};
+
+export type DisputeTrackingInfo = {
+  // PayPal's carrier code, such as OTHER.
+  carrierName: string;
+  carrierNameOther?: string;
+  trackingNumber: string;
+};
+
+export type DisputeEvidence = {
+  // PayPal's evidence type, such as PROOF_OF_FULFILLMENT.
+  evidenceType: string;
+  // 1 to 2000 characters.
+  notes: string;
+  trackingInfo?: DisputeTrackingInfo[];
+  refundIds?: string[];
+};
+
+// A document sent as one file part: a PDF of at most 1 MB, named as PayPal allows.
+export type EvidenceDocument = {
+  name: string;
+  contentType: "application/pdf";
+  bytes: Uint8Array;
+};
+
+export type ProvideEvidenceInput = {
+  disputeId: string;
+  evidences: DisputeEvidence[];
+  // At most 5, sent as file1, file2, … in this order.
+  documents: EvidenceDocument[];
+};
+
+// Sandbox only: asks for the seller's or the buyer's evidence on a dispute under review.
+export type RequireEvidenceInput = {
+  disputeId: string;
+  action: "SELLER_EVIDENCE" | "BUYER_EVIDENCE";
+};
+
+// Sandbox only: settles a dispute under review.
+export type AdjudicateInput = {
+  disputeId: string;
+  outcome: "SELLER_FAVOR" | "BUYER_FAVOR";
+};
+
 export type PayPalClient = {
   createOrder(input: CreateOrderInput): Promise<PayPalOrder>;
   captureOrder(orderId: string, options: PostOptions): Promise<PayPalOrder>;
@@ -161,6 +229,16 @@ export type PayPalClient = {
   // The first page of the merchant's disputes. `complete` is false when PayPal has more.
   listMerchantDisputes(input: MerchantDisputesInput): Promise<PayPalDisputeList>;
   getDispute(disputeId: string): Promise<PayPalDisputeDetail>;
+  // The dispute actions. PayPal documents no request ID for them, so each carries none and is
+  // sent once, never retried, not even after a 5xx or a network failure (ADR 0035). Each
+  // answers PayPal's HTTP status; an error status throws.
+  acceptClaim(input: AcceptClaimInput): Promise<number>;
+  makeOffer(input: MakeOfferInput): Promise<number>;
+  // Sent as multipart/form-data: an `input` JSON part and one file part per document.
+  provideEvidence(input: ProvideEvidenceInput): Promise<number>;
+  // Sandbox-only helpers that move a test dispute along (spike S3).
+  requireEvidence(input: RequireEvidenceInput): Promise<number>;
+  adjudicate(input: AdjudicateInput): Promise<number>;
   getInvoice(invoiceId: string): Promise<PayPalInvoice>;
   // Sends a draft invoice. PayPal's send call takes no request ID, so this carries none and is
   // never retried, not even after a 5xx or a network failure (ADR 0033). A 4xx throws.
@@ -254,6 +332,75 @@ const merchantDisputesSchema = z.object({
 
 const emailSchema = z.string().min(3).max(254).includes("@");
 
+// PayPal's dispute notes: 1 to 2000 characters.
+const disputeNote = z.string().min(1).max(2000);
+const moneyInput = z.object({ minor: z.number().int().positive(), currency: z.string() });
+const MAX_DOCUMENTS = 5;
+const MAX_DOCUMENT_BYTES = 1024 * 1024;
+// PayPal's document name pattern, `^[A-Za-z0-9-_,\s]+[.]{1}[A-Za-z]+$`, with plain spaces only
+// for whitespace, so a name can't break the part's headers.
+const documentName = z
+  .string()
+  .max(255)
+  .regex(/^[A-Za-z0-9\-_, ]+\.[A-Za-z]+$/);
+
+const acceptClaimSchema = z.object({ disputeId: resourceId, note: disputeNote });
+
+const makeOfferSchema = z.object({
+  disputeId: resourceId,
+  note: disputeNote,
+  offerType: z.enum(OFFER_TYPES),
+  offerAmount: moneyInput.optional(),
+});
+
+const provideEvidenceSchema = z.object({
+  disputeId: resourceId,
+  evidences: z
+    .array(
+      z.object({
+        evidenceType: z.string().regex(/^[A-Z_]{1,64}$/),
+        notes: disputeNote,
+        trackingInfo: z
+          .array(
+            z.object({
+              carrierName: z.string().regex(/^[A-Z0-9_]{1,64}$/),
+              carrierNameOther: z.string().min(1).max(64).optional(),
+              trackingNumber: resourceId,
+            }),
+          )
+          .min(1)
+          .max(100)
+          .optional(),
+        refundIds: z.array(resourceId).min(1).max(20).optional(),
+      }),
+    )
+    .min(1)
+    .max(100),
+  documents: z
+    .array(
+      z.object({
+        name: documentName,
+        contentType: z.literal("application/pdf"),
+        bytes: z
+          .instanceof(Uint8Array)
+          .refine((bytes) => bytes.byteLength > 0 && bytes.byteLength <= MAX_DOCUMENT_BYTES, {
+            message: "Must be 1 byte to 1 MB",
+          }),
+      }),
+    )
+    .max(MAX_DOCUMENTS),
+});
+
+const requireEvidenceSchema = z.object({
+  disputeId: resourceId,
+  action: z.enum(["SELLER_EVIDENCE", "BUYER_EVIDENCE"]),
+});
+
+const adjudicateSchema = z.object({
+  disputeId: resourceId,
+  outcome: z.enum(["SELLER_FAVOR", "BUYER_FAVOR"]),
+});
+
 const sendInvoiceSchema = z.object({
   invoiceId: resourceId,
   sendToRecipient: z.boolean(),
@@ -305,11 +452,40 @@ type CallSpec = {
   body?: unknown;
   // A body already serialized, sent as it is.
   rawBody?: string;
+  // A multipart/form-data body, sent as it is with its own content type.
+  multipart?: Multipart;
   // POSTs that carry a PayPal-Request-Id replay rather than repeat, so they may be retried.
   requestId?: string;
 };
 
 type Answer = { status: number; body: unknown; debugId: string | null };
+
+type Multipart = { contentType: string; bytes: Uint8Array<ArrayBuffer> };
+
+type FormPart = { name: string; fileName?: string; contentType: string; bytes: Uint8Array };
+
+// A multipart/form-data body. Part names and file names are checked by the caller's schema, so
+// none holds a quote or a line break.
+function multipartBody(parts: FormPart[]): Multipart {
+  const boundary = `countersign-${randomBytes(16).toString("hex")}`;
+  const chunks: Uint8Array[] = [];
+  for (const part of parts) {
+    const fileName = part.fileName === undefined ? "" : `; filename="${part.fileName}"`;
+    chunks.push(
+      Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${part.name}"${fileName}\r\n` +
+          `Content-Type: ${part.contentType}\r\n\r\n`,
+      ),
+      part.bytes,
+      Buffer.from("\r\n"),
+    );
+  }
+  chunks.push(Buffer.from(`--${boundary}--\r\n`));
+  return {
+    contentType: `multipart/form-data; boundary=${boundary}`,
+    bytes: new Uint8Array(Buffer.concat(chunks)),
+  };
+}
 
 export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
   const parsed = parsePayPalEnv(options.env);
@@ -456,14 +632,17 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
         Accept: "application/json",
       };
       if (spec.method === "POST") {
-        headers["Content-Type"] = "application/json";
+        headers["Content-Type"] = spec.multipart?.contentType ?? "application/json";
         headers.Prefer = "return=representation";
         if (spec.requestId !== undefined) headers["PayPal-Request-Id"] = spec.requestId;
       }
       const response = await reach(spec.call, `${config.baseUrl}${spec.path}`, {
         method: spec.method,
         headers,
-        body: spec.rawBody ?? (spec.body === undefined ? undefined : JSON.stringify(spec.body)),
+        body:
+          spec.multipart?.bytes ??
+          spec.rawBody ??
+          (spec.body === undefined ? undefined : JSON.stringify(spec.body)),
       });
       if (response.status === 401 && !reauthorized) {
         reauthorized = true;
@@ -672,6 +851,115 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
       const id = checkId(call, disputeId);
       const answer = await send({ call, method: "GET", path: `${DISPUTES_PATH}/${id}` });
       return parse(call, answer, disputeDetailSchema);
+    },
+
+    async acceptClaim(input) {
+      const call = "accept-claim";
+      const claim = checkInput(call, acceptClaimSchema, input);
+      // No request ID, so `send` never retries it.
+      const answer = await send({
+        call,
+        method: "POST",
+        path: `${DISPUTES_PATH}/${encodeURIComponent(claim.disputeId)}/accept-claim`,
+        body: { note: claim.note },
+      });
+      return answer.status;
+    },
+
+    async makeOffer(input) {
+      const call = "make-offer";
+      const offer = checkInput(call, makeOfferSchema, input);
+      let offerAmount: ReturnType<typeof toPayPalAmount> = null;
+      if (offer.offerAmount !== undefined) {
+        if (offer.offerAmount.currency !== "USD") throw refuse(call, "only USD is sent to PayPal");
+        offerAmount = toPayPalAmount({ minor: offer.offerAmount.minor, currency: "USD" });
+        if (!offerAmount) throw refuse(call, "offerAmount is invalid");
+      }
+      // No request ID, so `send` never retries it.
+      const answer = await send({
+        call,
+        method: "POST",
+        path: `${DISPUTES_PATH}/${encodeURIComponent(offer.disputeId)}/make-offer`,
+        body: {
+          note: offer.note,
+          offer_type: offer.offerType,
+          ...(offerAmount === null ? {} : { offer_amount: offerAmount }),
+        },
+      });
+      return answer.status;
+    },
+
+    async provideEvidence(input) {
+      const call = "provide-evidence";
+      const evidence = checkInput(call, provideEvidenceSchema, input);
+      const evidences = evidence.evidences.map((item) => {
+        const info = {
+          ...(item.trackingInfo === undefined
+            ? {}
+            : {
+                tracking_info: item.trackingInfo.map((tracker) => ({
+                  carrier_name: tracker.carrierName,
+                  ...(tracker.carrierNameOther === undefined
+                    ? {}
+                    : { carrier_name_other: tracker.carrierNameOther }),
+                  tracking_number: tracker.trackingNumber,
+                })),
+              }),
+          ...(item.refundIds === undefined ? {} : { refund_ids: item.refundIds }),
+        };
+        return {
+          evidence_type: item.evidenceType,
+          ...(Object.keys(info).length === 0 ? {} : { evidence_info: info }),
+          notes: item.notes,
+        };
+      });
+      const multipart = multipartBody([
+        {
+          name: "input",
+          contentType: "application/json",
+          bytes: Buffer.from(JSON.stringify({ evidences })),
+        },
+        ...evidence.documents.map((document, index) => ({
+          name: `file${index + 1}`,
+          fileName: document.name,
+          contentType: document.contentType,
+          bytes: document.bytes,
+        })),
+      ]);
+      // No request ID, so `send` never retries it.
+      const answer = await send({
+        call,
+        method: "POST",
+        path: `${DISPUTES_PATH}/${encodeURIComponent(evidence.disputeId)}/provide-evidence`,
+        multipart,
+      });
+      return answer.status;
+    },
+
+    async requireEvidence(input) {
+      const call = "require-evidence";
+      const request = checkInput(call, requireEvidenceSchema, input);
+      // No request ID, so `send` never retries it.
+      const answer = await send({
+        call,
+        method: "POST",
+        path: `${DISPUTES_PATH}/${encodeURIComponent(request.disputeId)}/require-evidence`,
+        body: { action: request.action },
+      });
+      return answer.status;
+    },
+
+    async adjudicate(input) {
+      const call = "adjudicate";
+      const request = checkInput(call, adjudicateSchema, input);
+      // No request ID, so `send` never retries it.
+      const answer = await send({
+        call,
+        method: "POST",
+        path: `${DISPUTES_PATH}/${encodeURIComponent(request.disputeId)}/adjudicate`,
+        body: { adjudication_outcome: request.outcome },
+      });
+      return answer.status;
     },
 
     async getInvoice(invoiceId) {
