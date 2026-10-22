@@ -109,11 +109,16 @@ export function createFakeSandbox(): FakeSandbox {
     async provideEvidence() {
       throw new Error("provideEvidence isn't in the fake sandbox");
     },
-    async requireEvidence() {
-      throw new Error("requireEvidence isn't in the fake sandbox");
+    // The sandbox-only helpers answer 200 unless a failure is injected.
+    async requireEvidence(input) {
+      enter("requireEvidence", input);
+      if (!sandbox.disputeDetails.has(input.disputeId)) throw notFound("require-evidence");
+      return 200;
     },
-    async adjudicate() {
-      throw new Error("adjudicate isn't in the fake sandbox");
+    async adjudicate(input) {
+      enter("adjudicate", input);
+      if (!sandbox.disputeDetails.has(input.disputeId)) throw notFound("adjudicate");
+      return 200;
     },
     async issueAccessToken() {
       throw new Error("issueAccessToken isn't in the fake sandbox");

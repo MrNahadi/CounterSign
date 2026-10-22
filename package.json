@@ -27,7 +27,8 @@
     "reconcile": "tsx --env-file-if-exists=.env.local apps/gate/src/reconcile-main.ts",
     "approvals": "tsx --env-file-if-exists=.env.local apps/gate/src/approvals-main.ts",
     "audit": "tsx --env-file-if-exists=.env.local apps/gate/src/audit-main.ts",
-    "resolve": "tsx --env-file-if-exists=.env.local apps/resolve-agent/src/resolve-main.ts"
+    "resolve": "tsx --env-file-if-exists=.env.local apps/resolve-agent/src/resolve-main.ts",
+    "disputes": "tsx --env-file-if-exists=.env.local apps/gate/src/disputes-main.ts"
   },
   "dependencies": {
     "zod": "4.6.7"

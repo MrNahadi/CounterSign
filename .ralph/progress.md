@@ -20,3 +20,9 @@
 - `webhook.ts`: `CUSTOMER.DISPUTE.CREATED` reads `resource.dispute_id`, re-reads with `getDispute`, appends `dispute.received` (once per event ID, checked again under the lock) and answers "Recorded." / "Already recorded."; `.UPDATED`/`.RESOLVED` stay "Event type not handled."; unreadable dispute or log is 503. Refund handling moved unchanged into `reconcileRefund`.
 - New `apps/gate/src/nudge.ts`: `nudgeResolve(disputeId, { env, fetch? })` returns whether Resolve took it (2xx within `NUDGE_TIMEOUT_MS` 2000), never throws; `resolveAgentUrl(env)` defaults to `http://127.0.0.1:8788`. The webhook fires it without awaiting. `AppDeps` and `WebhookDeps` gain `fetch?: NudgeFetch`.
 - Gotcha for T-005: the CLI should `await nudgeResolve` and print the "Resolve wasn't reachable" line when it answers false. A new event ID for an already-recorded dispute appends again (ADR 0035: one entry per webhook event ID); only polling dedupes per dispute.
+
+## T-005 (done)
+- New `apps/gate/src/disputes-cli.ts` (`runDisputes(args, env, { rail, fetch, nudgeFetch, now })`) and `disputes-main.ts`; root `disputes` script. `sync` lists `disputeState: REQUIRED_ACTION`, page size 50, records poll entries (rechecked under the lock), awaits the nudge; `list` (unfiltered) and `show` re-read each dispute; `require-evidence`/`adjudicate` exit 1 on a 4xx, 2 on anything else (outcome unknown). Arguments parsed with a zod tuple union.
+- `readDisputeState` now also returns `firstSeqs` (dispute ID to its first `dispute.received` seq).
+- Fake sandbox: `requireEvidence`/`adjudicate` answer 200 (404 for an unknown dispute, injected failures apply). accept claim, make offer and provide evidence still throw until T-008.
+- `list`/`show` print PayPal's raw reason codes; there are no dispute reason words yet (T-006/T-012 will need them, `words.ts` is the place).

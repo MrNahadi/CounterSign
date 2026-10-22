@@ -60,16 +60,16 @@ Notes:
 
 ## T-005: The `disputes` CLI
 
-Status: open
+Status: done
 Blocked by: T-004
 Tier: standard
 Slice: `npm run disputes -- sync | list | show <id> | require-evidence <id> | adjudicate <id> --favor …` polls, records and moves sandbox disputes from the command line.
 Test seam: the CLI's run function `(args, env, deps)` with a fake rail, PGlite and an injected fetch, plus one child-process run
 Acceptance:
-- [ ] `sync` records only disputes with no `dispute.received` entry, prints one line each, says when PayPal had more pages, nudges Resolve per new entry, and a second run records nothing
-- [ ] `list` and `show` print the lines in requirements.md, including whether each dispute is recorded
-- [ ] `require-evidence` and `adjudicate` call the sandbox endpoints, say they're sandbox-only, and exit 1 on a 4xx refusal
-- [ ] Exit codes follow the CLI convention; missing PayPal variables are named, never shown; the root `disputes` script exists
+- [x] `sync` records only disputes with no `dispute.received` entry, prints one line each, says when PayPal had more pages, nudges Resolve per new entry, and a second run records nothing
+- [x] `list` and `show` print the lines in requirements.md, including whether each dispute is recorded
+- [x] `require-evidence` and `adjudicate` call the sandbox endpoints, say they're sandbox-only, and exit 1 on a 4xx refusal
+- [x] Exit codes follow the CLI convention; missing PayPal variables are named, never shown; the root `disputes` script exists
 Notes:
 
 ## T-006: Evidence facts and documents

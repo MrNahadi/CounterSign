@@ -108,14 +108,21 @@ describe("the dispute.received entry", () => {
     expect(await verifyLog(db)).toMatchObject({ intact: true, entries: 2 });
     expect(await readDisputeState(db)).toEqual({
       known: true,
-      state: { disputes: new Set(["PP-D-1", "PP-D-2"]), events: new Set(["WH-1"]) },
+      state: {
+        disputes: new Set(["PP-D-1", "PP-D-2"]),
+        firstSeqs: new Map([
+          ["PP-D-1", 1],
+          ["PP-D-2", 2],
+        ]),
+        events: new Set(["WH-1"]),
+      },
     });
   });
 
   it("reads an empty log as nothing recorded", async () => {
     expect(await readDisputeState(db)).toEqual({
       known: true,
-      state: { disputes: new Set(), events: new Set() },
+      state: { disputes: new Set(), firstSeqs: new Map(), events: new Set() },
     });
   });
 

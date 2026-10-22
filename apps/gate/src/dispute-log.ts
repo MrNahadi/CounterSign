@@ -73,6 +73,8 @@ type Reader = Database | Transaction;
 export type DisputeState = {
   // Every dispute with a `dispute.received` entry.
   disputes: Set<string>;
+  // The `seq` of each dispute's first `dispute.received` entry.
+  firstSeqs: Map<string, number>;
   // Every webhook event ID already recorded.
   events: Set<string>;
 };
@@ -94,7 +96,7 @@ export async function readDisputeState(reader: Reader): Promise<DisputeStateRead
     .from(auditLog)
     .where(eq(auditLog.entryType, "dispute.received"))
     .orderBy(asc(auditLog.seq));
-  const state: DisputeState = { disputes: new Set(), events: new Set() };
+  const state: DisputeState = { disputes: new Set(), firstSeqs: new Map(), events: new Set() };
   for (const row of rows) {
     let value: unknown;
     try {
@@ -111,6 +113,9 @@ export async function readDisputeState(reader: Reader): Promise<DisputeStateRead
     if (row.refId !== parsed.data.disputeId)
       return unreadable(row, "has a ref that isn't its dispute");
     state.disputes.add(parsed.data.disputeId);
+    if (!state.firstSeqs.has(parsed.data.disputeId)) {
+      state.firstSeqs.set(parsed.data.disputeId, row.seq);
+    }
     if (parsed.data.event !== null) state.events.add(parsed.data.event.id);
   }
   return { known: true, state };
