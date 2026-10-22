@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import { z } from "zod";
 import {
   AnswerRequestSchema,
   type AnswerResult,
@@ -54,15 +54,12 @@ const refuse = (status: Refusal["status"], message: string): Refusal => ({
 const unreachable = refuse(502, APPROVAL_ROUTE_MESSAGES.unreachable);
 const signInAgain = refuse(401, APPROVAL_ROUTE_MESSAGES.signInAgain);
 
-/** The gate's base URL, or null when `GATE_URL` isn't an http(s) URL. */
+const GateUrlSchema = z.url({ protocol: /^https?$/ });
+
+/** The gate's base URL, read with zod, or null when `GATE_URL` isn't an http(s) URL. */
 export function gateUrl(env: ApprovalEnv): URL | null {
-  const raw = env.GATE_URL?.trim() || DEFAULT_GATE_URL;
-  try {
-    const url = new URL(raw);
-    return url.protocol === "http:" || url.protocol === "https:" ? url : null;
-  } catch {
-    return null;
-  }
+  const parsed = GateUrlSchema.safeParse(env.GATE_URL?.trim() || DEFAULT_GATE_URL);
+  return parsed.success ? new URL(parsed.data) : null;
 }
 
 // --- The cookie ----------------------------------------------------------------------------
