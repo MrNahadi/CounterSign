@@ -183,7 +183,7 @@ Test seam: `packages/rail-paypal/test/live-sandbox.test.ts` and `apps/gate/test/
 Acceptance:
 - [x] The rail-paypal live test creates a draft to an `example.com` recipient, sends it, and expects a 4xx on a second send
 - [x] The gate live test decides a `send_invoice` step-up on a fresh draft, approves it and checks one send and its result entry
-- [ ] Both skip cleanly without `LIVE=1` or the variables, and stay out of the Feedback commands
+- [x] Both skip cleanly without `LIVE=1` or the variables, and stay out of the Feedback commands
 Notes:
 
 ## T-014: README and glossary
