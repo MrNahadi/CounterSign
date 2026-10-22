@@ -3,7 +3,8 @@
 // `Authorization: Bearer` picks the principal and its mandate; anything else gets one fixed 401
 // before any MCP handling. Guarded tools hand their raw arguments to propose(), which is the only
 // validation, so every call, valid or not, is decided and recorded. Read-only tools are answered
-// by the rail client and the carrier mock, and aren't recorded. No AI.
+// by the rail client and the carrier mock, and aren't recorded. The one non-guarded extension,
+// prepare_dispute_evidence, builds a dispute's evidence pack and moves no money (ADR 0035). No AI.
 
 import type { CarrierAdapter } from "@countersign/carrier-mock";
 import type { Database } from "@countersign/db";
@@ -19,6 +20,12 @@ import {
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import type { AgentResponse } from "./decide";
+import {
+  callPrepare,
+  PREPARE_DESCRIPTION,
+  PREPARE_TOOL,
+  PrepareArgumentsSchema,
+} from "./prepare-evidence";
 import type { Principal, Principals } from "./principals";
 import { GUARDED_TOOLS, type GuardedTool, guardedToolArguments } from "./proposal";
 import { propose } from "./propose";
@@ -99,7 +106,16 @@ const READ_TOOL_LIST: Tool[] = READ_TOOLS.map((tool) => ({
   inputSchema: advertised(readToolArguments(tool)),
 }));
 
-const TOOL_LIST: Tool[] = [...GUARDED_TOOL_LIST, ...READ_TOOL_LIST];
+// Countersign's own non-guarded extensions: nothing is decided, and no money moves.
+const EXTENSION_TOOL_LIST: Tool[] = [
+  {
+    name: PREPARE_TOOL,
+    description: `${EXTENSION} ${PREPARE_DESCRIPTION}`,
+    inputSchema: advertised(PrepareArgumentsSchema),
+  },
+];
+
+const TOOL_LIST: Tool[] = [...GUARDED_TOOL_LIST, ...READ_TOOL_LIST, ...EXTENSION_TOOL_LIST];
 
 function answer(response: AgentResponse): CallToolResult {
   return {
@@ -165,6 +181,7 @@ function buildServer(principal: Principal, deps: McpDeps): Server {
   server.setRequestHandler(CallToolRequestSchema, (request) => {
     const { name, arguments: args } = request.params;
     if (isReadTool(name)) return callRead(name, args, deps);
+    if (name === PREPARE_TOOL) return callPrepare(args, deps);
     return callGuarded(principal, name, args, deps);
   });
   return server;

@@ -89,16 +89,16 @@ Notes:
 
 ## T-007: `prepare_dispute_evidence`, and documents in `provide_dispute_evidence`
 
-Status: open
+Status: done
 Blocked by: T-006
 Tier: standard
 Slice: An agent over MCP prepares a dispute's evidence and proposes it with the PDF, and the intent hash binds the documents.
 Test seam: the gate's MCP server over a real listening gate with a test principal key, and `propose()`
 Acceptance:
-- [ ] `prepare_dispute_evidence` is in the tool list as an extension and answers the masked facts, documents and suggested items in snake_case; its errors are fixed sentences
-- [ ] `provide_dispute_evidence` takes `document_ids` and per-item `refund_ids`; with the PDF it steps up under the shipped mandate
-- [ ] A missing, non-PDF or other-dispute document is `INVALID_PROPOSAL`; a store that can't be read is `TARGET_UNKNOWN`
-- [ ] The hash covers `documents: [{ id, name, sha256 }]`: changing a note or a document changes it; every existing intent-hash test passes unchanged
+- [x] `prepare_dispute_evidence` is in the tool list as an extension and answers the masked facts, documents and suggested items in snake_case; its errors are fixed sentences
+- [x] `provide_dispute_evidence` takes `document_ids` and per-item `refund_ids`; with the PDF it steps up under the shipped mandate
+- [x] A missing, non-PDF or other-dispute document is `INVALID_PROPOSAL`; a store that can't be read is `TARGET_UNKNOWN`
+- [x] The hash covers `documents: [{ id, name, sha256 }]`: changing a note or a document changes it; every existing intent-hash test passes unchanged
 Notes:
 
 ## T-008: Dispute executors

@@ -4,6 +4,7 @@
 import {
   type Action,
   CLAIMS,
+  type EvidenceDocumentRef,
   firstIssueMessage,
   IdSchema as Id,
   type Intent,
@@ -25,6 +26,7 @@ import {
   type RecordSnapshots,
 } from "@countersign/verifiers";
 import { z } from "zod";
+import type { GateRecords } from "./gate-records";
 
 // The tools the gate knows, by the guarded action each proposes. Anything else is UNKNOWN_ACTION.
 const TOOLS = {
@@ -141,10 +143,19 @@ const ProvideDisputeEvidenceProposal = z.strictObject({
           evidence_type: z.enum(EVIDENCE_TYPES),
           notes: Note,
           tracking_numbers: z.array(Id).max(100).optional(),
+          refund_ids: z.array(Id).max(20).optional(),
         }),
       )
       .min(1)
       .max(10),
+    // Stored evidence documents (ADR 0035), sent with every item. Their names and SHA-256s are
+    // hashed, so an approval binds the exact bytes.
+    document_ids: z
+      .array(Id)
+      .min(1)
+      .max(5)
+      .refine((ids) => new Set(ids).size === ids.length, "Must not name a document twice")
+      .optional(),
   }),
   justification: OptionalJustification,
 });
@@ -237,7 +248,7 @@ export type ProposalInput = {
   // Who is proposing, from the agent's credentials, never from the proposal itself.
   principal: string;
   mandateVersion: number;
-  records: RecordSnapshots;
+  records: GateRecords;
 };
 
 type Denial = { ok: false; reason: Reason };
@@ -314,6 +325,33 @@ function normalizeDispute(
   return { ok: true, amount: offerAmount ?? amount.money, target, params };
 }
 
+// The documents an evidence submission names, from the store, in the order given. A store that
+// can't be read leaves the target unknown; a document that's missing, isn't a PDF or belongs to
+// another dispute makes the proposal invalid.
+function evidenceDocuments(
+  disputeId: string,
+  documentIds: readonly string[],
+  records: GateRecords,
+): { ok: true; documents: EvidenceDocumentRef[] } | Denial {
+  const stored = records.evidenceDocuments;
+  if (stored === undefined) {
+    return targetUnknown("The evidence document store can't be read");
+  }
+  const documents: EvidenceDocumentRef[] = [];
+  for (const id of documentIds) {
+    const document = stored.find((candidate) => candidate.id === id);
+    if (document === undefined) return invalid(`No evidence document ${id}`);
+    if (document.contentType !== PDF) return invalid(`Evidence document ${id} isn't a PDF`);
+    if (document.disputeId !== disputeId) {
+      return invalid(`Evidence document ${id} is for another dispute, not ${disputeId}`);
+    }
+    documents.push({ id: document.id, name: document.name, sha256: document.sha256 });
+  }
+  return { ok: true, documents };
+}
+
+const PDF = "application/pdf";
+
 // Sending an invoice moves its total, from the invoice's own record.
 function normalizeInvoice(
   args: z.infer<typeof SendInvoiceProposal>["args"],
@@ -356,19 +394,27 @@ function normalizeOrder(orderId: string, records: RecordSnapshots): Normalizing 
 
 type Parsed = { [T in Tool]: z.infer<(typeof PROPOSALS)[T]> }[Tool];
 
-function normalizeArgs(parsed: Parsed, records: RecordSnapshots): Normalizing {
+function normalizeArgs(parsed: Parsed, records: GateRecords): Normalizing {
   switch (parsed.tool) {
     case "create_refund":
       return normalizeRefund(parsed.args, records);
     case "accept_dispute_claim":
       return normalizeDispute(parsed.args.dispute_id, records, { note: parsed.args.note });
     case "provide_dispute_evidence": {
+      const { dispute_id, document_ids } = parsed.args;
       const evidence = parsed.args.evidence.map((item) => ({
         evidenceType: item.evidence_type,
         notes: item.notes,
         trackingNumbers: item.tracking_numbers ?? null,
+        ...(item.refund_ids === undefined ? {} : { refundIds: item.refund_ids }),
       }));
-      return normalizeDispute(parsed.args.dispute_id, records, { evidence });
+      if (document_ids === undefined) return normalizeDispute(dispute_id, records, { evidence });
+      const documents = evidenceDocuments(dispute_id, document_ids, records);
+      if (!documents.ok) return documents;
+      return normalizeDispute(dispute_id, records, {
+        evidence,
+        documents: documents.documents,
+      });
     }
     case "make_offer": {
       const { dispute_id, offer_type, offer_amount, note } = parsed.args;

@@ -6,7 +6,7 @@
 // that need it return unknown. Reading never throws; each failed read is one line for the CLI.
 
 import type { CarrierAdapter } from "@countersign/carrier-mock";
-import { type Database, readTicket } from "@countersign/db";
+import { type Database, readEvidenceDocument, readTicket, sha256Hex } from "@countersign/db";
 import { IdSchema } from "@countersign/mandate";
 import {
   type PayPalClient,
@@ -26,6 +26,13 @@ import {
   type TicketSnapshot,
 } from "@countersign/verifiers";
 import { z } from "zod";
+import {
+  EVIDENCE_DOCUMENTS_CALL,
+  type EvidenceDocumentSnapshot,
+  type GateRecords,
+} from "./gate-records";
+
+export type { EvidenceDocumentSnapshot, GateRecords } from "./gate-records";
 
 // The reads the gate makes, named as the rail client names its calls.
 export const READ_CALLS = {
@@ -36,12 +43,13 @@ export const READ_CALLS = {
   invoice: "get-invoice",
   shipment: "carrier-shipment",
   ticket: "ticket-store",
+  documents: EVIDENCE_DOCUMENTS_CALL,
 } as const;
 
 // One read that failed: the call, and a one-line message that never holds a credential.
 export type ReadProblem = { call: string; message: string };
 
-export type LiveRecords = { records: RecordSnapshots; problems: ReadProblem[] };
+export type LiveRecords = { records: GateRecords; problems: ReadProblem[] };
 
 export type LiveRecordsInput = {
   captureId: string;
@@ -176,6 +184,40 @@ export async function readTicketRecord(db: Database, ticketId: string): Promise<
   }
 }
 
+/**
+ * Reads the evidence documents a proposal names, without keeping their bytes. A document that
+ * isn't stored is left out of the list; a store that can't be read leaves the list out, with one
+ * problem.
+ */
+export async function readEvidenceDocuments(
+  db: Database,
+  documentIds: readonly string[],
+): Promise<LiveRecords> {
+  try {
+    const snapshots: EvidenceDocumentSnapshot[] = [];
+    for (const id of new Set(documentIds)) {
+      const stored = await readEvidenceDocument(db, id);
+      if (stored === null) continue;
+      snapshots.push({
+        call: READ_CALLS.documents,
+        id: stored.id,
+        disputeId: stored.disputeId,
+        name: stored.name,
+        contentType: stored.contentType,
+        sha256: sha256Hex(stored.bytes),
+      });
+    }
+    return { records: { evidenceDocuments: snapshots }, problems: [] };
+  } catch {
+    // A fixed line, so nothing the database error carries leaks.
+    const call = READ_CALLS.documents;
+    return {
+      records: {},
+      problems: [{ call, message: "The evidence document store read failed." }],
+    };
+  }
+}
+
 // Only what's needed to know which records to read. A proposal without a readable ID reads
 // nothing for it, and normalizing denies it.
 const Named = z.object({ tool: z.string(), args: z.record(z.string(), z.unknown()) });
@@ -185,6 +227,10 @@ function idIn(args: Record<string, unknown>, key: string): string | null {
   const parsed = IdSchema.safeParse(args[key]);
   return parsed.success ? parsed.data : null;
 }
+
+// At most this many document IDs are read for one proposal; normalization refuses more.
+const MAX_DOCUMENT_READS = 5;
+const DocumentIds = z.array(IdSchema).min(1).max(MAX_DOCUMENT_READS);
 
 export type ProposalRecordsInput = {
   proposal: unknown;
@@ -201,6 +247,7 @@ async function readTargetRecords(
   proposal: unknown,
   rail: ProposalRecordsInput["rail"],
   carrier: CarrierAdapter,
+  db: Database,
 ): Promise<LiveRecords> {
   const named = Named.safeParse(proposal);
   if (!named.success) return { records: {}, problems: [] };
@@ -212,10 +259,21 @@ async function readTargetRecords(
       return captureId === null ? none : readLiveRecords({ captureId, rail, carrier });
     }
     case "accept_dispute_claim":
-    case "provide_dispute_evidence":
     case "make_offer": {
       const disputeId = idIn(args, "dispute_id");
       return disputeId === null ? none : readDisputeRecord(rail, disputeId);
+    }
+    case "provide_dispute_evidence": {
+      const disputeId = idIn(args, "dispute_id");
+      if (disputeId === null) return none;
+      const dispute = await readDisputeRecord(rail, disputeId);
+      const ids = DocumentIds.safeParse(args.document_ids);
+      if (!ids.success) return dispute;
+      const documents = await readEvidenceDocuments(db, ids.data);
+      return {
+        records: { ...dispute.records, ...documents.records },
+        problems: [...dispute.problems, ...documents.problems],
+      };
     }
     case "send_invoice": {
       const invoiceId = idIn(args, "invoice_id");
@@ -237,7 +295,7 @@ async function readTargetRecords(
  */
 export async function readProposalRecords(input: ProposalRecordsInput): Promise<LiveRecords> {
   const { proposal, rail, carrier, db } = input;
-  const target = await readTargetRecords(proposal, rail, carrier);
+  const target = await readTargetRecords(proposal, rail, carrier, db);
   const named = NamedTicket.safeParse(proposal);
   if (!named.success) return target;
   const ticket = await readTicketRecord(db, named.data.justification.ticket_id);

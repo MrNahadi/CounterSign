@@ -127,6 +127,7 @@ const ParamsSchema = z.strictObject({
         evidenceType: z.string(),
         notes: z.string(),
         trackingNumbers: z.array(z.string()).nullable().optional(),
+        refundIds: z.array(z.string()).nullable().optional(),
       }),
     )
     .nullable()
@@ -134,6 +135,10 @@ const ParamsSchema = z.strictObject({
   offerType: z.string().nullable().optional(),
   sendToRecipient: z.boolean().nullable().optional(),
   additionalRecipients: z.array(z.string()).nullable().optional(),
+  documents: z
+    .array(z.strictObject({ id: z.string(), name: z.string(), sha256: z.string() }))
+    .nullable()
+    .optional(),
 });
 
 // The stored intent, kept exactly as decided so its hash can be checked again.

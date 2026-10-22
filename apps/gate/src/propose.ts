@@ -15,7 +15,6 @@ import type { Database } from "@countersign/db";
 import { type AuditLogWriter, type ChainRow, withAuditLog } from "@countersign/ledger";
 import { hashIntent, type Mandate, REASONS } from "@countersign/mandate";
 import type { PayPalClient } from "@countersign/rail-paypal";
-import type { RecordSnapshots } from "@countersign/verifiers";
 import { type AgentResponse, type DecisionRecord, decide } from "./decide";
 import { isExecutable } from "./executable";
 import {
@@ -26,7 +25,7 @@ import {
   requestTarget,
 } from "./execution-log";
 import { type Execution, type ExecutionJob, execute } from "./executors";
-import { type ReadProblem, readProposalRecords } from "./live-records";
+import { type GateRecords, type ReadProblem, readProposalRecords } from "./live-records";
 import { normalizeProposal } from "./proposal";
 import { appendDecision, type RecordProblem, recordingFailure } from "./record";
 
@@ -112,7 +111,7 @@ type Planned =
     };
 
 type Context = Pick<ProposeInput, "mandate" | "principal" | "proposal" | "now"> & {
-  records: RecordSnapshots;
+  records: GateRecords;
 };
 
 // Decides the proposal and records it. `override` turns the decision into a denial for a
@@ -334,7 +333,7 @@ export async function propose(input: ProposeInput): Promise<ProposeResult> {
       const history = await readExecutionHistory(log.tx);
       // An unreadable history leaves `executions` out, so it's unknown, never empty, and the
       // proposal is decided, which can't allow.
-      const records: RecordSnapshots = history.known
+      const records: GateRecords = history.known
         ? { ...live.records, executions: history.executions }
         : live.records;
       const ctx: Context = { mandate, principal, proposal, records, now };

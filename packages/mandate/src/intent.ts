@@ -45,7 +45,13 @@ export type EvidenceItem = {
   evidenceType: string;
   notes: string;
   trackingNumbers?: string[] | null;
+  // The refunds a proof of refund names (ADR 0035). Hashed only when set, so an item without any
+  // hashes as it did before.
+  refundIds?: string[] | null;
 };
+
+// A stored evidence document an evidence submission sends, bound by its bytes' SHA-256 (ADR 0035).
+export type EvidenceDocumentRef = { id: string; name: string; sha256: string };
 
 // The parameters that execute alongside the target, for actions other than a refund. Each
 // action hashes its own fixed keys (HASHED_PARAMS), with absent values as null.
@@ -55,6 +61,7 @@ export type IntentParams = {
   offerType?: string | null;
   sendToRecipient?: boolean | null;
   additionalRecipients?: string[] | null;
+  documents?: EvidenceDocumentRef[] | null;
 };
 
 export type Intent = {
@@ -88,6 +95,12 @@ export const HASHED_PARAMS = {
   "order.mark_paid": [],
 } as const satisfies Record<Action, readonly (keyof IntentParams)[] | null>;
 
+// Parameter keys an action hashes only when they're set, so intents made before the key existed
+// keep their hash (ADR 0035: an evidence submission's documents).
+export const HASHED_WHEN_SET = {
+  "paypal.dispute.provide_evidence": ["documents"],
+} as const satisfies Partial<Record<Action, readonly (keyof IntentParams)[]>>;
+
 export function normalizePayeeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -115,6 +128,16 @@ function hashedParam(params: IntentParams, key: keyof IntentParams): JsonValue {
         evidenceType: item.evidenceType,
         notes: item.notes,
         trackingNumbers: item.trackingNumbers ?? null,
+        ...(item.refundIds == null ? {} : { refundIds: item.refundIds }),
+      })) ?? null
+    );
+  }
+  if (key === "documents") {
+    return (
+      params.documents?.map((document) => ({
+        id: document.id,
+        name: document.name,
+        sha256: document.sha256,
       })) ?? null
     );
   }
@@ -154,7 +177,17 @@ export function hashIntent(intent: Intent): IntentHash {
   const keys: readonly (keyof IntentParams)[] | null = HASHED_PARAMS[intent.action];
   if (keys) {
     const params = intent.params ?? {};
-    executes.params = Object.fromEntries(keys.map((key) => [key, hashedParam(params, key)]));
+    const hashed: { [key: string]: JsonValue } = Object.fromEntries(
+      keys.map((key) => [key, hashedParam(params, key)]),
+    );
+    const whenSet: readonly (keyof IntentParams)[] =
+      (HASHED_WHEN_SET as Partial<Record<Action, readonly (keyof IntentParams)[]>>)[
+        intent.action
+      ] ?? [];
+    for (const key of whenSet) {
+      if (params[key] != null) hashed[key] = hashedParam(params, key);
+    }
+    executes.params = hashed;
   }
   const { hash, canonical } = sha256Canonical(executes);
   return { hash, canonical, id: `int_${hash.slice(0, 24)}` };

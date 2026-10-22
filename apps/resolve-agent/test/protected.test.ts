@@ -236,8 +236,8 @@ describe("protected mode against the real gate", { timeout: SLOW }, () => {
     expect(run.finishedAt).not.toBeNull();
     const trace = run.trace as RunTrace;
     expect(trace.mode).toBe("protected");
-    // The gate's thirteen tools, plus find_order.
-    expect(trace.tools).toHaveLength(14);
+    // The gate's fourteen tools (prepare_dispute_evidence among them), plus find_order.
+    expect(trace.tools).toHaveLength(15);
     expect(trace.tools).toContain("find_order");
     expect(trace.tools).toContain("create_refund");
 

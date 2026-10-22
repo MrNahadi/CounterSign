@@ -34,3 +34,11 @@
 - Gotcha: `PayPalCapture` gains optional `createTime` (from `create_time`, only on get capture; a malformed one is dropped, never fails the read). It is the facts' capture time.
 - Gotcha: the PDF test reads text by decoding content streams and the `<hex> Tj` strings (see `pdfText` in dispute-evidence.test.ts); `save({ useObjectStreams: false })` keeps that simple.
 - Fulfilment is suggested only for a SHIPPED tracker whose carrier status is delivered.
+
+## T-007 (done)
+- New `apps/gate/src/prepare-evidence.ts` (`callPrepare`, `prepareAnswer`, `PREPARE_MESSAGES` = invalid-arguments line plus `PACK_MESSAGES`), listed last in tools/list as a Countersign extension; answers snake_case facts plus `not_available` and `prepared_at`, documents `{ id, kind, name, size, sha256 }`, suggested `{ evidence_type, tracking_numbers, refund_ids }`. Not decided or logged.
+- `provide_dispute_evidence` gains `document_ids` (1 to 5, no repeats) and per-item `refund_ids` (up to 20). `readProposalRecords` reads the named documents into `records.evidenceDocuments` (SHA-256 recomputed from the bytes; absent when the store read fails, giving `TARGET_UNKNOWN`). Types live in the new `gate-records.ts` (`GateRecords`), because the decision path may not mention `@countersign/db` (record.test.ts checks it).
+- `@countersign/mandate`: `EvidenceItem.refundIds`, `IntentParams.documents` (`EvidenceDocumentRef`), and `HASHED_WHEN_SET` (provide evidence hashes `documents` only when set; an item hashes `refundIds` only when set), so every older hash is unchanged. `approval-log.ts`'s `ParamsSchema` reads both.
+- Decision for the human: `document_ids` is optional, so an evidence submission without documents still normalizes (keeps the existing tests and hashes); the drafter (T-010) always sends the PDF. Say if it should be required.
+- Gotcha: the gate's tools/list now has 14 tools (fixture re-recorded); Resolve's message runs see `prepare_dispute_evidence` too (protected.test.ts counts 15 with find_order).
+- Gotcha for T-008: the executor gets `params.documents` (`{ id, name, sha256 }`) and `evidence[].refundIds` from the stored intent; re-read bytes with `readEvidenceDocument` and compare `sha256Hex(bytes)`.

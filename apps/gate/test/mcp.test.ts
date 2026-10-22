@@ -104,6 +104,8 @@ const READS = [
   "list_transactions",
 ];
 
+const EXTENSIONS = ["prepare_dispute_evidence"];
+
 let servers: Server[] = [];
 let clients: Client[] = [];
 
@@ -220,7 +222,7 @@ describe("tools/list", () => {
   it("lists the seven guarded tools with input schemas from the normalization schemas", async () => {
     const client = await connect(await listen({ env: ENV }));
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name)).toEqual([...GUARDED, ...READS]);
+    expect(tools.map((tool) => tool.name)).toEqual([...GUARDED, ...READS, ...EXTENSIONS]);
 
     const refund = tools.find((tool) => tool.name === "create_refund");
     expect(refund?.inputSchema).toMatchObject({

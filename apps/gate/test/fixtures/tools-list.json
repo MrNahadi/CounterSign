@@ -180,10 +180,27 @@
                     "type": "string",
                     "pattern": "^\\S(?:.*\\S)?$"
                   }
+                },
+                "refund_ids": {
+                  "maxItems": 20,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^\\S(?:.*\\S)?$"
+                  }
                 }
               },
               "required": ["evidence_type", "notes"],
               "additionalProperties": false
+            }
+          },
+          "document_ids": {
+            "minItems": 1,
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^\\S(?:.*\\S)?$"
             }
           },
           "justification": {
@@ -551,6 +568,21 @@
             ]
           }
         },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "prepare_dispute_evidence",
+      "description": "Countersign extension: PayPal's Agent Toolkit has no such tool. Build a dispute's evidence pack from Countersign's records: the dispute, payment, shipping (simulated carrier data), refunds, Countersign's decisions and the audit log, stored as a PDF and an export, with suggested evidence items for provide_dispute_evidence. Moves no money: nothing is decided.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "dispute_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{1,64}$"
+          }
+        },
+        "required": ["dispute_id"],
         "additionalProperties": false
       }
     }

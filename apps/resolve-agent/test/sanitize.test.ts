@@ -278,8 +278,8 @@ describe("sanitizeSchema on the gate's recorded tools/list", () => {
     tools: { name: string; inputSchema: unknown }[];
   };
 
-  it("holds the gate's thirteen tools", () => {
-    expect(tools).toHaveLength(13);
+  it("holds the gate's fourteen tools", () => {
+    expect(tools).toHaveLength(14);
   });
 
   it.each(tools.map((tool) => [tool.name, tool.inputSchema] as const))(

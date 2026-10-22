@@ -232,6 +232,60 @@ describe("hashIntent for actions other than a refund", () => {
     });
   });
 
+  it("hashes an evidence submission's documents and refund IDs only when they're set", () => {
+    const [, evidence] = others[1];
+    const documents = [
+      { id: "doc_0123456789abcdef01234567", name: "a.pdf", sha256: "ab".repeat(32) },
+    ];
+    const withDocuments: Intent = {
+      ...evidence,
+      params: {
+        evidence: [
+          {
+            evidenceType: "PROOF_OF_REFUND",
+            notes: "Refunded",
+            trackingNumbers: null,
+            refundIds: ["REF-1"],
+          },
+        ],
+        documents,
+      },
+    };
+    expect(parsedHash(withDocuments).params).toEqual({
+      evidence: [
+        {
+          evidenceType: "PROOF_OF_REFUND",
+          notes: "Refunded",
+          trackingNumbers: null,
+          refundIds: ["REF-1"],
+        },
+      ],
+      documents,
+    });
+    const changed = (document: Partial<(typeof documents)[number]>): Intent => ({
+      ...withDocuments,
+      params: { ...withDocuments.params, documents: [{ ...documents[0], ...document }] },
+    });
+    const original = hashIntent(withDocuments).hash;
+    expect(hashIntent(changed({ sha256: "cd".repeat(32) })).hash).not.toBe(original);
+    expect(hashIntent(changed({ name: "b.pdf" })).hash).not.toBe(original);
+    expect(hashIntent(changed({ id: "doc_76543210fedcba9876543210" })).hash).not.toBe(original);
+    const noRefunds: Intent = {
+      ...withDocuments,
+      params: {
+        ...withDocuments.params,
+        evidence: [{ evidenceType: "PROOF_OF_REFUND", notes: "Refunded", refundIds: null }],
+      },
+    };
+    expect(parsedHash(noRefunds).params.evidence).toEqual([
+      { evidenceType: "PROOF_OF_REFUND", notes: "Refunded", trackingNumbers: null },
+    ]);
+    // Documents on any other action aren't hashed.
+    const [, claim] = others[0];
+    const claimWithDocuments: Intent = { ...claim, params: { ...claim.params, documents } };
+    expect(hashIntent(claimWithDocuments)).toEqual(hashIntent(claim));
+  });
+
   it("hashes an order capture's order and an empty parameter object", () => {
     const capture: Intent = {
       ...base,

@@ -16,9 +16,10 @@ import {
   type Usage,
   type VerifierTrace,
 } from "@countersign/mandate";
-import { type RecordSnapshots, runVerifiers, todaysUsage } from "@countersign/verifiers";
+import { runVerifiers, todaysUsage } from "@countersign/verifiers";
 import { z } from "zod";
 import { isExecutable } from "./executable";
+import type { GateRecords } from "./gate-records";
 import { normalizeProposal } from "./proposal";
 
 // How long a step-up waits for the merchant before it expires as a deny.
@@ -73,7 +74,7 @@ export type DecideInput = {
   // Who is proposing, from the agent's credentials, never from the proposal itself.
   principal: string;
   proposal: unknown;
-  records: RecordSnapshots;
+  records: GateRecords;
   now: Date;
 };
 
