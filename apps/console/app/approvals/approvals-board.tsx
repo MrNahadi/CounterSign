@@ -336,7 +336,6 @@ function Recent({ lines }: { lines: RecentLine[] }) {
 
 type Answered = { card: CardView; outcome: Outcome };
 
-/** Signed in: the open cards, newest first, and the recent answers, re-read every 3 seconds. */
 /** The approvals URL as a QR code, from 768px up: foreground modules on a container background. */
 function OpenOnPhone({ qr }: { qr: QrView }) {
   return (
@@ -366,6 +365,7 @@ function OpenOnPhone({ qr }: { qr: QrView }) {
   );
 }
 
+/** Signed in: the open cards, newest first, and the recent answers, re-read every 3 seconds. */
 export function ApprovalsBoard({
   view,
   problem,
