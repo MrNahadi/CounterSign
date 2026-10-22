@@ -21,6 +21,7 @@ import { type Card, cardView, TICKET_EXCERPT_LENGTH } from "../src/approval-card
 import type { StepUp } from "../src/approval-log";
 import { APPROVAL_BODY_LIMIT, APPROVAL_MESSAGES } from "../src/approvals-api";
 import { APPROVER_KEY_VAR } from "../src/approver";
+import { claimsVsRecords } from "../src/claims";
 import { APPROVAL_WINDOW_MS } from "../src/decide";
 import { SUPPORT_AGENT_KEY_VAR } from "../src/principals";
 import { propose } from "../src/propose";
@@ -292,6 +293,16 @@ describe("the approval API", { timeout: SLOW }, () => {
     const capture = card.checks.find((check) => check.verifier === "capture.refundable");
     expect(capture?.result).toBe("pass");
     expect(capture?.records).toContainEqual({ call: expect.any(String), id: "CAP-1037" });
+
+    // The same pairs as the decision page, one per check that decided, then the message.
+    expect(card.claims.map((pair) => pair.check)).toEqual([
+      ...card.checks.map((check) => check.verifier),
+      "message",
+    ]);
+    expect(card.claims.find((pair) => pair.check === "evidence.photo_present")?.verdict).toBe(
+      "matches",
+    );
+    expect(card.claims.at(-1)?.verdict).toBe("not_used");
 
     const one = await getJson(`${url}/approvals/${seq}`);
     expect(one.status).toBe(200);
@@ -581,6 +592,12 @@ describe("cardView", () => {
   it("shows every check when the step-up's mandate isn't one it knows", () => {
     const card = cardView(stepUp, { ticket: null, orderNumber: null, mandates: [mandate] });
     expect(card.ticket).toBeNull();
+    expect(card.claims).toEqual(
+      claimsVsRecords(
+        { ...stepUp, proposal: "" },
+        { ticket: null, orderNumber: null, mandates: [mandate] },
+      ),
+    );
     expect(card.checks).toEqual([
       {
         verifier: "dispute.none_open",

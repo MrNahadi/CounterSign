@@ -13,7 +13,6 @@ import {
 import {
   type Action,
   formatMoney,
-  hashMandate,
   type IntentTarget,
   type Mandate,
   type Money,
@@ -21,6 +20,7 @@ import {
   type VerifierName,
 } from "@countersign/mandate";
 import { readStepUps, type StepUp, type StepUpState } from "./approval-log";
+import { type ClaimPair, checksThatDecided, claimsVsRecords } from "./claims";
 import { isExecutable } from "./executable";
 import { type ExecutionOutcome, readIntentRecord } from "./execution-log";
 import { ACTION_WORDS } from "./words";
@@ -75,6 +75,8 @@ export type Card = {
   ticket: CardTicket | null;
   claim: StepUp["intent"]["claim"];
   reasons: { code: string; words: string; detail: string }[];
+  // What the message claims beside what the records say (the same pairs as the decision page).
+  claims: ClaimPair[];
   checks: CardCheck[];
   decided_at: string;
   expires_at: string;
@@ -110,7 +112,7 @@ export type RecentSummary = {
 export type CardContext = {
   ticket: Ticket | null;
   orderNumber: string | null;
-  // The principals' mandates. A step-up's own (by hash) narrows the checks to its matched rules.
+  // The principals' mandates. A step-up's own (by hash) narrows the checks to those that decided.
   mandates: readonly Mandate[];
 };
 
@@ -144,24 +146,12 @@ export function ticketOf(ticket: Ticket): CardTicket {
   };
 }
 
-// The verifiers the step-up's matched rules use, or null when its mandate isn't one of the
-// principals' (then every check in the trace is shown).
-function usedVerifiers(stepUp: StepUp, mandates: readonly Mandate[]): Set<VerifierName> | null {
-  const mandate = mandates.find((candidate) => hashMandate(candidate).hash === stepUp.mandate.hash);
-  if (mandate === undefined) return null;
-  const used = new Set<VerifierName>();
-  for (const rule of mandate.rules) {
-    if (!stepUp.matchedRules.includes(rule.id)) continue;
-    for (const verifier of rule.require ?? []) used.add(verifier);
-    if (rule.when?.["shipment.status"]) used.add("shipment.status");
-  }
-  return used;
-}
-
 // One step-up as the merchant's card.
 export function cardView(stepUp: StepUp, context: CardContext): Card {
   const { intent } = stepUp;
-  const used = usedVerifiers(stepUp, context.mandates);
+  // A step-up always has its intent, so the proposal text (read only for a malformed proposal)
+  // is never used.
+  const decision = { ...stepUp, intent, proposal: "" };
   const canExecute = isExecutable(intent.action);
   return {
     step_up_id: stepUp.seq,
@@ -180,15 +170,14 @@ export function cardView(stepUp: StepUp, context: CardContext): Card {
       words: REASONS[code].words,
       detail,
     })),
-    checks: stepUp.trace
-      .filter((entry) => used === null || used.has(entry.verifier))
-      .map((entry) => ({
-        verifier: entry.verifier,
-        result: entry.result,
-        value: entry.value ?? null,
-        detail: entry.detail,
-        records: entry.records.map(({ call, id }) => ({ call, id })),
-      })),
+    claims: claimsVsRecords(decision, context),
+    checks: checksThatDecided(decision, context.mandates).map((entry) => ({
+      verifier: entry.verifier,
+      result: entry.result,
+      value: entry.value ?? null,
+      detail: entry.detail,
+      records: entry.records.map(({ call, id }) => ({ call, id })),
+    })),
     decided_at: stepUp.decidedAt,
     expires_at: stepUp.expiresAt,
     state: stepUp.state,

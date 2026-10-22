@@ -27,3 +27,7 @@
 - Answers: `/audit/decisions` and `/audit/entries` return the reader's pages as they are; `/audit/decisions/:seq` the detail (200 with `readable: false` for an unreadable entry); `/audit/intents/:id` `{ decision_seq }`; `/audit/verify` `{ intact, entry_count, head: { seq, hash } | null, problems: [{ seq, code, detail }] }` (a broken chain's head is the last stored row); `/audit/export` the file pretty-printed with `Content-Disposition: attachment; filename="countersign-evidence-<kind>-<id>.json"`.
 - Errors are `{ message }`: 401 uses `APPROVAL_MESSAGES.unauthorized` with `WWW-Authenticate: Bearer`; a malformed seq or intent ID is 400 (not 404, unlike the approval API); capture IDs must match `^[A-Za-z0-9-]{1,64}$`. Repeated query params arrive as arrays and fail as 400.
 - In the beat 3 log, KIK-1042 is a step-up and KIK-1039 a deny (counts: 2 step-ups, 1 deny with beat 5).
+
+## T-006 (done)
+- `cardView` in `apps/gate/src/approval-cards.ts` now sets `claims` via `claimsVsRecords` and `checks` via `checksThatDecided` (the old `usedVerifiers` is gone). The step-up carries no proposal text, so it passes `proposal: ""`; a step-up always has an intent, so it's never used.
+- Console's card zod schema (T-012) must accept `claims` (ClaimPair shape from T-001).

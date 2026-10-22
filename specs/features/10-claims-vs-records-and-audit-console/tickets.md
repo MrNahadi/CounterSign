@@ -76,14 +76,14 @@ Notes:
 
 ## T-006: Approval cards gain claims
 
-Status: open
+Status: done
 Blocked by: T-001
 Tier: simple
 Slice: The beat 5 card from `GET /approvals` carries the same claims-vs-records pairs as its decision page, and its checks use the shared rule.
 Test seam: the gate's card builder and `GET /approvals` over the real gate
 Acceptance:
-- [ ] Each card gains `claims`, equal to `claimsVsRecords` for its step-up
-- [ ] `checks` uses the shared checks-that-decided rule; the phase 9 card, API and CLI tests pass unchanged or with only the narrowing they already expected
+- [x] Each card gains `claims`, equal to `claimsVsRecords` for its step-up
+- [x] `checks` uses the shared checks-that-decided rule; the phase 9 card, API and CLI tests pass unchanged or with only the narrowing they already expected
 Notes:
 
 ## T-007: The `audit` CLI
