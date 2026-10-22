@@ -20,6 +20,13 @@ describe("console setup", () => {
     expect(read("../app/console-shell.tsx")).toContain("<ThemeControl />");
   });
 
+  it("has Approvals in the sidebar, with the open-card count", () => {
+    const nav = read("../app/console-nav.tsx");
+    expect(nav).toContain('{ href: "/approvals", label: "Approvals", Icon: ClipboardCheck }');
+    expect(nav).toContain("openApprovals");
+    expect(read("../app/console-shell.tsx")).toContain("<ConsoleNav openApprovals={count} />");
+  });
+
   it("keeps Resolve's address out of browser code", () => {
     for (const path of ["../app/console-nav.tsx", "../app/inbox/refresh-while-working.tsx"]) {
       expect(read(path)).not.toContain("RESOLVE_AGENT_URL");

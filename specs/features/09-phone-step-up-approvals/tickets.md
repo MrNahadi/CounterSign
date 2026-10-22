@@ -133,17 +133,17 @@ Notes:
 
 ## T-010: The approvals page
 
-Status: open
+Status: done
 Blocked by: T-009
 Tier: standard
 Slice: On a phone-width screen, the approver signs in, sees beat 5's itemized card, taps Approve and reads "Approved. Refund … is done."
 Test seam: the approval view models in `apps/console/src/` (card view, time left, outcome sentences, button classes), plus the Graphite design check
 Acceptance:
-- [ ] `/approvals` shows the sign-in field without the cookie, and the open cards, newest first, with every part requirements.md lists; a card that can't execute shows its sentence and only Deny
-- [ ] Each outcome and rejection maps to its exact sentence in requirements.md
-- [ ] Approve sends the card's hash; the page polls every 3 seconds; "Sign out" clears the session
-- [ ] Approve and Deny are 40px tall, every other control at least 24px; reasons show words with the code in inline code
-- [ ] The sidebar gains Approvals with an open-card count; the page works in light and dark at phone and desktop widths
+- [x] `/approvals` shows the sign-in field without the cookie, and the open cards, newest first, with every part requirements.md lists; a card that can't execute shows its sentence and only Deny
+- [x] Each outcome and rejection maps to its exact sentence in requirements.md
+- [x] Approve sends the card's hash; the page polls every 3 seconds; "Sign out" clears the session
+- [x] Approve and Deny are 40px tall, every other control at least 24px; reasons show words with the code in inline code
+- [x] The sidebar gains Approvals with an open-card count; the page works in light and dark at phone and desktop widths
 Notes:
 
 ## T-011: The QR code and the manifest

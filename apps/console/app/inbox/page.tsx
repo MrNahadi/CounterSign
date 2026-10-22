@@ -5,8 +5,9 @@ import Link from "next/link";
 import { listIsWorking, POLL_INTERVAL_MS, threadListItems, threadView } from "../../src/inbox-view";
 import { loadThread, loadThreads } from "../../src/resolve-routes";
 import { ConsoleShell } from "../console-shell";
+import { Notice } from "../ui";
 import { InboxHeader } from "./inbox-header";
-import { Notice, ThreadDetail, ThreadList } from "./inbox-parts";
+import { ThreadDetail, ThreadList } from "./inbox-parts";
 import { RefreshWhileWorking } from "./refresh-while-working";
 
 // The merchant's inbox: simulated customer threads, Resolve's replies and what Resolve did.

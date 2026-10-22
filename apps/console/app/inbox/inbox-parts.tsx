@@ -1,13 +1,5 @@
-import {
-  CircleAlert,
-  LoaderCircle,
-  type LucideIcon,
-  Mail,
-  MessageCircle,
-  ShieldOff,
-} from "lucide-react";
+import { type LucideIcon, Mail, MessageCircle, ShieldOff } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import {
   type MessageView,
   NO_CHECKS,
@@ -15,77 +7,17 @@ import {
   type StatusBadge,
   type ThreadListItem,
   type ThreadView,
-  type Tone,
   type ToolRow,
 } from "../../src/inbox-view";
+import { Badge, Code, Notice, Working } from "../ui";
 
 // The inbox's pieces, built from Graphite's Badge, Card, inline code and Spinner specs.
-
-const TONES: Record<Tone, string> = {
-  neutral: "bg-component text-secondary-foreground",
-  positive: "bg-positive-subtle text-on-positive-subtle-foreground",
-  warning: "bg-warning-subtle text-on-warning-subtle-foreground",
-  danger: "bg-danger-subtle text-on-danger-subtle-foreground",
-};
-
-export function Badge({
-  tone,
-  live = false,
-  children,
-}: {
-  tone: Tone;
-  live?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={`inline-flex h-5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-1.5 text-caption-lg font-medium ${TONES[tone]}`}
-    >
-      {live ? (
-        <span
-          aria-hidden="true"
-          className="size-1.5 rounded-full bg-current motion-safe:animate-pulse"
-        />
-      ) : null}
-      {children}
-    </span>
-  );
-}
 
 const StatusBadgeView = ({ status }: { status: StatusBadge }) => (
   <Badge tone={status.tone} live={status.live}>
     {status.label}
   </Badge>
 );
-
-export const Code = ({ children }: { children: ReactNode }) => (
-  <code className="rounded-sm bg-component px-1 py-0.5 font-mono text-code-xs break-all">
-    {children}
-  </code>
-);
-
-export function Working({ label }: { label: string }) {
-  return (
-    <p role="status" className="flex items-center gap-2 text-body-sm text-secondary-foreground">
-      <LoaderCircle
-        size={16}
-        strokeWidth={1.5}
-        aria-hidden="true"
-        className="motion-safe:animate-[spin_800ms_linear_infinite]"
-      />
-      {label}
-    </p>
-  );
-}
-
-export function Notice({ children }: { children: ReactNode }) {
-  return (
-    <p className="flex items-start gap-2 text-body-sm text-secondary-foreground">
-      <CircleAlert size={16} strokeWidth={1.5} aria-hidden="true" className="mt-0.5 shrink-0" />
-      <span>{children}</span>
-    </p>
-  );
-}
 
 const CHANNEL_ICONS: Record<ThreadListItem["channel"], LucideIcon> = {
   email: Mail,

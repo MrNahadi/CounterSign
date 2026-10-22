@@ -69,7 +69,11 @@ export function gateUrl(env: ApprovalEnv): URL | null {
 
 /** The approver key from a request's cookies, or null when it's missing or malformed. */
 export function approverKeyFrom(request: Request): string | null {
-  const header = request.headers.get("cookie");
+  return approverKeyFromHeader(request.headers.get("cookie"));
+}
+
+/** The approver key from a `Cookie` header, for server components that read headers directly. */
+export function approverKeyFromHeader(header: string | null): string | null {
   if (header === null) return null;
   for (const part of header.split(";")) {
     const at = part.indexOf("=");

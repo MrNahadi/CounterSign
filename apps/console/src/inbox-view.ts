@@ -11,6 +11,7 @@ import {
   type ThreadSummary,
   type ToolStep,
 } from "./resolve-schemas";
+import { formatTime } from "./time";
 
 // What the inbox shows, worked out from Resolve's parsed answers. Pure: the caller passes the
 // time, so the same answer always gives the same view.
@@ -129,24 +130,7 @@ const sender = (from: { sender_email: string | null; sender_phone: string | null
 
 const channelLabel = (channel: "email" | "chat") => (channel === "email" ? "Email" : "Chat");
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Relative under a week ("4m ago"), the date after (brand book). */
-export function formatTime(iso: string, now: Date): string {
-  const at = Date.parse(iso);
-  if (Number.isNaN(at)) return iso;
-  const ago = now.getTime() - at;
-  if (ago < 60_000) return "Just now";
-  if (ago < 60 * 60_000) return `${Math.floor(ago / 60_000)}m ago`;
-  if (ago < DAY_MS) return `${Math.floor(ago / (60 * 60_000))}h ago`;
-  if (ago < 7 * DAY_MS) return `${Math.floor(ago / DAY_MS)}d ago`;
-  return new Date(at).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
+export { formatTime };
 
 /** Compact, "1m 08s" or "14s"; null until the run has started and finished. */
 export function formatDuration(startedAt: string | null, finishedAt: string | null): string | null {
