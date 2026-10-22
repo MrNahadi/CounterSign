@@ -48,15 +48,15 @@ Notes:
 
 ## T-004: Evidence selection by intent and by capture
 
-Status: open
+Status: done
 Blocked by: T-002, T-003
 Tier: simple
 Slice: The gate picks the rows for an intent's or a capture's evidence and builds the file, so an approved and reconciled beat 5 exports with everything that happened to it.
 Test seam: the gate's evidence-export function (scope in, file or not found out), over PGlite
 Acceptance:
-- [ ] Intent scope: every entry with the intent's ref plus the `mandate.version` entries its decisions point at
-- [ ] Capture scope: the same for every intent on the capture, plus every reconciliation whose refund names the capture, unmatched ones included
-- [ ] An intent or capture with nothing selected is not found; the built file passes `checkEvidence`
+- [x] Intent scope: every entry with the intent's ref plus the `mandate.version` entries its decisions point at
+- [x] Capture scope: the same for every intent on the capture, plus every reconciliation whose refund names the capture, unmatched ones included
+- [x] An intent or capture with nothing selected is not found; the built file passes `checkEvidence`
 Notes:
 
 ## T-005: The audit API
