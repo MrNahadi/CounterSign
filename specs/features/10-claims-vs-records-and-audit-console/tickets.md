@@ -61,17 +61,17 @@ Notes:
 
 ## T-005: The audit API
 
-Status: open
+Status: done
 Blocked by: T-001, T-002, T-004
 Tier: standard
 Slice: Over a real listening gate, the approver key lists decisions, opens one with its claims vs records and trail, pages entries, verifies the chain and downloads evidence; nothing else gets in.
 Test seam: HTTP against `createApp` on `127.0.0.1` port 0, with PGlite and the fake sandbox
 Acceptance:
-- [ ] `GET /audit/decisions`, `/audit/decisions/:seq`, `/audit/intents/:id`, `/audit/entries`, `/audit/verify` and `/audit/export` answer the snake_case JSON (or file) requirements.md describes; the detail includes the pairs from T-001
-- [ ] No key, a wrong key and a principal key answer 401 on every route before anything is read; the approver key still never works on `/mcp`
-- [ ] Unknown or bad query parameters, and both or neither of `intent` and `capture`, answer 400; unknown `seq`, intent or empty export 404; no database 503; answers never echo the request
-- [ ] The export carries an attachment header named `countersign-evidence-<scope>-<id>.json`; verify reports a row edited behind the trigger as broken at its `seq`
-- [ ] Every route and reader leaves the log's head and row count unchanged; no test key appears in any answer
+- [x] `GET /audit/decisions`, `/audit/decisions/:seq`, `/audit/intents/:id`, `/audit/entries`, `/audit/verify` and `/audit/export` answer the snake_case JSON (or file) requirements.md describes; the detail includes the pairs from T-001
+- [x] No key, a wrong key and a principal key answer 401 on every route before anything is read; the approver key still never works on `/mcp`
+- [x] Unknown or bad query parameters, and both or neither of `intent` and `capture`, answer 400; unknown `seq`, intent or empty export 404; no database 503; answers never echo the request
+- [x] The export carries an attachment header named `countersign-evidence-<scope>-<id>.json`; verify reports a row edited behind the trigger as broken at its `seq`
+- [x] Every route and reader leaves the log's head and row count unchanged; no test key appears in any answer
 Notes:
 
 ## T-006: Approval cards gain claims

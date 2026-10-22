@@ -72,11 +72,10 @@ function executionView(execution: Execution | null) {
   };
 }
 
-export function mountApprovals(app: Express, deps: ApprovalsDeps): void {
-  const { approver, db, mandates, clock } = deps;
-
-  // Before the body is read: a refused key never reaches the log.
-  const authenticate = (req: Request, res: Response, next: NextFunction) => {
+// The approver check, shared by the approval and audit APIs. It runs before any body or query is
+// read, so a refused key never reaches the log. Every refusal looks the same.
+export function approverOnly(approver: Approver) {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!approver.authenticate(req.headers.authorization)) {
       res.status(401).set("WWW-Authenticate", "Bearer");
       message(res, 401, APPROVAL_MESSAGES.unauthorized);
@@ -84,6 +83,11 @@ export function mountApprovals(app: Express, deps: ApprovalsDeps): void {
     }
     next();
   };
+}
+
+export function mountApprovals(app: Express, deps: ApprovalsDeps): void {
+  const { approver, db, mandates, clock } = deps;
+  const authenticate = approverOnly(approver);
 
   const stepUpId = (req: Request): number | null => {
     const parsed = StepUpId.safeParse(req.params.id);

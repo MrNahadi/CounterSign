@@ -21,3 +21,9 @@
 - Added `apps/gate/src/evidence-export.ts`: `exportEvidence(db, { kind, id }, now)` returns `{ kind: "file", file }` or `{ kind: "not_found" }`. Selection reads decision/reconciliation payloads loosely (zod, display-only) and the intent rows by `ref_id`; `now` is injected and becomes `exported_at`. Tests in `apps/gate/test/evidence-export.test.ts`.
 - Gotcha: `@countersign/db` doesn't export `inArray`, so selection uses `sql.join`. A decision whose payload can't be read for its intent/capture is left out of the selection. A mandate seq missing from the log would make `buildEvidence` throw `EvidenceRowsMissingError` (T-005 should map unexpected throws to 503).
 - The pre-existing biome warning in `apps/resolve-agent/src/queue.ts` (void in union) is unrelated.
+
+## T-005 (done)
+- Added `apps/gate/src/audit-api.ts` (`mountAudit`, `AUDIT_PATH`, `AUDIT_MESSAGES`), mounted in `createApp` after the approval API. The approver check is now `approverOnly(approver)` exported from approvals-api and shared by both. Tests in `apps/gate/test/audit-api.test.ts`.
+- Answers: `/audit/decisions` and `/audit/entries` return the reader's pages as they are; `/audit/decisions/:seq` the detail (200 with `readable: false` for an unreadable entry); `/audit/intents/:id` `{ decision_seq }`; `/audit/verify` `{ intact, entry_count, head: { seq, hash } | null, problems: [{ seq, code, detail }] }` (a broken chain's head is the last stored row); `/audit/export` the file pretty-printed with `Content-Disposition: attachment; filename="countersign-evidence-<kind>-<id>.json"`.
+- Errors are `{ message }`: 401 uses `APPROVAL_MESSAGES.unauthorized` with `WWW-Authenticate: Bearer`; a malformed seq or intent ID is 400 (not 404, unlike the approval API); capture IDs must match `^[A-Za-z0-9-]{1,64}$`. Repeated query params arrive as arrays and fail as 400.
+- In the beat 3 log, KIK-1042 is a step-up and KIK-1039 a deny (counts: 2 step-ups, 1 deny with beat 5).

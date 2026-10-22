@@ -8,6 +8,7 @@ import type { PayPalClient } from "@countersign/rail-paypal";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { mountApprovals } from "./approvals-api";
 import { approverLines, loadApprover } from "./approver";
+import { mountAudit } from "./audit-api";
 import { mountMcp } from "./mcp";
 import { loadPrincipals, MIN_KEY_LENGTH, type Principals } from "./principals";
 import { ANSWERS, handlePayPalWebhook, WEBHOOK_BODY_LIMIT, type WebhookAnswer } from "./webhook";
@@ -47,7 +48,7 @@ function send(res: Response, answer: WebhookAnswer): void {
   res.status(answer.status).json({ message: answer.message });
 }
 
-// The gate's HTTP surface: health, /mcp, the approval API and the PayPal webhook. Later phases
+// The gate's HTTP surface: health, /mcp, the approval and audit APIs and the PayPal webhook. Later phases
 // add Daraja callbacks.
 // Every dependency is optional, so /health works with none.
 export function createApp(deps: AppDeps = {}) {
@@ -90,6 +91,12 @@ export function createApp(deps: AppDeps = {}) {
     approver,
     ...(deps.db ? { db: deps.db } : {}),
     ...(railOnce ? { rail: railOnce } : {}),
+    mandates: principals.mandates,
+    clock: webhookDeps.clock,
+  });
+  mountAudit(app, {
+    approver,
+    ...(deps.db ? { db: deps.db } : {}),
     mandates: principals.mandates,
     clock: webhookDeps.clock,
   });
