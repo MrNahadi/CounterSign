@@ -182,7 +182,7 @@ Slice: Under `LIVE=1` with the PayPal variables, a real draft invoice is created
 Test seam: `packages/rail-paypal/test/live-sandbox.test.ts` and `apps/gate/test/approvals-live.test.ts`, skipped without `LIVE=1`
 Acceptance:
 - [x] The rail-paypal live test creates a draft to an `example.com` recipient, sends it, and expects a 4xx on a second send
-- [ ] The gate live test decides a `send_invoice` step-up on a fresh draft, approves it and checks one send and its result entry
+- [x] The gate live test decides a `send_invoice` step-up on a fresh draft, approves it and checks one send and its result entry
 - [ ] Both skip cleanly without `LIVE=1` or the variables, and stay out of the Feedback commands
 Notes:
 
