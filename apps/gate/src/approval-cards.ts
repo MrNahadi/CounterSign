@@ -114,9 +114,9 @@ export type CardContext = {
   mandates: readonly Mandate[];
 };
 
-const amountOf = (money: Money): CardAmount => ({ ...money, display: formatMoney(money) });
+export const amountOf = (money: Money): CardAmount => ({ ...money, display: formatMoney(money) });
 
-function targetOf(target: IntentTarget): CardTarget {
+export function targetOf(target: IntentTarget): CardTarget {
   switch (target.kind) {
     case "capture":
       return { kind: "capture", id: target.captureId, order_id: target.orderId };
@@ -131,7 +131,7 @@ function targetOf(target: IntentTarget): CardTarget {
   }
 }
 
-function ticketOf(ticket: Ticket): CardTicket {
+export function ticketOf(ticket: Ticket): CardTicket {
   return {
     id: ticket.id,
     channel: ticket.channel,

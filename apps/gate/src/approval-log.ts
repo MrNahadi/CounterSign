@@ -137,7 +137,7 @@ const ParamsSchema = z.strictObject({
 });
 
 // The stored intent, kept exactly as decided so its hash can be checked again.
-const IntentSchema = z.strictObject({
+export const IntentSchema = z.strictObject({
   principal: Id,
   rail: z.enum(RAILS),
   action: z.enum(ACTIONS),
@@ -149,7 +149,7 @@ const IntentSchema = z.strictObject({
   mandateVersion: z.number().int().positive(),
 }) satisfies z.ZodType<Intent>;
 
-const TraceEntrySchema = z.object({
+export const TraceEntrySchema = z.object({
   verifier: z.enum(VERIFIERS),
   result: z.enum(VERIFIER_RESULTS),
   records: z.array(z.object({ call: z.string(), id: z.string().nullable() })),
@@ -157,7 +157,7 @@ const TraceEntrySchema = z.object({
   value: z.enum(SHIPMENT_STATUSES).optional(),
 });
 
-const ReasonSchema = z.object({ code: ReasonCodeSchema, detail: z.string() });
+export const ReasonSchema = z.object({ code: ReasonCodeSchema, detail: z.string() });
 
 // Every decision entry is read this far, to tell a step-up from any other decision.
 const AnyDecisionSchema = z.object({

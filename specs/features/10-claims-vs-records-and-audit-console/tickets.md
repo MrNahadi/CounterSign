@@ -18,18 +18,18 @@ Notes:
 
 ## T-002: The audit reader
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: From a log holding beats 3 to 5, an approved and reconciled step-up and an unreadable entry, the gate lists decision rows with statuses, filters and pages them, and reads one decision with its intent's trail, plus the raw entry pages.
 Test seam: the gate's audit-reader exports (rows, detail by `seq`, newest decision by intent, entries), over PGlite with an injected time
 Acceptance:
-- [ ] Rows come newest first with every field in requirements.md and each status: executed, failed, unknown, pending, not executable, open, approved (with its execution), denied, expired
-- [ ] `decision`, `q`, `before` and `limit` filter and page as specified, with counts for the current `q` and the next cursor
-- [ ] An unreadable decision entry is a `readable: false` row with its problem; the other rows still list
-- [ ] The detail holds the intent hash and canonical JSON, the mandate and its entry `seq`, usage, reasons with words, the full trace, the ticket, the proposal text, the entry's hashes, and the trail of approval, request, result and webhook reconciliation in order with their parts; an unreadable trail entry shows its problem
-- [ ] A `seq` that isn't a decision is not found; an unreadable decision returns its problem and raw payload text; by-intent returns the newest decision's `seq`
-- [ ] Entries page newest first with one summary sentence per entry type and the total
+- [x] Rows come newest first with every field in requirements.md and each status: executed, failed, unknown, pending, not executable, open, approved (with its execution), denied, expired
+- [x] `decision`, `q`, `before` and `limit` filter and page as specified, with counts for the current `q` and the next cursor
+- [x] An unreadable decision entry is a `readable: false` row with its problem; the other rows still list
+- [x] The detail holds the intent hash and canonical JSON, the mandate and its entry `seq`, usage, reasons with words, the full trace, the ticket, the proposal text, the entry's hashes, and the trail of approval, request, result and webhook reconciliation in order with their parts; an unreadable trail entry shows its problem
+- [x] A `seq` that isn't a decision is not found; an unreadable decision returns its problem and raw payload text; by-intent returns the newest decision's `seq`
+- [x] Entries page newest first with one summary sentence per entry type and the total
 Notes:
 
 ## T-003: The evidence file and `ledger check-export`
