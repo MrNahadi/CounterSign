@@ -43,15 +43,15 @@ export type ApprovalDeps = {
   timeoutMs?: number;
 };
 
-type Refusal = { ok: false; status: 400 | 401 | 404 | 502 | 503; message: string };
+export type Refusal = { ok: false; status: 400 | 401 | 404 | 502 | 503; message: string };
 export type Answer<T> = { ok: true; value: T } | Refusal;
 
-const refuse = (status: Refusal["status"], message: string): Refusal => ({
+export const refuse = (status: Refusal["status"], message: string): Refusal => ({
   ok: false,
   status,
   message,
 });
-const unreachable = refuse(502, APPROVAL_ROUTE_MESSAGES.unreachable);
+export const unreachable = refuse(502, APPROVAL_ROUTE_MESSAGES.unreachable);
 const signInAgain = refuse(401, APPROVAL_ROUTE_MESSAGES.signInAgain);
 
 const GateUrlSchema = z.url({ protocol: /^https?$/ });
@@ -116,7 +116,7 @@ const clearCookie = (request: Request) => cookie(request, "", 0);
 
 // --- Calling the gate ----------------------------------------------------------------------
 
-async function call(
+export async function callGate(
   deps: ApprovalDeps,
   key: string,
   path: string,
@@ -144,7 +144,7 @@ async function call(
   }
 }
 
-async function readJson<T>(response: Response, schema: z.ZodType<T>): Promise<T | null> {
+export async function readJson<T>(response: Response, schema: z.ZodType<T>): Promise<T | null> {
   try {
     const parsed = schema.safeParse(await response.json());
     return parsed.success ? parsed.data : null;
@@ -155,7 +155,7 @@ async function readJson<T>(response: Response, schema: z.ZodType<T>): Promise<T 
 
 // A gate answer other than success: 401 means sign in again; a 400, 404 or 503 that carries the
 // gate's one sentence is passed on; anything else is junk.
-async function refusalOf(response: Response | null, notFound?: string): Promise<Refusal> {
+export async function refusalOf(response: Response | null, notFound?: string): Promise<Refusal> {
   if (response === null) return unreachable;
   if (response.status === 401) return signInAgain;
   if (response.status === 400 || response.status === 404 || response.status === 503) {
@@ -171,7 +171,7 @@ export async function loadApprovals(
   key: string,
   deps: ApprovalDeps,
 ): Promise<Answer<ApprovalsView>> {
-  const response = await call(deps, key, "/approvals");
+  const response = await callGate(deps, key, "/approvals");
   if (response?.status !== 200) return refusalOf(response);
   const view = await readJson(response, ApprovalsViewSchema);
   return view === null ? unreachable : { ok: true, value: view };
@@ -184,7 +184,7 @@ export async function loadApproval(
 ): Promise<Answer<Card>> {
   const stepUpId = StepUpIdSchema.safeParse(id);
   if (!stepUpId.success) return refuse(404, APPROVAL_ROUTE_MESSAGES.noStepUp);
-  const response = await call(deps, key, `/approvals/${stepUpId.data}`);
+  const response = await callGate(deps, key, `/approvals/${stepUpId.data}`);
   if (response?.status !== 200) return refusalOf(response, APPROVAL_ROUTE_MESSAGES.noStepUp);
   const card = await readJson(response, CardSchema);
   if (card === null || String(card.step_up_id) !== stepUpId.data) return unreachable;
@@ -201,7 +201,7 @@ export async function sendAnswer(
   if (!stepUpId.success) return refuse(404, APPROVAL_ROUTE_MESSAGES.noStepUp);
   const body = AnswerRequestSchema.safeParse(input);
   if (!body.success) return refuse(400, APPROVAL_ROUTE_MESSAGES.badAnswer);
-  const response = await call(deps, key, `/approvals/${stepUpId.data}`, {
+  const response = await callGate(deps, key, `/approvals/${stepUpId.data}`, {
     json: JSON.stringify(body.data),
   });
   if (response?.status !== 200) return refusalOf(response, APPROVAL_ROUTE_MESSAGES.noStepUp);
@@ -218,22 +218,30 @@ function json(status: number, body: unknown, setCookieHeader?: string): Response
   return Response.json(body, { status, headers });
 }
 
-// A refusal as an answer; a 401 also clears the cookie.
-function respond<T>(request: Request, answer: Answer<T>): Response {
-  if (answer.ok) return json(200, answer.value);
+/** A refusal as its one sentence; a 401 also clears the cookie. */
+export function refusalResponse(request: Request, refusal: Refusal): Response {
   return json(
-    answer.status,
-    { message: answer.message },
-    answer.status === 401 ? clearCookie(request) : undefined,
+    refusal.status,
+    { message: refusal.message },
+    refusal.status === 401 ? clearCookie(request) : undefined,
   );
 }
 
-function withKey(
+function respond<T>(request: Request, answer: Answer<T>): Response {
+  return answer.ok ? json(200, answer.value) : refusalResponse(request, answer);
+}
+
+/**
+ * Runs `run` with the cookie's key, then answers with `render` (JSON by default). Without a
+ * usable cookie it answers 401 without asking the gate, clearing a malformed cookie.
+ */
+export function withKey<T>(
   request: Request,
-  run: (key: string) => Promise<Answer<unknown>>,
+  run: (key: string) => Promise<Answer<T>>,
+  render: (request: Request, answer: Answer<T>) => Response = respond,
 ): Promise<Response> | Response {
   const key = approverKeyFrom(request);
-  if (key !== null) return run(key).then((answer) => respond(request, answer));
+  if (key !== null) return run(key).then((answer) => render(request, answer));
   const hasCookie = (request.headers.get("cookie") ?? "").includes(`${APPROVER_COOKIE}=`);
   return json(
     401,
@@ -287,7 +295,7 @@ export async function signInRoute(request: Request, deps: ApprovalDeps): Promise
   if (!body.success) return json(400, { message: APPROVAL_ROUTE_MESSAGES.badSignIn });
   const key = ApproverKeySchema.safeParse(body.data.key);
   if (!key.success) return json(401, { message: APPROVAL_ROUTE_MESSAGES.wrongKey });
-  const response = await call(deps, key.data, "/approvals");
+  const response = await callGate(deps, key.data, "/approvals");
   if (response?.status === 401) return json(401, { message: APPROVAL_ROUTE_MESSAGES.wrongKey });
   // The gate checks the key before it reads the log, so a 503 sentence still means it was right.
   const accepted =

@@ -6,10 +6,11 @@ import {
   approverKeyFromHeader,
   loadApprovals,
 } from "../../src/approval-routes";
-import { pageView } from "../../src/approvals-view";
+import { APPROVALS_COPY, pageView } from "../../src/approvals-view";
 import { approvalsUrl, qrView, requestOrigin } from "../../src/qr-view";
 import { ConsoleShell } from "../console-shell";
-import { ApprovalsBoard, SignIn } from "./approvals-board";
+import { SignIn } from "../sign-in";
+import { ApprovalsBoard } from "./approvals-board";
 
 // The approvals page (ADR 0032): read from the gate on the server with the approver's cookie, at
 // each render. The board re-renders it every 3 seconds while it's open.
@@ -23,7 +24,7 @@ export default async function ApprovalsPage() {
   if (key === null) {
     return (
       <ConsoleShell openApprovals={null}>
-        <SignIn message={null} />
+        <SignIn title="Approvals" line={APPROVALS_COPY.signInLine} message={null} />
       </ConsoleShell>
     );
   }
@@ -31,7 +32,11 @@ export default async function ApprovalsPage() {
   if (!answer.ok && answer.status === 401) {
     return (
       <ConsoleShell openApprovals={null}>
-        <SignIn message={APPROVAL_ROUTE_MESSAGES.signInAgain} />
+        <SignIn
+          title="Approvals"
+          line={APPROVALS_COPY.signInLine}
+          message={APPROVAL_ROUTE_MESSAGES.signInAgain}
+        />
       </ConsoleShell>
     );
   }

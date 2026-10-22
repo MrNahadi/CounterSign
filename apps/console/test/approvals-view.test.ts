@@ -391,7 +391,11 @@ describe("controls", () => {
   });
 
   it("keeps the approver key and the gate's address out of the page's client code", () => {
-    for (const path of ["../app/approvals/approvals-board.tsx", "../app/console-nav.tsx"]) {
+    for (const path of [
+      "../app/approvals/approvals-board.tsx",
+      "../app/console-nav.tsx",
+      "../app/sign-in.tsx",
+    ]) {
       const source = readFileSync(new URL(path, import.meta.url), "utf8");
       expect(source).not.toContain("GATE_URL");
       expect(source).not.toContain("localStorage");

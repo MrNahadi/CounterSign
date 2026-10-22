@@ -19,6 +19,7 @@ export type Tone = "neutral" | "positive" | "warning" | "danger";
 /** The approvals page's sentences that aren't an answer's outcome. */
 export const APPROVALS_COPY = {
   keyLabel: "Approver key",
+  signInLine: "Sign in with the approver key to answer held calls.",
   signIn: "Sign in",
   signOut: "Sign out",
   wrongKey: "That key isn't right.",

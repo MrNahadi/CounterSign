@@ -1,8 +1,8 @@
 "use client";
 
-import { Check, Clock, LogIn, LogOut, X } from "lucide-react";
+import { Check, Clock, LogOut, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type FormEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
   APPROVALS_COPY,
   APPROVALS_POLL_INTERVAL_MS,
@@ -13,7 +13,6 @@ import {
   type PageView,
   REJECTION_SENTENCES,
   type RecentLine,
-  signIn,
   signOut,
 } from "../../src/approvals-view";
 import { QR_COPY, type QrView } from "../../src/qr-view";
@@ -51,72 +50,6 @@ function Header({ signedIn }: { signedIn: boolean }) {
         </button>
       ) : null}
     </header>
-  );
-}
-
-/** Without the cookie: one field and a button. */
-export function SignIn({ message }: { message: string | null }) {
-  const router = useRouter();
-  const id = useId();
-  const [key, setKey] = useState("");
-  const [error, setError] = useState<string | null>(message);
-  const [pending, setPending] = useState(false);
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (pending) return;
-    setPending(true);
-    const result = await signIn(key);
-    setPending(false);
-    if (!result.ok) {
-      setError(result.message);
-      return;
-    }
-    setKey("");
-    setError(null);
-    router.refresh();
-  }
-
-  return (
-    <div className={COLUMN}>
-      <Header signedIn={false} />
-      <form noValidate onSubmit={submit} className="flex w-full max-w-sm flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={`${id}-key`} className="text-body-sm font-medium text-primary-foreground">
-            {APPROVALS_COPY.keyLabel}
-          </label>
-          <input
-            id={`${id}-key`}
-            type="password"
-            autoComplete="current-password"
-            spellCheck={false}
-            value={key}
-            onChange={(event) => setKey(event.target.value)}
-            aria-invalid={error !== null ? true : undefined}
-            aria-describedby={error !== null ? `${id}-help` : undefined}
-            className={CONTROL_CLASSES.keyInput}
-          />
-          {error !== null ? (
-            <p id={`${id}-help`} role="alert" className="text-caption-lg text-danger-foreground">
-              {error}
-            </p>
-          ) : null}
-        </div>
-        <button
-          type="submit"
-          disabled={pending}
-          aria-busy={pending ? true : undefined}
-          className={`${CONTROL_CLASSES.signIn} pl-3`}
-        >
-          {pending ? (
-            <Spinner size={20} />
-          ) : (
-            <LogIn size={20} strokeWidth={1.75} aria-hidden="true" />
-          )}
-          {APPROVALS_COPY.signIn}
-        </button>
-      </form>
-    </div>
   );
 }
 

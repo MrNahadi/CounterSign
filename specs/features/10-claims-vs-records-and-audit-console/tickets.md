@@ -102,16 +102,16 @@ Notes:
 
 ## T-008: Console audit routes and the shared sign-in
 
-Status: open
+Status: done
 Blocked by: T-005
 Tier: standard
 Slice: The console's server routes reach the gate's audit API with the approvals cookie, and every signed-out page can show one shared sign-in.
 Test seam: the route-handler and loader functions in `apps/console/src/`, with a fake gate fetch
 Acceptance:
-- [ ] `GET /api/audit/decisions`, `/decisions/[seq]`, `/intents/[id]`, `/entries`, `/verify` and `/export` forward the cookie's key as the bearer and zod-validate the request and every gate answer; the export passes through only with `format` `countersign-evidence-v1` and its attachment header
-- [ ] No cookie, a gate 401 (cookie cleared), an unreachable gate and a junk answer give the approval routes' fixed sentences and statuses; gate 400, 404 and 503 sentences pass through with their status
-- [ ] The sign-in form moves out of the approvals board into one shared component taking its own line of copy; the approvals page still works with it
-- [ ] The modules client components import pull in neither `@countersign/mandate` nor any key; no key appears in any route answer
+- [x] `GET /api/audit/decisions`, `/decisions/[seq]`, `/intents/[id]`, `/entries`, `/verify` and `/export` forward the cookie's key as the bearer and zod-validate the request and every gate answer; the export passes through only with `format` `countersign-evidence-v1` and its attachment header
+- [x] No cookie, a gate 401 (cookie cleared), an unreachable gate and a junk answer give the approval routes' fixed sentences and statuses; gate 400, 404 and 503 sentences pass through with their status
+- [x] The sign-in form moves out of the approvals board into one shared component taking its own line of copy; the approvals page still works with it
+- [x] The modules client components import pull in neither `@countersign/mandate` nor any key; no key appears in any route answer
 Notes:
 
 ## T-009: The Decisions page

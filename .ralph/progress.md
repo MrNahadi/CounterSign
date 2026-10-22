@@ -36,3 +36,10 @@
 - Added `apps/gate/src/audit-cli.ts` (`runAudit(args, env, deps)`, deps `now`, `mandates`, `cwd`), `audit-main.ts`, the root `audit` script, and `apps/gate/test/audit-cli.test.ts`. `IntentIdText` and `CaptureIdText` are now exported from audit-api.
 - Export writes with the `wx` flag (never overwrites); exit 1 when the file's `chain.intact` is false (file still written). A fresh PGlite dir is migrated on open, so "no database" shows as an unknown entry number, not a missing table.
 - Tamper test: set a row's `hash` after disabling `audit_log_append_only`; keep it last in the file since it breaks the log.
+
+## T-008 (done)
+- Added `apps/console/src/audit-schemas.ts` (zod for every audit answer and request; `ClaimPairSchema`, `DecisionDetailSchema` etc.) and `apps/console/src/audit-routes.ts`: loaders `loadDecisions(key, query, deps)`, `loadDecision(key, seq)`, `loadIntentDecision(key, id)`, `loadEntries(key, query)`, `loadVerify(key)`, `loadExport(key, query)` (returns `{ filename, body }`), plus route handlers wired under `app/api/audit/*`. `AUDIT_ROUTE_MESSAGES.signInLine` is the decisions sign-in line. Tests in `apps/console/test/audit-routes.test.ts`.
+- `approval-routes.ts` now exports `callGate`, `readJson`, `refusalOf`, `refusalResponse`, `refuse`, `unreachable`, `withKey(request, run, render?)` for reuse.
+- Shared sign-in is `apps/console/app/sign-in.tsx`: `<SignIn title line message />` (message "Sign in again." after a gate 401). Approvals uses `APPROVALS_COPY.signInLine`. Pages call loaders with the key from `approverKeyFromHeader`; a 401 answer means show the sign-in with `APPROVAL_ROUTE_MESSAGES.signInAgain`.
+- Query objects for loaders are string-valued (as URL params); use `queryOf(request)` in routes. Schemas strip unknown fields; stored hashes accept any 1-128 char text so tampered rows still render.
+- Gotcha: `uqr` was missing from node_modules (typecheck failed); `npm ci` fixed it.
