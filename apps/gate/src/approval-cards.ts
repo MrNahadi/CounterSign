@@ -23,19 +23,9 @@ import {
 import { readStepUps, type StepUp, type StepUpState } from "./approval-log";
 import { isExecutable } from "./executable";
 import { type ExecutionOutcome, readIntentRecord } from "./execution-log";
+import { ACTION_WORDS } from "./words";
 
-export const ACTION_WORDS: Record<Action, string> = {
-  "paypal.refund": "Refund",
-  "paypal.dispute.accept_claim": "Accept dispute claim",
-  "paypal.dispute.provide_evidence": "Provide dispute evidence",
-  "paypal.dispute.make_offer": "Make dispute offer",
-  "paypal.invoice.send": "Send invoice",
-  "paypal.payout": "Send payout",
-  "paypal.order.capture": "Capture order",
-  "mpesa.b2c": "Send M-Pesa payment",
-  "mpesa.reversal": "Reverse M-Pesa payment",
-  "order.mark_paid": "Mark order paid",
-};
+export { ACTION_WORDS };
 
 export const CANNOT_EXECUTE = "Countersign can't carry out this action yet.";
 

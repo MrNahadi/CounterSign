@@ -2,18 +2,18 @@
 
 ## T-001: Claims vs records, and the checks that decided
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: A beat 3, 4 or 5 decision entry, with its ticket, order number and mandate, becomes the pairs "what the message claims" beside "what the records say", each with its verdict, source and sandbox ID.
 Test seam: the gate's `claimsVsRecords` and checks-that-decided exports (public interface only), over decision entries written by `propose()` on PGlite
 Acceptance:
-- [ ] The checks that decided are the matched rules' `require` plus `shipment.status` when a matched `when` tests it; with no matched rule, the facts the action's rules test in `when`; with a mandate the gate doesn't hold, the whole trace
-- [ ] Pairs follow requirements.md's table: claim side, record words, detail, value, sources in words with call and record ID ("none" for a missing ID), and verdict; every row of the `shipment.status` verdict table has a test, and an unknown check is "No record"
-- [ ] The message pair is last whenever the ticket exists, marked simulated when the ticket is, with the fixed record line and Not used; a decision with no intent gives the one "couldn't read" pair
-- [ ] No ticket ID, and a ticket ID the store lacks, give their fixed claim sentences
-- [ ] Every verifier in `VERIFIERS` has words; beat 3's KIK-1039 and KIK-1042, beat 4 and beat 5 read as requirements.md describes
-- [ ] A test fails if `decide`, `@countersign/verifiers` or `@countersign/mandate` imports this module
+- [x] The checks that decided are the matched rules' `require` plus `shipment.status` when a matched `when` tests it; with no matched rule, the facts the action's rules test in `when`; with a mandate the gate doesn't hold, the whole trace
+- [x] Pairs follow requirements.md's table: claim side, record words, detail, value, sources in words with call and record ID ("none" for a missing ID), and verdict; every row of the `shipment.status` verdict table has a test, and an unknown check is "No record"
+- [x] The message pair is last whenever the ticket exists, marked simulated when the ticket is, with the fixed record line and Not used; a decision with no intent gives the one "couldn't read" pair
+- [x] No ticket ID, and a ticket ID the store lacks, give their fixed claim sentences
+- [x] Every verifier in `VERIFIERS` has words; beat 3's KIK-1039 and KIK-1042, beat 4 and beat 5 read as requirements.md describes
+- [x] A test fails if `decide`, `@countersign/verifiers` or `@countersign/mandate` imports this module
 Notes:
 
 ## T-002: The audit reader
