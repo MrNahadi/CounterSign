@@ -150,6 +150,22 @@ _Avoid_: log, debug output
 The two-column view of a decision: what the message claims beside what the records say.
 _Avoid_: comparison view
 
+**Claim pair**:
+One row of claims vs records: a claim side (what the message says, or nothing), a record side (the verifier in words, its detail and the records it read) and a verdict. The last pair is always the message itself.
+_Avoid_: comparison row, fact check
+
+**Verdict** (of a claim pair):
+How the two sides relate, from a fixed table and never by reading the message: Matches, Contradicts, Passes, Fails, No record (the check was unknown) or Not used (the message, which can't approve money). Not the same as a decision.
+_Avoid_: score, rating
+
+**Checks that decided**:
+The verifiers the matched rules use, plus the facts an unmatched action's rules test. The decision's trace is narrowed to these in the claim pairs and on the approval card.
+_Avoid_: key checks, relevant checks
+
+**Evidence export**:
+A JSON file (`countersign-evidence-v1`) of chosen audit-log rows for one intent or one capture, each as stored, with a fresh chain verdict and the log's head. `ledger check-export` recomputes each entry's hash. It proves the rows, not that nothing is missing.
+_Avoid_: report, backup, dump
+
 **Shipment status**:
 The carrier's state for an order's tracking number: lost, stalled for 10+ days, in transit or delivered. The carrier mock stores it; it's never worked out from the clock.
 _Avoid_: delivery state, tracking status

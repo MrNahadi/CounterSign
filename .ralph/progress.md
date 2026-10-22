@@ -67,3 +67,7 @@
 
 ## T-013 (done)
 - `ToolRow.decisionHref` in `apps/console/src/inbox-view.ts` (`/decisions/intent/<intent_id>` for a protected guarded call with an intent; null otherwise); inbox-parts renders a "Claims vs records" link. Tests in `apps/console/test/inbox-view.test.ts`.
+
+## T-014 (done)
+- README gains "See every decision" and phase 10 is marked Done; CONTEXT.md gains claim pair, verdict, checks that decided and evidence export. Docs only.
+- For the human: biome reports one pre-existing warning (a `void` union in a ModeRunner type under apps/console); not touched.

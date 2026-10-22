@@ -307,6 +307,31 @@ npm run approvals -- deny <id>
 
 The page installs as a web app named "Approvals". No AI runs anywhere on the approval path.
 
+## See every decision
+
+The console shows every money action your agents proposed, and what the records said. It is read-only: nothing here moves money or writes to the audit log, and no AI runs on it. Sign in with the approver key (the same one as `/approvals`).
+
+- **`/decisions`** lists decisions newest first, with a chain status card, a filter (All, Allowed, Step-up, Denied) and a search for an order, sender or ID. Each row says why in words with the reason code beside it, and what happened after.
+- **A decision's page** puts two columns side by side. "What the message claims" is the ticket's claim, the sender and the photos. "What the records say" is each check that decided, with the PayPal, carrier or ticket-store record and its ID. Each pair gets a result: Matches, Contradicts, Passes, Fails, No record or Not used. The message itself is always "Not used", because messages can't approve money. The page also shows how the gate decided, the suggested reply for a denial, and what happened next, from approval to PayPal's answer.
+- **`/audit`** lists every audit-log entry with its hash. "Check the chain" runs the same check as `ledger verify` and shows the head.
+- **Export evidence** on a decision downloads a JSON file of that intent's entries, or all entries for a payment. Check a file anywhere, without the database:
+
+```bash
+npm run ledger -- check-export countersign-evidence-intent-<id>.json
+```
+
+It recomputes each entry's hash and exits 0 when they all match, 1 when one doesn't, and 2 when the file can't be read. An export proves the rows it holds, not that nothing is missing, so compare the head it prints with `ledger verify` on the live log.
+
+The same views are available in the terminal, against the database the other CLIs use:
+
+```bash
+npm run audit -- show <seq>
+npm run audit -- export --intent <id> [--out <file>]
+npm run audit -- export --capture <id>
+```
+
+`show` prints the decision, the two columns and the trail. `export` never overwrites a file. Both exit 0 on success, 1 when the chain was broken at export (the file is still written and says so), and 2 when they can't run.
+
 ## Connect an agent
 
 The gate serves MCP at `POST /mcp` on its port (`http://127.0.0.1:8787/mcp` locally). Any MCP client can connect, as long as it sends a principal key as a bearer token:
@@ -374,7 +399,8 @@ Countersign is mid-build. The roadmap runs from 16 October to submission on 11 N
 | 7 | The gate over MCP: principal keys, guarded and read-only tools, `npm run agent` | Done |
 | 8 | Resolve in protected and baseline modes: the inbox, the simulated chat and `npm run resolve` | Done; live Gemini and PayPal checks (`LIVE=1`) have not been run |
 | 9 | Phone step-up approvals: the approval API, the `/approvals` page with a QR code, `npm run approvals` | Done; live checks (`LIVE=1`) have not been run |
-| 10 to 13 | Claims vs records, disputes, payouts, the hosted judge path | Planned |
+| 10 | Claims vs records and the audit console: `/decisions`, `/audit`, evidence export, `npm run audit` | Done; checks against real sandbox data are manual |
+| 11 to 13 | Disputes, payouts, the hosted judge path | Planned |
 | 14 to 18 | Bench, "Attack it yourself", the AG Studio Risk desk, the mandate compiler, the M-Pesa rail | Planned |
 | 19 to 20 | Smoke tests, monitoring and submission | Planned |
 

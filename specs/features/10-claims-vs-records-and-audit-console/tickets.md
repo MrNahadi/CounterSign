@@ -183,12 +183,12 @@ Notes:
 
 ## T-014: README, glossary and phase 10 status
 
-Status: open
+Status: done
 Blocked by: T-007, T-009, T-010, T-011, T-012, T-013
 Tier: simple
 Slice: The README explains the decisions, decision page, audit log and evidence export, and the glossary names the new terms.
 Test seam: none (docs); the Feedback commands pass
 Acceptance:
-- [ ] README gains a "See every decision" section: `/decisions`, the two columns, `/audit` and the chain check, exporting evidence and `npm run ledger -- check-export`, and `npm run audit`; the phase status table marks phase 10
-- [ ] `CONTEXT.md` gains claim pair, verdict (Matches, Contradicts, Passes, Fails, No record, Not used), checks that decided and evidence export, in its format
+- [x] README gains a "See every decision" section: `/decisions`, the two columns, `/audit` and the chain check, exporting evidence and `npm run ledger -- check-export`, and `npm run audit`; the phase status table marks phase 10
+- [x] `CONTEXT.md` gains claim pair, verdict (Matches, Contradicts, Passes, Fails, No record, Not used), checks that decided and evidence export, in its format
 Notes:
