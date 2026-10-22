@@ -26,6 +26,7 @@ The autopilot builds everything it can and lists here what only you can do, or w
 - **Phase 7, real dispute:** once a sandbox dispute exists (phase 11), call `get_dispute` and `accept_dispute_claim` on it over MCP and check the step-up names the dispute's real amount (validation.md manual check 3).
 - **Phase 9, approver key:** create a random key of 32+ characters, different from the principal key, and add it as `COUNTERSIGN_APPROVER_KEY` to the Dev environment and `.env.example` (and to Render in phase 13). Also add `GATE_URL=` (the console's way to the gate, default `http://127.0.0.1:8787`) and `CONSOLE_PUBLIC_URL=` (optional, what the QR code points at) to `.env.example`. Agents can't edit `.env.*`. Until then approvals are proven with test keys only, and every live approval call answers 401.
 - **Phase 9, live approvals:** once the key is set and `npm run seed` has run, do validation.md live check 3 (beat 5 via `npm run agent`, then `npm run approvals -- approve`), then manual checks 1 to 4: the card on a phone through the QR code on the same network, 40px buttons, light and dark, an expired card, and the copy against the brand book.
+- **Stale branches:** `origin/feature/04-tamper-evident-audit-log` and `origin/feature/05-storefront-and-seed` share no history with main (main was rewritten after they were made), but their work is already on main. Delete them when convenient; the autopilot never deletes branches.
 
 ## Decided for you
 
