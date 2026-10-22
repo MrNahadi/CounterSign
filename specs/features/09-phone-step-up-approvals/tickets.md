@@ -105,16 +105,16 @@ Notes:
 
 ## T-008: Step-up end to end over MCP
 
-Status: open
+Status: done
 Blocked by: T-006
 Tier: standard
 Slice: An agent's beat 5 refund over `/mcp` waits for approval, the merchant approves it through the API, exactly one refund executes and reconciles, and a changed-amount approval is refused.
 Test seam: the gate's `createApp` over HTTP (MCP client and approval API), its fake sandbox and the webhook fixture
 Acceptance:
-- [ ] `create_refund` for beat 5 answers `pending_approval` with `expires_at` 15 minutes after the decision
-- [ ] Approving through `POST /approvals/:id` executes one refund; a webhook for it reconciles; `ledger verify` passes
-- [ ] An approval sent with the hash of the same intent at $241.00 is rejected `HASH_MISMATCH` and the sandbox has no refund
-- [ ] An approval after the clock passes `expires_at` is rejected `EXPIRED`; the card then lists as expired
+- [x] `create_refund` for beat 5 answers `pending_approval` with `expires_at` 15 minutes after the decision
+- [x] Approving through `POST /approvals/:id` executes one refund; a webhook for it reconciles; `ledger verify` passes
+- [x] An approval sent with the hash of the same intent at $241.00 is rejected `HASH_MISMATCH` and the sandbox has no refund
+- [x] An approval after the clock passes `expires_at` is rejected `EXPIRED`; the card then lists as expired
 Notes:
 
 ## T-009: Console approval routes and the approver login

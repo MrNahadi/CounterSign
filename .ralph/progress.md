@@ -44,3 +44,7 @@
 - `apps/gate/src/approvals-cli.ts` (`runApprovals(args, env, deps)`; deps: `rail`, `fetch`, `now`, `mandates`) and `approvals-main.ts`; root `approvals` script. Tests: `apps/gate/test/approvals-cli.test.ts`.
 - Gotcha: `deny` takes no hash, so the CLI reads the step-up and sends its own stored hash. An approval with an `unknown` or missing execution result exits 1 ("PayPal hasn't confirmed it yet"). PayPal variables are only required for `approve`; `list`, `show` and `deny` run without them.
 - Gotcha: test step-ups need a ticket with an image attachment, or beat 5 is denied rather than stepped up. Order numbers show only when `seed_orders` has the order (not seeded in these tests).
+
+## T-008 done
+- `apps/gate/test/step-up-mcp.test.ts`: one real gate (MCP client, approval API, webhook) with a mutable clock; beat 5 held 15 min, approved once (second tap ALREADY_ANSWERED), webhook reconciles, `verifyLog` intact; $241.00 hash (built with `hashIntent`, checked equal to the card's at $240.00) rejected HASH_MISMATCH; past expiry rejected EXPIRED and listed as expired in `recent`. Test-only: no source change was needed.
+- Gotcha: the `pending_approval` agent response carries no `intent_hash`; the approver gets it from the card. The webhook route needs `PAYPAL_WEBHOOK_ID` in the gate's env.
