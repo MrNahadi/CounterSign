@@ -11,3 +11,7 @@
 ## T-002 (done)
 - `ENTRY_TYPES` gains `dispute.received`. New `apps/gate/src/dispute-log.ts`: `disputeReceivedEntry` (webhook or poll, from a re-read `PayPalDisputeDetail`), `DisputeReceivedPayloadSchema`, `readDisputeState` (returns `{ known, state: { disputes, events } }`, unknown on any unreadable entry or ref mismatch).
 - Gotcha: the audit reader (`audit-reader.ts`) does not summarise `dispute.received` yet; that is T-012.
+
+## T-003 (done)
+- `@countersign/db`: tables `evidence_documents` (write-once trigger, TRUNCATE allowed) and `dispute_drafts` (`id` PK, `dispute_id` unique, `seq` for order), one migration `0005_absent_screwball.sql`. New `evidence.ts`: `writeEvidenceDocument` (computes `size` and `sha256`; same contents is `unchanged`, other contents throws), `readEvidenceDocument`, `listEvidenceDocuments(disputeId)`, `sha256Hex`.
+- Gotcha: `dispute_drafts` has no helpers yet; T-009 adds them. `dispute_id` is unique, so a "Draft again" on a failed draft must replace or update that row, not insert a second.

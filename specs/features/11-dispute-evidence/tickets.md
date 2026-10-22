@@ -31,16 +31,16 @@ Notes:
 
 ## T-003: The evidence documents and dispute drafts tables
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: `@countersign/db` holds write-once evidence documents and Resolve's dispute drafts, with a migration each.
 Test seam: `@countersign/db`'s exported tables and helpers, over PGlite after `migrate`
 Acceptance:
-- [ ] `evidence_documents` has the columns in requirements.md; inserting and reading a document by ID and by dispute works
-- [ ] A trigger rejects UPDATE and DELETE on `evidence_documents`; TRUNCATE works
-- [ ] `dispute_drafts` holds a draft per dispute with status (checked against the listed values), outcome, `drafted_by`, model, model versions, notes, facts summary, agent response, intent ID and times
-- [ ] Migrations apply on a fresh PGlite and on a database at phase 10's schema
+- [x] `evidence_documents` has the columns in requirements.md; inserting and reading a document by ID and by dispute works
+- [x] A trigger rejects UPDATE and DELETE on `evidence_documents`; TRUNCATE works
+- [x] `dispute_drafts` holds a draft per dispute with status (checked against the listed values), outcome, `drafted_by`, model, model versions, notes, facts summary, agent response, intent ID and times
+- [x] Migrations apply on a fresh PGlite and on a database at phase 10's schema
 Notes:
 
 ## T-004: The dispute webhook and the nudge

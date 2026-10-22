@@ -183,3 +183,77 @@ export const agentRuns = pgTable(
 );
 
 export type AgentRunRow = typeof agentRuns.$inferSelect;
+
+/** The two kinds of evidence document the gate builds (ADR 0035). */
+export const EVIDENCE_DOCUMENT_KINDS = ["export", "pdf"] as const;
+export type EvidenceDocumentKind = (typeof EVIDENCE_DOCUMENT_KINDS)[number];
+
+// A file in a dispute's evidence pack (ADR 0035), written once by the gate and never changed. A
+// trigger rejects UPDATE and DELETE (added by hand in the migration, like the audit log's);
+// TRUNCATE stays possible for the demo reset. `sha256` is hex over `bytes`; `size` is their
+// byte count. `createdAt` is ISO 8601 text.
+export const evidenceDocuments = pgTable(
+  "evidence_documents",
+  {
+    id: text("id").primaryKey(),
+    disputeId: text("dispute_id").notNull(),
+    kind: text("kind").notNull(),
+    name: text("name").notNull(),
+    contentType: text("content_type").notNull(),
+    size: integer("size").notNull(),
+    sha256: text("sha256").notNull(),
+    bytes: bytea("bytes").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    check("evidence_documents_kind_check", sql`${table.kind} IN ('export', 'pdf')`),
+    index("evidence_documents_dispute_id_idx").on(table.disputeId),
+  ],
+);
+
+export type EvidenceDocumentRow = typeof evidenceDocuments.$inferSelect;
+export type NewEvidenceDocumentRow = typeof evidenceDocuments.$inferInsert;
+
+/** A dispute draft's states (ADR 0035): `queued` and `running` are unfinished. */
+export const DISPUTE_DRAFT_STATUSES = [
+  "queued",
+  "running",
+  "proposed",
+  "failed",
+  "not_run",
+] as const;
+export type DisputeDraftStatus = (typeof DISPUTE_DRAFT_STATUSES)[number];
+
+// One draft per dispute, written and read by Resolve (ADR 0035). `draftedBy` is the model ID or
+// `template`. `notes`, `factsSummary` and `agentResponse` are JSON and must hold no secret, payer
+// email or ticket text. `intentId` is the proposal's intent. Times are ISO 8601 text. `seq` keeps
+// creation order when times tie.
+export const disputeDrafts = pgTable(
+  "dispute_drafts",
+  {
+    seq: bigserial("seq", { mode: "number" }).notNull().unique(),
+    id: text("id").primaryKey(),
+    disputeId: text("dispute_id").notNull().unique(),
+    status: text("status").notNull(),
+    outcome: text("outcome"),
+    draftedBy: text("drafted_by"),
+    model: text("model").notNull(),
+    modelVersions: jsonb("model_versions").$type<string[]>().notNull(),
+    notes: jsonb("notes").$type<unknown>(),
+    factsSummary: jsonb("facts_summary").$type<unknown>(),
+    agentResponse: jsonb("agent_response").$type<unknown>(),
+    intentId: text("intent_id"),
+    queuedAt: text("queued_at").notNull(),
+    startedAt: text("started_at"),
+    finishedAt: text("finished_at"),
+  },
+  (table) => [
+    check(
+      "dispute_drafts_status_check",
+      sql`${table.status} IN ('queued', 'running', 'proposed', 'failed', 'not_run')`,
+    ),
+  ],
+);
+
+export type DisputeDraftRow = typeof disputeDrafts.$inferSelect;
+export type NewDisputeDraftRow = typeof disputeDrafts.$inferInsert;
