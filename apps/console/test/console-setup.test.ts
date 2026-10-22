@@ -46,6 +46,22 @@ describe("console setup", () => {
     expect(page).toMatch(/className="overflow-x-auto[^"]*"\s*>\s*<table/);
   });
 
+  it("shows a decision's page behind the shared sign-in, stacking pairs at phone width", () => {
+    for (const path of [
+      "../app/decisions/[seq]/page.tsx",
+      "../app/decisions/intent/[id]/page.tsx",
+    ]) {
+      const page = read(path);
+      expect(page).toContain("line={AUDIT_ROUTE_MESSAGES.signInLine}");
+      expect(page).toContain("APPROVAL_ROUTE_MESSAGES.signInAgain");
+    }
+    const page = read("../app/decisions/[seq]/page.tsx");
+    expect(page).toContain("max-md:flex max-md:flex-col");
+    expect(page).toMatch(/className="overflow-x-auto[^"]*"\s*>\s*<table/);
+    expect(read("../app/decisions/intent/[id]/page.tsx")).toContain("redirect(outcome.href)");
+    expect(read("../app/decisions/[seq]/copy-reply.tsx")).not.toContain("@countersign/mandate");
+  });
+
   it("keeps Resolve's address out of browser code", () => {
     for (const path of ["../app/console-nav.tsx", "../app/inbox/refresh-while-working.tsx"]) {
       expect(read(path)).not.toContain("RESOLVE_AGENT_URL");

@@ -49,3 +49,9 @@
 - `chainView` takes a loader `Answer<ChainVerdict>`; a failed verify shows "Chain not checked" (neutral) with the gate's sentence, never intact. T-010/T-011 can reuse it and `DECISION_BADGES`.
 - Segments and paging are plain links (`aria-current`), the search is a GET form, so the page stays a server component. Rows link through the When cell (a row can also hold the "Waiting for you" link to `/approvals`).
 - The sidebar nav now scrolls sideways on a phone (4 links). `/audit` 404s until T-011.
+
+## T-010 (done)
+- Added `apps/console/src/decision-view.ts` (`decisionView(detail, verify, now)`, `decisionPageOf`, `intentPageOf`, `trailPieces`, `hashView`, `absoluteTime`, `DECISION_COPY`, `VERDICT_BADGES`, `RESULT_BADGES`), pages `app/decisions/[seq]/page.tsx` (+ client `copy-reply.tsx`) and `app/decisions/intent/[id]/page.tsx`. Tests in `apps/console/test/decision-view.test.ts` and `console-setup.test.ts`.
+- Trail sentences are `Piece[]` (`{text}|{mono}|{code}`) so sandbox IDs render mono. An unknown or pending execution (or a step-up whose answer can't be read) says "PayPal hasn't confirmed it yet." rather than "No money moved." (fail closed; not in requirements' copy list).
+- A malformed seq or intent ID shows the not-found sentence (the loader's 400), like a 404. Hash tooltips use `title` plus an sr-only full value.
+- Biome flags array-index keys; key rows by content (check, verifier, call-id).

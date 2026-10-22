@@ -131,17 +131,17 @@ Notes:
 
 ## T-010: A decision's page
 
-Status: open
+Status: done
 Blocked by: T-008
 Tier: standard
 Slice: `/decisions/[seq]` shows one decision's claims vs records, how the gate decided, why, the suggested reply, what happened at PayPal, its audit entry and the evidence exports; `/decisions/intent/[id]` redirects to it.
 Test seam: the decision-page view model in `apps/console/src/` over recorded gate answers, plus the Graphite design check
 Acceptance:
-- [ ] Title, breadcrumb, badge and the "Proposed by … No money moved." / "PayPal refunded it." line; "Open ticket" links to the ticket's thread
-- [ ] The claims-vs-records table with result badges and tones as requirements.md lists, stacking at phone width; the full trace table; the reasons with codes; the suggested reply with "Copy reply" on denials only
-- [ ] "What happened" turns each trail entry into its sentence with sandbox IDs in mono; an open step-up links to `/approvals`
-- [ ] The audit entry block shows the chain badge, intent hash, hash and previous hash (truncated, full in a tooltip) and the mandate; export links for the intent and, for a capture target, the payment
-- [ ] An unreadable entry shows its problem and raw payload; an unknown `seq` or intent shows its not-found sentence; by-intent redirects to the newest decision
+- [x] Title, breadcrumb, badge and the "Proposed by … No money moved." / "PayPal refunded it." line; "Open ticket" links to the ticket's thread
+- [x] The claims-vs-records table with result badges and tones as requirements.md lists, stacking at phone width; the full trace table; the reasons with codes; the suggested reply with "Copy reply" on denials only
+- [x] "What happened" turns each trail entry into its sentence with sandbox IDs in mono; an open step-up links to `/approvals`
+- [x] The audit entry block shows the chain badge, intent hash, hash and previous hash (truncated, full in a tooltip) and the mandate; export links for the intent and, for a capture target, the payment
+- [x] An unreadable entry shows its problem and raw payload; an unknown `seq` or intent shows its not-found sentence; by-intent redirects to the newest decision
 Notes:
 
 ## T-011: The Audit log page
