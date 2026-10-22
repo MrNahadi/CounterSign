@@ -88,15 +88,15 @@ Notes:
 
 ## T-007: The `audit` CLI
 
-Status: open
+Status: done
 Blocked by: T-005
 Tier: simple
 Slice: `npm run audit -- show <seq>` prints a decision's claims vs records and trail in the terminal, and `npm run audit -- export --capture <id>` writes the evidence file.
 Test seam: `runAudit(args, env, deps)` and one child-process run of `audit-main.ts`
 Acceptance:
-- [ ] `show` prints the decision line, the pairs under "What the message claims" and "What the records say", and the trail; `--json` prints the detail
-- [ ] `export` writes the file to `--out` or the default name, prints its path and entry count, and never overwrites a file
-- [ ] Exits 0, 1 (chain broken at export, file still written) and 2 (no database, unknown `seq`, nothing to export, bad argument, existing file); missing variables are named, never shown
+- [x] `show` prints the decision line, the pairs under "What the message claims" and "What the records say", and the trail; `--json` prints the detail
+- [x] `export` writes the file to `--out` or the default name, prints its path and entry count, and never overwrites a file
+- [x] Exits 0, 1 (chain broken at export, file still written) and 2 (no database, unknown `seq`, nothing to export, bad argument, existing file); missing variables are named, never shown
 - [ ] Root `package.json` gains the `audit` script
 Notes:
 

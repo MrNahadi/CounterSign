@@ -31,3 +31,8 @@
 ## T-006 (done)
 - `cardView` in `apps/gate/src/approval-cards.ts` now sets `claims` via `claimsVsRecords` and `checks` via `checksThatDecided` (the old `usedVerifiers` is gone). The step-up carries no proposal text, so it passes `proposal: ""`; a step-up always has an intent, so it's never used.
 - Console's card zod schema (T-012) must accept `claims` (ClaimPair shape from T-001).
+
+## T-007 (done)
+- Added `apps/gate/src/audit-cli.ts` (`runAudit(args, env, deps)`, deps `now`, `mandates`, `cwd`), `audit-main.ts`, the root `audit` script, and `apps/gate/test/audit-cli.test.ts`. `IntentIdText` and `CaptureIdText` are now exported from audit-api.
+- Export writes with the `wx` flag (never overwrites); exit 1 when the file's `chain.intact` is false (file still written). A fresh PGlite dir is migrated on open, so "no database" shows as an unknown entry number, not a missing table.
+- Tamper test: set a row's `hash` after disabling `audit_log_append_only`; keep it last in the file since it breaks the log.

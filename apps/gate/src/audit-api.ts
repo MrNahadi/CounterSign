@@ -46,9 +46,9 @@ const SeqText = z
   .regex(/^[1-9][0-9]{0,15}$/)
   .transform(Number)
   .pipe(z.number().int().max(Number.MAX_SAFE_INTEGER));
-const IntentIdText = z.string().regex(/^int_[0-9a-f]{24}$/);
+export const IntentIdText = z.string().regex(/^int_[0-9a-f]{24}$/);
 // PayPal capture IDs are upper-case letters and digits; the fake sandbox's carry hyphens.
-const CaptureIdText = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
+export const CaptureIdText = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
 
 // Query strings carry numbers as text; anything else (an array, an object) stays as it is and
 // fails the strict schema.
