@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ClaimPairSchema } from "./audit-schemas";
 
 // What the gate's approval API answers (ADR 0032), as the console's routes and approvals page
 // read it. Every answer is parsed with these before anything uses it; an answer that doesn't
@@ -82,6 +83,7 @@ export const CardSchema = z.object({
       records: z.array(z.object({ call: Text, id: Id.nullable() })),
     }),
   ),
+  claims: z.array(ClaimPairSchema).max(64),
   decided_at: Time,
   expires_at: Time,
   state: z.enum(["open", "answered", "expired"]),

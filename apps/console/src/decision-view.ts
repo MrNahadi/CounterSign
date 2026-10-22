@@ -1,4 +1,5 @@
 import type { Answer } from "./approval-routes";
+import { VERDICT_BADGES } from "./approvals-view";
 import type { ChainVerdict, ClaimPair, DecisionDetail } from "./audit-schemas";
 import {
   type ChainView,
@@ -52,14 +53,7 @@ export const DECISION_COPY = {
   notConfirmed: "PayPal hasn't confirmed it yet.",
 } as const;
 
-export const VERDICT_BADGES = {
-  matches: { label: "Matches", tone: "positive" },
-  contradicts: { label: "Contradicts", tone: "danger" },
-  passes: { label: "Passes", tone: "positive" },
-  fails: { label: "Fails", tone: "danger" },
-  no_record: { label: "No record", tone: "neutral" },
-  not_used: { label: "Not used", tone: "neutral" },
-} as const satisfies Record<ClaimPair["verdict"], { label: string; tone: Tone }>;
+export { VERDICT_BADGES };
 
 export const RESULT_BADGES = {
   pass: { label: "Pass", tone: "positive" },

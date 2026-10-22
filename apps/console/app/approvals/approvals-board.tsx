@@ -8,6 +8,7 @@ import {
   APPROVALS_POLL_INTERVAL_MS,
   answerCard,
   type CardView,
+  type ClaimPairView,
   CONTROL_CLASSES,
   type Outcome,
   type PageView,
@@ -22,7 +23,7 @@ import { Badge, Code, Notice, Spinner } from "../ui";
 // call as an itemized card, and answers it with one tap. Card views are built on the server and
 // arrive as plain props; this file only renders them and talks to the console's own routes.
 
-const COLUMN = "mx-auto flex w-full max-w-xl flex-col gap-6 px-4 pt-5 pb-8 md:px-6";
+const COLUMN = "mx-auto flex w-full max-w-xl md:max-w-3xl flex-col gap-6 px-4 pt-5 pb-8 md:px-6";
 
 function Header({ signedIn }: { signedIn: boolean }) {
   const router = useRouter();
@@ -58,6 +59,63 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     <section className="flex flex-col gap-1.5">
       <h3 className="text-body-sm font-medium text-primary-foreground">{title}</h3>
       {children}
+    </section>
+  );
+}
+
+const COLUMN_LABEL =
+  "text-caption-base font-medium tracking-caption-upper text-tertiary-foreground uppercase";
+
+/** Two columns from 768px up, stacked pairs below; each pair ends with its verdict badge. */
+function ClaimPairs({ pairs }: { pairs: ClaimPairView[] }) {
+  return (
+    <section aria-label={APPROVALS_COPY.claimsHeading} className="flex flex-col gap-1.5">
+      <div className="hidden grid-cols-2 gap-4 md:grid">
+        <h3 className={COLUMN_LABEL}>{APPROVALS_COPY.claimsColumn}</h3>
+        <h3 className={COLUMN_LABEL}>{APPROVALS_COPY.recordsColumn}</h3>
+      </div>
+      <ul className="flex flex-col divide-y divide-border-subtle">
+        {pairs.map((pair) => (
+          <li key={pair.check} className="grid gap-2 py-2 text-body-sm md:grid-cols-2 md:gap-4">
+            <div className="flex flex-col gap-1">
+              <h3 className={`${COLUMN_LABEL} md:hidden`}>{APPROVALS_COPY.claimsColumn}</h3>
+              {pair.claim === null ? (
+                <p className="text-secondary-foreground">{APPROVALS_COPY.noClaim}</p>
+              ) : (
+                <>
+                  <p className="text-primary-foreground">{pair.claim.text}</p>
+                  {pair.claim.quote !== null ? (
+                    <p className="whitespace-pre-wrap break-words text-secondary-foreground">
+                      {pair.claim.quote}
+                    </p>
+                  ) : null}
+                  {pair.claim.simulated ? (
+                    <span>
+                      <Badge tone="neutral">Simulated</Badge>
+                    </span>
+                  ) : null}
+                </>
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <h3 className={`${COLUMN_LABEL} md:hidden`}>{APPROVALS_COPY.recordsColumn}</h3>
+              <p className="text-primary-foreground">{pair.record.lead}</p>
+              {pair.record.detail !== "" ? (
+                <p className="text-secondary-foreground">{pair.record.detail}</p>
+              ) : null}
+              {pair.record.sources.map((source) => (
+                <p key={`${source.call}-${source.id}`} className="text-secondary-foreground">
+                  {`${source.words}, ${source.call} `}
+                  <Code>{source.id}</Code>
+                </p>
+              ))}
+              <span>
+                <Badge tone={pair.verdict.tone}>{pair.verdict.label}</Badge>
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -149,27 +207,7 @@ function ApprovalCard({
         </Section>
       ) : null}
 
-      {card.checks.length > 0 ? (
-        <Section title="What the records say">
-          <ul className="flex flex-col divide-y divide-border-subtle">
-            {card.checks.map((check) => (
-              <li
-                key={`${check.verifier}-${check.recordId ?? ""}`}
-                className="flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 text-body-sm"
-              >
-                <span className="text-primary-foreground">{check.verifier}</span>
-                <Badge tone={check.tone}>{check.result}</Badge>
-                {check.value !== null ? (
-                  <span className="font-mono text-code-xs text-secondary-foreground">
-                    {check.value}
-                  </span>
-                ) : null}
-                {check.recordId !== null ? <Code>{check.recordId}</Code> : null}
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
+      {card.claims.length > 0 ? <ClaimPairs pairs={card.claims} /> : null}
 
       {card.cannotExecute !== null && outcome === null ? (
         <Notice>{card.cannotExecute}</Notice>

@@ -159,14 +159,14 @@ Notes:
 
 ## T-012: Two columns on the approvals card
 
-Status: open
+Status: done
 Blocked by: T-006
 Tier: simple
 Slice: The phone approvals card for beat 5 shows "What the message claims" beside "What the records say", with verdict badges, stacking on a phone.
 Test seam: the approvals card view model in `apps/console/src/approvals-view.ts` over a recorded card answer, plus the Graphite design check
 Acceptance:
-- [ ] The card's schema reads `claims`, and the view model turns each pair into claim text, record words, source and record ID, and a verdict badge with its tone
-- [ ] The card renders the pairs in place of its old records list: two columns from 768px up, stacked pairs below; the phase 9 approvals tests still pass
+- [x] The card's schema reads `claims`, and the view model turns each pair into claim text, record words, source and record ID, and a verdict badge with its tone
+- [x] The card renders the pairs in place of its old records list: two columns from 768px up, stacked pairs below; the phase 9 approvals tests still pass
 Notes:
 
 ## T-013: Inbox links to decisions

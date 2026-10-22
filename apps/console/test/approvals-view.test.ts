@@ -13,6 +13,7 @@ import {
   answerOutcome,
   CONTROL_CLASSES,
   cardView,
+  claimPairView,
   DENIED_SENTENCE,
   pageView,
   REJECTION_SENTENCES,
@@ -70,6 +71,30 @@ const card = (extra: Record<string, unknown> = {}) => ({
       value: null,
       detail: "No tracking.",
       records: [{ call: "carrier lookup", id: null }],
+    },
+  ],
+  claims: [
+    {
+      check: "evidence.photo_present",
+      claim: { text: "1 photo attached", quote: null, simulated: false },
+      record: {
+        words: "Photo of the damage",
+        detail: "One photo on the ticket.",
+        value: "1",
+        sources: [{ words: "Ticket store", call: "ticket lookup", id: "tkt_1" }],
+      },
+      verdict: "matches",
+    },
+    {
+      check: "message",
+      claim: { text: "Broken mug", quote: "It arrived broken.", simulated: true },
+      record: {
+        words: "Messages can't approve money. Only your signed rules can.",
+        detail: "",
+        value: null,
+        sources: [],
+      },
+      verdict: "not_used",
     },
   ],
   decided_at: "2026-10-20T08:01:00.000Z",
@@ -141,11 +166,58 @@ describe("cards", () => {
           recordId: null,
         },
       ],
+      claims: [
+        {
+          check: "evidence.photo_present",
+          claim: { text: "1 photo attached", quote: null, simulated: false },
+          record: {
+            lead: "Photo of the damage: 1",
+            detail: "One photo on the ticket.",
+            sources: [{ words: "Ticket store", call: "ticket lookup", id: "tkt_1" }],
+          },
+          verdict: { label: "Matches", tone: "positive" },
+        },
+        {
+          check: "message",
+          claim: { text: "Broken mug", quote: "It arrived broken.", simulated: true },
+          record: {
+            lead: "Messages can't approve money. Only your signed rules can.",
+            detail: "",
+            sources: [],
+          },
+          verdict: { label: "Not used", tone: "neutral" },
+        },
+      ],
       timeLeft: "Expires in 12 min",
       expired: false,
       cannotExecute: null,
       actions: ["approve", "deny"],
     });
+  });
+
+  it("rejects a card answer without claims, and badges every verdict", () => {
+    const { claims: _, ...bare } = card();
+    expect(ApprovalsViewSchema.safeParse({ open: [bare], recent: [] }).success).toBe(false);
+    const verdicts = [
+      "matches",
+      "contradicts",
+      "passes",
+      "fails",
+      "no_record",
+      "not_used",
+    ] as const;
+    const pair = card().claims[0] as never;
+    const shown = verdicts.map((verdict) =>
+      claimPairView({ ...(pair as object), verdict } as never),
+    );
+    expect(shown.map((one) => one.verdict.tone)).toEqual([
+      "positive",
+      "danger",
+      "positive",
+      "danger",
+      "neutral",
+      "neutral",
+    ]);
   });
 
   it("offers only Deny, with its sentence, on a card that can't execute", () => {
@@ -387,7 +459,8 @@ describe("controls", () => {
   it("keeps the view model free of server-only imports", () => {
     const source = readFileSync(new URL("../src/approvals-view.ts", import.meta.url), "utf8");
     const imports = [...source.matchAll(/from "([^"]+)"/g)].map((match) => match[1]);
-    for (const name of imports) expect(["./approval-schemas", "./time"]).toContain(name);
+    for (const name of imports)
+      expect(["./approval-schemas", "./audit-schemas", "./time"]).toContain(name);
   });
 
   it("keeps the approver key and the gate's address out of the page's client code", () => {

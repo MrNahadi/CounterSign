@@ -54,6 +54,7 @@ const card = {
       records: [{ call: "GET /v2/payments/captures/CAP-1037", id: "CAP-1037" }],
     },
   ],
+  claims: [],
   decided_at: "2026-10-20T08:01:00.000Z",
   expires_at: "2026-10-20T08:16:00.000Z",
   state: "open",
@@ -486,7 +487,8 @@ describe("the approver key stays secret", () => {
     for (const path of ["../src/approval-routes.ts", "../src/approval-schemas.ts"]) {
       const source = readFileSync(new URL(path, import.meta.url), "utf8");
       const imports = [...source.matchAll(/from "([^"]+)"/g)].map((match) => match[1]);
-      for (const name of imports) expect(["zod", "./approval-schemas"]).toContain(name);
+      for (const name of imports)
+        expect(["zod", "./approval-schemas", "./audit-schemas"]).toContain(name);
       expect(source).not.toMatch(/console\.|process\.env|server-only/);
     }
   });

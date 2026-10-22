@@ -6,6 +6,7 @@ import {
   GateMessageSchema,
   type RecentSummary,
 } from "./approval-schemas";
+import type { ClaimPair } from "./audit-schemas";
 import { formatTime } from "./time";
 
 // What the approvals page shows (ADR 0032), worked out from the gate's parsed answers. Pure apart
@@ -27,6 +28,10 @@ export const APPROVALS_COPY = {
   noOpen: "Nothing is waiting for you. Held calls will appear here.",
   noRecent: "No answers yet.",
   expired: "Expired",
+  claimsHeading: "Claims vs records",
+  claimsColumn: "What the message claims",
+  recordsColumn: "What the records say",
+  noClaim: "No claim",
 } as const;
 
 // One sentence per answer the gate can give (requirements.md, "The console").
@@ -71,6 +76,44 @@ const CLAIMS: Record<NonNullable<Card["claim"]>, string> = {
   wrong_item: "Says it's the wrong item",
 };
 
+/** Verdict badges, worded as the decision page words them (ADR 0034). */
+export const VERDICT_BADGES = {
+  matches: { label: "Matches", tone: "positive" },
+  contradicts: { label: "Contradicts", tone: "danger" },
+  passes: { label: "Passes", tone: "positive" },
+  fails: { label: "Fails", tone: "danger" },
+  no_record: { label: "No record", tone: "neutral" },
+  not_used: { label: "Not used", tone: "neutral" },
+} as const satisfies Record<ClaimPair["verdict"], { label: string; tone: Tone }>;
+
+export type ClaimPairView = {
+  /** Stable key: the check that decided, or "message" / "proposal". */
+  check: string;
+  claim: { text: string; quote: string | null; simulated: boolean } | null;
+  record: {
+    lead: string;
+    detail: string;
+    sources: { words: string; call: string; id: string }[];
+  };
+  verdict: { label: string; tone: Tone };
+};
+
+export function claimPairView(pair: ClaimPair): ClaimPairView {
+  return {
+    check: pair.check,
+    claim: pair.claim === null ? null : { ...pair.claim },
+    record: {
+      lead:
+        pair.record.value === null
+          ? pair.record.words
+          : `${pair.record.words}: ${pair.record.value}`,
+      detail: pair.record.detail,
+      sources: pair.record.sources.map((source) => ({ ...source })),
+    },
+    verdict: { ...VERDICT_BADGES[pair.verdict] },
+  };
+}
+
 export type CheckLine = {
   verifier: string;
   result: string;
@@ -93,6 +136,8 @@ export type CardView = {
   photos: { src: string; alt: string }[];
   reasons: { words: string; code: string }[];
   checks: CheckLine[];
+  /** What the message claims beside what the records say, one pair per check that decided. */
+  claims: ClaimPairView[];
   timeLeft: string;
   expired: boolean;
   /** Set when Countersign can't carry the action out; the card then offers only Deny. */
@@ -162,6 +207,7 @@ export function cardView(card: Card, now: Date): CardView {
       value: check.value,
       recordId: check.records.find((record) => record.id !== null)?.id ?? null,
     })),
+    claims: card.claims.map(claimPairView),
     timeLeft: left,
     expired,
     cannotExecute,
