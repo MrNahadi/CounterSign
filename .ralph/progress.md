@@ -30,3 +30,12 @@
 - `apps/gate/src/answer-step-up.ts`: `answerStepUp({ db, rail, stepUpSeq, answer, intentHash, channel, now, clock? })` returns `{ kind: "answered", outcome, code, stepUpSeq, intentId, approvalSeq, requestSeq, execution }` or `not_found` / `input_error` / `unknown` (step-up log unreadable, nothing written) / `recording_failed`. `answer` and `intentHash` are `unknown` and zod-read; a malformed hash is an input error (the approval schema can't store it). Tests: `apps/gate/test/answer-step-up.test.ts`.
 - HASH_MISMATCH also checks `hashIntent(stored intent)` hash and ID. An unreadable intent trail rejects ALREADY_REQUESTED (counts as requested). The approved refund's later replay through `propose()` already works (first request carries `target`).
 - Gotcha: in tests, a "changed amount" refund on CAP-1037 must stay within the $240 capture ($230 works); $250 is denied, not stepped up. A $30 refund on CAP-1037 is allowed and executes.
+
+## T-006 done
+- `approver.ts` (`loadApprover(env)`, `approverLines`), `approval-cards.ts` (`cardView` pure builder, `buildCard`, `readApprovals`; snake_case JSON, `ACTION_WORDS`, `CANNOT_EXECUTE`), `approvals-api.ts` (`mountApprovals`, `APPROVAL_MESSAGES`), mounted in `createApp`. `Principals` gained `mandates` so cards narrow checks to the matched rules' `require` (plus `shipment.status` when a matched rule's `when` tests it); a step-up whose mandate hash isn't loaded shows the whole trace. Tests: `apps/gate/test/approvals-api.test.ts`.
+- API answers: bad ID -> 404, bad/oversized body -> 400 (never 413), no db / unreadable log / recording failure -> 503. A POST approve with no PayPal rail -> 503 before anything is written; a deny works without the rail (a throwing `NO_RAIL` proxy). Answered POST body: `{ outcome, code, step_up_id, intent_id, approval_seq, execution: { outcome, refund, invoice, error: { name, issues } } | null }`.
+- Recent summaries: `outcome` approved|denied|expired, `at`, `channel`, and for approved `execution.outcome` executed|failed|unknown|pending with refund/invoice records.
+- Gotcha: createApp now logs an approver-key line whenever the key is unset; tests counting startup lines must set `COUNTERSIGN_APPROVER_KEY` (mcp.test did).
+
+### For the human
+- T-006: `.env.example` couldn't be read in this loop (permission denied); add `COUNTERSIGN_APPROVER_KEY` to it if it isn't there.

@@ -69,6 +69,8 @@ export type Principals = {
   unset: string[];
   // Why the mandate didn't load, or null.
   mandateProblem: string | null;
+  // The mandates that loaded, so approval cards can show the checks a step-up's rules used.
+  mandates: Mandate[];
 };
 
 export type PrincipalOptions = {
@@ -94,6 +96,7 @@ export function loadPrincipals(options: PrincipalOptions): Principals {
   return {
     unset,
     mandateProblem,
+    mandates: mandate === null ? [] : [mandate],
     authenticate(header) {
       const presented = bearerKey(header);
       if (presented === null || mandate === null) return null;

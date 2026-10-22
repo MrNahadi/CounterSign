@@ -76,17 +76,17 @@ Notes:
 
 ## T-006: The approver key and the approval API
 
-Status: open
+Status: done
 Blocked by: T-005
 Tier: standard
 Slice: Over a listening gate, the approver lists beat 5's card with every field, approves it with its hash and gets the refund back, while agents and wrong keys get 401.
 Test seam: the gate's `createApp` approval routes over HTTP, and its card-view builder
 Acceptance:
-- [ ] `COUNTERSIGN_APPROVER_KEY` is read with the principal-key rules: under 32 characters or equal to any principal key counts as unset, with a startup line naming the variable only; constant-time comparison
-- [ ] `GET /approvals`, `GET /approvals/:id` and `POST /approvals/:id` answer as requirements.md says (200, 400, 401, 404, 503), with a 16 KB strict body
-- [ ] A card holds every field in requirements.md: action words, amount and display text, target, seeded order number, ticket excerpt and attachment IDs, claim, reasons with catalog words, the checks the matched rules use with source call and record ID, times, state and `can_execute`
-- [ ] A principal key is refused on the approval routes, and the approver key is refused on `/mcp`
-- [ ] No answer or log line holds a key
+- [x] `COUNTERSIGN_APPROVER_KEY` is read with the principal-key rules: under 32 characters or equal to any principal key counts as unset, with a startup line naming the variable only; constant-time comparison
+- [x] `GET /approvals`, `GET /approvals/:id` and `POST /approvals/:id` answer as requirements.md says (200, 400, 401, 404, 503), with a 16 KB strict body
+- [x] A card holds every field in requirements.md: action words, amount and display text, target, seeded order number, ticket excerpt and attachment IDs, claim, reasons with catalog words, the checks the matched rules use with source call and record ID, times, state and `can_execute`
+- [x] A principal key is refused on the approval routes, and the approver key is refused on `/mcp`
+- [x] No answer or log line holds a key
 Notes:
 
 ## T-007: The `approvals` CLI

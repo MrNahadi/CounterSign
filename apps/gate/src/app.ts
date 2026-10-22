@@ -6,6 +6,8 @@ import {
 import type { Database } from "@countersign/db";
 import type { PayPalClient } from "@countersign/rail-paypal";
 import express, { type NextFunction, type Request, type Response } from "express";
+import { mountApprovals } from "./approvals-api";
+import { approverLines, loadApprover } from "./approver";
 import { mountMcp } from "./mcp";
 import { loadPrincipals, MIN_KEY_LENGTH, type Principals } from "./principals";
 import { ANSWERS, handlePayPalWebhook, WEBHOOK_BODY_LIMIT, type WebhookAnswer } from "./webhook";
@@ -45,7 +47,8 @@ function send(res: Response, answer: WebhookAnswer): void {
   res.status(answer.status).json({ message: answer.message });
 }
 
-// The gate's HTTP surface. Later phases add the approval API and Daraja callbacks.
+// The gate's HTTP surface: health, /mcp, the approval API and the PayPal webhook. Later phases
+// add Daraja callbacks.
 // Every dependency is optional, so /health works with none.
 export function createApp(deps: AppDeps = {}) {
   const app = express();
@@ -78,6 +81,16 @@ export function createApp(deps: AppDeps = {}) {
     ...(deps.db ? { db: deps.db } : {}),
     ...(railOnce ? { rail: railOnce } : {}),
     ...(carrier ? { carrier } : {}),
+    clock: webhookDeps.clock,
+  });
+
+  const approver = loadApprover(webhookDeps.env);
+  for (const line of approverLines(approver)) deps.log?.(line);
+  mountApprovals(app, {
+    approver,
+    ...(deps.db ? { db: deps.db } : {}),
+    ...(railOnce ? { rail: railOnce } : {}),
+    mandates: principals.mandates,
     clock: webhookDeps.clock,
   });
 

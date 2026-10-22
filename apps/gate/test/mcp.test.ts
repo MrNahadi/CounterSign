@@ -169,7 +169,11 @@ describe("POST /mcp: principal keys", () => {
     const lines: string[] = [];
     const short = "too-short";
     const url = await listen({
-      env: { COUNTERSIGN_SUPPORT_AGENT_KEY: short },
+      // A usable approver key, so the only startup line is the principal key's.
+      env: {
+        COUNTERSIGN_SUPPORT_AGENT_KEY: short,
+        COUNTERSIGN_APPROVER_KEY: "approver-key-illustrative-0123456789abcd",
+      },
       log: (line) => lines.push(line),
     });
     const res = await post(url, { Authorization: `Bearer ${short}` });
