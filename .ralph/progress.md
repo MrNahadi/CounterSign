@@ -39,3 +39,8 @@
 
 ### For the human
 - T-006: `.env.example` couldn't be read in this loop (permission denied); add `COUNTERSIGN_APPROVER_KEY` to it if it isn't there.
+
+## T-007 done
+- `apps/gate/src/approvals-cli.ts` (`runApprovals(args, env, deps)`; deps: `rail`, `fetch`, `now`, `mandates`) and `approvals-main.ts`; root `approvals` script. Tests: `apps/gate/test/approvals-cli.test.ts`.
+- Gotcha: `deny` takes no hash, so the CLI reads the step-up and sends its own stored hash. An approval with an `unknown` or missing execution result exits 1 ("PayPal hasn't confirmed it yet"). PayPal variables are only required for `approve`; `list`, `show` and `deny` run without them.
+- Gotcha: test step-ups need a ticket with an image attachment, or beat 5 is denied rather than stepped up. Order numbers show only when `seed_orders` has the order (not seeded in these tests).

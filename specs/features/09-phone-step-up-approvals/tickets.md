@@ -91,16 +91,16 @@ Notes:
 
 ## T-007: The `approvals` CLI
 
-Status: open
+Status: done
 Blocked by: T-006
 Tier: simple
 Slice: From the terminal, the operator lists open cards, approves beat 5's with its hash and sees the refund ID.
 Test seam: `runApprovals(args, env, deps)` in `apps/gate/src/`, plus one child-process run of `approvals-main.ts`
 Acceptance:
-- [ ] `list`, `show <id>`, `approve <id> --hash <hash>` and `deny <id>` print what requirements.md says, with reason words and codes, and `--json` prints the answers
-- [ ] Exit codes 0, 1 and 2 as requirements.md says; missing variables are named, never shown
-- [ ] Answers from the CLI are written with channel `cli`
-- [ ] Root `package.json` gains the `approvals` script
+- [x] `list`, `show <id>`, `approve <id> --hash <hash>` and `deny <id>` print what requirements.md says, with reason words and codes, and `--json` prints the answers
+- [x] Exit codes 0, 1 and 2 as requirements.md says; missing variables are named, never shown
+- [x] Answers from the CLI are written with channel `cli`
+- [x] Root `package.json` gains the `approvals` script
 Notes:
 
 ## T-008: Step-up end to end over MCP
