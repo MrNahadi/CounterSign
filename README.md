@@ -145,7 +145,7 @@ Names only; set the values in `.env.local`.
 | `RESOLVE_DAILY_RUN_CAP` | Runs allowed per UTC day (default 200). Past it, a message is stored and its run ends "not run" |
 | `COUNTERSIGN_SUPPORT_AGENT_KEY` | The agent's key to the gate (at least 32 characters). Protected mode only |
 | `GATE_MCP_URL` | Where the gate listens (default `http://127.0.0.1:8787/mcp`) |
-| `RESOLVE_AGENT_URL` | Where the console finds Resolve, read in server code only |
+| `RESOLVE_AGENT_URL` | Where the console finds Resolve, read in server code only. The gate reads it too, for disputes |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BASE_URL` | Sandbox access; baseline mode mints a fresh token for each run |
 | `DATABASE_URL` | Postgres for tickets, runs and the audit log. Without it, a local PGlite folder |
 
@@ -281,7 +281,7 @@ It exits 0 when every proposal got its expected decision, and 1 when one didn't 
 
 ## Approve from your phone
 
-When the gate holds an intent, it becomes a card the merchant answers with one tap. An approval is bound to the intent's hash, works once, and expires as a deny after 15 minutes. An approved refund or invoice send executes once, from the stored intent. Dispute actions, payouts and order captures can't run yet, and their card says so.
+When the gate holds an intent, it becomes a card the merchant answers with one tap. An approval is bound to the intent's hash, works once, and expires as a deny after 15 minutes. An approved refund, invoice send or dispute answer executes once, from the stored intent. Payouts and order captures can't run yet, and their card says so.
 
 1. Set the approver key in `.env.local`: `COUNTERSIGN_APPROVER_KEY`, at least 32 characters and different from every principal key. Unset or too short, every approval route answers 401 and the gate's startup line names the variable.
 2. Start the gate and the console (see "Run the apps"), and propose a refund that steps up, such as `beat-5-damaged.json` above.
@@ -332,6 +332,39 @@ npm run audit -- export --capture <id>
 
 `show` prints the decision, the two columns and the trail. `export` never overwrites a file. Both exit 0 on success, 1 when the chain was broken at export (the file is still written and says so), and 2 when they can't run.
 
+## Answer a dispute
+
+When a buyer opens a PayPal dispute, Countersign builds the evidence from records, Resolve's agent drafts the notes, and you approve exactly what is sent. Nothing reaches PayPal until you approve, and an answer to a dispute is sent once, never retried.
+
+1. **The gate hears about it.** PayPal's `CUSTOMER.DISPUTE.CREATED` webhook reaches `POST /webhooks/paypal`. The gate checks the signature over the raw body, re-reads the dispute from PayPal instead of trusting the event, and writes one `dispute.received` entry to the audit log. Until the gate has a public URL (phase 13), poll instead with `npm run disputes -- sync`. It records each dispute waiting for your response that the log doesn't hold yet, one line each. Either way the gate then tells Resolve at `RESOLVE_AGENT_URL`. If Resolve isn't running, `sync` says so; draft the dispute later with `npm run resolve -- dispute <dispute ID>`.
+2. **The draft.** Resolve calls the gate's `prepare_dispute_evidence` tool. The gate gathers the facts without AI: the dispute, the payment, the order's tracking and carrier scans, any refunds, Countersign's earlier decisions on the payment, and the payment's audit-log export. It stores two write-once documents, the evidence PDF and the export file. Code picks each evidence item (proof of fulfillment for a delivered parcel, proof of refund for a completed refund, otherwise other) with its tracking numbers and refund IDs. Gemini writes only the notes, in one structured call. Without a Gemini key, or when its answer fails a check, a fixed template writes them and the draft says "Template, no AI". Resolve then proposes `provide_dispute_evidence`, and the mandate always holds it for approval.
+3. **The card.** Open `/approvals`. The card's "What you're approving" section lists each evidence item with its notes in full, the tracking numbers and refund IDs, and the PDF with its size and SHA-256. The intent hash covers the notes and the PDF's hash, so what you approve is what is sent. `/disputes` lists every draft with its status, who drafted it and a link to its decision; a failed draft has "Draft again". Both pages need the approver sign-in.
+4. **The PDF.** "Download" on the card fetches the stored PDF. It holds the dispute, the payment, shipping, refunds, Countersign's decisions and the audit-log summary, with the export's file name and SHA-256, so anyone can check the export with `npm run ledger -- check-export`. On approval the gate reads the PDF again, refuses to send it if its SHA-256 changed, and sends it to PayPal's `provide-evidence` once. The approve answer shows the dispute's new status.
+
+```bash
+npm run disputes -- sync
+npm run disputes -- list
+npm run disputes -- show <dispute ID>
+npm run disputes -- require-evidence <dispute ID> [--buyer]       # sandbox only
+npm run disputes -- adjudicate <dispute ID> --favor seller|buyer  # sandbox only
+npm run resolve -- dispute <dispute ID>
+```
+
+The `disputes` commands need the PayPal sandbox variables. They exit 0 on success, 1 when PayPal refuses (a 4xx), and 2 when they can't run. `require-evidence` and `adjudicate` exist only in PayPal's sandbox: they move a test dispute along so beat 7 can be shown end to end. To try it, open a dispute as a sandbox buyer on an order from `npm run seed`, then run `sync`.
+
+| Variable | Used for |
+|---|---|
+| `RESOLVE_AGENT_URL` | Where the gate tells Resolve about a new dispute (default `http://127.0.0.1:8788`) |
+| `PAYPAL_WEBHOOK_ID` | The webhook the gate checks signatures against. Unset, the webhook answers 503 |
+| `PAYPAL_LIVE_DISPUTE_ID` | Optional. A sandbox dispute for the `LIVE=1` check below |
+
+### What is simulated in a dispute
+
+- Carrier tracking comes from the carrier mock. The facts, the PDF, the card and the template notes say so wherever it appears.
+- Kikapu Studio is labelled illustrative in the PDF.
+- `npm test` runs beat 7 from webhook to approved submission against a fake sandbox. Its webhook, `apps/gate/webhooks/beat-7-dispute-created.json`, has PayPal's shape and a made-up signature that only the fake sandbox accepts.
+- The live check, `LIVE=1 npm test -- apps/gate/test/disputes-live.test.ts` with the PayPal variables and `PAYPAL_LIVE_DISPUTE_ID`, requires evidence, sends a built PDF through an approved step-up and adjudicates in the seller's favor. It hasn't been run yet. If it fails, beat 7 becomes the evidence pack plus a recorded sandbox submission, labelled as such.
+
 ## Connect an agent
 
 The gate serves MCP at `POST /mcp` on its port (`http://127.0.0.1:8787/mcp` locally). Any MCP client can connect, as long as it sends a principal key as a bearer token:
@@ -354,7 +387,7 @@ npm run agent -- apps/gate/proposals/guarded-actions.json --url http://127.0.0.1
 
 ### Tools
 
-Tool and argument names follow PayPal's Agent Toolkit. A Countersign extension is a guarded tool the Toolkit has no equivalent for.
+Tool and argument names follow PayPal's Agent Toolkit. A Countersign extension is a tool the Toolkit has no equivalent for.
 
 | Tool | Kind | Action |
 |---|---|---|
@@ -367,6 +400,7 @@ Tool and argument names follow PayPal's Agent Toolkit. A Countersign extension i
 | `create_payout` | Guarded, Countersign extension | `paypal.payout` |
 | `get_order`, `get_refund`, `get_dispute`, `get_shipment_tracking` | Read-only | |
 | `list_disputes`, `list_transactions` | Read-only | |
+| `prepare_dispute_evidence` | Countersign extension, not guarded | Builds a dispute's evidence facts and documents; moves no money |
 
 Guarded tools also take a `justification` with a `ticket_id` (required for `create_refund`) and a `claim`. The gate reads the ticket from its store by ID, so the agent can't choose the sender a verifier sees. Every guarded call is normalized into an intent, decided, and recorded in the audit log, including a malformed one (`INVALID_PROPOSAL`) and a tool name the gate doesn't know (`UNKNOWN_ACTION`). The result is the agent response, with `isError: false` whether the decision is allow, step-up or deny.
 
@@ -380,7 +414,7 @@ Under the demo mandate, the other guarded tools decide like this:
 | `pay_order`, `create_payout` | Deny `NO_MATCHING_RULE`: the support agent can never pay out |
 | Any of the above, when the target can't be read | Deny `TARGET_UNKNOWN` |
 
-Only refunds execute in this phase. If a mandate allowed any other action, the gate would deny it `ACTION_UNAVAILABLE` and send nothing. Step-ups are recorded and wait for approval, which comes in a later phase.
+Refunds, invoice sends and the three dispute actions execute. If a mandate allowed a payout or an order capture, the gate would deny it `ACTION_UNAVAILABLE` and send nothing. Step-ups wait for your approval (see "Approve from your phone").
 
 The tickets in `guarded-actions.json` and the proposal files are simulated, and the people in them are illustrative.
 
@@ -400,7 +434,8 @@ Countersign is mid-build. The roadmap runs from 16 October to submission on 11 N
 | 8 | Resolve in protected and baseline modes: the inbox, the simulated chat and `npm run resolve` | Done; live Gemini and PayPal checks (`LIVE=1`) have not been run |
 | 9 | Phone step-up approvals: the approval API, the `/approvals` page with a QR code, `npm run approvals` | Done; live checks (`LIVE=1`) have not been run |
 | 10 | Claims vs records and the audit console: `/decisions`, `/audit`, evidence export, `npm run audit` | Done; checks against real sandbox data are manual |
-| 11 to 13 | Disputes, payouts, the hosted judge path | Planned |
+| 11 | Dispute evidence: the dispute webhook, `npm run disputes`, the evidence PDF, the drafter, `/disputes` | Done; live checks (`LIVE=1`) have not been run |
+| 12 to 13 | Payouts, the hosted judge path | Planned |
 | 14 to 18 | Bench, "Attack it yourself", the AG Studio Risk desk, the mandate compiler, the M-Pesa rail | Planned |
 | 19 to 20 | Smoke tests, monitoring and submission | Planned |
 
@@ -417,7 +452,8 @@ These were run by hand against live sandboxes on 16 October 2026. Findings are i
 | S6 Daraja | Partly done. OAuth, B2C and Transaction Status work; the rest moves to phase 18 |
 | S8 Gemini API | Passes. The tool loop, structured output and fail-closed response check work |
 | S9 AG Studio | Mostly passes. The Graphite theme and a custom widget render, and the analyst built a widget through a server route |
-| S3 Disputes, S7 Hosting | Not started |
+| S3 Disputes | Built as `npm run disputes` and a `LIVE=1` check; not yet run against the sandbox |
+| S7 Hosting | Not started |
 
 ### Real and simulated
 
@@ -426,6 +462,7 @@ These were run by hand against live sandboxes on 16 October 2026. Findings are i
 | PayPal sandbox calls | Real, in the spikes, `npm run seed` and `npm run propose`. `npm run decide` runs on recorded record snapshots |
 | Support tickets | Simulated in `npm run propose` and `npm run agent`: each proposal file states the ticket and its sender. Resolve's tickets are simulated too |
 | Carrier tracking | Simulated. PayPal only knows shipped or cancelled, so lost, stalled and delivered come from a carrier mock |
+| Disputes | Real sandbox disputes through `npm run disputes`. The tests' beat 7 webhook is a fixture with a made-up signature |
 | Kikapu Studio, Achieng, and every person and order in the fixtures | Illustrative |
 | M-Pesa | Partly real in spike S6; the rail itself is secondary and built last |
 
@@ -433,7 +470,7 @@ These were run by hand against live sandboxes on 16 October 2026. Findings are i
 
 ```text
 apps/
-  gate/                 The gate: decide CLI and audit-log recording today; MCP server, approvals and webhooks to come
+  gate/                 The gate: MCP server, decisions, approvals, webhooks, dispute evidence and their CLIs
   console/              Next.js merchant console and the AG Studio Risk desk spike
   resolve-agent/        Gemini support-agent harness (protected and baseline modes)
   baseline-paypal-mcp/  PayPal's own MCP server, isolated, for baseline comparison only

@@ -205,13 +205,13 @@ Notes: The sign-in is checked with the gate before Resolve is asked (ADR 0038, a
 
 ## T-015: Demo files, live check and README
 
-Status: open
+Status: done
 Blocked by: T-005, T-010, T-012, T-013, T-014
 Tier: standard
 Slice: Beat 7 can be run end to end against the sandbox from the README, and the live spike S3 check exists.
 Test seam: `apps/gate/test/disputes-live.test.ts` (skips with a reason unless `LIVE=1` and `PAYPAL_LIVE_DISPUTE_ID` are set) and the README
 Acceptance:
-- [ ] The live test requires evidence, builds the pack, proposes, approves the step-up, checks PayPal took the PDF, and adjudicates `SELLER_FAVOR`; it skips cleanly without its variables
-- [ ] A signed-webhook fixture for `CUSTOMER.DISPUTE.CREATED` and a fake-sandbox dispute let `npm test` run beat 7 from webhook to approved submission
-- [ ] README gains "Answer a dispute" (sync, the draft, the card, the PDF, what's simulated) and marks phase 11 done; CONTEXT.md's dispute terms (Dispute, Evidence pack, Evidence document, Dispute draft) still match what was built
-Notes:
+- [x] The live test requires evidence, builds the pack, proposes, approves the step-up, checks PayPal took the PDF, and adjudicates `SELLER_FAVOR`; it skips cleanly without its variables
+- [x] A signed-webhook fixture for `CUSTOMER.DISPUTE.CREATED` and a fake-sandbox dispute let `npm test` run beat 7 from webhook to approved submission
+- [x] README gains "Answer a dispute" (sync, the draft, the card, the PDF, what's simulated) and marks phase 11 done; CONTEXT.md's dispute terms (Dispute, Evidence pack, Evidence document, Dispute draft) still match what was built
+Notes: The beat 7 run lives in `apps/resolve-agent/test/beat-7.test.ts`, since it needs Resolve's drafter and the gate can't import Resolve. The live test has not been run (no PayPal access in the loop).
