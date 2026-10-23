@@ -10,7 +10,9 @@ import {
   type Database,
   type DatabaseHandle,
   seedOrders,
+  sha256Hex,
   sql,
+  writeEvidenceDocument,
   writeTicket,
 } from "@countersign/db";
 import { appendEntries } from "@countersign/ledger";
@@ -23,6 +25,7 @@ import { APPROVAL_BODY_LIMIT, APPROVAL_MESSAGES } from "../src/approvals-api";
 import { APPROVER_KEY_VAR } from "../src/approver";
 import { claimsVsRecords } from "../src/claims";
 import { APPROVAL_WINDOW_MS } from "../src/decide";
+import { EVIDENCE_CARRIER } from "../src/executors";
 import { SUPPORT_AGENT_KEY_VAR } from "../src/principals";
 import { propose } from "../src/propose";
 import { createFakeSandbox } from "./fake-sandbox";
@@ -122,6 +125,39 @@ const acceptClaim = {
   args: { dispute_id: DISPUTE, note: "Refunding in full." },
   justification: { ticket_id: "TKT-1037" },
 };
+const refundOffer = {
+  tool: "make_offer",
+  args: {
+    dispute_id: DISPUTE,
+    offer_type: "REFUND_WITH_RETURN",
+    offer_amount: { value: "20.00", currency_code: "USD" },
+    note: "Send it back and we'll refund $20.00.",
+  },
+};
+const replacementOffer = {
+  tool: "make_offer",
+  args: { dispute_id: DISPUTE, offer_type: "REPLACEMENT_WITHOUT_REFUND", note: "A new basket." },
+};
+
+const DOCUMENT = "doc_0123456789abcdef01234567";
+const DOCUMENT_NAME = `countersign-evidence-${DISPUTE}.pdf`;
+const PDF_BYTES = new TextEncoder().encode("%PDF-1.7 illustrative evidence");
+const FULFILMENT_NOTES = "Shipped under tracking TRK1037 (simulated carrier data).";
+const provideEvidence = {
+  tool: "provide_dispute_evidence",
+  args: {
+    dispute_id: DISPUTE,
+    evidence: [
+      {
+        evidence_type: "PROOF_OF_FULFILLMENT",
+        notes: FULFILMENT_NOTES,
+        tracking_numbers: ["TRK1037"],
+      },
+      { evidence_type: "PROOF_OF_REFUND", notes: "Refunded.", refund_ids: ["REF-1037"] },
+    ],
+    document_ids: [DOCUMENT],
+  },
+};
 
 let servers: Server[] = [];
 
@@ -174,7 +210,16 @@ describe("the approval API", { timeout: SLOW }, () => {
   }, SLOW);
 
   beforeEach(async () => {
-    await db.execute(sql`TRUNCATE audit_log, tickets, seed_orders`);
+    await db.execute(sql`TRUNCATE audit_log, tickets, seed_orders, evidence_documents`);
+    await writeEvidenceDocument(db, {
+      id: DOCUMENT,
+      disputeId: DISPUTE,
+      kind: "pdf",
+      name: DOCUMENT_NAME,
+      contentType: "application/pdf",
+      bytes: PDF_BYTES,
+      createdAt: NOW.toISOString(),
+    });
     await writeTicket(db, {
       id: "TKT-1037",
       channel: "email",
@@ -268,6 +313,7 @@ describe("the approval API", { timeout: SLOW }, () => {
         simulated: true,
       },
       claim: "damaged",
+      params: null,
       state: "open",
       answer: null,
       can_execute: true,
@@ -336,6 +382,7 @@ describe("the approval API", { timeout: SLOW }, () => {
           outcome: "executed",
           refund: { id: answer.body.execution.refund.id, status: "COMPLETED" },
           invoice: null,
+          dispute: null,
         },
       }),
     ]);
@@ -489,6 +536,152 @@ describe("the approval API", { timeout: SLOW }, () => {
       can_execute: true,
       cannot_execute: null,
     });
+    expect(cards[0]?.params).toEqual({ kind: "accept_claim", note: "Refunding in full." });
+    expect(cards[1]?.params).toEqual({
+      kind: "invoice_send",
+      note: "Thanks for your order.",
+      send_to_recipient: true,
+      additional_recipients: [],
+    });
+  });
+
+  it("shows each offer's type, amount and note, and every evidence item and document", async () => {
+    const w = world();
+    const offer = await stepUp(w, refundOffer);
+    const replacement = await stepUp(w, replacementOffer);
+    const evidence = await stepUp(w, provideEvidence);
+    const url = await gate(w).url;
+
+    const list = await getJson(`${url}/approvals`);
+    expect(list.status).toBe(200);
+    const bySeq = (seq: number): Card | undefined =>
+      (list.body.open as Card[]).find((card) => card.step_up_id === seq);
+
+    expect(bySeq(offer.seq)?.params).toEqual({
+      kind: "make_offer",
+      offer_type: "REFUND_WITH_RETURN",
+      offer_type_words: "Refund with return",
+      amount: { minor: 2000, currency: "USD", display: "$20.00" },
+      note: "Send it back and we'll refund $20.00.",
+    });
+    expect(bySeq(replacement.seq)?.params).toEqual({
+      kind: "make_offer",
+      offer_type: "REPLACEMENT_WITHOUT_REFUND",
+      offer_type_words: "Replacement without refund",
+      amount: null,
+      note: "A new basket.",
+    });
+
+    const card = bySeq(evidence.seq);
+    expect(card).toMatchObject({
+      action_words: "Provide dispute evidence",
+      target: { kind: "dispute", id: DISPUTE },
+      can_execute: true,
+    });
+    expect(card?.params).toEqual({
+      kind: "provide_evidence",
+      items: [
+        {
+          evidence_type: "PROOF_OF_FULFILLMENT",
+          evidence_type_words: "Proof of fulfillment",
+          notes: FULFILMENT_NOTES,
+          tracking_numbers: ["TRK1037"],
+          tracking_carrier: EVIDENCE_CARRIER.nameOther,
+          refund_ids: [],
+        },
+        {
+          evidence_type: "PROOF_OF_REFUND",
+          evidence_type_words: "Proof of refund",
+          notes: "Refunded.",
+          tracking_numbers: [],
+          tracking_carrier: null,
+          refund_ids: ["REF-1037"],
+        },
+      ],
+      documents: [
+        {
+          id: DOCUMENT,
+          name: DOCUMENT_NAME,
+          sha256: sha256Hex(PDF_BYTES),
+          size: PDF_BYTES.byteLength,
+          available: true,
+        },
+      ],
+    });
+    expect((await getJson(`${url}/approvals/${evidence.seq}`)).body).toEqual(card);
+
+    // A document that's gone shows as unavailable, with no size; the card still reads.
+    await db.execute(sql`TRUNCATE evidence_documents`);
+    const gone = await getJson(`${url}/approvals/${evidence.seq}`);
+    expect(gone.status).toBe(200);
+    expect(gone.body.params.documents).toEqual([
+      expect.objectContaining({ id: DOCUMENT, size: null, available: false }),
+    ]);
+  });
+
+  it("approves an evidence card, sends it once and answers the dispute's status", async () => {
+    const w = world();
+    const { seq, hash, intentId } = await stepUp(w, provideEvidence);
+    const url = await gate(w).url;
+
+    const answer = await postJson(`${url}/approvals/${seq}`, {
+      answer: "approve",
+      intent_hash: hash,
+    });
+    expect(answer.status).toBe(200);
+    expect(answer.body).toMatchObject({
+      outcome: "approved",
+      intent_id: intentId,
+      execution: {
+        outcome: "executed",
+        refund: null,
+        invoice: null,
+        dispute: { id: DISPUTE, status: "UNDER_REVIEW" },
+        error: null,
+      },
+    });
+    expect(w.rail.calls.filter((call) => call.call === "provideEvidence")).toHaveLength(1);
+
+    const after = await getJson(`${url}/approvals`);
+    expect(after.body.recent).toEqual([
+      expect.objectContaining({
+        step_up_id: seq,
+        outcome: "approved",
+        execution: {
+          outcome: "executed",
+          refund: null,
+          invoice: null,
+          dispute: { id: DISPUTE, status: "UNDER_REVIEW" },
+        },
+      }),
+    ]);
+  });
+
+  it("downloads a document to the approver key only, with its type and an attachment name", async () => {
+    const url = await gate(world()).url;
+    const path = `${url}/approvals/documents/${DOCUMENT}`;
+
+    const res = await fetch(path, { headers: bearer(APPROVER_KEY) });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("application/pdf");
+    expect(res.headers.get("content-disposition")).toBe(`attachment; filename=${DOCUMENT_NAME}`);
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(PDF_BYTES);
+
+    for (const key of [AGENT_KEY, `${APPROVER_KEY}x`]) {
+      const refused = await getJson(path, key);
+      expect(refused.status).toBe(401);
+      expect(refused.body).toEqual({ message: APPROVAL_MESSAGES.unauthorized });
+    }
+    expect((await fetch(path)).status).toBe(401);
+
+    for (const id of ["doc_123", "DOC_0123456789ABCDEF01234567", "abc", `${DOCUMENT}0`]) {
+      const bad = await getJson(`${url}/approvals/documents/${id}`);
+      expect(bad.status).toBe(400);
+      expect(bad.body).toEqual({ message: APPROVAL_MESSAGES.badDocumentId });
+    }
+    const unknown = await getJson(`${url}/approvals/documents/doc_${"f".repeat(24)}`);
+    expect(unknown.status).toBe(404);
+    expect(unknown.body).toEqual({ message: APPROVAL_MESSAGES.documentNotFound });
   });
 
   it("answers 503 when a step-up entry can't be read, and approves nothing", async () => {
@@ -545,6 +738,7 @@ describe("the approval API", { timeout: SLOW }, () => {
     const url = await listen({ env: ENV });
     expect((await getJson(`${url}/approvals`)).status).toBe(503);
     expect((await getJson(`${url}/approvals/1`)).status).toBe(503);
+    expect((await getJson(`${url}/approvals/documents/${DOCUMENT}`)).status).toBe(503);
   });
 });
 

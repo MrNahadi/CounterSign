@@ -69,6 +69,12 @@ const DISPUTE_REASON_WORDS: Record<string, string> = {
   OTHER: "Other",
 };
 
+/** PayPal's upper snake case code in words: `PROOF_OF_REFUND` reads "Proof of refund". */
+export function codeWords(code: string): string {
+  const words = code.toLowerCase().split("_").filter(Boolean).join(" ");
+  return words.length === 0 ? code : `${words[0]?.toUpperCase()}${words.slice(1)}`;
+}
+
 /** A dispute reason in words, by PayPal's reason code. */
 export function disputeReasonWords(reason: string): string {
   return Object.hasOwn(DISPUTE_REASON_WORDS, reason)

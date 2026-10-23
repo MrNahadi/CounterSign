@@ -151,15 +151,15 @@ Notes:
 
 ## T-011: Approval cards with what executes, and document download
 
-Status: open
+Status: done
 Blocked by: T-007, T-008
 Tier: standard
 Slice: A held dispute action's card shows exactly what will be sent, and the approver can download its documents.
 Test seam: the gate's card builder and the approval API over a real listening gate
 Acceptance:
-- [ ] Every card carries `params` as requirements.md lists for invoice sends, accept claim, offers and evidence; a refund card has none; existing card tests still pass
-- [ ] `GET /approvals/documents/:id` answers the bytes with content type and attachment header to the approver key, 401 to no key or a principal key, 400 for a malformed ID, 404 for an unknown one
-- [ ] Approving a provide-evidence card answers with `dispute: { id, status }`
+- [x] Every card carries `params` as requirements.md lists for invoice sends, accept claim, offers and evidence; a refund card has none; existing card tests still pass
+- [x] `GET /approvals/documents/:id` answers the bytes with content type and attachment header to the approver key, 401 to no key or a principal key, 400 for a malformed ID, 404 for an unknown one
+- [x] Approving a provide-evidence card answers with `dispute: { id, status }`
 Notes:
 
 ## T-012: Audit reader lines for disputes

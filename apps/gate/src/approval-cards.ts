@@ -4,15 +4,19 @@
 
 import {
   type Database,
+  readEvidenceDocument,
   readTicket,
   type SeedOrderRow,
   seedOrders,
+  sha256Hex,
   sql,
   type Ticket,
 } from "@countersign/db";
 import {
   type Action,
+  type EvidenceDocumentRef,
   formatMoney,
+  type Intent,
   type IntentTarget,
   type Mandate,
   type Money,
@@ -23,7 +27,8 @@ import { readStepUps, type StepUp, type StepUpState } from "./approval-log";
 import { type ClaimPair, checksThatDecided, claimsVsRecords } from "./claims";
 import { isExecutable } from "./executable";
 import { type ExecutionOutcome, readIntentRecord } from "./execution-log";
-import { ACTION_WORDS } from "./words";
+import { EVIDENCE_CARRIER } from "./executors";
+import { ACTION_WORDS, codeWords } from "./words";
 
 export { ACTION_WORDS };
 
@@ -62,6 +67,46 @@ export type CardCheck = {
   records: { call: string; id: string | null }[];
 };
 
+// One evidence item as it's sent. Tracking numbers go out under the simulated carrier's name.
+export type CardEvidenceItem = {
+  evidence_type: string;
+  evidence_type_words: string;
+  notes: string;
+  tracking_numbers: string[];
+  // The carrier name PayPal is sent with the tracking numbers; null when there are none.
+  tracking_carrier: string | null;
+  refund_ids: string[];
+};
+
+// One evidence document as the intent binds it, beside the stored row. `available` is false when
+// the row is gone or isn't the one hashed, so approving it would send nothing; `size` is then null.
+export type CardDocument = {
+  id: string;
+  name: string;
+  sha256: string;
+  size: number | null;
+  available: boolean;
+};
+
+// The parameters that execute, by action. A refund, and any action with no executor, has none.
+export type CardParams =
+  | {
+      kind: "invoice_send";
+      note: string | null;
+      send_to_recipient: boolean;
+      additional_recipients: string[];
+    }
+  | { kind: "accept_claim"; note: string | null }
+  | {
+      kind: "make_offer";
+      offer_type: string | null;
+      offer_type_words: string | null;
+      // Null for a replacement without a refund, which offers no money.
+      amount: CardAmount | null;
+      note: string | null;
+    }
+  | { kind: "provide_evidence"; items: CardEvidenceItem[]; documents: CardDocument[] };
+
 export type Card = {
   step_up_id: number;
   intent_id: string;
@@ -74,6 +119,8 @@ export type Card = {
   order_number: string | null;
   ticket: CardTicket | null;
   claim: StepUp["intent"]["claim"];
+  // What approving sends, from the stored intent's hashed parameters.
+  params: CardParams | null;
   reasons: { code: string; words: string; detail: string }[];
   // What the message claims beside what the records say (the same pairs as the decision page).
   claims: ClaimPair[];
@@ -92,6 +139,8 @@ export type CardExecution = {
   outcome: ExecutionOutcome | "pending";
   refund: { id: string; status: string } | null;
   invoice: { id: string; status: string } | null;
+  // The dispute a dispute action acted on, with its status as re-read after the call.
+  dispute: { id: string; status: string | null } | null;
 };
 
 export type RecentSummary = {
@@ -114,6 +163,9 @@ export type CardContext = {
   orderNumber: string | null;
   // The principals' mandates. A step-up's own (by hash) narrows the checks to those that decided.
   mandates: readonly Mandate[];
+  // The stored sizes of the evidence documents the intent names, by ID, for those whose bytes,
+  // name and type are still the ones hashed. A document missing here shows as unavailable.
+  documents?: ReadonlyMap<string, number>;
 };
 
 export const amountOf = (money: Money): CardAmount => ({ ...money, display: formatMoney(money) });
@@ -146,6 +198,59 @@ export function ticketOf(ticket: Ticket): CardTicket {
   };
 }
 
+const listOf = (values: readonly string[] | null | undefined): string[] => [...(values ?? [])];
+
+// The parameters that execute, as the action's executor reads them from the stored intent.
+export function paramsOf(
+  intent: Intent,
+  documents: ReadonlyMap<string, number>,
+): CardParams | null {
+  const params = intent.params ?? {};
+  const note = params.note ?? null;
+  switch (intent.action) {
+    case "paypal.invoice.send":
+      return {
+        kind: "invoice_send",
+        note,
+        send_to_recipient: params.sendToRecipient ?? true,
+        additional_recipients: listOf(params.additionalRecipients),
+      };
+    case "paypal.dispute.accept_claim":
+      return { kind: "accept_claim", note };
+    case "paypal.dispute.make_offer": {
+      const offerType = params.offerType ?? null;
+      return {
+        kind: "make_offer",
+        offer_type: offerType,
+        offer_type_words: offerType === null ? null : codeWords(offerType),
+        amount: offerType === "REPLACEMENT_WITHOUT_REFUND" ? null : amountOf(intent.amount),
+        note,
+      };
+    }
+    case "paypal.dispute.provide_evidence":
+      return {
+        kind: "provide_evidence",
+        items: (params.evidence ?? []).map((item) => {
+          const tracking = listOf(item.trackingNumbers);
+          return {
+            evidence_type: item.evidenceType,
+            evidence_type_words: codeWords(item.evidenceType),
+            notes: item.notes,
+            tracking_numbers: tracking,
+            tracking_carrier: tracking.length === 0 ? null : EVIDENCE_CARRIER.nameOther,
+            refund_ids: listOf(item.refundIds),
+          };
+        }),
+        documents: (params.documents ?? []).map((ref) => {
+          const size = documents.get(ref.id) ?? null;
+          return { id: ref.id, name: ref.name, sha256: ref.sha256, size, available: size !== null };
+        }),
+      };
+    default:
+      return null;
+  }
+}
+
 // One step-up as the merchant's card.
 export function cardView(stepUp: StepUp, context: CardContext): Card {
   const { intent } = stepUp;
@@ -165,6 +270,7 @@ export function cardView(stepUp: StepUp, context: CardContext): Card {
     order_number: context.orderNumber,
     ticket: context.ticket === null ? null : ticketOf(context.ticket),
     claim: intent.claim,
+    params: paramsOf(intent, context.documents ?? new Map()),
     reasons: stepUp.reasons.map(({ code, detail }) => ({
       code,
       words: REASONS[code].words,
@@ -209,17 +315,39 @@ async function orderNumberOf(db: Database, target: IntentTarget): Promise<string
   return rows[0]?.orderNumber ?? null;
 }
 
+// The evidence documents' stored sizes, kept only where the row is still what the executor would
+// send: the hashed SHA-256 (recomputed from the bytes), the hashed name and a PDF.
+async function documentSizesOf(
+  db: Database,
+  refs: readonly EvidenceDocumentRef[],
+): Promise<Map<string, number>> {
+  const sizes = new Map<string, number>();
+  for (const ref of refs) {
+    const stored = await readEvidenceDocument(db, ref.id);
+    if (
+      stored !== null &&
+      sha256Hex(stored.bytes) === ref.sha256 &&
+      stored.name === ref.name &&
+      stored.contentType === "application/pdf"
+    ) {
+      sizes.set(ref.id, stored.bytes.byteLength);
+    }
+  }
+  return sizes;
+}
+
 async function contextOf(
   db: Database,
   stepUp: StepUp,
   mandates: readonly Mandate[],
 ): Promise<CardContext> {
-  const { ticketId, target } = stepUp.intent;
-  const [ticket, orderNumber] = await Promise.all([
+  const { ticketId, target, params } = stepUp.intent;
+  const [ticket, orderNumber, documents] = await Promise.all([
     ticketId === null ? null : readTicket(db, ticketId),
     orderNumberOf(db, target),
+    documentSizesOf(db, params?.documents ?? []),
   ]);
-  return { ticket, orderNumber, mandates };
+  return { ticket, orderNumber, mandates, documents };
 }
 
 // One step-up's card, by its ID.
@@ -233,15 +361,18 @@ export async function buildCard(
 
 async function executionOf(db: Database, intentId: string): Promise<CardExecution> {
   const read = await readIntentRecord(db, intentId);
-  if (!read.known) return { outcome: "unknown", refund: null, invoice: null };
+  if (!read.known) return { outcome: "unknown", refund: null, invoice: null, dispute: null };
   const { trail } = read;
-  if (trail === null) return { outcome: "pending", refund: null, invoice: null };
+  if (trail === null) return { outcome: "pending", refund: null, invoice: null, dispute: null };
   const { executed } = trail;
   return {
     outcome: executed !== null ? "executed" : (trail.lastOutcome ?? "pending"),
     refund: executed?.refund ? { id: executed.refund.id, status: executed.refund.status } : null,
     invoice: executed?.invoice
       ? { id: executed.invoice.id, status: executed.invoice.status }
+      : null,
+    dispute: executed?.dispute
+      ? { id: executed.dispute.id, status: executed.dispute.status }
       : null,
   };
 }

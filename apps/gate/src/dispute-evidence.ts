@@ -156,6 +156,8 @@ const failure = (code: PackFailure): EvidencePack => ({
 });
 
 // A document's ID: `doc_` and 24 hex characters, fixed by what it is and when it was made.
+export const DOCUMENT_ID_PATTERN = /^doc_[0-9a-f]{24}$/;
+
 function documentId(disputeId: string, kind: string, sha256: string, at: string): string {
   const digest = createHash("sha256")
     .update(JSON.stringify([disputeId, kind, sha256, at]))

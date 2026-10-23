@@ -2,7 +2,7 @@
 // the approver key opens it, checked before any body is read; principal keys never do. Bodies
 // and IDs are read with zod, and no answer echoes the request or holds a key. No AI.
 
-import type { Database } from "@countersign/db";
+import { type Database, readEvidenceDocument } from "@countersign/db";
 import type { Mandate } from "@countersign/mandate";
 import type { PayPalClient } from "@countersign/rail-paypal";
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
@@ -11,14 +11,18 @@ import { answerStepUp } from "./answer-step-up";
 import { buildCard, readApprovals } from "./approval-cards";
 import { APPROVAL_ANSWERS, readStepUp } from "./approval-log";
 import type { Approver } from "./approver";
+import { DOCUMENT_ID_PATTERN } from "./dispute-evidence";
 import type { Execution } from "./executors";
 
 export const APPROVALS_PATH = "/approvals";
+export const DOCUMENTS_PATH = `${APPROVALS_PATH}/documents`;
 export const APPROVAL_BODY_LIMIT = "16kb";
 
 export const APPROVAL_MESSAGES = {
   unauthorized: "A valid approver key is required.",
   notFound: "There's no step-up with that ID.",
+  badDocumentId: "That isn't an evidence document ID.",
+  documentNotFound: "There's no evidence document with that ID.",
   badBody: "Send JSON with answer (approve or deny) and intent_hash.",
   tooLarge: "The request body is too large.",
   unreadable: "An audit-log entry can't be read, so nothing can be approved.",
@@ -43,6 +47,8 @@ const StepUpId = z
   .transform(Number)
   .pipe(z.number().int().max(Number.MAX_SAFE_INTEGER));
 
+const DocumentId = z.string().regex(DOCUMENT_ID_PATTERN);
+
 const AnswerBody = z.strictObject({
   answer: z.enum(APPROVAL_ANSWERS),
   intent_hash: z.string().regex(/^[0-9a-f]{64}$/),
@@ -65,6 +71,7 @@ function executionView(execution: Execution | null) {
     outcome: execution.outcome,
     refund: execution.refund,
     invoice: execution.invoice ?? null,
+    dispute: execution.dispute ?? null,
     error:
       execution.error === null
         ? null
@@ -100,6 +107,26 @@ export function mountApprovals(app: Express, deps: ApprovalsDeps): void {
       const read = await readApprovals(db, clock(), mandates);
       if (!read.known) return message(res, 503, APPROVAL_MESSAGES.unreadable);
       res.json(read.view);
+    } catch {
+      message(res, 503, APPROVAL_MESSAGES.unavailable);
+    }
+  });
+
+  // A stored evidence document's bytes, as a download. Documents are write-once, so these are the
+  // bytes a card's SHA-256 names unless the card says the document isn't available.
+  app.get(`${DOCUMENTS_PATH}/:id`, authenticate, async (req: Request, res: Response) => {
+    const id = DocumentId.safeParse(req.params.id);
+    if (!id.success) return message(res, 400, APPROVAL_MESSAGES.badDocumentId);
+    if (db === undefined) return message(res, 503, APPROVAL_MESSAGES.unavailable);
+    try {
+      const document = await readEvidenceDocument(db, id.data);
+      if (document === null) return message(res, 404, APPROVAL_MESSAGES.documentNotFound);
+      res
+        .status(200)
+        .type(document.contentType)
+        .attachment(document.name)
+        .set("X-Content-Type-Options", "nosniff")
+        .send(Buffer.from(document.bytes));
     } catch {
       message(res, 503, APPROVAL_MESSAGES.unavailable);
     }
