@@ -215,3 +215,17 @@ Acceptance:
 - [x] A signed-webhook fixture for `CUSTOMER.DISPUTE.CREATED` and a fake-sandbox dispute let `npm test` run beat 7 from webhook to approved submission
 - [x] README gains "Answer a dispute" (sync, the draft, the card, the PDF, what's simulated) and marks phase 11 done; CONTEXT.md's dispute terms (Dispute, Evidence pack, Evidence document, Dispute draft) still match what was built
 Notes: The beat 7 run lives in `apps/resolve-agent/test/beat-7.test.ts`, since it needs Resolve's drafter and the gate can't import Resolve. The live test has not been run (no PayPal access in the loop).
+
+## T-016: The refund's date in the evidence
+
+Status: open
+Blocked by:
+Tier: simple
+Slice: The refund template note reads "Refunded <amount> on <date> (refund <IDs>). Records attached.", as requirements.md says, from the refund's own time in PayPal's records.
+Test seam: the rail client's order read against the fake PayPal, the gate's evidence-pack function, and the drafter's `templateNotes`
+Acceptance:
+- [ ] The rail client's refunds carry PayPal's `create_time` (null when absent, never guessed); the existing refund and reconciliation tests pass unchanged
+- [ ] The facts, the PDF's Refunds section and `prepare_dispute_evidence`'s answer give each refund its time, or "Not available" when PayPal gave none
+- [ ] The refund template note names the date of the latest named refund, and leaves the date out when no named refund has a time
+- [ ] The pinned system instruction and every existing intent hash are unchanged
+Notes: Found by the validator: requirements.md's facts list refunds as ID, amount and status only, so T-010 left the date out (see progress.md).
