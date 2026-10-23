@@ -19,7 +19,7 @@ All run from the repo root and are part of the Feedback commands.
 
 1. `LIVE=1 npm test -- packages/rail-paypal`: lists the merchant's disputes and, when one exists, reads it.
 2. With `PAYPAL_LIVE_DISPUTE_ID` set to a sandbox dispute in `UNDER_REVIEW` or waiting for the seller: `LIVE=1 npm test -- apps/gate/test/disputes-live.test.ts` moves it to `WAITING_FOR_SELLER_RESPONSE` with require evidence, builds the pack, proposes `provide_dispute_evidence`, approves the step-up, checks PayPal took the PDF, then adjudicates `SELLER_FAVOR` (spike S3). It skips with a reason when the variable isn't set.
-3. With `GEMINI_API_KEY` set: `LIVE=1 npm test -- apps/resolve-agent/test/dispute-draft-live.test.ts` runs one real draft call on recorded facts and checks the notes validate and `modelVersion` is recorded.
+3. With `GEMINI_API_KEY` set: `LIVE=1 npm test -- apps/resolve-agent/test/live.test.ts` ("drafts dispute notes from recorded facts") runs one real draft call on recorded facts and checks the notes validate and `modelVersion` is recorded.
 
 ## Manual checks for the human
 
