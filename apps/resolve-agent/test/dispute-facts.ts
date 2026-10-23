@@ -38,7 +38,14 @@ export const RECORDED_FACTS: Prepared = {
       },
     },
   ],
-  refunds: [{ id: "RF-1037", amount: usd(2000, "$20.00"), status: "COMPLETED" }],
+  refunds: [
+    {
+      id: "RF-1037",
+      amount: usd(2000, "$20.00"),
+      status: "COMPLETED",
+      time: "2026-10-06T09:05:00Z",
+    },
+  ],
   decisions: [
     {
       at: "2026-10-06T09:00:00Z",

@@ -55,7 +55,9 @@ export type ShippingFact = {
   carrier: CarrierFact | null;
 };
 
-export type RefundFact = { id: string; amount: CardAmount; status: string };
+// `time` is PayPal's own `create_time` for the refund, null when PayPal gave none. It is never
+// guessed from another record.
+export type RefundFact = { id: string; amount: CardAmount; status: string; time: string | null };
 
 export type DecisionFact = {
   at: string;
@@ -239,7 +241,12 @@ function refundsOf(order: PayPalOrder, captureId: string): RefundFact[] {
       if (refund.captureId !== null && refund.captureId !== captureId) continue;
       if (seen.has(refund.id)) continue;
       seen.add(refund.id);
-      facts.push({ id: refund.id, amount: amountOf(refund.amount), status: refund.status });
+      facts.push({
+        id: refund.id,
+        amount: amountOf(refund.amount),
+        status: refund.status,
+        time: refund.createTime ?? null,
+      });
     }
   }
   return facts;

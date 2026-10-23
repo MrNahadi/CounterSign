@@ -28,6 +28,7 @@ const completedRefund = {
   status: "COMPLETED",
   amount: { minor: 1800, currency: "USD" },
   captureId: CAPTURE_ID,
+  createTime: "2026-10-18T08:14:02-07:00",
 };
 
 function body(request: { body: string | null } | undefined): Record<string, unknown> {
@@ -238,20 +239,55 @@ describe("refunds on orders", () => {
   it("carries each purchase unit's refunds as refund records", async () => {
     const order = await readOrder(fixture("get-order-refunded"));
     expect(order.purchaseUnits[0]?.refunds).toEqual([
-      completedRefund,
+      { ...completedRefund, createTime: "2026-10-18T15:14:02Z" },
       {
         id: "5LH23991AC0148805",
         status: "PENDING",
         amount: { minor: 600, currency: "USD" },
         captureId: CAPTURE_ID,
+        createTime: "2026-10-18T15:14:02Z",
       },
       {
         id: "9TB61470DK2290043",
         status: "FAILED",
         amount: { minor: 1000, currency: "USD" },
         captureId: CAPTURE_ID,
+        createTime: "2026-10-18T15:14:02Z",
       },
     ]);
+  });
+
+  it("gives a refund PayPal's own create_time, and null when PayPal gave none", async () => {
+    const order = await readOrder(
+      orderWith({
+        captures: [captureJson(CAPTURE_ID, "48.00")],
+        refunds: [
+          {
+            ...refundJson("R1", "18.00", "COMPLETED", CAPTURE_ID),
+            create_time: "2026-10-20T01:02:03Z",
+          },
+          refundJson("R2", "5.00", "COMPLETED", CAPTURE_ID),
+        ],
+      }),
+    );
+    expect(order.purchaseUnits[0]?.refunds.map((r) => r.createTime)).toEqual([
+      "2026-10-20T01:02:03Z",
+      null,
+    ]);
+  });
+
+  it("reads a malformed create_time as null, never failing the read or guessing", async () => {
+    const order = await readOrder(
+      orderWith({
+        captures: [captureJson(CAPTURE_ID, "48.00")],
+        refunds: [
+          { ...refundJson("R1", "18.00", "COMPLETED", CAPTURE_ID), create_time: 12345 },
+          { ...refundJson("R2", "5.00", "COMPLETED", CAPTURE_ID), create_time: "" },
+        ],
+      }),
+    );
+    expect(order.purchaseUnits[0]?.refunds.map((r) => r.createTime)).toEqual([null, null]);
+    expect(refundedTotal(order, CAPTURE_ID)).toBe(2300);
   });
 
   it("counts COMPLETED and PENDING refunds in a capture's refunded total, not FAILED", async () => {

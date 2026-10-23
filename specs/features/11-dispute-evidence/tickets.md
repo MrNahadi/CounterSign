@@ -218,14 +218,14 @@ Notes: The beat 7 run lives in `apps/resolve-agent/test/beat-7.test.ts`, since i
 
 ## T-016: The refund's date in the evidence
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: The refund template note reads "Refunded <amount> on <date> (refund <IDs>). Records attached.", as requirements.md says, from the refund's own time in PayPal's records.
 Test seam: the rail client's order read against the fake PayPal, the gate's evidence-pack function, and the drafter's `templateNotes`
 Acceptance:
-- [ ] The rail client's refunds carry PayPal's `create_time` (null when absent, never guessed); the existing refund and reconciliation tests pass unchanged
-- [ ] The facts, the PDF's Refunds section and `prepare_dispute_evidence`'s answer give each refund its time, or "Not available" when PayPal gave none
-- [ ] The refund template note names the date of the latest named refund, and leaves the date out when no named refund has a time
-- [ ] The pinned system instruction and every existing intent hash are unchanged
-Notes: Found by the validator: requirements.md's facts list refunds as ID, amount and status only, so T-010 left the date out (see progress.md).
+- [x] The rail client's refunds carry PayPal's `create_time` (null when absent, never guessed); the existing refund and reconciliation tests pass unchanged
+- [x] The facts, the PDF's Refunds section and `prepare_dispute_evidence`'s answer give each refund its time, or "Not available" when PayPal gave none
+- [x] The refund template note names the date of the latest named refund, and leaves the date out when no named refund has a time
+- [x] The pinned system instruction and every existing intent hash are unchanged
+Notes: Found by the validator: requirements.md's facts list refunds as ID, amount and status only, so T-010 left the date out (see progress.md). The reconciliation tests (webhook, reconcile CLI) and every test that builds a refund by hand pass unchanged, because `PayPalRefund.createTime` is optional in the type. Four exact-equality expectations in `packages/rail-paypal/test/refunds.test.ts` gained the field, since the refund fixtures already carry `create_time`. requirements.md's facts line now names the refund's time.

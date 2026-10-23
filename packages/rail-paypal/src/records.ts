@@ -28,11 +28,15 @@ export const REFUND_STATUSES = ["COMPLETED", "PENDING", "FAILED", "CANCELLED"] a
 export type PayPalRefundStatus = (typeof REFUND_STATUSES)[number];
 
 // A refund of one capture (ADR 0025). Its capture ID comes from its `up` link, null when absent.
+// `createTime` is PayPal's own `create_time` as text. A read always sets it, to null when PayPal
+// gave none; a record built by hand may leave it out, which reads the same. It is only shown,
+// never decided on.
 export type PayPalRefund = {
   id: string;
   status: PayPalRefundStatus;
   amount: Money;
   captureId: string | null;
+  createTime?: string | null;
 };
 
 export type PayPalPurchaseUnit = {
@@ -149,6 +153,8 @@ export const refundSchema = z
     id: text,
     status: z.enum(REFUND_STATUSES),
     amount: moneySchema,
+    // Only shown, so a malformed one is dropped rather than failing the read.
+    create_time: z.string().min(1).max(64).optional().catch(undefined),
     links: z
       .array(z.object({ rel: z.string().optional(), href: z.string().optional() }))
       .optional(),
@@ -159,6 +165,7 @@ export const refundSchema = z
       status: refund.status,
       amount: refund.amount,
       captureId: captureIdFromLinks(refund.links),
+      createTime: refund.create_time ?? null,
     }),
   );
 

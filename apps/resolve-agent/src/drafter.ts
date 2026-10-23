@@ -86,7 +86,9 @@ export const PreparedSchema = z.object({
       }),
     )
     .nullable(),
-  refunds: z.array(z.object({ id: Text, amount: Amount, status: Text })).nullable(),
+  refunds: z
+    .array(z.object({ id: Text, amount: Amount, status: Text, time: Text.nullable() }))
+    .nullable(),
   decisions: z
     .array(
       z.object({
@@ -168,12 +170,20 @@ function fulfilmentNote(prepared: Prepared, trackingNumbers: readonly string[]):
   return `Shipped with ${carrier} under tracking ${list(trackingNumbers)}; the carrier shows it delivered${when} (simulated carrier data). Records attached.`;
 }
 
-// The facts hold no refund date, so the note names none rather than guess one.
+// The date is the latest of the named refunds' own times in PayPal's records. When none of them
+// has a time that parses, the note names no date rather than guess one.
 function refundNote(prepared: Prepared, refundIds: readonly string[]): string {
   const refunds = (prepared.refunds ?? []).filter((refund) => refundIds.includes(refund.id));
   const amounts = refunds.map((refund) => refund.amount.display);
   const amount = amounts.length > 0 ? ` ${list(amounts)}` : "";
-  return `Refunded${amount} (refund ${list(refundIds)}). Records attached.`;
+  const times = refunds.flatMap((refund) => {
+    const at = refund.time === null ? Number.NaN : Date.parse(refund.time);
+    return Number.isNaN(at) ? [] : [{ at, time: refund.time }];
+  });
+  const latest = times.sort((a, b) => b.at - a.at)[0];
+  const day = dayWords(latest?.time);
+  const when = day === null ? "" : ` on ${day}`;
+  return `Refunded${amount}${when} (refund ${list(refundIds)}). Records attached.`;
 }
 
 function otherNote(prepared: Prepared): string {

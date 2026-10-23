@@ -404,10 +404,97 @@ describe("the drafter's fixed parts", () => {
       summary: null,
       notes: [
         DELIVERED_NOTE,
-        "Refunded $20.00 (refund RF-1037). Records attached.",
+        "Refunded $20.00 on 6 Oct 2026 (refund RF-1037). Records attached.",
         "Order KIK-1037, paid $240.00 on 1 Oct 2026. Countersign's records for this payment are attached.",
       ],
     });
+  });
+
+  describe("the refund note's date", () => {
+    const usd = (minor: number, display: string) => ({ minor, currency: "USD", display });
+    const refundNoteFor = (
+      refunds: { id: string; minor: number; display: string; time: string | null }[],
+      refundIds: string[],
+    ) =>
+      templateNotes({
+        ...RECORDED_FACTS,
+        refunds: refunds.map(({ id, minor, display, time }) => ({
+          id,
+          amount: usd(minor, display),
+          status: "COMPLETED",
+          time,
+        })),
+        suggested: [
+          { evidence_type: "PROOF_OF_REFUND", tracking_numbers: [], refund_ids: refundIds },
+        ],
+      }).notes[0];
+
+    it("names the date of the latest named refund, by instant", () => {
+      expect(
+        refundNoteFor(
+          [
+            { id: "R1", minor: 1000, display: "$10.00", time: "2026-10-06T09:05:00Z" },
+            // 23:30 at -07:00 on the 8th is 06:30 UTC on the 9th: later than R3's 8 Oct 20:00 UTC.
+            { id: "R2", minor: 500, display: "$5.00", time: "2026-10-08T23:30:00-07:00" },
+            { id: "R3", minor: 700, display: "$7.00", time: "2026-10-08T20:00:00Z" },
+          ],
+          ["R1", "R2", "R3"],
+        ),
+      ).toBe(
+        "Refunded $10.00, $5.00 and $7.00 on 9 Oct 2026 (refund R1, R2 and R3). Records attached.",
+      );
+    });
+
+    it("ignores refunds the item doesn't name", () => {
+      expect(
+        refundNoteFor(
+          [
+            { id: "R1", minor: 1000, display: "$10.00", time: "2026-10-06T09:05:00Z" },
+            { id: "R2", minor: 500, display: "$5.00", time: "2026-10-20T09:05:00Z" },
+          ],
+          ["R1"],
+        ),
+      ).toBe("Refunded $10.00 on 6 Oct 2026 (refund R1). Records attached.");
+    });
+
+    it("leaves the date out when no named refund has a time, and doesn't borrow another record's", () => {
+      expect(
+        refundNoteFor(
+          [
+            { id: "R1", minor: 1000, display: "$10.00", time: null },
+            { id: "R2", minor: 500, display: "$5.00", time: "2026-10-20T09:05:00Z" },
+          ],
+          ["R1"],
+        ),
+      ).toBe("Refunded $10.00 (refund R1). Records attached.");
+      expect(
+        refundNoteFor([{ id: "R1", minor: 1000, display: "$10.00", time: "not a time" }], ["R1"]),
+      ).toBe("Refunded $10.00 (refund R1). Records attached.");
+    });
+
+    it("uses the date of the refunds that have a time when others have none", () => {
+      expect(
+        refundNoteFor(
+          [
+            { id: "R1", minor: 1000, display: "$10.00", time: null },
+            { id: "R2", minor: 500, display: "$5.00", time: "2026-10-07T09:05:00Z" },
+          ],
+          ["R1", "R2"],
+        ),
+      ).toBe("Refunded $10.00 and $5.00 on 7 Oct 2026 (refund R1 and R2). Records attached.");
+    });
+  });
+
+  it("reads a refund fact with no time key as invalid, not as a guessed date", () => {
+    const bare = {
+      id: "RF-1",
+      amount: { minor: 2000, currency: "USD", display: "$20.00" },
+      status: "COMPLETED",
+    };
+    expect(PreparedSchema.safeParse({ ...RECORDED_FACTS, refunds: [bare] }).success).toBe(false);
+    expect(
+      PreparedSchema.safeParse({ ...RECORDED_FACTS, refunds: [{ ...bare, time: null }] }).success,
+    ).toBe(true);
   });
 
   it("never shows the model a key the facts schema doesn't name", () => {

@@ -295,6 +295,43 @@ describe("prepare_dispute_evidence and provide_dispute_evidence over MCP", {
     expect(w.rail.calls.some((call) => moving.includes(call.call))).toBe(false);
   });
 
+  it("gives each refund its time from PayPal, or null when PayPal gave none", async () => {
+    const w = world();
+    const refunds = w.rail.orders.get("ORD-1037")?.purchaseUnits[0]?.refunds;
+    if (!refunds) throw new Error("no order");
+    refunds.push(
+      {
+        id: "REF-1",
+        status: "COMPLETED",
+        amount: usd(5000),
+        captureId: "CAP-1037",
+        createTime: "2026-10-06T07:00:00Z",
+      },
+      {
+        id: "REF-2",
+        status: "PENDING",
+        amount: usd(1000),
+        captureId: "CAP-1037",
+        createTime: null,
+      },
+    );
+    const answer = await prepare(await gate(w));
+    expect(answer.refunds).toEqual([
+      {
+        id: "REF-1",
+        amount: { minor: 5000, currency: "USD", display: "$50.00" },
+        status: "COMPLETED",
+        time: "2026-10-06T07:00:00Z",
+      },
+      {
+        id: "REF-2",
+        amount: { minor: 1000, currency: "USD", display: "$10.00" },
+        status: "PENDING",
+        time: null,
+      },
+    ]);
+  });
+
   it("answers one fixed sentence for an unreadable dispute, no capture, or bad arguments", async () => {
     const client = await gate(world());
     expect(await errorOf(client, { dispute_id: "PP-D-0000" })).toBe(

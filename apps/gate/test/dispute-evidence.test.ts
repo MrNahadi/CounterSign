@@ -38,6 +38,7 @@ const SLOW = 120_000;
 const NOW = new Date("2026-10-17T09:00:00+03:00");
 const LATER = new Date(NOW.getTime() + 5 * 60 * 1000);
 const PACK_AT = new Date("2026-10-22T10:00:00Z");
+const REFUND_TIME = "2026-10-05T09:30:00Z";
 const PRINCIPAL = "support-agent";
 
 const mandateFile = fileURLToPath(
@@ -199,7 +200,11 @@ describe("evidence packs", { timeout: SLOW }, () => {
     const id = answered.execution?.refund?.id;
     if (!id) throw new Error("no refund");
     refundId = id;
-    // KIK-1040 has a refund that hasn't completed.
+    // PayPal's own time for KIK-1037's refund (the fake sandbox doesn't make one up).
+    const refunded = w.rail.orders.get("ORD-1037")?.purchaseUnits[0]?.refunds[0];
+    if (!refunded) throw new Error("no refund on the order");
+    refunded.createTime = REFUND_TIME;
+    // KIK-1040 has a refund that hasn't completed, and PayPal gave it no time.
     w.rail.orders.get("ORD-1040")?.purchaseUnits[0]?.refunds.push({
       id: "REFUND-PENDING-40",
       status: "PENDING",
@@ -259,6 +264,7 @@ describe("evidence packs", { timeout: SLOW }, () => {
         id: refundId,
         amount: { minor: 24000, currency: "USD", display: "$240.00" },
         status: "COMPLETED",
+        time: REFUND_TIME,
       },
     ]);
     expect(facts.decisions).toHaveLength(1);
@@ -316,6 +322,7 @@ describe("evidence packs", { timeout: SLOW }, () => {
     expect(text).toContain(exportDoc.sha256);
     expect(text).toContain(RECOMPUTE_LINE);
     expect(text).toContain(refundId);
+    expect(text).toContain(`Time: ${REFUND_TIME}`);
     expect(text).not.toContain(PAYER_1037);
     const loaded = await PDFDocument.load(pdfDoc.bytes);
     expect(loaded.getCreationDate()?.toISOString()).toBe(PACK_AT.toISOString());
@@ -363,6 +370,24 @@ describe("evidence packs", { timeout: SLOW }, () => {
     expect(pack.facts.decisions).toEqual([]);
     expect(pack.facts.audit).toBeNull();
     expect(pack.documents.map((document) => document.kind)).toEqual(["pdf"]);
+  });
+
+  it("gives a refund PayPal gave no time as null, and the PDF says Not available", async () => {
+    const pack = built(await buildEvidencePack("PP-D-1040", deps));
+    expect(pack.facts.refunds).toEqual([
+      {
+        id: "REFUND-PENDING-40",
+        amount: { minor: 1000, currency: "USD", display: "$10.00" },
+        status: "PENDING",
+        time: null,
+      },
+    ]);
+    const pdf = pack.documents.find((document) => document.kind === "pdf");
+    const stored = pdf && (await readEvidenceDocument(db, pdf.id));
+    if (!stored) throw new Error("not stored");
+    const { text } = await pdfText(stored.bytes);
+    expect(text).toContain("Refund REFUND-PENDING-40: $10.00, PENDING");
+    expect(text).toContain("Time: Not available");
   });
 
   it("lists an unreadable carrier read as not available and still builds", async () => {

@@ -26,7 +26,7 @@ Brief §5 item 13, §6 beat 7, §8 (no AI in the decision path; fail closed; cre
   - the dispute: ID, status, reason (and words), life-cycle stage, amount, seller response due date;
   - the disputed capture (the first capture ID the dispute names that the merchant holds): ID, amount, status, time; the order's number when seeded (`seed_orders`), never the payer's email;
   - the order's trackers for that capture (tracking number, carrier name) and, for each, the carrier mock's shipment status and scan events, every one labelled "Carrier (simulated)";
-  - the capture's refunds (ID, amount, status);
+  - the capture's refunds (ID, amount, status, and PayPal's own time for each, null when PayPal gave none);
   - Countersign's decisions on the capture, oldest first: time, action words, amount, decision, reason codes, and the claim words; never the ticket's sender or text;
   - the capture-scoped evidence export (ADR 0034): its entry count, chain verdict and head.
   - A record that can't be read is listed as "Not available: <call>" and the facts say so; the pack is still built. A dispute that can't be read, or names no capture, isn't built (`DISPUTE_UNREADABLE` / `NO_CAPTURE`).

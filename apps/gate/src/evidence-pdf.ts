@@ -104,6 +104,7 @@ function lines(facts: EvidenceFacts, now: Date): Line[] {
   else if (facts.refunds.length === 0) out.push(body("No refunds on this payment."));
   for (const refund of facts.refunds ?? []) {
     out.push(body(`Refund ${refund.id}: ${refund.amount.display}, ${refund.status}`));
+    out.push(body(`  Time: ${refund.time ?? "Not available"}`));
   }
 
   out.push(heading("Countersign decisions"));
