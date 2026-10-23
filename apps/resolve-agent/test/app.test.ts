@@ -6,10 +6,15 @@ import { join } from "node:path";
 import {
   createTestDatabase,
   type DatabaseHandle,
+  finishDraft,
   finishRun,
   listThreads,
+  openPgliteDirectory,
+  queueDraft,
+  readDraft,
   readRun,
   readThread,
+  startDraft,
   startRun,
   ticketAttachments,
 } from "@countersign/db";
@@ -70,12 +75,49 @@ const fakeRunner: ModeRunner = async (runId) => {
   active--;
 };
 
+// The fake drafter: proposes each draft after a short wait, sharing the counters with runs. A
+// dispute listed in `failing` ends its draft failed instead.
+let failing: Set<string>;
+const fakeDrafter = async (draftId: string) => {
+  active++;
+  most = Math.max(most, active);
+  started.push(draftId);
+  await startDraft(handle.db, draftId, NOW.toISOString());
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const fails = failing.has((await readDraft(handle.db, draftId))?.disputeId ?? "");
+  await finishDraft(handle.db, draftId, {
+    status: fails ? "failed" : "proposed",
+    outcome: fails ? "gate_unavailable" : "proposed",
+    finishedAt: NOW.toISOString(),
+    ...(fails
+      ? {}
+      : {
+          draftedBy: "template",
+          notes: ["Order KIK-1042, paid $240.00. Records attached."],
+          factsSummary: { dispute_id: "PP-D-1" },
+          agentResponse: { status: "pending_approval", intent_id: "int_1" },
+          intentId: "int_1",
+        }),
+  });
+  active--;
+};
+
+// Runs messages with the fake runner and drafts with the fake drafter, on one queue.
+const sharedRunner: ModeRunner = async (id) =>
+  id.startsWith("drf_") ? fakeDrafter(id) : fakeRunner(id);
+
 let tick = 0;
 const clock = () => new Date(NOW.getTime() + 1000 * tick++);
 
-async function listen(runner: ModeRunner = fakeRunner): Promise<string> {
+async function listen(runner: ModeRunner = sharedRunner, dailyCap?: number): Promise<string> {
   queue = createRunQueue(runner);
-  const server = createApp({ db: handle.db, model: MODEL, queue, clock }).listen(0, "127.0.0.1");
+  const server = createApp({
+    db: handle.db,
+    model: MODEL,
+    queue,
+    clock,
+    ...(dailyCap === undefined ? {} : { dailyCap }),
+  }).listen(0, "127.0.0.1");
   servers.push(server);
   await new Promise<void>((resolve) => server.once("listening", resolve));
   return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -96,6 +138,7 @@ beforeEach(async () => {
   active = 0;
   most = 0;
   tick = 0;
+  failing = new Set();
 });
 
 afterEach(async () => {
@@ -447,7 +490,239 @@ describe("the run queue and thread readers", () => {
   });
 });
 
+type DraftView = {
+  draft_id: string;
+  dispute_id: string;
+  status: string;
+  outcome: string | null;
+  drafted_by: string | null;
+  model: string;
+  agent_response_status: string | null;
+  intent_id: string | null;
+};
+
+const postDispute = (base: string, body: unknown) =>
+  fetch(`${base}/disputes`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: typeof body === "string" ? body : JSON.stringify(body),
+  });
+
+const listDrafts = async (base: string) =>
+  ((await (await fetch(`${base}/disputes`)).json()) as { drafts: DraftView[] }).drafts;
+
+describe("POST /disputes and the draft readers", () => {
+  it("refuses a body that isn't exactly { dispute_id }", async () => {
+    const base = await listen();
+    for (const body of [
+      "not json",
+      {},
+      { dispute_id: "" },
+      { dispute_id: "PP D 1" },
+      { dispute_id: "P".repeat(65) },
+      { dispute_id: 12 },
+      { dispute_id: "PP-D-1", mode: "baseline" },
+    ]) {
+      const res = await postDispute(base, body);
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { message: string }).message).toMatch(/\.$/);
+    }
+    await queue.idle();
+    expect(started).toEqual([]);
+    expect(await listDrafts(base)).toEqual([]);
+  });
+
+  it("queues one draft per dispute, and answers the existing one unless it failed", async () => {
+    const base = await listen();
+    const first = await postDispute(base, { dispute_id: "PP-D-1" });
+    expect(first.status).toBe(202);
+    const queued = (await first.json()) as DraftView;
+    expect(queued).toMatchObject({
+      dispute_id: "PP-D-1",
+      status: "queued",
+      outcome: null,
+      drafted_by: null,
+      model: MODEL,
+      model_versions: [],
+      agent_response_status: null,
+      intent_id: null,
+      queued_at: NOW.toISOString(),
+      started_at: null,
+      finished_at: null,
+    });
+    expect(queued.draft_id).toMatch(/^drf_[0-9a-f]{32}$/);
+
+    // Queued, then proposed: the same draft both times, and nothing more is queued.
+    const again = await postDispute(base, { dispute_id: "PP-D-1" });
+    expect(again.status).toBe(200);
+    expect(((await again.json()) as DraftView).draft_id).toBe(queued.draft_id);
+    await queue.idle();
+    const proposed = await postDispute(base, { dispute_id: "PP-D-1" });
+    expect(proposed.status).toBe(200);
+    expect(await proposed.json()).toMatchObject({
+      draft_id: queued.draft_id,
+      status: "proposed",
+      drafted_by: "template",
+      agent_response_status: "pending_approval",
+      intent_id: "int_1",
+    });
+    await queue.idle();
+    expect(started).toEqual([queued.draft_id]);
+
+    // A failed draft is drafted again as a new draft; the list shows the latest per dispute.
+    failing.add("PP-D-2");
+    const failed = (await (await postDispute(base, { dispute_id: "PP-D-2" })).json()) as DraftView;
+    await queue.idle();
+    failing.clear();
+    const retry = await postDispute(base, { dispute_id: "PP-D-2" });
+    expect(retry.status).toBe(202);
+    const redraft = (await retry.json()) as DraftView;
+    expect(redraft.draft_id).not.toBe(failed.draft_id);
+    await queue.idle();
+    expect(started).toEqual([queued.draft_id, failed.draft_id, redraft.draft_id]);
+    expect((await listDrafts(base)).map((d) => [d.dispute_id, d.draft_id, d.status])).toEqual([
+      ["PP-D-2", redraft.draft_id, "proposed"],
+      ["PP-D-1", queued.draft_id, "proposed"],
+    ]);
+  });
+
+  it("answers one dispute's latest draft with its facts summary, notes and agent response", async () => {
+    const base = await listen();
+    const posted = (await (await postDispute(base, { dispute_id: "PP-D-1" })).json()) as DraftView;
+    await queue.idle();
+    const res = await fetch(`${base}/disputes/PP-D-1`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      draft_id: posted.draft_id,
+      dispute_id: "PP-D-1",
+      status: "proposed",
+      outcome: "proposed",
+      drafted_by: "template",
+      model: MODEL,
+      model_versions: [],
+      agent_response_status: "pending_approval",
+      intent_id: "int_1",
+      queued_at: NOW.toISOString(),
+      started_at: NOW.toISOString(),
+      finished_at: NOW.toISOString(),
+      facts_summary: { dispute_id: "PP-D-1" },
+      notes: ["Order KIK-1042, paid $240.00. Records attached."],
+      agent_response: { status: "pending_approval", intent_id: "int_1" },
+    });
+    for (const id of ["PP-D-404", "PP%20D", "x".repeat(65)]) {
+      const missing = await fetch(`${base}/disputes/${id}`);
+      expect(missing.status).toBe(404);
+      expect(((await missing.json()) as { message: string }).message).toBe(
+        "There's no draft for that dispute.",
+      );
+    }
+  });
+
+  it("runs drafts one at a time on the message queue, in the order queued", async () => {
+    const base = await listen();
+    const message = (await (await post(base, EMAIL)).json()) as { run_id: string };
+    const draft = (await (await postDispute(base, { dispute_id: "PP-D-1" })).json()) as DraftView;
+    const later = (await (
+      await post(base, { ...EMAIL, sender_email: "b@example.com" })
+    ).json()) as { run_id: string };
+    await queue.idle();
+    expect(started).toEqual([message.run_id, draft.draft_id, later.run_id]);
+    expect(most).toBe(1);
+  });
+
+  it("counts drafts and message runs against one daily cap; over it a draft is not_run", async () => {
+    const base = await listen(sharedRunner, 2);
+    await post(base, EMAIL);
+    expect((await postDispute(base, { dispute_id: "PP-D-1" })).status).toBe(202);
+    const capped = await postDispute(base, { dispute_id: "PP-D-2" });
+    expect(capped.status).toBe(202);
+    expect(await capped.json()).toMatchObject({
+      dispute_id: "PP-D-2",
+      status: "not_run",
+      outcome: "daily_cap",
+    });
+    const message = (await (
+      await post(base, { ...EMAIL, sender_email: "b@example.com" })
+    ).json()) as { run_id: string };
+    await queue.idle();
+    expect(started).toHaveLength(2);
+    expect(await readRun(handle.db, message.run_id)).toMatchObject({
+      status: "not_run",
+      outcome: "daily_cap",
+    });
+    // A not_run draft isn't failed, so it's answered rather than drafted again.
+    const again = await postDispute(base, { dispute_id: "PP-D-2" });
+    expect(again.status).toBe(200);
+    expect(await again.json()).toMatchObject({ status: "not_run", outcome: "daily_cap" });
+  });
+
+  it("sends drafts to the drafter, and without one ends them failed", async () => {
+    const drafted: string[] = [];
+    const deps = {
+      db: handle.db,
+      generateContent: null,
+      protectedEnv: { gateUrl: null, key: null },
+      issueToken: async () => {
+        throw new Error("unused");
+      },
+      clock,
+    };
+    const base = await listen(
+      createModeRunner({
+        ...deps,
+        runDraft: async (draftId) => {
+          drafted.push(draftId);
+          await fakeDrafter(draftId);
+        },
+      }),
+    );
+    const draft = (await (await postDispute(base, { dispute_id: "PP-D-1" })).json()) as DraftView;
+    await queue.idle();
+    expect(drafted).toEqual([draft.draft_id]);
+
+    const bare = await listen(createModeRunner(deps));
+    await postDispute(bare, { dispute_id: "PP-D-2" });
+    await queue.idle();
+    expect((await (await fetch(`${bare}/disputes/PP-D-2`)).json()) as DraftView).toMatchObject({
+      status: "failed",
+      outcome: "not_configured",
+    });
+  });
+});
+
 describe("serve", () => {
+  it("marks a draft the last process left unfinished failed, and never reruns it", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "resolve-serve-"));
+    temps.push(dir);
+    const old = await openPgliteDirectory(join(dir, "pglite"));
+    await queueDraft(old.db, {
+      id: "drf_left",
+      disputeId: "PP-D-1",
+      model: MODEL,
+      queuedAt: NOW.toISOString(),
+    });
+    await startDraft(old.db, "drf_left", NOW.toISOString());
+    await old.close();
+
+    const lines: string[] = [];
+    const serving = await serve(
+      { PORT: "0" },
+      { pgliteDir: join(dir, "pglite"), host: "127.0.0.1", log: (line) => lines.push(line) },
+    );
+    try {
+      const base = `http://127.0.0.1:${serving.port}`;
+      expect(await (await fetch(`${base}/disputes/PP-D-1`)).json()).toMatchObject({
+        draft_id: "drf_left",
+        status: "failed",
+        outcome: "interrupted",
+        started_at: NOW.toISOString(),
+      });
+    } finally {
+      await serving.close();
+    }
+    expect(lines).toContain("1 unfinished draft marked interrupted.");
+  });
+
   it("reads PORT, defaulting to 8788", () => {
     expect(DEFAULT_PORT).toBe(8788);
     expect(parsePort({})).toBe(8788);

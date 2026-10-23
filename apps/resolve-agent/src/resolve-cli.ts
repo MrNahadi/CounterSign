@@ -10,7 +10,6 @@ import { dirname, resolve as resolvePath } from "node:path";
 import {
   type AgentRun,
   asc,
-  countRunsOnDate,
   type Database,
   type DatabaseHandle,
   type Environment,
@@ -31,7 +30,7 @@ import { z } from "zod";
 import { paypalTokenIssuer, type TokenIssuer, type TransportFactory } from "./baseline";
 import type { ToolStep } from "./harness";
 import { storeMessage } from "./intake";
-import { parseDailyCap, utcDate } from "./limits";
+import { overDailyCap, parseDailyCap } from "./limits";
 import { checkMessage, sniffImageType } from "./messages";
 import { createGenerateContent, type GenerateContent, parseModelEnv } from "./model";
 import { type ProtectedEnv, parseProtectedEnv } from "./protected";
@@ -520,7 +519,7 @@ async function runMessages(input: {
         return cantRun(`Message ${index + 1}: ${checked.problem} ${earlier(index)}`);
       }
       const arrivedAt = clock();
-      const capped = (await countRunsOnDate(db, utcDate(arrivedAt))) >= setup.dailyCap;
+      const capped = await overDailyCap(db, arrivedAt, setup.dailyCap);
       const stored = await storeMessage(db, checked.value.message, {
         mode: options.mode,
         model: setup.model,

@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import {
   type DatabaseHandle,
   type Environment,
+  markUnfinishedDraftsInterrupted,
   markUnfinishedRunsInterrupted,
   openDatabase,
   resolveDatabaseTarget,
@@ -59,6 +60,10 @@ export async function serve(env: Environment, options: ServeOptions = {}): Promi
     // Runs the last process left queued or running may have moved money: failed, never rerun.
     const swept = await markUnfinishedRunsInterrupted(handle.db, new Date().toISOString());
     if (swept > 0) log(`${swept} unfinished ${swept === 1 ? "run" : "runs"} marked interrupted.`);
+    // Drafts the same: one may have proposed evidence already, so it's failed, never rerun.
+    const drafts = await markUnfinishedDraftsInterrupted(handle.db, new Date().toISOString());
+    if (drafts > 0)
+      log(`${drafts} unfinished ${drafts === 1 ? "draft" : "drafts"} marked interrupted.`);
   }
 
   const modelEnv = parseModelEnv(env);

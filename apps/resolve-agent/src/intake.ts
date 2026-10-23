@@ -12,7 +12,7 @@ import {
 // ticket Resolve writes is simulated: no email is sent or received.
 
 /** `<prefix>_` plus 128 random bits, so IDs can't be guessed. */
-export const newId = (prefix: "tkt" | "att" | "run"): string =>
+export const newId = (prefix: "tkt" | "att" | "run" | "drf"): string =>
   `${prefix}_${randomBytes(16).toString("hex")}`;
 
 export type IncomingMessage = {

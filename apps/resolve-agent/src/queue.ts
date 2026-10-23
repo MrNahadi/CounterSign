@@ -1,12 +1,20 @@
-import { createRun, type Database, finishRun, readRun } from "@countersign/db";
+import {
+  createRun,
+  type Database,
+  finishDraft,
+  finishRun,
+  readDraft,
+  readRun,
+} from "@countersign/db";
 import { runBaseline, type TokenIssuer, type TransportFactory } from "./baseline";
 import { newId } from "./intake";
 import type { GenerateContent } from "./model";
 import { type ProtectedEnv, runProtected } from "./protected";
 
 // The run queue (ADR 0030): one run at a time per process, in the order queued, so a burst of
-// messages doesn't hit the free tier's per-minute limit. The queue knows only run IDs; the mode
-// runner reads the run and starts the right mode.
+// messages doesn't hit the free tier's per-minute limit. The queue knows only IDs; the mode
+// runner reads the run and starts the right mode, or hands a dispute draft (`drf_…`, ADR 0035)
+// to the drafter.
 
 /**
  * Runs one queued run to its end. Its own errors are logged by the queue, never thrown on. It may
@@ -58,8 +66,16 @@ export type ModeRunnerDeps = {
   clock: () => Date;
   /** `GEMINI_FALLBACK_MODEL`: the model for the one rerun after `model_unavailable`. Null for none. */
   fallbackModel?: string | null;
+  /** Runs one queued dispute draft to its end. Without it, drafts end `failed`, `not_configured`. */
+  runDraft?: DraftRunner;
   log?: (line: string) => void;
 };
+
+/** Runs one queued dispute draft to its end, finishing it in the draft store. */
+export type DraftRunner = (draftId: string) => Promise<void>;
+
+/** True for a dispute draft's ID; every other queued ID is a run's. */
+export const isDraftId = (id: string): boolean => id.startsWith("drf_");
 
 // True when the run's trace holds a tool call. A run that ran any tool is never rerun.
 const ranATool = (trace: unknown): boolean => {
@@ -72,6 +88,21 @@ const ranATool = (trace: unknown): boolean => {
 /** Starts each run in the mode it was queued with; with no model, ends it `not_configured`. */
 export function createModeRunner(deps: ModeRunnerDeps): ModeRunner {
   return async (runId) => {
+    if (isDraftId(runId)) {
+      const draft = await readDraft(deps.db, runId);
+      if (draft?.status !== "queued") return;
+      if (deps.runDraft) {
+        await deps.runDraft(runId);
+        return;
+      }
+      await finishDraft(deps.db, runId, {
+        status: "failed",
+        outcome: "not_configured",
+        finishedAt: deps.clock().toISOString(),
+      });
+      deps.log?.(`Draft ${runId}: failed, not_configured.`);
+      return;
+    }
     const run = await readRun(deps.db, runId);
     if (run?.status !== "queued") return;
     const { generateContent } = deps;

@@ -1,0 +1,2 @@
+ALTER TABLE "dispute_drafts" DROP CONSTRAINT "dispute_drafts_dispute_id_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "dispute_drafts_live_dispute_id_idx" ON "dispute_drafts" USING btree ("dispute_id") WHERE "dispute_drafts"."status" <> 'failed';

@@ -1,10 +1,15 @@
 import {
   type AgentRun,
-  countRunsOnDate,
   type Database,
+  type DisputeDraft,
+  finishDraft,
   finishRun,
+  listLatestDrafts,
   listThreads,
+  queueDraft,
   readAttachment,
+  readDraft,
+  readLatestDraft,
   readRunsByThread,
   readThread,
   type ThreadTicket,
@@ -12,14 +17,16 @@ import {
 import express, { type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { allowedIntentIds, heldCalls, readExecutions, readHeld } from "./executions";
-import { storeMessage } from "./intake";
-import { DEFAULT_DAILY_RUN_CAP, utcDate } from "./limits";
+import { newId, storeMessage } from "./intake";
+import { DEFAULT_DAILY_RUN_CAP, overDailyCap } from "./limits";
 import { checkMessage } from "./messages";
 import type { RunQueue } from "./queue";
 
 // Resolve's HTTP API (ADR 0030): `POST /messages` stores a customer message and queues its run;
-// the thread readers return what the console's inbox shows. Only the console's server routes
-// call it. Answers never hold a key or token: runs' traces hold none (ADR 0014).
+// the thread readers return what the console's inbox shows. `POST /disputes` queues a dispute's
+// evidence draft on the same queue, and the dispute readers return its latest draft (ADR 0035,
+// 0037). Only the console's server routes, the gate's nudge and the CLI call it. Answers never
+// hold a key or token: runs' traces hold none (ADR 0014), and drafts hold none either.
 
 export const BODY_LIMIT = "10mb";
 
@@ -37,6 +44,9 @@ export type AppDeps = {
 
 const ThreadIdSchema = z.string().min(1).max(256);
 const AttachmentIdSchema = z.string().regex(/^att_[0-9a-f]{32}$/);
+// The same dispute ID `prepare_dispute_evidence` takes.
+const DisputeIdSchema = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
+const DisputeRequestSchema = z.strictObject({ dispute_id: DisputeIdSchema });
 
 const NO_DATABASE = "Resolve has no database, so it can't take or show messages.";
 
@@ -79,6 +89,33 @@ const runView = (run: AgentRun) => ({
   trace: run.trace,
 });
 
+const responseStatus = (response: unknown): string | null => {
+  const status = (response as { status?: unknown } | null)?.status;
+  return typeof status === "string" ? status : null;
+};
+
+const draftView = (draft: DisputeDraft) => ({
+  draft_id: draft.id,
+  dispute_id: draft.disputeId,
+  status: draft.status,
+  outcome: draft.outcome,
+  drafted_by: draft.draftedBy,
+  model: draft.model,
+  model_versions: draft.modelVersions,
+  agent_response_status: responseStatus(draft.agentResponse),
+  intent_id: draft.intentId,
+  queued_at: draft.queuedAt,
+  started_at: draft.startedAt,
+  finished_at: draft.finishedAt,
+});
+
+const draftDetail = (draft: DisputeDraft) => ({
+  ...draftView(draft),
+  facts_summary: draft.factsSummary,
+  notes: draft.notes,
+  agent_response: draft.agentResponse,
+});
+
 export function createApp(deps: AppDeps) {
   const app = express();
   app.disable("x-powered-by");
@@ -102,8 +139,7 @@ export function createApp(deps: AppDeps) {
     }
     // A message past the day's cap is still stored; its run ends `not_run` with no model call.
     const arrivedAt = clock();
-    const capped =
-      (await countRunsOnDate(db(), utcDate(arrivedAt))) >= (deps.dailyCap ?? DEFAULT_DAILY_RUN_CAP);
+    const capped = await overDailyCap(db(), arrivedAt, deps.dailyCap ?? DEFAULT_DAILY_RUN_CAP);
     let stored: Awaited<ReturnType<typeof storeMessage>>;
     try {
       stored = await storeMessage(db(), checked.value.message, {
@@ -139,6 +175,68 @@ export function createApp(deps: AppDeps) {
       thread_id: stored.threadId,
       run_id: stored.runId,
     });
+  });
+
+  app.post("/disputes", express.json({ limit: BODY_LIMIT }), async (req, res) => {
+    const checked = DisputeRequestSchema.safeParse(req.body);
+    if (!checked.success) {
+      message(res, 400, "The request must be { dispute_id } with a PayPal dispute ID.");
+      return;
+    }
+    // A draft past the day's cap is still stored, `not_run`, so the dispute shows why.
+    const arrivedAt = clock();
+    let queued: Awaited<ReturnType<typeof queueDraft>>;
+    let capped: boolean;
+    try {
+      capped = await overDailyCap(db(), arrivedAt, deps.dailyCap ?? DEFAULT_DAILY_RUN_CAP);
+      queued = await queueDraft(db(), {
+        id: newId("drf"),
+        disputeId: checked.data.dispute_id,
+        model: deps.model,
+        queuedAt: arrivedAt.toISOString(),
+      });
+    } catch (error) {
+      deps.log?.(`A draft couldn't be queued: ${error instanceof Error ? error.name : "error"}.`);
+      message(res, 500, "Resolve couldn't queue the draft. Try again.");
+      return;
+    }
+    if (!queued.created) {
+      res.status(200).json(draftView(queued.draft));
+      return;
+    }
+    let draft = queued.draft;
+    if (capped) {
+      try {
+        await finishDraft(db(), draft.id, {
+          status: "not_run",
+          outcome: "daily_cap",
+          finishedAt: clock().toISOString(),
+        });
+        draft = (await readDraft(db(), draft.id)) ?? draft;
+      } catch (error) {
+        deps.log?.(
+          `A capped draft couldn't be closed: ${error instanceof Error ? error.name : "error"}.`,
+        );
+      }
+    } else {
+      deps.queue.enqueue(draft.id);
+    }
+    res.status(202).json(draftView(draft));
+  });
+
+  app.get("/disputes", async (_req, res) => {
+    const drafts = await listLatestDrafts(db());
+    res.json({ drafts: drafts.map(draftView) });
+  });
+
+  app.get("/disputes/:id", async (req, res) => {
+    const id = DisputeIdSchema.safeParse(req.params.id);
+    const draft = id.success ? await readLatestDraft(db(), id.data) : null;
+    if (draft === null) {
+      message(res, 404, "There's no draft for that dispute.");
+      return;
+    }
+    res.json(draftDetail(draft));
   });
 
   app.get("/threads", async (_req, res) => {

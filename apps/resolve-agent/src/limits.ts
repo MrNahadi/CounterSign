@@ -1,4 +1,9 @@
-import type { Environment } from "@countersign/db";
+import {
+  countDraftsOnDate,
+  countRunsOnDate,
+  type Database,
+  type Environment,
+} from "@countersign/db";
 
 // Bounds on AI cost (ADR 0031): a runaway or broken day can't spend unbounded model calls.
 
@@ -20,3 +25,12 @@ export function parseDailyCap(env: Environment): number {
 
 /** The UTC date (`YYYY-MM-DD`) a run counts against. */
 export const utcDate = (at: Date): string => at.toISOString().slice(0, 10);
+
+/**
+ * True when the UTC date of `at` has used its cap: message runs and dispute drafts count alike,
+ * every status included (a failed draft drafted again counts twice, ADR 0037).
+ */
+export async function overDailyCap(db: Database, at: Date, cap: number): Promise<boolean> {
+  const date = utcDate(at);
+  return (await countRunsOnDate(db, date)) + (await countDraftsOnDate(db, date)) >= cap;
+}

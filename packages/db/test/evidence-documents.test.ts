@@ -144,7 +144,7 @@ describe("the evidence_documents and dispute_drafts tables on a fresh in-memory 
     ).toContain("evidence_documents_kind_check");
   });
 
-  it("stores a draft per dispute with every field, and checks the status", async () => {
+  it("stores a draft with every field, checks the status, and keeps one live draft per dispute", async () => {
     await handle.db.insert(disputeDrafts).values({
       id: "drf_1",
       disputeId: "PP-D-1",
@@ -192,7 +192,19 @@ describe("the evidence_documents and dispute_drafts tables on a fresh in-memory 
           .insert(disputeDrafts)
           .values({ ...base, id: "drf_3", disputeId: "PP-D-1", status: "queued" }),
       ),
-    ).toContain("dispute_drafts_dispute_id_unique");
+    ).toContain("dispute_drafts_live_dispute_id_idx");
+
+    // Failed attempts stay beside the live draft (ADR 0037); a failed draft frees the dispute.
+    await handle.db
+      .insert(disputeDrafts)
+      .values({ ...base, id: "drf_4", disputeId: "PP-D-1", status: "failed" });
+    await handle.db
+      .insert(disputeDrafts)
+      .values({ ...base, id: "drf_5", disputeId: "PP-D-5", status: "failed" });
+    await handle.db
+      .insert(disputeDrafts)
+      .values({ ...base, id: "drf_6", disputeId: "PP-D-5", status: "queued" });
+    expect(await handle.db.select().from(disputeDrafts)).toHaveLength(4);
   });
 });
 
@@ -204,8 +216,10 @@ describe("the evidence documents migration", { timeout: 60_000 }, () => {
       const phase10 = join(parent, "drizzle-phase10");
       await cp(migrationsFolder, phase10, { recursive: true });
       const journalPath = join(phase10, "meta", "_journal.json");
-      const journal = JSON.parse(await readFile(journalPath, "utf8")) as { entries: unknown[] };
-      const before = journal.entries.length - 1;
+      const journal = JSON.parse(await readFile(journalPath, "utf8")) as {
+        entries: { tag: string }[];
+      };
+      const before = journal.entries.findIndex((entry) => entry.tag === "0005_absent_screwball");
       await writeFile(
         journalPath,
         JSON.stringify({ ...journal, entries: journal.entries.slice(0, before) }),
@@ -222,7 +236,7 @@ describe("the evidence documents migration", { timeout: 60_000 }, () => {
 
       const handle = await openPgliteDirectory(dir, { migrate: false });
       try {
-        expect(await handle.migrate()).toBe(1);
+        expect(await handle.migrate()).toBe(journal.entries.length - before);
         await writeEvidenceDocument(handle.db, document());
         expect((await readEvidenceDocument(handle.db, "doc_pdf"))?.size).toBe(PDF.byteLength);
         expect(await handle.db.select().from(disputeDrafts)).toEqual([]);

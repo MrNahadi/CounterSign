@@ -119,17 +119,18 @@ Notes:
 
 ## T-009: Resolve's dispute intake
 
-Status: open
+Status: done
 Blocked by: T-003
 Tier: standard
 Slice: `POST /disputes` queues one draft per dispute on Resolve's run queue, and `GET /disputes` lists them.
 Test seam: resolve-agent's `createApp` over HTTP with PGlite, a fake drafter and an injected clock
 Acceptance:
-- [ ] `POST /disputes` validates `{ dispute_id }`, answers 202 with a new draft, or 200 with the existing draft unless it failed
-- [ ] Drafts run one at a time on the same queue as message runs and count against the daily run cap; over the cap a draft is `not_run` with `daily_cap`
-- [ ] `GET /disputes` and `GET /disputes/:id` answer the fields in requirements.md; an unknown ID is 404
-- [ ] A draft interrupted by a restart is marked failed and never rerun
+- [x] `POST /disputes` validates `{ dispute_id }`, answers 202 with a new draft, or 200 with the existing draft unless it failed
+- [x] Drafts run one at a time on the same queue as message runs and count against the daily run cap; over the cap a draft is `not_run` with `daily_cap`
+- [x] `GET /disputes` and `GET /disputes/:id` answer the fields in requirements.md; an unknown ID is 404
+- [x] A draft interrupted by a restart is marked failed and never rerun
 Notes:
+- ADR 0037 (answerer): failed drafts stay as rows (migration 0006 swaps the unique constraint for a partial unique index), every draft counts against the cap, and `GET /disputes/:id` takes the dispute ID.
 
 ## T-010: The dispute drafter
 

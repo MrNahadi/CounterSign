@@ -10,6 +10,7 @@ import {
   jsonb,
   pgTable,
   text,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // The audit log (ADR 0022). `payload` and `at` are the exact text that was hashed, never jsonb.
@@ -224,16 +225,17 @@ export const DISPUTE_DRAFT_STATUSES = [
 ] as const;
 export type DisputeDraftStatus = (typeof DISPUTE_DRAFT_STATUSES)[number];
 
-// One draft per dispute, written and read by Resolve (ADR 0035). `draftedBy` is the model ID or
-// `template`. `notes`, `factsSummary` and `agentResponse` are JSON and must hold no secret, payer
-// email or ticket text. `intentId` is the proposal's intent. Times are ISO 8601 text. `seq` keeps
-// creation order when times tie.
+// A dispute's drafts, written and read by Resolve (ADR 0035). At most one per dispute isn't
+// `failed`; failed attempts stay as rows so each one counts against the daily cap (ADR 0037).
+// `draftedBy` is the model ID or `template`. `notes`, `factsSummary` and `agentResponse` are JSON
+// and must hold no secret, payer email or ticket text. `intentId` is the proposal's intent. Times
+// are ISO 8601 text. `seq` keeps creation order when times tie.
 export const disputeDrafts = pgTable(
   "dispute_drafts",
   {
     seq: bigserial("seq", { mode: "number" }).notNull().unique(),
     id: text("id").primaryKey(),
-    disputeId: text("dispute_id").notNull().unique(),
+    disputeId: text("dispute_id").notNull(),
     status: text("status").notNull(),
     outcome: text("outcome"),
     draftedBy: text("drafted_by"),
@@ -252,6 +254,9 @@ export const disputeDrafts = pgTable(
       "dispute_drafts_status_check",
       sql`${table.status} IN ('queued', 'running', 'proposed', 'failed', 'not_run')`,
     ),
+    uniqueIndex("dispute_drafts_live_dispute_id_idx")
+      .on(table.disputeId)
+      .where(sql`${table.status} <> 'failed'`),
   ],
 );
 
