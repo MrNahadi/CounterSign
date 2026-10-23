@@ -173,6 +173,20 @@ export async function refusalOf(response: Response | null, notFound?: string): P
   return unreachable;
 }
 
+/**
+ * Whether the gate takes the key (ADR 0038), for routes that open with the approvals sign-in but
+ * call another service. The gate checks the key before it reads the log, so its 503 sentence
+ * still means the key is right. A 401 is "Sign in again."; anything else is unreachable.
+ */
+export async function checkKey(key: string, deps: ApprovalDeps): Promise<Answer<null>> {
+  const response = await callGate(deps, key, "/approvals");
+  if (response?.status === 401) return signInAgain;
+  const accepted =
+    (response?.status === 200 && (await readJson(response, ApprovalsViewSchema)) !== null) ||
+    (response?.status === 503 && (await readJson(response, GateMessageSchema)) !== null);
+  return accepted ? { ok: true, value: null } : unreachable;
+}
+
 export async function loadApprovals(
   key: string,
   deps: ApprovalDeps,
@@ -315,8 +329,8 @@ async function readLimited(request: Request, limit: number): Promise<string | nu
   return new TextDecoder().decode(bytes);
 }
 
-// The request body as JSON, or undefined when it's too large or not JSON.
-async function readBody(request: Request): Promise<unknown> {
+/** The request body as JSON, or undefined when it's too large or not JSON. */
+export async function readBody(request: Request): Promise<unknown> {
   try {
     const text = await readLimited(request, MAX_BODY_BYTES);
     return text === null ? undefined : JSON.parse(text);
@@ -331,13 +345,11 @@ export async function signInRoute(request: Request, deps: ApprovalDeps): Promise
   if (!body.success) return json(400, { message: APPROVAL_ROUTE_MESSAGES.badSignIn });
   const key = ApproverKeySchema.safeParse(body.data.key);
   if (!key.success) return json(401, { message: APPROVAL_ROUTE_MESSAGES.wrongKey });
-  const response = await callGate(deps, key.data, "/approvals");
-  if (response?.status === 401) return json(401, { message: APPROVAL_ROUTE_MESSAGES.wrongKey });
-  // The gate checks the key before it reads the log, so a 503 sentence still means it was right.
-  const accepted =
-    (response?.status === 200 && (await readJson(response, ApprovalsViewSchema)) !== null) ||
-    (response?.status === 503 && (await readJson(response, GateMessageSchema)) !== null);
-  if (!accepted) return json(502, { message: APPROVAL_ROUTE_MESSAGES.unreachable });
+  const checked = await checkKey(key.data, deps);
+  if (!checked.ok && checked.status === 401) {
+    return json(401, { message: APPROVAL_ROUTE_MESSAGES.wrongKey });
+  }
+  if (!checked.ok) return json(502, { message: APPROVAL_ROUTE_MESSAGES.unreachable });
   return json(200, { signed_in: true }, setCookie(request, key.data));
 }
 

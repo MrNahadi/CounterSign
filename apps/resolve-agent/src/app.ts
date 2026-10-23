@@ -95,6 +95,24 @@ const responseStatus = (response: unknown): string | null => {
   return typeof decision === "string" ? decision : null;
 };
 
+// The dispute's reason and amount for the console's list, from the facts summary once the draft
+// has prepared it; null before then, or when the summary doesn't read.
+const SummaryDisputeSchema = z.object({
+  dispute: z.object({
+    reason_words: z.string().min(1).max(2000),
+    amount: z.object({
+      minor: z.int(),
+      currency: z.string().min(1),
+      display: z.string().min(1).max(2000),
+    }),
+  }),
+});
+
+const summaryDispute = (summary: unknown) => {
+  const parsed = SummaryDisputeSchema.safeParse(summary);
+  return parsed.success ? parsed.data.dispute : null;
+};
+
 const draftView = (draft: DisputeDraft) => ({
   draft_id: draft.id,
   dispute_id: draft.disputeId,
@@ -105,6 +123,7 @@ const draftView = (draft: DisputeDraft) => ({
   model_versions: draft.modelVersions,
   agent_response_status: responseStatus(draft.agentResponse),
   intent_id: draft.intentId,
+  dispute: summaryDispute(draft.factsSummary),
   queued_at: draft.queuedAt,
   started_at: draft.startedAt,
   finished_at: draft.finishedAt,

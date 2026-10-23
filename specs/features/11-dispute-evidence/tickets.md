@@ -191,17 +191,17 @@ Notes:
 
 ## T-014: The Disputes page
 
-Status: open
+Status: done
 Blocked by: T-009
 Tier: standard
 Slice: The merchant sees every dispute PayPal opened, its draft's state and who wrote it, and can draft again after a failure.
 Test seam: `apps/console/src/` disputes view model and the disputes route handlers
 Acceptance:
-- [ ] The view model turns Resolve's `GET /disputes` answer into the table in requirements.md: status words, drafted-by words ("Template, no AI" for the template) and decision links
-- [ ] `GET /api/disputes` and `POST /api/disputes` call Resolve with zod-checked requests and answers, need the approvals sign-in, and answer 401 and 502 with the fixed sentences
-- [ ] The sidebar gains Disputes after Approvals; the page shows the empty-state sentence with no drafts
-- [ ] The design check passes on every new file
-Notes:
+- [x] The view model turns Resolve's `GET /disputes` answer into the table in requirements.md: status words, drafted-by words ("Template, no AI" for the template) and decision links
+- [x] `GET /api/disputes` and `POST /api/disputes` call Resolve with zod-checked requests and answers, need the approvals sign-in, and answer 401 and 502 with the fixed sentences
+- [x] The sidebar gains Disputes after Approvals; the page shows the empty-state sentence with no drafts
+- [x] The design check passes on every new file
+Notes: The sign-in is checked with the gate before Resolve is asked (ADR 0038, answerer). Resolve's draft view gains `dispute: { reason_words, amount } | null` from the facts summary, since the table needs the reason and amount.
 
 ## T-015: Demo files, live check and README
 

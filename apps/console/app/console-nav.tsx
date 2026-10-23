@@ -1,12 +1,20 @@
 "use client";
 
-import { ClipboardCheck, Inbox, type LucideIcon, Scale, ScrollText } from "lucide-react";
+import {
+  ClipboardCheck,
+  Inbox,
+  type LucideIcon,
+  Scale,
+  ScrollText,
+  ShieldAlert,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/inbox", label: "Inbox", Icon: Inbox },
   { href: "/approvals", label: "Approvals", Icon: ClipboardCheck },
+  { href: "/disputes", label: "Disputes", Icon: ShieldAlert },
   { href: "/decisions", label: "Decisions", Icon: Scale },
   { href: "/audit", label: "Audit log", Icon: ScrollText },
 ];

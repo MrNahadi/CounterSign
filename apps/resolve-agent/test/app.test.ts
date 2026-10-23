@@ -75,6 +75,17 @@ const fakeRunner: ModeRunner = async (runId) => {
   active--;
 };
 
+const FACTS_SUMMARY = {
+  dispute: {
+    id: "PP-D-1",
+    status: "WAITING_FOR_SELLER_RESPONSE",
+    reason_words: "Item not received",
+    amount: { minor: 24000, currency: "USD", display: "$240.00" },
+    seller_response_due_date: null,
+  },
+  capture_id: "9AB12345CD678901E",
+};
+
 // The fake drafter: proposes each draft after a short wait, sharing the counters with runs. A
 // dispute listed in `failing` ends its draft failed instead.
 let failing: Set<string>;
@@ -94,7 +105,7 @@ const fakeDrafter = async (draftId: string) => {
       : {
           draftedBy: "template",
           notes: ["Order KIK-1042, paid $240.00. Records attached."],
-          factsSummary: { dispute_id: "PP-D-1" },
+          factsSummary: FACTS_SUMMARY,
           agentResponse: { decision: "pending_approval", intent_id: "int_1" },
           intentId: "int_1",
         }),
@@ -499,6 +510,7 @@ type DraftView = {
   model: string;
   agent_response_status: string | null;
   intent_id: string | null;
+  dispute: unknown;
 };
 
 const postDispute = (base: string, body: unknown) =>
@@ -546,6 +558,7 @@ describe("POST /disputes and the draft readers", () => {
       model_versions: [],
       agent_response_status: null,
       intent_id: null,
+      dispute: null,
       queued_at: NOW.toISOString(),
       started_at: null,
       finished_at: null,
@@ -586,6 +599,24 @@ describe("POST /disputes and the draft readers", () => {
     ]);
   });
 
+  it("lists each draft with the dispute's reason and amount once its facts are prepared", async () => {
+    const base = await listen();
+    failing.add("PP-D-2");
+    await postDispute(base, { dispute_id: "PP-D-1" });
+    await postDispute(base, { dispute_id: "PP-D-2" });
+    await queue.idle();
+    expect((await listDrafts(base)).map((d) => [d.dispute_id, d.dispute])).toEqual([
+      ["PP-D-2", null],
+      [
+        "PP-D-1",
+        {
+          reason_words: "Item not received",
+          amount: { minor: 24000, currency: "USD", display: "$240.00" },
+        },
+      ],
+    ]);
+  });
+
   it("answers one dispute's latest draft with its facts summary, notes and agent response", async () => {
     const base = await listen();
     const posted = (await (await postDispute(base, { dispute_id: "PP-D-1" })).json()) as DraftView;
@@ -602,10 +633,14 @@ describe("POST /disputes and the draft readers", () => {
       model_versions: [],
       agent_response_status: "pending_approval",
       intent_id: "int_1",
+      dispute: {
+        reason_words: "Item not received",
+        amount: { minor: 24000, currency: "USD", display: "$240.00" },
+      },
       queued_at: NOW.toISOString(),
       started_at: NOW.toISOString(),
       finished_at: NOW.toISOString(),
-      facts_summary: { dispute_id: "PP-D-1" },
+      facts_summary: FACTS_SUMMARY,
       notes: ["Order KIK-1042, paid $240.00. Records attached."],
       agent_response: { decision: "pending_approval", intent_id: "int_1" },
     });

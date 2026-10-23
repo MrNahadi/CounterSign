@@ -53,7 +53,7 @@ export function resolveAgentUrl(env: ResolveEnv): URL | null {
   }
 }
 
-async function call(
+export async function callResolve(
   deps: ResolveDeps,
   path: string,
   post?: { json: string },
@@ -78,7 +78,7 @@ async function call(
   }
 }
 
-async function readJson<T>(response: Response, schema: z.ZodType<T>): Promise<T | null> {
+export async function readJson<T>(response: Response, schema: z.ZodType<T>): Promise<T | null> {
   try {
     const parsed = schema.safeParse(await response.json());
     return parsed.success ? parsed.data : null;
@@ -88,7 +88,7 @@ async function readJson<T>(response: Response, schema: z.ZodType<T>): Promise<T 
 }
 
 export async function loadThreads(deps: ResolveDeps): Promise<Answer<ThreadList>> {
-  const response = await call(deps, "/threads");
+  const response = await callResolve(deps, "/threads");
   if (response?.status !== 200) return unreachable;
   const list = await readJson(response, ThreadListSchema);
   return list === null ? unreachable : { ok: true, value: list };
@@ -97,7 +97,7 @@ export async function loadThreads(deps: ResolveDeps): Promise<Answer<ThreadList>
 export async function loadThread(id: unknown, deps: ResolveDeps): Promise<Answer<ThreadDetail>> {
   const threadId = ThreadIdSchema.safeParse(id);
   if (!threadId.success) return { ok: false, status: 404, message: NO_THREAD };
-  const response = await call(deps, `/threads/${threadId.data}`);
+  const response = await callResolve(deps, `/threads/${threadId.data}`);
   if (response?.status === 404 && (await readJson(response, ResolveMessageSchema)) !== null) {
     return { ok: false, status: 404, message: NO_THREAD };
   }
@@ -128,7 +128,7 @@ export async function threadRoute(id: unknown, deps: ResolveDeps): Promise<Respo
 export async function attachmentRoute(id: unknown, deps: ResolveDeps): Promise<Response> {
   const attachmentId = AttachmentIdSchema.safeParse(id);
   if (!attachmentId.success) return json(404, { message: NO_PHOTO });
-  const response = await call(deps, `/attachments/${attachmentId.data}`);
+  const response = await callResolve(deps, `/attachments/${attachmentId.data}`);
   if (response?.status === 404 && (await readJson(response, ResolveMessageSchema)) !== null) {
     return json(404, { message: NO_PHOTO });
   }
@@ -189,7 +189,7 @@ export async function sendToResolve(
 ): Promise<Answer<MessageAccepted>> {
   const message = MessageRequestSchema.safeParse(input);
   if (!message.success) return { ok: false, status: 400, message: BAD_MESSAGE };
-  const response = await call(deps, "/messages", { json: JSON.stringify(message.data) });
+  const response = await callResolve(deps, "/messages", { json: JSON.stringify(message.data) });
   if (response?.status === 400) {
     const refusal = await readJson(response, ResolveMessageSchema);
     return refusal === null ? unreachable : { ok: false, status: 400, message: refusal.message };

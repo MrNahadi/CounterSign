@@ -173,6 +173,43 @@ export const AgentResponseSchema = z.discriminatedUnion("decision", [
   }),
 ]);
 
+// Dispute drafts (ADR 0035, 0037): each dispute's latest draft, newest first.
+export const DisputeIdSchema = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
+export const DISPUTE_DRAFT_STATUSES = [
+  "queued",
+  "running",
+  "proposed",
+  "failed",
+  "not_run",
+] as const;
+
+export const DisputeDraftSchema = z.object({
+  draft_id: z.string().min(1).max(64),
+  dispute_id: DisputeIdSchema,
+  status: z.enum(DISPUTE_DRAFT_STATUSES),
+  outcome: Nullable,
+  drafted_by: Nullable,
+  model: z.string(),
+  model_versions: z.array(z.string()),
+  agent_response_status: Nullable,
+  intent_id: z.string().min(1).max(64).nullable(),
+  dispute: z
+    .object({
+      reason_words: z.string().min(1),
+      amount: z.object({ minor: z.int(), currency: z.string().min(1), display: z.string().min(1) }),
+    })
+    .nullable(),
+  queued_at: Time,
+  started_at: Time.nullable(),
+  finished_at: Time.nullable(),
+});
+
+export const DisputeListSchema = z.object({ drafts: z.array(DisputeDraftSchema) });
+
+export const DraftRequestSchema = z.strictObject({ dispute_id: DisputeIdSchema });
+
+export type DisputeDraft = z.infer<typeof DisputeDraftSchema>;
+export type DisputeList = z.infer<typeof DisputeListSchema>;
 export type ThreadSummary = z.infer<typeof ThreadSummarySchema>;
 export type ThreadList = z.infer<typeof ThreadListSchema>;
 export type ThreadMessage = z.infer<typeof MessageSchema>;

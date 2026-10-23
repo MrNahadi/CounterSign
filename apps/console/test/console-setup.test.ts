@@ -39,6 +39,24 @@ describe("console setup", () => {
     expect(read("../app/page.tsx")).toContain('redirect("/decisions")');
   });
 
+  it("has Disputes after Approvals, behind the shared sign-in, with its empty-state line", () => {
+    const nav = read("../app/console-nav.tsx");
+    const approvals = nav.indexOf('href: "/approvals"');
+    const disputes = nav.indexOf('{ href: "/disputes", label: "Disputes", Icon: ShieldAlert }');
+    const decisions = nav.indexOf('href: "/decisions"');
+    expect(disputes).toBeGreaterThan(approvals);
+    expect(decisions).toBeGreaterThan(disputes);
+    expect(nav).toMatch(/import \{[^}]*\bShieldAlert\b[^}]*\} from "lucide-react"/);
+    const page = read("../app/disputes/page.tsx");
+    expect(page).toContain("line={DISPUTE_ROUTE_MESSAGES.signInLine}");
+    expect(page).toContain("APPROVAL_ROUTE_MESSAGES.signInAgain");
+    expect(page).toContain("{view.empty}");
+    expect(page).toMatch(/className="overflow-x-auto[^"]*"\s*>\s*<table/);
+    const button = read("../app/disputes/draft-again.tsx");
+    expect(button.startsWith('"use client";')).toBe(true);
+    expect(button).not.toMatch(/dispute-routes|server-only|@countersign\/mandate/);
+  });
+
   it("shows the shared sign-in with the decisions line, and scrolls the table in its box", () => {
     const page = read("../app/decisions/page.tsx");
     expect(page).toContain("line={AUDIT_ROUTE_MESSAGES.signInLine}");

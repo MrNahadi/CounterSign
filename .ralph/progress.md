@@ -85,3 +85,10 @@
 - The approve answer and recent summaries read `execution.dispute` (defaults to null when absent): "Approved. Dispute PP-D-123 is under review." / "Dispute PP-D-123, UNDER_REVIEW".
 - Gotcha: console card fixtures now need `params` (null for a refund); route fixtures carry `dispute: null` on executions, as the gate sends.
 - For the human: a card whose document isn't `available` still offers Approve (the gate's `can_execute` doesn't look at documents); approving records `failed`/`DOCUMENT_CHANGED` and sends nothing, so it fails closed, but the gate could set `cannot_execute` instead.
+
+## T-014 (done)
+- Console Disputes page (`app/disputes/page.tsx`, `draft-again.tsx`), sidebar item after Approvals (`ShieldAlert`), `app/api/disputes/route.ts` (GET and POST). New `src/dispute-routes.ts` (`loadDisputes`, `draftAgain`, `disputesRoute`, `draftAgainRoute`) and `src/disputes-view.ts` (`disputesView`, `DISPUTES_COPY`, client `draftAgain`). Schemas in `resolve-schemas.ts` (`DisputeDraftSchema`, `DisputeListSchema`, `DraftRequestSchema`).
+- ADR 0038 (answerer): routes to Resolve behind the approvals sign-in run `withKey`, then `checkKey` (new in approval-routes.ts, `GET /approvals` with the bearer; `signInRoute` now uses it), and never send the key to Resolve. `readBody` and resolve-routes' `callResolve`/`readJson` are now exported.
+- Resolve's draft view (list, POST answers and detail) gains `dispute: { reason_words, amount } | null`, read with zod from the facts summary; app.test.ts's fake drafter now stores a real-shaped facts summary.
+- Gotcha: "Waiting for you" shows only for `proposed` with `agent_response_status: pending_approval`; any other proposed draft says "Proposed". Failure outcomes are worded in `FAILURE_WORDS`; a `prepare_failed:` gate sentence shows as is.
+- For the human: a dispute whose nudge never reached Resolve has no draft, so it doesn't appear on the page until someone runs `npm run resolve -- dispute <id>` or posts to Resolve; "every dispute PayPal opened" would need the gate's `dispute.received` entries too.
