@@ -42,3 +42,12 @@
 - Decision for the human: `document_ids` is optional, so an evidence submission without documents still normalizes (keeps the existing tests and hashes); the drafter (T-010) always sends the PDF. Say if it should be required.
 - Gotcha: the gate's tools/list now has 14 tools (fixture re-recorded); Resolve's message runs see `prepare_dispute_evidence` too (protected.test.ts counts 15 with find_order).
 - Gotcha for T-008: the executor gets `params.documents` (`{ id, name, sha256 }`) and `evidence[].refundIds` from the stored intent; re-read bytes with `readEvidenceDocument` and compare `sha256Hex(bytes)`.
+
+## T-008 (done)
+- `executors.ts`: executors for accept claim (hashed note), make offer (hashed type and note; `offerAmount` is the intent amount except for `REPLACEMENT_WITHOUT_REFUND`) and provide evidence (hashed items; each document re-read by ID, sent only if its SHA-256, name and PDF type match, else `failed` with error name `DOCUMENT_CHANGED` and nothing sent). Each sends once, no request ID; a 2xx is `executed` and re-reads the dispute (`dispute: { id, status }`, status null if that read fails). `Execution` gains `dispute?`. Executors now take `(rail, job, db)`.
+- Tracking numbers go out as carrier `OTHER` with `carrier_name_other` "Carrier (simulated)" (`EVIDENCE_CARRIER`, new ADR 0036); an item with no tracking numbers sends no `tracking_info`. T-011's card can show `EVIDENCE_CARRIER.nameOther` next to the tracking numbers.
+- `propose.ts` carries `dispute` on the unsent answer for a re-proposed allowed dispute intent. Usage needed no change: every request counts by its intent amount.
+- Fake sandbox: accept claim, make offer and provide evidence answer 200 and set the dispute's status (RESOLVED, WAITING_FOR_BUYER_RESPONSE, UNDER_REVIEW); 404 for an unknown dispute.
+- Tests that used accept claim as "the action without an executor" now use a payout (answer-step-up.test.ts steps payouts up with a test mandate; propose-invoice.test.ts allows them). approvals-api.test.ts now expects the claim card to be executable.
+- Gotcha for T-011: `approvals-api.ts` doesn't put `dispute` on the approve answer yet. Gotcha for T-012: `audit-reader.ts` reads an executed dispute result as refund null and invoice null; it needs the dispute.
+- For the human: PayPal allows at most 10 tracking entries per evidence item, but the proposal schema and rail client allow 100. Over 10 gets a 4xx and is recorded `failed`, so it fails closed; a cap in `proposal.ts` would refuse it before it's sent.

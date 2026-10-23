@@ -100,14 +100,16 @@ export function createFakeSandbox(): FakeSandbox {
     async addTracker() {
       throw new Error("addTracker isn't in the fake sandbox");
     },
-    async acceptClaim() {
-      throw new Error("acceptClaim isn't in the fake sandbox");
+    // The dispute actions answer 200 and move the dispute to the status PayPal would, unless a
+    // failure is injected.
+    async acceptClaim(input) {
+      return disputeAction("acceptClaim", "accept-claim", input, "RESOLVED");
     },
-    async makeOffer() {
-      throw new Error("makeOffer isn't in the fake sandbox");
+    async makeOffer(input) {
+      return disputeAction("makeOffer", "make-offer", input, "WAITING_FOR_BUYER_RESPONSE");
     },
-    async provideEvidence() {
-      throw new Error("provideEvidence isn't in the fake sandbox");
+    async provideEvidence(input) {
+      return disputeAction("provideEvidence", "provide-evidence", input, "UNDER_REVIEW");
     },
     // The sandbox-only helpers answer 200 unless a failure is injected.
     async requireEvidence(input) {
@@ -236,6 +238,19 @@ export function createFakeSandbox(): FakeSandbox {
     sandbox.calls.push({ call, arg });
     const failure = sandbox.failures[call];
     if (failure !== undefined) throw failure;
+  }
+
+  function disputeAction(
+    call: FakeCall,
+    railCall: string,
+    input: { disputeId: string },
+    status: string,
+  ): number {
+    enter(call, input);
+    const dispute = sandbox.disputeDetails.get(input.disputeId);
+    if (!dispute) throw notFound(railCall);
+    sandbox.disputeDetails.set(input.disputeId, { ...dispute, status });
+    return answer(call, 200);
   }
 
   function answer<T>(call: FakeCall, value: T): T {

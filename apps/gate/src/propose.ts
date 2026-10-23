@@ -6,7 +6,7 @@
 // decision entry and, for an allowed intent, the `execution.requested` entry, so a second intent
 // on the same capture always sees the first one's request. The intent runs through its action's
 // executor after that commits, and its result is appended in its own transaction. An allowed
-// invoice intent that was already requested is never sent again. An allow for an action without
+// invoice or dispute intent that was already requested is never sent again. An allow for an action without
 // an executor is denied ACTION_UNAVAILABLE by decide(). No AI, and the lock is never held across
 // a network call.
 
@@ -160,6 +160,9 @@ async function decideAndRecord(
     if (action === "paypal.invoice.send" && !("invoiceId" in target)) {
       throw new Error("an allowed invoice send targets no invoice");
     }
+    if (action.startsWith("paypal.dispute.") && !("disputeId" in target)) {
+      throw new Error(`an allowed ${action} targets no dispute`);
+    }
     // A refund intent already requested is answered as a replay before it's decided. Any other
     // is decided again but sent at most once (ADR 0033), so its trail is read first, under the
     // same lock.
@@ -231,6 +234,7 @@ async function alreadyRequested(
     outcome: trail.executed !== null ? "executed" : (trail.lastOutcome ?? "unknown"),
     refund: trail.executed?.refund ?? null,
     ...(trail.executed?.invoice === undefined ? {} : { invoice: trail.executed.invoice }),
+    ...(trail.executed?.dispute === undefined ? {} : { dispute: trail.executed.dispute }),
     resultSeq: trail.executed?.seq ?? null,
   };
 }

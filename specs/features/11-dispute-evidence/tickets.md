@@ -103,18 +103,19 @@ Notes:
 
 ## T-008: Dispute executors
 
-Status: open
+Status: done
 Blocked by: T-001, T-007
 Tier: standard
 Slice: An approved (or allowed) accept claim, offer or evidence submission runs once on PayPal and its result is logged.
 Test seam: `execute()` and `answerStepUp` over PGlite with the fake sandbox
 Acceptance:
-- [ ] `EXECUTABLE_ACTIONS` gains the three dispute actions; payouts and order capture are still `ACTION_UNAVAILABLE`
-- [ ] Approving a provide-evidence step-up sends one multipart call with the stored notes and the PDF bytes, and records `dispute: { id, status }` with the status re-read (null if the read fails)
-- [ ] Approving again or re-proposing the same intent sends nothing; nothing is retried
-- [ ] Bytes whose SHA-256 differs, or a missing row, record `failed` `DOCUMENT_CHANGED` with nothing sent; a 4xx is `failed` and a 5xx `unknown`
-- [ ] Accept claim and make offer execute from approval with their hashed parameters; executed dispute actions count in today's usage
+- [x] `EXECUTABLE_ACTIONS` gains the three dispute actions; payouts and order capture are still `ACTION_UNAVAILABLE`
+- [x] Approving a provide-evidence step-up sends one multipart call with the stored notes and the PDF bytes, and records `dispute: { id, status }` with the status re-read (null if the read fails)
+- [x] Approving again or re-proposing the same intent sends nothing; nothing is retried
+- [x] Bytes whose SHA-256 differs, or a missing row, record `failed` `DOCUMENT_CHANGED` with nothing sent; a 4xx is `failed` and a 5xx `unknown`
+- [x] Accept claim and make offer execute from approval with their hashed parameters; executed dispute actions count in today's usage
 Notes:
+- Tracking numbers are sent as carrier `OTHER` with the fixed `carrier_name_other` "Carrier (simulated)" (`EVIDENCE_CARRIER`, ADR 0036, from the answerer).
 
 ## T-009: Resolve's dispute intake
 

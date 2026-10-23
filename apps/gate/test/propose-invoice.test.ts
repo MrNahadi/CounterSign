@@ -34,17 +34,24 @@ const mandateFile = fileURLToPath(
 );
 const shipped = JSON.parse(readFileSync(mandateFile, "utf8"));
 
-// The shipped mandate with invoice sends and accepted dispute claims allowed outright.
+// The shipped mandate with invoice sends and payouts allowed outright.
 function mandateAllowing(): Mandate {
   const json = structuredClone(shipped);
   json.rules = json.rules.map((rule: { id: string; action: unknown }) =>
     rule.id === "dispute-and-invoice-actions"
-      ? { ...rule, action: ["paypal.dispute.provide_evidence", "paypal.dispute.make_offer"] }
+      ? {
+          ...rule,
+          action: [
+            "paypal.dispute.accept_claim",
+            "paypal.dispute.provide_evidence",
+            "paypal.dispute.make_offer",
+          ],
+        }
       : rule,
   );
   json.rules.push(
     { id: "send-invoices", action: "paypal.invoice.send", decide: "allow" },
-    { id: "accept-claims", action: "paypal.dispute.accept_claim", decide: "allow" },
+    { id: "payouts", action: "paypal.payout", decide: "allow" },
   );
   const parsed = parseMandate(json);
   if (!parsed.ok) throw new Error(parsed.error);
@@ -87,17 +94,17 @@ const withNote = {
 };
 
 describe("executors", () => {
-  it("are exactly refund and invoice send, one each", () => {
-    expect([...EXECUTABLE_ACTIONS]).toEqual(["paypal.refund", "paypal.invoice.send"]);
+  it("are exactly refund, invoice send and the three dispute actions, one each", () => {
+    expect([...EXECUTABLE_ACTIONS]).toEqual([
+      "paypal.refund",
+      "paypal.invoice.send",
+      "paypal.dispute.accept_claim",
+      "paypal.dispute.make_offer",
+      "paypal.dispute.provide_evidence",
+    ]);
     expect(Object.keys(EXECUTORS).sort()).toEqual([...EXECUTABLE_ACTIONS].sort());
     expect(isExecutable("paypal.invoice.send")).toBe(true);
-    for (const action of [
-      "paypal.dispute.accept_claim",
-      "paypal.dispute.provide_evidence",
-      "paypal.dispute.make_offer",
-      "paypal.payout",
-      "paypal.order.capture",
-    ] as const) {
+    for (const action of ["paypal.payout", "paypal.order.capture"] as const) {
       expect(isExecutable(action)).toBe(false);
     }
   });
@@ -270,15 +277,15 @@ describe("propose: an allowed invoice send", { timeout: SLOW }, () => {
     const w = world();
     const result = decided(
       await run(w, {
-        tool: "accept_dispute_claim",
-        args: { dispute_id: DISPUTE, note: "Refunding in full." },
+        tool: "create_payout",
+        args: { receiver: PAYER, amount: { value: "25.00", currency_code: "USD" } },
         justification,
       }),
     );
     expect(result.record.decision).toBe("deny");
     expect(result.record.reasons.map((reason) => reason.code)).toEqual(["ACTION_UNAVAILABLE"]);
     expect(result.execution).toBeNull();
-    expect(w.rail.calls.map((call) => call.call)).toEqual(["getDispute"]);
+    expect(w.rail.calls).toEqual([]);
     const types = (await entries()).map((row) => row.entryType);
     expect(types.filter((type) => type.startsWith("execution."))).toEqual([]);
   });

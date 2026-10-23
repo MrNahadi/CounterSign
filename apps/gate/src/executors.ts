@@ -2,12 +2,26 @@
 // step-up. Each runs after the transaction that wrote its `execution.requested` entry has
 // committed: it makes the one rail call the stored intent describes and appends the result as
 // `execution.result`. A refund is sent with the intent hash as its PayPal-Request-Id (ADR 0026);
-// an invoice send carries no request ID and is never retried. No AI, no ledger lock held here.
+// an invoice send or a dispute action carries no request ID and is never retried (ADRs 0033 and
+// 0035). No AI, no ledger lock held here.
 
-import type { Database } from "@countersign/db";
+import {
+  type Database,
+  readEvidenceDocument,
+  type StoredEvidenceDocument,
+  sha256Hex,
+} from "@countersign/db";
 import { appendEntry } from "@countersign/ledger";
 import type { IntentParams, Money } from "@countersign/mandate";
-import { type PayPalClient, PayPalError, type PayPalRefund } from "@countersign/rail-paypal";
+import {
+  type DisputeEvidence,
+  type EvidenceDocument,
+  OFFER_TYPES,
+  type OfferType,
+  type PayPalClient,
+  PayPalError,
+  type PayPalRefund,
+} from "@countersign/rail-paypal";
 import type { ExecutableAction } from "./executable";
 import {
   type ExecutionOutcome,
@@ -25,6 +39,9 @@ export type Execution = {
   refund: { id: string; status: string } | null;
   // The invoice an invoice send sent; absent for every other action.
   invoice?: { id: string; status: string };
+  // The dispute a dispute action acted on, with its status as re-read after the call (null when
+  // that read failed); absent for every other action.
+  dispute?: { id: string; status: string | null };
   error: RailRefusal | null;
   // The `execution.result` entry; null when no rail call was made or the result couldn't be
   // written (then `resultProblem` says why).
@@ -52,7 +69,8 @@ export type ExecutionJob = {
 type Attempt = DistributiveOmit<ExecutionResultPayload, "requestSeq">;
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
-type Executor = (rail: PayPalClient, job: ExecutionJob) => Promise<Attempt>;
+// The database is for the evidence documents a provide-evidence intent names.
+type Executor = (rail: PayPalClient, job: ExecutionJob, db: Database) => Promise<Attempt>;
 
 function refusal(error: PayPalError): RailRefusal {
   return { name: error.paypalName, issues: [...error.issues], debugId: error.debugId };
@@ -114,10 +132,137 @@ async function executeInvoiceSend(rail: PayPalClient, job: ExecutionJob): Promis
   }
 }
 
+// What a tracking number is sent with. Every carrier in this demo is the carrier mock, PayPal
+// needs a free-form name for carrier OTHER, and only hashed values may vary, so it's this fixed
+// label, never a name read from a record (ADR 0036).
+export const EVIDENCE_CARRIER = { name: "OTHER", nameOther: "Carrier (simulated)" } as const;
+
+// Sends one dispute action (ADR 0035): once, with no request ID, never retried. A 2xx is
+// executed, a refusal failed and anything else unknown. The dispute's status is re-read after a
+// 2xx; a read that fails leaves it null and never changes the outcome.
+async function disputeAttempt(
+  rail: PayPalClient,
+  disputeId: string,
+  send: () => Promise<number>,
+): Promise<Attempt> {
+  let status: number;
+  try {
+    status = await send();
+  } catch (error) {
+    return errorAttempt(error);
+  }
+  if (!(status >= 200 && status < 300)) return { outcome: "unknown" };
+  let disputeStatus: string | null = null;
+  try {
+    disputeStatus = (await rail.getDispute(disputeId)).status;
+  } catch {
+    // Left null: the call took effect whatever the read says.
+  }
+  return { outcome: "executed", dispute: { id: disputeId, status: disputeStatus } };
+}
+
+function disputeOf(job: ExecutionJob): string {
+  if (!("disputeId" in job.target)) throw new Error(`a ${job.action} intent targets no dispute`);
+  return job.target.disputeId;
+}
+
+function noteOf(job: ExecutionJob): string {
+  const note = job.params?.note;
+  if (typeof note !== "string") throw new Error(`a ${job.action} intent has no note`);
+  return note;
+}
+
+// Accept claim: the intent's hashed note.
+async function executeAcceptClaim(rail: PayPalClient, job: ExecutionJob): Promise<Attempt> {
+  const disputeId = disputeOf(job);
+  const note = noteOf(job);
+  return disputeAttempt(rail, disputeId, () => rail.acceptClaim({ disputeId, note }));
+}
+
+const isOfferType = (value: unknown): value is OfferType =>
+  (OFFER_TYPES as readonly unknown[]).includes(value);
+
+// Make offer: the intent's hashed type and note, and its amount, which is the offer's own, except
+// for a replacement without a refund, which offers no money.
+async function executeMakeOffer(rail: PayPalClient, job: ExecutionJob): Promise<Attempt> {
+  const disputeId = disputeOf(job);
+  const note = noteOf(job);
+  const offerType = job.params?.offerType;
+  if (!isOfferType(offerType)) throw new Error("a make offer intent has no offer type");
+  return disputeAttempt(rail, disputeId, () =>
+    rail.makeOffer({
+      disputeId,
+      note,
+      offerType,
+      ...(offerType === "REPLACEMENT_WITHOUT_REFUND" ? {} : { offerAmount: job.amount }),
+    }),
+  );
+}
+
+// A refusal that never reached PayPal: a document isn't the one approved.
+const documentChanged = (detail: string): Attempt => ({
+  outcome: "failed",
+  error: { name: "DOCUMENT_CHANGED", issues: [detail], debugId: null },
+});
+
+// Provide evidence: the intent's hashed items, with every document it names read by ID. A row
+// that's gone, can't be read or whose bytes no longer have the hashed SHA-256 sends nothing.
+async function executeProvideEvidence(
+  rail: PayPalClient,
+  job: ExecutionJob,
+  db: Database,
+): Promise<Attempt> {
+  const disputeId = disputeOf(job);
+  const items = job.params?.evidence ?? [];
+  if (items.length === 0) throw new Error("a provide evidence intent has no evidence");
+  const documents: EvidenceDocument[] = [];
+  for (const ref of job.params?.documents ?? []) {
+    let stored: StoredEvidenceDocument | null;
+    try {
+      stored = await readEvidenceDocument(db, ref.id);
+    } catch {
+      return documentChanged(`Evidence document ${ref.id} can't be read.`);
+    }
+    if (stored === null) return documentChanged(`Evidence document ${ref.id} is gone.`);
+    if (
+      sha256Hex(stored.bytes) !== ref.sha256 ||
+      stored.name !== ref.name ||
+      stored.contentType !== "application/pdf"
+    ) {
+      return documentChanged(`Evidence document ${ref.id} isn't the one approved.`);
+    }
+    documents.push({ name: ref.name, contentType: "application/pdf", bytes: stored.bytes });
+  }
+  const evidences: DisputeEvidence[] = items.map((item) => {
+    const tracking = item.trackingNumbers ?? [];
+    const refundIds = item.refundIds ?? [];
+    return {
+      evidenceType: item.evidenceType,
+      notes: item.notes,
+      ...(tracking.length === 0
+        ? {}
+        : {
+            trackingInfo: tracking.map((trackingNumber) => ({
+              carrierName: EVIDENCE_CARRIER.name,
+              carrierNameOther: EVIDENCE_CARRIER.nameOther,
+              trackingNumber,
+            })),
+          }),
+      ...(refundIds.length === 0 ? {} : { refundIds: [...refundIds] }),
+    };
+  });
+  return disputeAttempt(rail, disputeId, () =>
+    rail.provideEvidence({ disputeId, evidences, documents }),
+  );
+}
+
 // Exactly the actions in EXECUTABLE_ACTIONS; the type keeps the two lists equal.
 export const EXECUTORS: Record<ExecutableAction, Executor> = {
   "paypal.refund": executeRefund,
   "paypal.invoice.send": executeInvoiceSend,
+  "paypal.dispute.accept_claim": executeAcceptClaim,
+  "paypal.dispute.make_offer": executeMakeOffer,
+  "paypal.dispute.provide_evidence": executeProvideEvidence,
 };
 
 // Carries out one requested intent through its action's executor and logs the result.
@@ -127,11 +272,12 @@ export async function execute(
   job: ExecutionJob,
   clock: () => Date,
 ): Promise<Execution> {
-  const attempt = await EXECUTORS[job.action](rail, job);
+  const attempt = await EXECUTORS[job.action](rail, job, db);
   const execution: Execution = {
     outcome: attempt.outcome,
     refund: "refund" in attempt ? (attempt.refund ?? null) : null,
     ...("invoice" in attempt ? { invoice: attempt.invoice } : {}),
+    ...("dispute" in attempt ? { dispute: attempt.dispute } : {}),
     error: "error" in attempt ? (attempt.error ?? null) : null,
     resultSeq: null,
     resultProblem: null,

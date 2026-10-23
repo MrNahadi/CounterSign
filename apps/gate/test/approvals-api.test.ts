@@ -465,7 +465,7 @@ describe("the approval API", { timeout: SLOW }, () => {
     expect(w.rail.calls.filter((call) => call.call === "refundCapture")).toHaveLength(0);
   });
 
-  it("shows an invoice send as executable and an accepted claim as not", async () => {
+  it("shows an invoice send and an accepted claim as executable", async () => {
     const w = world();
     const invoice = await stepUp(w, sendInvoice);
     const claim = await stepUp(w, acceptClaim);
@@ -478,8 +478,8 @@ describe("the approval API", { timeout: SLOW }, () => {
       action_words: "Accept dispute claim",
       target: { kind: "dispute", id: DISPUTE },
       order_number: null,
-      can_execute: false,
-      cannot_execute: "Countersign can't carry out this action yet.",
+      can_execute: true,
+      cannot_execute: null,
       checks: [],
     });
     expect(cards[1]).toMatchObject({

@@ -53,8 +53,14 @@ export function requestTarget(target: IntentTarget): RequestTarget {
   }
 }
 
-// Actions whose rail call carries no idempotency key, so the request ID is null (ADR 0033).
-const WITHOUT_REQUEST_ID: readonly string[] = ["paypal.invoice.send"];
+// Actions whose rail call carries no idempotency key, so the request ID is null (ADRs 0033 and
+// 0035).
+const WITHOUT_REQUEST_ID: readonly string[] = [
+  "paypal.invoice.send",
+  "paypal.dispute.accept_claim",
+  "paypal.dispute.make_offer",
+  "paypal.dispute.provide_evidence",
+];
 
 const RequestCommon = {
   intentId: Id,
@@ -93,7 +99,8 @@ export const ExecutionRequestedPayloadSchema = z
         ? payload.requestId === null
         : payload.requestId === payload.intentHash,
     {
-      message: "The request ID must be the intent hash, or null for an invoice send",
+      message:
+        "The request ID must be the intent hash, or null for an invoice send or dispute action",
       path: ["requestId"],
     },
   )
@@ -119,7 +126,8 @@ const refundOf = (statuses: readonly [string, ...string[]]) =>
 export const INVOICE_SEND_STATUSES = ["SENT", "SCHEDULED"] as const;
 
 // `execution.result`, ref the intent ID. Its time is the entry's `at`. An executed result names
-// the refund it made, or for an invoice send the invoice it sent.
+// the refund it made, for an invoice send the invoice it sent, or for a dispute action the dispute
+// with its status as re-read after the call, null when that read failed (ADR 0035).
 export const ExecutionResultPayloadSchema = z.union([
   z.strictObject({
     requestSeq: Seq,
@@ -130,6 +138,11 @@ export const ExecutionResultPayloadSchema = z.union([
     requestSeq: Seq,
     outcome: z.literal("executed"),
     invoice: z.strictObject({ id: Id, status: z.enum(INVOICE_SEND_STATUSES) }),
+  }),
+  z.strictObject({
+    requestSeq: Seq,
+    outcome: z.literal("executed"),
+    dispute: z.strictObject({ id: Id, status: z.string().min(1).max(64).nullable() }),
   }),
   z
     .strictObject({
@@ -391,11 +404,14 @@ type FirstRequestPayload = Extract<ExecutionRequestedPayload, { replay: false }>
 type Executed = Extract<ExecutionResultPayload, { outcome: "executed" }>;
 type ExecutedRefund = Extract<Executed, { refund: unknown }>["refund"];
 type ExecutedInvoice = Extract<Executed, { invoice: unknown }>["invoice"];
+type ExecutedDispute = Extract<Executed, { dispute: unknown }>["dispute"];
 
-// What an executed result made: a refund, or for an invoice send the invoice it sent.
+// What an executed result made: a refund, for an invoice send the invoice it sent, or for a
+// dispute action the dispute it acted on.
 export type ExecutedRecord =
-  | { seq: number; refund: ExecutedRefund; invoice?: undefined }
-  | { seq: number; invoice: ExecutedInvoice; refund?: undefined };
+  | { seq: number; refund: ExecutedRefund; invoice?: undefined; dispute?: undefined }
+  | { seq: number; invoice: ExecutedInvoice; refund?: undefined; dispute?: undefined }
+  | { seq: number; dispute: ExecutedDispute; refund?: undefined; invoice?: undefined };
 
 export type IntentRecord = {
   firstRequest: { seq: number; at: string; payload: FirstRequestPayload };
@@ -444,7 +460,9 @@ export async function readIntentRecord(
           trail.executed =
             "refund" in payload
               ? { seq: row.seq, refund: payload.refund }
-              : { seq: row.seq, invoice: payload.invoice };
+              : "invoice" in payload
+                ? { seq: row.seq, invoice: payload.invoice }
+                : { seq: row.seq, dispute: payload.dispute };
         }
       }
     }
