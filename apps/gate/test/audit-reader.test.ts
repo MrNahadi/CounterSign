@@ -407,6 +407,7 @@ describe("the audit reader", { timeout: SLOW }, () => {
           outcome: "executed",
           refund: { id: log.beat4Refund, status: "COMPLETED" },
           invoice: null,
+          dispute: null,
         },
       });
       expect(status(log.failedSeq)).toMatchObject({
@@ -429,6 +430,7 @@ describe("the audit reader", { timeout: SLOW }, () => {
           outcome: "executed",
           refund: { id: log.beat5Refund, status: "COMPLETED" },
           invoice: null,
+          dispute: null,
         },
       });
       expect(status(log.deniedSeq)).toEqual({ kind: "denied", execution: null });

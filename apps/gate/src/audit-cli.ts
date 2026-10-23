@@ -20,6 +20,7 @@ import type { Mandate } from "@countersign/mandate";
 import { CaptureIdText, IntentIdText } from "./audit-api";
 import {
   type DecisionDetail,
+  disputeResultWords,
   readDecisionDetail,
   type TrailEntry,
   type TrailParts,
@@ -187,6 +188,7 @@ function trailWords(parts: TrailParts): string {
       if (parts.refund) return `PayPal refunded it: ${parts.refund.id} ${parts.refund.status}.`;
       if (parts.invoice)
         return `The invoice was sent: ${parts.invoice.id} ${parts.invoice.status}.`;
+      if (parts.dispute) return disputeResultWords(parts.dispute);
       return "PayPal carried it out.";
     }
     case "reconciliation":

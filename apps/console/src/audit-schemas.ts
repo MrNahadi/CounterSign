@@ -35,10 +35,14 @@ const MoneySchema = z.object({
 
 const RecordRef = z.object({ id: Id, status: z.string().min(1).max(64) });
 
+// A dispute's status is null when the gate couldn't re-read it after the call.
+const DisputeRef = z.object({ id: Id, status: z.string().min(1).max(64).nullable() });
+
 const ExecutionSchema = z.object({
   outcome: z.enum(["executed", "failed", "unknown", "pending"]),
   refund: RecordRef.nullable(),
   invoice: RecordRef.nullable(),
+  dispute: DisputeRef.nullable().optional(),
 });
 
 const StatusSchema = z.discriminatedUnion("kind", [
@@ -153,6 +157,7 @@ const TrailPartsSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("execution.requested"),
+    action: Name.optional(),
     request_id: Id.nullable(),
     replay: z.boolean(),
     decision_seq: Seq.nullable(),
@@ -166,6 +171,7 @@ const TrailPartsSchema = z.discriminatedUnion("kind", [
     outcome: z.enum(["executed", "failed", "unknown"]),
     refund: RecordRef.nullable(),
     invoice: RecordRef.nullable(),
+    dispute: DisputeRef.extend({ action: Name.nullable() }).nullable().optional(),
     error: z
       .object({
         name: Text.nullable(),

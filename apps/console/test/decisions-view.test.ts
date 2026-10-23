@@ -265,6 +265,29 @@ describe("rowStatusWords", () => {
     expect(words({ kind: "expired", execution: null })?.words).toBe("Expired, so denied");
     expect(words(null)).toBeNull();
   });
+
+  it("words an executed dispute action by what it did", () => {
+    const disputeDone = {
+      outcome: "executed",
+      refund: null,
+      invoice: null,
+      dispute: { id: "PP-D-4012", status: "UNDER_REVIEW" },
+    };
+    const status = { kind: "executed", execution: disputeDone };
+    expect(words(status, "paypal.dispute.provide_evidence")).toEqual({
+      words: "Evidence sent",
+      href: null,
+    });
+    expect(words(status, "paypal.dispute.accept_claim")?.words).toBe("Claim accepted");
+    expect(words(status, "paypal.dispute.make_offer")?.words).toBe("Offer sent");
+    expect(
+      words({ kind: "approved", execution: disputeDone }, "paypal.dispute.provide_evidence")?.words,
+    ).toBe("Approved, evidence sent");
+    const failed = { outcome: "failed", refund: null, invoice: null, dispute: null };
+    expect(
+      words({ kind: "approved", execution: failed }, "paypal.dispute.provide_evidence")?.words,
+    ).toBe("Approved, PayPal refused it");
+  });
 });
 
 describe("chainView", () => {

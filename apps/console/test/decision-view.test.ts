@@ -317,6 +317,43 @@ describe("decisionView: the header", () => {
     expect(view.title).toBe("Send invoice $240.00 on INV2-AAAA");
     expect(view.exports.map((link) => link.label)).toEqual(["Export evidence"]);
   });
+
+  it("says what an executed dispute action did, with the dispute as the target", () => {
+    const line = (action: string, words: string) =>
+      readable(
+        decisionView(
+          detail({
+            action,
+            action_words: words,
+            target: { kind: "dispute", id: "PP-D-4012", order_id: null },
+            order_number: null,
+            status: {
+              kind: "approved",
+              execution: {
+                outcome: "executed",
+                refund: null,
+                invoice: null,
+                dispute: { id: "PP-D-4012", status: "UNDER_REVIEW" },
+              },
+            },
+          }),
+          intact,
+          NOW,
+        ),
+      );
+    expect(line("paypal.dispute.provide_evidence", "Provide dispute evidence").line).toMatch(
+      /The evidence was sent\.$/,
+    );
+    expect(line("paypal.dispute.accept_claim", "Accept dispute claim").line).toMatch(
+      /The claim was accepted\.$/,
+    );
+    expect(line("paypal.dispute.make_offer", "Make dispute offer").line).toMatch(
+      /The offer was sent\.$/,
+    );
+    expect(line("paypal.dispute.provide_evidence", "Provide dispute evidence").title).toBe(
+      "Provide dispute evidence $240.00 on PP-D-4012",
+    );
+  });
 });
 
 describe("decisionView: claims vs records", () => {
@@ -531,6 +568,69 @@ describe("decisionView: what happened", () => {
         { text: "." },
       ],
       [{ text: "PayPal sent the invoice: " }, { mono: "INV2-AAAA" }, { text: ", sent." }],
+    ]);
+  });
+
+  it("words a dispute action's request and result by its action", () => {
+    const at = "2026-10-20T08:02:00.000Z";
+    const entry = (seq: number, type: string, parts: Record<string, unknown>) => ({
+      seq,
+      type,
+      at,
+      hash: HASH,
+      readable: true,
+      parts: { kind: type, ...parts },
+    });
+    const request = (action: string) =>
+      entry(30, "execution.requested", {
+        action,
+        request_id: null,
+        replay: false,
+        decision_seq: null,
+        approval_seq: 20,
+        first_request_seq: null,
+        amount,
+      });
+    const result = (action: string | null, status: string | null) =>
+      entry(31, "execution.result", {
+        request_seq: 30,
+        outcome: "executed",
+        refund: null,
+        invoice: null,
+        dispute: { id: "PP-D-4012", status, action },
+        error: null,
+      });
+    const view = readable(
+      decisionView(
+        detail({
+          trail: [
+            request("paypal.dispute.provide_evidence"),
+            result("paypal.dispute.provide_evidence", "UNDER_REVIEW"),
+            result("paypal.dispute.provide_evidence", null),
+            request("paypal.dispute.accept_claim"),
+            result("paypal.dispute.accept_claim", "RESOLVED"),
+            request("paypal.dispute.make_offer"),
+            result("paypal.dispute.make_offer", "WAITING_FOR_BUYER_RESPONSE"),
+            result(null, "UNDER_REVIEW"),
+          ],
+        }),
+        intact,
+        NOW,
+      ),
+    );
+    expect(view.happened.map((line) => line.pieces)).toEqual([
+      [{ text: "Asked PayPal to send the evidence." }],
+      [
+        { text: "PayPal took the evidence for " },
+        { mono: "PP-D-4012" },
+        { text: ": under review." },
+      ],
+      [{ text: "PayPal took the evidence for " }, { mono: "PP-D-4012" }, { text: "." }],
+      [{ text: "Asked PayPal to accept the claim." }],
+      [{ text: "Accepted the claim on " }, { mono: "PP-D-4012" }, { text: "." }],
+      [{ text: "Asked PayPal to send the offer." }],
+      [{ text: "Sent an offer on " }, { mono: "PP-D-4012" }, { text: "." }],
+      [{ text: "PayPal acted on " }, { mono: "PP-D-4012" }, { text: ": under review." }],
     ]);
   });
 });

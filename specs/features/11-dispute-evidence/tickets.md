@@ -164,15 +164,15 @@ Notes:
 
 ## T-012: Audit reader lines for disputes
 
-Status: open
+Status: done
 Blocked by: T-002, T-008
 Tier: simple
 Slice: The audit console and `audit` CLI describe dispute arrivals and dispute executions in words.
 Test seam: the gate's audit-reader exports over PGlite
 Acceptance:
-- [ ] `dispute.received` entries summarise as requirements.md says; an unreadable one says it can't be read
-- [ ] Dispute results summarise and appear in the trail with the dispute ID and status; decision rows for dispute actions show the dispute as target and their executed status
-- [ ] The phase 10 reader and audit-console tests still pass
+- [x] `dispute.received` entries summarise as requirements.md says; an unreadable one says it can't be read
+- [x] Dispute results summarise and appear in the trail with the dispute ID and status; decision rows for dispute actions show the dispute as target and their executed status
+- [x] The phase 10 reader and audit-console tests still pass
 Notes:
 
 ## T-013: The card's evidence section in the console

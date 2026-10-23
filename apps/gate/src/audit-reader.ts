@@ -50,12 +50,13 @@ import {
 } from "./approval-log";
 import { CLAIM_WORDS, type ClaimPair, claimsVsRecords } from "./claims";
 import { AgentResponseSchema } from "./decide";
+import { DisputeReceivedPayloadSchema } from "./dispute-log";
 import {
   ExecutionRequestedPayloadSchema,
   ExecutionResultPayloadSchema,
   ReconciliationPayloadSchema,
 } from "./execution-log";
-import { ACTION_WORDS, sourceWords, VERIFIER_WORDS } from "./words";
+import { ACTION_WORDS, disputeReasonWords, sourceWords, VERIFIER_WORDS } from "./words";
 
 const Seq = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
 const Hash = z.string().regex(/^[0-9a-f]{64}$/, "Must be a SHA-256 hash in lowercase hex");
@@ -183,6 +184,9 @@ export type RowExecution = {
   outcome: "executed" | "failed" | "unknown" | "pending";
   refund: { id: string; status: string } | null;
   invoice: { id: string; status: string } | null;
+  // The dispute an executed dispute action acted on, with its status as re-read after the call
+  // (null when that read failed).
+  dispute: { id: string; status: string | null } | null;
 };
 
 export type RowStatus =
@@ -300,14 +304,16 @@ function executionOf(entries: readonly ChainRow[]): RowExecution | null {
             "refund" in result ? { id: result.refund.id, status: result.refund.status } : null,
           invoice:
             "invoice" in result ? { id: result.invoice.id, status: result.invoice.status } : null,
+          dispute:
+            "dispute" in result ? { id: result.dispute.id, status: result.dispute.status } : null,
         };
       }
     }
   }
   if (executed !== null) return executed;
-  if (unreadable) return { outcome: "unknown", refund: null, invoice: null };
+  if (unreadable) return { outcome: "unknown", refund: null, invoice: null, dispute: null };
   if (!requested) return null;
-  return { outcome: last ?? "pending", refund: null, invoice: null };
+  return { outcome: last ?? "pending", refund: null, invoice: null, dispute: null };
 }
 
 type StepUpTrack = { seq: number; intentId: string; expiresAt: string };
@@ -358,6 +364,7 @@ function stepUpStates(
                 outcome: "pending",
                 refund: null,
                 invoice: null,
+                dispute: null,
               },
             },
       );
@@ -535,6 +542,7 @@ export type TrailParts =
     }
   | {
       kind: "execution.requested";
+      action: Action;
       request_id: string | null;
       replay: boolean;
       decision_seq: number | null;
@@ -548,6 +556,8 @@ export type TrailParts =
       outcome: "executed" | "failed" | "unknown";
       refund: { id: string; status: string } | null;
       invoice: { id: string; status: string } | null;
+      // The action comes from the request this result answers; null when that can't be read.
+      dispute: { id: string; status: string | null; action: Action | null } | null;
       error: { name: string | null; issues: string[]; debug_id: string | null } | null;
     }
   | {
@@ -603,7 +613,21 @@ export type UnreadableDecisionDetail = {
 
 const shown = (money: Money): ShownMoney => amountOf(money);
 
-function partsOf(row: ChainRow): Parsed<TrailParts> {
+// The action each request entry asked for, by the request's `seq`. A request that can't be read
+// has none.
+type RequestActions = ReadonlyMap<number, Action>;
+
+function requestActionsOf(rows: readonly ChainRow[]): Map<number, Action> {
+  const actions = new Map<number, Action>();
+  for (const row of rows) {
+    if (row.entryType !== "execution.requested") continue;
+    const parsed = parseEntry(row, ExecutionRequestedPayloadSchema);
+    if (parsed.ok) actions.set(row.seq, parsed.value.action);
+  }
+  return actions;
+}
+
+function partsOf(row: ChainRow, requests: RequestActions = new Map()): Parsed<TrailParts> {
   switch (row.entryType) {
     case "decision": {
       const parsed = parseDecision(row);
@@ -635,6 +659,7 @@ function partsOf(row: ChainRow): Parsed<TrailParts> {
         ok: true,
         value: {
           kind: "execution.requested",
+          action: value.action,
           request_id: value.requestId,
           replay: value.replay,
           decision_seq: "decisionSeq" in value ? value.decisionSeq : null,
@@ -650,6 +675,7 @@ function partsOf(row: ChainRow): Parsed<TrailParts> {
       const value = parsed.value;
       const refund = "refund" in value && value.refund ? value.refund : null;
       const invoice = "invoice" in value ? value.invoice : null;
+      const dispute = "dispute" in value ? value.dispute : null;
       const error = "error" in value && value.error ? value.error : null;
       return {
         ok: true,
@@ -659,6 +685,13 @@ function partsOf(row: ChainRow): Parsed<TrailParts> {
           outcome: value.outcome,
           refund: refund ? { id: refund.id, status: refund.status } : null,
           invoice: invoice ? { id: invoice.id, status: invoice.status } : null,
+          dispute: dispute
+            ? {
+                id: dispute.id,
+                status: dispute.status,
+                action: requests.get(value.requestSeq) ?? null,
+              }
+            : null,
           error: error
             ? { name: error.name, issues: [...error.issues], debug_id: error.debugId }
             : null,
@@ -696,9 +729,10 @@ function partsOf(row: ChainRow): Parsed<TrailParts> {
 }
 
 function trailOf(rows: readonly ChainRow[]): TrailEntry[] {
+  const requests = requestActionsOf(rows);
   return rows.map((row) => {
     const base = { seq: row.seq, type: row.entryType, at: row.at, hash: row.hash };
-    const parts = partsOf(row);
+    const parts = partsOf(row, requests);
     return parts.ok
       ? { ...base, readable: true, parts: parts.value }
       : { ...base, readable: false, problem: parts.problem };
@@ -841,7 +875,45 @@ function decisionSummary(payload: DecisionPayload, orders: OrderBook): string {
   return `${DECISION_VERBS[decision]} ${words} ${shown(intent.amount).display} on ${where}${tail}.`;
 }
 
-function summaryOf(row: ChainRow, orders: OrderBook): Parsed<string> {
+// PayPal's status codes in lower-case words, such as UNDER_REVIEW as "under review".
+const statusWords = (status: string) => status.toLowerCase().replaceAll("_", " ");
+
+type DisputeResult = NonNullable<Extract<TrailParts, { kind: "execution.result" }>["dispute"]>;
+
+/** What an executed dispute action did, as one sentence; the action comes from its request. */
+export function disputeResultWords({ id, status, action }: DisputeResult): string {
+  switch (action) {
+    case "paypal.dispute.provide_evidence":
+      return `PayPal took the evidence for ${id}${status === null ? "" : `: ${statusWords(status)}`}.`;
+    case "paypal.dispute.accept_claim":
+      return `Accepted the claim on ${id}.`;
+    case "paypal.dispute.make_offer":
+      return `Sent an offer on ${id}.`;
+    default:
+      return `PayPal acted on ${id}${status === null ? "" : `: ${statusWords(status)}`}.`;
+  }
+}
+
+function disputeReceivedSummary(row: ChainRow): Parsed<string> {
+  const parsed = parseEntry(row, DisputeReceivedPayloadSchema);
+  if (!parsed.ok) return parsed;
+  const { disputeId, dispute } = parsed.value;
+  if (row.refId !== disputeId) {
+    return { ok: false, problem: `dispute.received #${row.seq} has a ref that isn't its dispute.` };
+  }
+  const [captureId] = dispute.captureIds;
+  const on = captureId === undefined ? "" : ` on capture ${captureId}`;
+  // A reason PayPal adds later has no words, so it shows as the code it is.
+  const words = disputeReasonWords(dispute.reason);
+  const reason = words === dispute.reason ? words : lowerFirst(words);
+  return {
+    ok: true,
+    value: `PayPal opened dispute ${disputeId}${on} for ${shown(dispute.amount).display} (${reason}).`,
+  };
+}
+
+function summaryOf(row: ChainRow, orders: OrderBook, requests: RequestActions): Parsed<string> {
+  if (row.entryType === "dispute.received") return disputeReceivedSummary(row);
   if (row.entryType === "decision") {
     const parsed = parseDecision(row);
     return parsed.ok ? { ok: true, value: decisionSummary(parsed.value, orders) } : parsed;
@@ -857,7 +929,7 @@ function summaryOf(row: ChainRow, orders: OrderBook): Parsed<string> {
       value: `Asked ${RAIL_WORDS[rail]}${again} to ${words} ${shown(amount).display}.`,
     };
   }
-  const parts = partsOf(row);
+  const parts = partsOf(row, requests);
   if (!parts.ok) return parts;
   const value = parts.value;
   switch (value.kind) {
@@ -880,6 +952,9 @@ function summaryOf(row: ChainRow, orders: OrderBook): Parsed<string> {
       if (value.outcome === "executed" && value.invoice) {
         const { id, status } = value.invoice;
         return { ok: true, value: `PayPal sent invoice ${id}: ${status.toLowerCase()}.` };
+      }
+      if (value.outcome === "executed" && value.dispute) {
+        return { ok: true, value: disputeResultWords(value.dispute) };
       }
       if (value.outcome === "failed") {
         const reason = value.error?.name ?? value.refund?.status.toLowerCase() ?? "no reason given";
@@ -913,6 +988,30 @@ function summaryOf(row: ChainRow, orders: OrderBook): Parsed<string> {
   }
 }
 
+// The actions of the requests that the page's dispute results answer. A dispute result doesn't
+// say which action it was, so its request is read, even when that is on another page. A request
+// that isn't there, can't be read, or belongs to another intent gives no action.
+async function requestActionsFor(
+  db: Database,
+  rows: readonly ChainRow[],
+): Promise<Map<number, Action>> {
+  const wanted = new Map<number, string | null>();
+  for (const row of rows) {
+    if (row.entryType !== "execution.result") continue;
+    const parsed = parseEntry(row, ExecutionResultPayloadSchema);
+    if (parsed.ok && "dispute" in parsed.value) wanted.set(parsed.value.requestSeq, row.refId);
+  }
+  const found = await Promise.all(
+    [...wanted.keys()].map((seq) =>
+      db.select().from(auditLog).where(eq(auditLog.seq, seq)).limit(1),
+    ),
+  );
+  const requests: ChainRow[] = found
+    .flat()
+    .filter((request) => request.refId === wanted.get(request.seq));
+  return requestActionsOf(requests);
+}
+
 // Every audit-log row newest first, paged, each with one summary sentence, plus the total.
 export async function readEntries(db: Database, filters: EntryPageFilters): Promise<EntryPage> {
   const { before, limit } = EntryPageSchema.parse(filters);
@@ -927,8 +1026,9 @@ export async function readEntries(db: Database, filters: EntryPageFilters): Prom
     readOrderBook(db),
   ]);
   const rows: ChainRow[] = page.slice(0, limit);
+  const requests = await requestActionsFor(db, rows);
   const entries = rows.map((row): EntryRow => {
-    const summary = summaryOf(row, orders);
+    const summary = summaryOf(row, orders, requests);
     return {
       seq: row.seq,
       type: row.entryType,

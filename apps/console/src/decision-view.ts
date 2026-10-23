@@ -53,6 +53,31 @@ export const DECISION_COPY = {
   notConfirmed: "PayPal hasn't confirmed it yet.",
 } as const;
 
+// What an executed dispute action did, by action: the outcome sentence, the request line and the
+// result's start and end around the dispute ID.
+const DISPUTE_ACTION_COPY = new Map([
+  [
+    "paypal.dispute.provide_evidence",
+    {
+      outcome: "The evidence was sent.",
+      asked: "send the evidence",
+      resultStart: "PayPal took the evidence for ",
+    },
+  ],
+  [
+    "paypal.dispute.accept_claim",
+    {
+      outcome: "The claim was accepted.",
+      asked: "accept the claim",
+      resultStart: "Accepted the claim on ",
+    },
+  ],
+  [
+    "paypal.dispute.make_offer",
+    { outcome: "The offer was sent.", asked: "send the offer", resultStart: "Sent an offer on " },
+  ],
+]);
+
 export { VERDICT_BADGES };
 
 export const RESULT_BADGES = {
@@ -188,7 +213,10 @@ function outcomeSentence(detail: Readable): string {
   if (execution === null) return DECISION_COPY.noMoneyMoved;
   switch (execution.outcome) {
     case "executed":
-      return isInvoice(detail, execution) ? DECISION_COPY.invoiceSent : DECISION_COPY.refunded;
+      return (
+        DISPUTE_ACTION_COPY.get(detail.action ?? "")?.outcome ??
+        (isInvoice(detail, execution) ? DECISION_COPY.invoiceSent : DECISION_COPY.refunded)
+      );
     case "unknown":
     case "pending":
       // Not confirmed either way, so the page never says no money moved.
@@ -283,6 +311,8 @@ export function trailPieces(entry: Readable["trail"][number]): Piece[] {
     }
     case "execution.requested": {
       const again = parts.replay ? " again" : "";
+      const dispute = DISPUTE_ACTION_COPY.get(parts.action ?? "");
+      if (dispute !== undefined) return [{ text: `Asked PayPal${again} to ${dispute.asked}.` }];
       return parts.request_id === null
         ? [{ text: `Asked PayPal${again} to send the invoice.` }]
         : [{ text: `Asked PayPal${again} to refund ${parts.amount.display}.` }];
@@ -302,6 +332,17 @@ export function trailPieces(entry: Readable["trail"][number]): Piece[] {
             { mono: parts.invoice.id },
             { text: `, ${lower(parts.invoice.status)}.` },
           ];
+        }
+        if (parts.dispute != null) {
+          const { id, status, action } = parts.dispute;
+          const start = DISPUTE_ACTION_COPY.get(action ?? "")?.resultStart;
+          // Accepting a claim and sending an offer say no more than that; the other two add the
+          // dispute's status, such as "under review".
+          const saysStatus =
+            action !== "paypal.dispute.accept_claim" && action !== "paypal.dispute.make_offer";
+          const end =
+            saysStatus && status !== null ? `: ${lower(status).replaceAll("_", " ")}.` : ".";
+          return [{ text: start ?? "PayPal acted on " }, { mono: id }, { text: end }];
         }
         return [{ text: "PayPal did it." }];
       }

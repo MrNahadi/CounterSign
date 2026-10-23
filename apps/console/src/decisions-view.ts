@@ -100,12 +100,22 @@ function decisionsHref(query: { decision?: string; q?: string; before?: number }
 type ReadableRow = Extract<DecisionRow, { readable: true }>;
 type Execution = NonNullable<NonNullable<ReadableRow["status"]>["execution"]>;
 
+// What an executed dispute action did, by action (requirements.md, "Audit reader lines").
+const DISPUTE_EXECUTED_WORDS = new Map([
+  ["paypal.dispute.provide_evidence", "Evidence sent"],
+  ["paypal.dispute.accept_claim", "Claim accepted"],
+  ["paypal.dispute.make_offer", "Offer sent"],
+]);
+
 function executionWords(row: ReadableRow, execution: Execution): string {
   switch (execution.outcome) {
     case "executed":
-      return execution.invoice !== null || row.action === "paypal.invoice.send"
-        ? "Invoice sent"
-        : "Refunded";
+      return (
+        DISPUTE_EXECUTED_WORDS.get(row.action ?? "") ??
+        (execution.invoice !== null || row.action === "paypal.invoice.send"
+          ? "Invoice sent"
+          : "Refunded")
+      );
     case "failed":
       return "PayPal refused it";
     case "unknown":
