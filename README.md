@@ -480,11 +480,13 @@ packages/
   verifiers/            Pure verifier functions over record snapshots, and today's usage
   graphite/             Graphite tokens, Tailwind theme, AG Studio theme and the design check
   ledger/               The hash-chained audit log: append, verify, and the ledger CLI
-  db/                   The audit_log schema, its migrations and the database clients
-  rail-paypal/  rail-mpesa/  carrier-mock/   Stubs for upcoming phases
+  db/                   The audit log, seed, ticket, run, evidence and draft tables, their migrations and the database clients
+  rail-paypal/          The PayPal REST client: orders, refunds, disputes, invoices and webhooks
+  carrier-mock/         The simulated carrier's shipment status
+  rail-mpesa/           Stub for an upcoming phase
 spikes/                 Integration spike scripts (S1, S4, S5, S6, S8, S9)
 specs/                  Brief, mission, tech stack, roadmap and feature specs
-docs/adr/               Architecture decision records 0001 to 0022
+docs/adr/               Architecture decision records 0001 to 0038
 Graphite Design/        The design system every screen follows
 ```
 
