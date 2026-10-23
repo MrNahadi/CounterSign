@@ -95,7 +95,7 @@ const fakeDrafter = async (draftId: string) => {
           draftedBy: "template",
           notes: ["Order KIK-1042, paid $240.00. Records attached."],
           factsSummary: { dispute_id: "PP-D-1" },
-          agentResponse: { status: "pending_approval", intent_id: "int_1" },
+          agentResponse: { decision: "pending_approval", intent_id: "int_1" },
           intentId: "int_1",
         }),
   });
@@ -607,7 +607,7 @@ describe("POST /disputes and the draft readers", () => {
       finished_at: NOW.toISOString(),
       facts_summary: { dispute_id: "PP-D-1" },
       notes: ["Order KIK-1042, paid $240.00. Records attached."],
-      agent_response: { status: "pending_approval", intent_id: "int_1" },
+      agent_response: { decision: "pending_approval", intent_id: "int_1" },
     });
     for (const id of ["PP-D-404", "PP%20D", "x".repeat(65)]) {
       const missing = await fetch(`${base}/disputes/${id}`);

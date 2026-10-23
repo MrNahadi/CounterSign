@@ -89,9 +89,10 @@ const runView = (run: AgentRun) => ({
   trace: run.trace,
 });
 
+// The gate's agent response names its outcome in `decision` (`pending_approval` for a step-up).
 const responseStatus = (response: unknown): string | null => {
-  const status = (response as { status?: unknown } | null)?.status;
-  return typeof status === "string" ? status : null;
+  const decision = (response as { decision?: unknown } | null)?.decision;
+  return typeof decision === "string" ? decision : null;
 };
 
 const draftView = (draft: DisputeDraft) => ({

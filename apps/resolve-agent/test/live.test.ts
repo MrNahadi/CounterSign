@@ -11,6 +11,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { connectBaseline, paypalTokenIssuer, stdioTransport } from "../src/baseline";
+import { DraftOutputSchema, draftWithModel } from "../src/drafter";
 import { declare, listServerTools, runHarness } from "../src/harness";
 import {
   buildModelRequest,
@@ -19,6 +20,7 @@ import {
   parseModelEnv,
   type ToolDeclaration,
 } from "../src/model";
+import { RECORDED_FACTS } from "./dispute-facts";
 
 const present = z.string().min(1);
 const GeminiLive = z.object({ LIVE: z.literal("1"), GEMINI_API_KEY: present });
@@ -80,6 +82,20 @@ async function oneRequest(declarations: ToolDeclaration[]) {
 }
 
 describe.skipIf(!gemini)("live: Gemini", () => {
+  it(
+    "drafts dispute notes from recorded facts that validate, with a model version",
+    async () => {
+      const { model, generateContent } = liveModel();
+      const drafted = await draftWithModel(generateContent, model, RECORDED_FACTS);
+      expect(drafted.notes).not.toBeNull();
+      expect(DraftOutputSchema.safeParse(drafted.notes).success).toBe(true);
+      expect(drafted.notes?.notes).toHaveLength(RECORDED_FACTS.suggested.length);
+      expect(drafted.modelVersions).toHaveLength(1);
+      console.log(`Dispute notes drafted by ${drafted.modelVersions[0]}.`);
+    },
+    TWO_MINUTES,
+  );
+
   it(
     "accepts the gate's tool list plus find_order in VALIDATED mode",
     async () => {

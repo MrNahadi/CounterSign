@@ -12,12 +12,16 @@ import {
   asc,
   type Database,
   type DatabaseHandle,
+  type DisputeDraft,
   type Environment,
   eq,
   failureReason,
+  finishDraft,
   finishRun,
   openDatabase,
   openFailure,
+  queueDraft,
+  readDraft,
   readRun,
   resolveDatabaseTarget,
   seedOrders,
@@ -28,17 +32,20 @@ import { firstIssueMessage, REASON_CODES, REASONS, type ReasonCode } from "@coun
 import { parsePayPalEnv } from "@countersign/rail-paypal";
 import { z } from "zod";
 import { paypalTokenIssuer, type TokenIssuer, type TransportFactory } from "./baseline";
+import { runDisputeDraft, TEMPLATE } from "./drafter";
 import type { ToolStep } from "./harness";
-import { storeMessage } from "./intake";
+import { newId, storeMessage } from "./intake";
 import { overDailyCap, parseDailyCap } from "./limits";
 import { checkMessage, sniffImageType } from "./messages";
-import { createGenerateContent, type GenerateContent, parseModelEnv } from "./model";
+import { createGenerateContent, DEFAULT_MODEL, type GenerateContent, parseModelEnv } from "./model";
 import { type ProtectedEnv, parseProtectedEnv } from "./protected";
 import { createModeRunner } from "./queue";
 import type { RunMode, RunTrace } from "./runs";
 
 export const RESOLVE_USAGE =
   "Usage: npm run resolve -- <message file> [--mode protected|baseline] [--json] [--pglite <dir>]";
+export const RESOLVE_DISPUTE_USAGE =
+  "Usage: npm run resolve -- dispute <dispute ID> [--pglite <dir>]";
 
 export const EXIT_REPLIED = 0;
 export const EXIT_NOT_REPLIED = 1;
@@ -553,15 +560,197 @@ async function runMessages(input: {
   return render(options.json, file, emails, ran);
 }
 
+// ---- One dispute draft ----
+
+const DisputeIdSchema = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
+
+const StoredNotesSchema = z.object({ summary: z.string().nullable(), notes: z.array(z.string()) });
+const StoredResponseSchema = z.object({
+  decision: z.string(),
+  intent_id: z.string().nullable(),
+  reasons: z.array(z.object({ code: z.string() })).optional(),
+  expires_at: z.string().optional(),
+});
+
+type DisputeSetup = {
+  generateContent: GenerateContent | null;
+  model: string;
+  dailyCap: number;
+  protectedEnv: ProtectedEnv;
+};
+
+// The gate's key and address are needed; the model isn't: without GEMINI_API_KEY the template
+// writes the notes. Variables are named when missing or wrong, never shown.
+function readDisputeEnv(
+  env: Environment,
+  cliOptions: ResolveCliOptions,
+): { ok: true; setup: DisputeSetup } | { ok: false; error: string } {
+  const problems: string[] = [];
+  const protectedEnv = parseProtectedEnv(env);
+  if (protectedEnv.key === null)
+    problems.push("Set COUNTERSIGN_SUPPORT_AGENT_KEY, 32 or more characters.");
+  if (protectedEnv.gateUrl === null) problems.push("GATE_MCP_URL must be an http or https URL.");
+  const modelEnv = parseModelEnv(env);
+  if (!modelEnv.ok) {
+    problems.push(...modelEnv.problems.filter((line) => !line.startsWith("GEMINI_API_KEY")));
+  }
+  let dailyCap = 0;
+  try {
+    dailyCap = parseDailyCap(env);
+  } catch (error) {
+    problems.push(error instanceof Error ? error.message : "RESOLVE_DAILY_RUN_CAP isn't valid.");
+  }
+  if (problems.length > 0) {
+    const named = new Set(problems.join(" ").match(/\b[A-Z][A-Z0-9]*_[A-Z0-9_]+\b/g));
+    return {
+      ok: false,
+      error: `The resolve CLI can't draft a dispute. ${problems.join(" ")} Put ${named.size === 1 ? "it" : "them"} in .env.local.`,
+    };
+  }
+  return {
+    ok: true,
+    setup: {
+      generateContent:
+        cliOptions.generateContent ??
+        (modelEnv.ok ? createGenerateContent(modelEnv.config.apiKey) : null),
+      model: modelEnv.ok ? modelEnv.config.model : env.GEMINI_MODEL || DEFAULT_MODEL,
+      dailyCap,
+      protectedEnv,
+    },
+  };
+}
+
+function draftLines(draft: DisputeDraft): string[] {
+  const lines = [
+    `Dispute ${draft.disputeId}: draft ${draft.id}`,
+    `  Outcome     ${draft.status}${draft.outcome ? `, ${draft.outcome}` : ""}`,
+  ];
+  if (draft.draftedBy !== null) {
+    const versions = draft.modelVersions.length > 0 ? ` (${draft.modelVersions.join(", ")})` : "";
+    lines.push(
+      `  Drafted by  ${draft.draftedBy === TEMPLATE ? `Template, no AI${versions}` : `Gemini ${draft.draftedBy}${versions}`}`,
+    );
+  }
+  const notes = StoredNotesSchema.safeParse(draft.notes);
+  if (notes.success) {
+    if (notes.data.summary !== null) lines.push(`  Summary     ${oneLine(notes.data.summary)}`);
+    notes.data.notes.forEach((note, index) => {
+      lines.push(`  Note ${index + 1}      ${oneLine(note)}`);
+    });
+  }
+  const response = StoredResponseSchema.safeParse(draft.agentResponse);
+  if (response.success) {
+    const { decision, intent_id, reasons, expires_at } = response.data;
+    const codes = (reasons ?? []).map((reason) => reason.code);
+    lines.push(
+      `  Agent       ${decision}${intent_id ? `, intent ${intent_id}` : ""}${codes.length > 0 ? ` (${codes.join(", ")})` : ""}${expires_at ? `, expires ${expires_at}` : ""}`,
+    );
+  } else {
+    lines.push("  Agent       No agent response.");
+  }
+  return lines;
+}
+
+function renderDraft(draft: DisputeDraft, existing: boolean): CliResult {
+  const lines = existing
+    ? [
+        `Dispute ${draft.disputeId} already has a draft, so none was queued. Draft again after it fails.`,
+        ...draftLines(draft),
+      ]
+    : draftLines(draft);
+  const exitCode = draft.status === "proposed" ? EXIT_REPLIED : EXIT_NOT_REPLIED;
+  return { exitCode, stdout: `${lines.join("\n")}\n`, stderr: "" };
+}
+
+async function draftWith(
+  store: Store,
+  disputeId: string,
+  setup: DisputeSetup,
+  cliOptions: ResolveCliOptions,
+): Promise<CliResult> {
+  const { db } = store;
+  const clock = cliOptions.clock ?? (() => new Date());
+  try {
+    const arrivedAt = clock();
+    const capped = await overDailyCap(db, arrivedAt, setup.dailyCap);
+    const queued = await queueDraft(db, {
+      id: newId("drf"),
+      disputeId,
+      model: setup.model,
+      queuedAt: arrivedAt.toISOString(),
+    });
+    if (!queued.created) return renderDraft(queued.draft, true);
+    if (capped) {
+      await finishDraft(db, queued.draft.id, {
+        status: "not_run",
+        outcome: "daily_cap",
+        finishedAt: clock().toISOString(),
+      });
+      return renderDraft((await readDraft(db, queued.draft.id)) as DisputeDraft, false);
+    }
+    const finished = await runDisputeDraft({
+      db,
+      draftId: queued.draft.id,
+      generateContent: setup.generateContent,
+      env: setup.protectedEnv,
+      clock,
+    });
+    return renderDraft(finished, false);
+  } catch (error) {
+    return cantRun(store.failure(error));
+  }
+}
+
+/** Queues and runs one dispute draft. Exit 0 when it's proposed, 1 when not, 2 when it can't run. */
+async function runDispute(
+  args: readonly string[],
+  env: Environment,
+  cliOptions: ResolveCliOptions,
+): Promise<CliResult> {
+  const option = takePgliteOption(args);
+  if (!option.ok) return cantRun(`${option.error} ${RESOLVE_DISPUTE_USAGE}`);
+  const [id, ...extra] = option.rest;
+  const disputeId = DisputeIdSchema.safeParse(id);
+  if (!disputeId.success || extra.length > 0) return cantRun(RESOLVE_DISPUTE_USAGE);
+  const read = readDisputeEnv(env, cliOptions);
+  if (!read.ok) return cantRun(read.error);
+
+  if (cliOptions.db !== undefined) {
+    const store: Store = {
+      db: cliOptions.db,
+      failure: () => "Couldn't read or write the draft store.",
+    };
+    return draftWith(store, disputeId.data, read.setup, cliOptions);
+  }
+  const target = resolveDatabaseTarget(env, option.pgliteDir);
+  let handle: DatabaseHandle;
+  try {
+    handle = await openDatabase(target);
+  } catch (error) {
+    return cantRun(openFailure(error, target));
+  }
+  const store: Store = {
+    db: handle.db,
+    failure: (error) =>
+      `Couldn't use the database at ${targetName(target)}: ${failureReason(error, target)}. Run npm run db:migrate first.`,
+  };
+  try {
+    return await draftWith(store, disputeId.data, read.setup, cliOptions);
+  } finally {
+    await handle.close().catch(() => {});
+  }
+}
+
 /**
  * Runs a scenario file through Resolve. Exit 0 when every message got a reply, 1 when any run
- * stopped, failed or didn't run, 2 when it can't run.
+ * stopped, failed or didn't run, 2 when it can't run. `dispute <id>` runs one dispute draft.
  */
 export async function runResolve(
   args: readonly string[],
   env: Environment,
   cliOptions: ResolveCliOptions = {},
 ): Promise<CliResult> {
+  if (args[0] === "dispute") return runDispute(args.slice(1), env, cliOptions);
   const parsed = parseArgs(args);
   if (!("ok" in parsed)) return parsed;
   const { options } = parsed;

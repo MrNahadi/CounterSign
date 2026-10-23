@@ -115,6 +115,10 @@ const SAFETY_CATEGORIES = [
   HarmCategory.HARM_CATEGORY_JAILBREAK,
 ];
 
+/** All five adjustable safety categories, set to `OFF` (ADR 0015). */
+export const safetySettings = () =>
+  SAFETY_CATEGORIES.map((category) => ({ category, threshold: HarmBlockThreshold.OFF }));
+
 // No temperature, topP, topK, thinkingBudget or automatic function calling, ever (ADR 0013).
 export function buildModelRequest(input: {
   model: string;
@@ -132,10 +136,7 @@ export function buildModelRequest(input: {
       tools: [{ functionDeclarations }],
       toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.VALIDATED } },
       thinkingConfig: { thinkingLevel: ThinkingLevel.MEDIUM },
-      safetySettings: SAFETY_CATEGORIES.map((category) => ({
-        category,
-        threshold: HarmBlockThreshold.OFF,
-      })),
+      safetySettings: safetySettings(),
       maxOutputTokens: 8192,
     },
   };

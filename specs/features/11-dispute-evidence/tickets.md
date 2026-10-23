@@ -134,19 +134,20 @@ Notes:
 
 ## T-010: The dispute drafter
 
-Status: open
+Status: done
 Blocked by: T-007, T-009
 Tier: standard
 Slice: A queued draft prepares the evidence over MCP, gets notes from one Gemini call or the template, and proposes `provide_dispute_evidence`, so a step-up waits for the merchant.
 Test seam: the drafter's run function with a fake model and the real gate over MCP on PGlite, plus one `LIVE=1` case with Gemini
 Acceptance:
-- [ ] A draft makes exactly one `prepare_dispute_evidence` call, one model call and one proposal, with types, tracking numbers, refund IDs and the PDF set by code and notes from the model; it's stored `proposed` with `pending_approval` and the intent ID
-- [ ] The model call uses the structured-output config in requirements.md and the fail-closed checks; a blocked response, a non-STOP finish, invalid JSON or no API key uses the template and records `drafted_by: template`
-- [ ] The template notes read as requirements.md says, with the simulated carrier labelled
-- [ ] The system instruction is a byte-stable constant pinned by a test; the model never sees a payer email or ticket text
-- [ ] `npm run resolve -- dispute <id>` runs one draft and prints its outcome, notes and agent response
-- [ ] Under `LIVE=1` with `GEMINI_API_KEY`, one real call on recorded facts gives notes that validate and records `modelVersion`
+- [x] A draft makes exactly one `prepare_dispute_evidence` call, one model call and one proposal, with types, tracking numbers, refund IDs and the PDF set by code and notes from the model; it's stored `proposed` with `pending_approval` and the intent ID
+- [x] The model call uses the structured-output config in requirements.md and the fail-closed checks; a blocked response, a non-STOP finish, invalid JSON or no API key uses the template and records `drafted_by: template`
+- [x] The template notes read as requirements.md says, with the simulated carrier labelled
+- [x] The system instruction is a byte-stable constant pinned by a test; the model never sees a payer email or ticket text
+- [x] `npm run resolve -- dispute <id>` runs one draft and prints its outcome, notes and agent response
+- [x] Under `LIVE=1` with `GEMINI_API_KEY`, one real call on recorded facts gives notes that validate and records `modelVersion`
 Notes:
+- The `LIVE=1` case is in `apps/resolve-agent/test/live.test.ts` but hasn't run: the loop can't reach Gemini. The owner should run it once.
 
 ## T-011: Approval cards with what executes, and document download
 

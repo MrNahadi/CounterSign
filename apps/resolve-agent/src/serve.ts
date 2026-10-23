@@ -11,6 +11,7 @@ import {
 import { z } from "zod";
 import { createApp } from "./app";
 import { paypalTokenIssuer } from "./baseline";
+import { runDisputeDraft } from "./drafter";
 import { parseDailyCap } from "./limits";
 import { createGenerateContent, DEFAULT_MODEL, parseModelEnv } from "./model";
 import { parseProtectedEnv } from "./protected";
@@ -82,15 +83,27 @@ export async function serve(env: Environment, options: ServeOptions = {}): Promi
       "COUNTERSIGN_SUPPORT_AGENT_KEY is unset (needs 32 or more characters). Protected runs end gate_unavailable.",
     );
 
-  const queue = handle
+  const db = handle?.db;
+  const queue = db
     ? createRunQueue(
         createModeRunner({
-          db: handle.db,
+          db,
           generateContent,
           protectedEnv,
           issueToken: paypalTokenIssuer(env),
           clock: () => new Date(),
           fallbackModel: modelEnv.ok ? modelEnv.config.fallbackModel : null,
+          // Without a Gemini key a draft still runs: the template writes its notes.
+          runDraft: async (draftId) => {
+            await runDisputeDraft({
+              db,
+              draftId,
+              generateContent,
+              env: protectedEnv,
+              clock: () => new Date(),
+              log,
+            });
+          },
           log,
         }),
         log,
