@@ -7,7 +7,9 @@ import {
   approvalRoute,
   approvalsRoute,
   approverKeyFrom,
+  documentRoute,
   gateUrl,
+  MAX_DOCUMENT_BYTES,
   signInRoute,
   signOutRoute,
 } from "../src/approval-routes";
@@ -55,6 +57,7 @@ const card = {
     },
   ],
   claims: [],
+  params: null,
   decided_at: "2026-10-20T08:01:00.000Z",
   expires_at: "2026-10-20T08:16:00.000Z",
   state: "open",
@@ -73,7 +76,12 @@ const recent = {
   outcome: "approved",
   at: "2026-10-20T07:00:00.000Z",
   channel: "cli",
-  execution: { outcome: "executed", refund: null, invoice: { id: "INV2-1", status: "SENT" } },
+  execution: {
+    outcome: "executed",
+    refund: null,
+    invoice: { id: "INV2-1", status: "SENT" },
+    dispute: null,
+  },
 };
 
 const view = { open: [card], recent: [recent] };
@@ -88,6 +96,7 @@ const answered = {
     outcome: "executed",
     refund: { id: "4XJ1", status: "COMPLETED" },
     invoice: null,
+    dispute: null,
     error: null,
   },
 };
@@ -122,6 +131,23 @@ function request(
     headers,
     ...(init.body === undefined ? {} : { body: init.body }),
   });
+}
+
+const DOC = `doc_${"0a".repeat(12)}`;
+const pdfBytes = new TextEncoder().encode("%PDF-1.7\n%evidence\n");
+const PDF_HEADERS = {
+  "content-type": "application/pdf",
+  "content-disposition": "attachment; filename=countersign-evidence-PP-D-123.pdf",
+};
+
+// The gate answering a document's bytes with the headers given.
+function gateFile(bytes: Uint8Array, headers: Record<string, string>) {
+  const calls: Call[] = [];
+  const fetchFake = (async (url: URL | string, init?: RequestInit) => {
+    calls.push({ url: String(url), init: init ?? {} });
+    return new Response(bytes.slice(), { status: 200, headers });
+  }) as typeof fetch;
+  return { calls, fetch: fetchFake };
 }
 
 const signedIn = `theme=dark; ${APPROVER_COOKIE}=${encodeURIComponent(KEY)}`;
@@ -449,6 +475,111 @@ describe("the approval routes", () => {
   });
 });
 
+describe("the document route", () => {
+  const path = `/api/approvals/documents/${DOC}`;
+
+  it("passes the bytes on with the gate's content type and attachment header", async () => {
+    const { calls, fetch: f } = gateFile(pdfBytes, PDF_HEADERS);
+    const response = await documentRoute(request(path, { cookie: signedIn }), DOC, {
+      env,
+      fetch: f,
+    });
+    expect(response.status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toBe(`http://gate.test:8787/approvals/documents/${DOC}`);
+    expect(bearer(calls[0] as Call)).toBe(`Bearer ${KEY}`);
+    expect(calls[0]?.init.redirect).toBe("error");
+    expect(response.headers.get("content-type")).toBe("application/pdf");
+    expect(response.headers.get("content-disposition")).toBe(
+      "attachment; filename=countersign-evidence-PP-D-123.pdf",
+    );
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(pdfBytes);
+  });
+
+  it("passes the export JSON on as the gate typed it", async () => {
+    const body = new TextEncoder().encode('{"format":"countersign-evidence-v1"}');
+    const headers = {
+      "content-type": "application/json; charset=utf-8",
+      "content-disposition": 'attachment; filename="countersign-evidence-capture-9AB.json"',
+    };
+    const response = await documentRoute(request(path, { cookie: signedIn }), DOC, {
+      env,
+      fetch: gateFile(body, headers).fetch,
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/json; charset=utf-8");
+    expect(response.headers.get("content-disposition")).toBe(headers["content-disposition"]);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(body);
+  });
+
+  it("refuses a malformed document ID without asking the gate", async () => {
+    for (const id of [
+      "doc_1",
+      `DOC_${"a".repeat(24)}`,
+      `doc_${"a".repeat(24)}/x`,
+      "../approvals",
+    ]) {
+      const { calls, fetch: f } = gateFile(pdfBytes, PDF_HEADERS);
+      const response = await documentRoute(request(path, { cookie: signedIn }), id, {
+        env,
+        fetch: f,
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ message: APPROVAL_ROUTE_MESSAGES.badDocument });
+      expect(calls).toHaveLength(0);
+    }
+  });
+
+  it("answers 401 without asking the gate when signed out, and clears a refused key", async () => {
+    const { calls, fetch: f } = gateFile(pdfBytes, PDF_HEADERS);
+    const out = await documentRoute(request(path), DOC, { env, fetch: f });
+    expect(out.status).toBe(401);
+    expect(await out.json()).toEqual({ message: APPROVAL_ROUTE_MESSAGES.signedOut });
+    expect(calls).toHaveLength(0);
+    const refused = await documentRoute(request(path, { cookie: signedIn }), DOC, {
+      env,
+      fetch: gate(401, { message: "A valid approver key is required." }).fetch,
+    });
+    expect(refused.status).toBe(401);
+    expect(await refused.json()).toEqual({ message: APPROVAL_ROUTE_MESSAGES.signInAgain });
+    expect(refused.headers.get("set-cookie")).toContain(`${APPROVER_COOKIE}=;`);
+  });
+
+  it("passes on the gate's 404 sentence", async () => {
+    const response = await documentRoute(request(path, { cookie: signedIn }), DOC, {
+      env,
+      fetch: gate(404, { message: "There's no evidence document with that ID." }).fetch,
+    });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      message: "There's no evidence document with that ID.",
+    });
+  });
+
+  it("answers 502 with the fixed sentence for a down gate or anything that isn't a document", async () => {
+    const fakes = [
+      down,
+      gate(500, { message: "boom" }).fetch,
+      gateFile(pdfBytes, { "content-disposition": PDF_HEADERS["content-disposition"] }).fetch,
+      gateFile(pdfBytes, { ...PDF_HEADERS, "content-type": "text/html" }).fetch,
+      gateFile(pdfBytes, { "content-type": "application/pdf" }).fetch,
+      gateFile(pdfBytes, { ...PDF_HEADERS, "content-disposition": "inline; filename=x.pdf" }).fetch,
+      gateFile(new Uint8Array(0), PDF_HEADERS).fetch,
+      gateFile(new Uint8Array(MAX_DOCUMENT_BYTES + 1), PDF_HEADERS).fetch,
+    ];
+    for (const f of fakes) {
+      const response = await documentRoute(request(path, { cookie: signedIn }), DOC, {
+        env,
+        fetch: f,
+      });
+      expect(response.status).toBe(502);
+      expect(await response.json()).toEqual({ message: APPROVAL_ROUTE_MESSAGES.unreachable });
+    }
+  });
+});
+
 describe("the approver key stays secret", () => {
   it("never puts the key in an answer, except the sign-in cookie itself", async () => {
     const answers = [
@@ -481,6 +612,24 @@ describe("the approver key stays secret", () => {
     expect(approverKeyFrom(request("/", { cookie: signedIn }))).toBe(KEY);
     expect(approverKeyFrom(request("/", { cookie: `x${APPROVER_COOKIE}=${KEY}` }))).toBeNull();
     expect(approverKeyFrom(request("/"))).toBeNull();
+  });
+
+  it("never puts the key in a document answer", async () => {
+    const answers = [
+      await documentRoute(request(`/api/approvals/documents/${DOC}`, { cookie: signedIn }), DOC, {
+        env,
+        fetch: gateFile(pdfBytes, PDF_HEADERS).fetch,
+      }),
+      await documentRoute(request(`/api/approvals/documents/${DOC}`, { cookie: signedIn }), DOC, {
+        env,
+        fetch: gate(401, { message: KEY }).fetch,
+      }),
+    ];
+    for (const response of answers) {
+      const text = await everything(response);
+      expect(text).not.toContain(KEY);
+      expect(text).not.toContain(encodeURIComponent(KEY));
+    }
   });
 
   it("keeps the routes free of server-only imports and logging, so a client component can import them", () => {

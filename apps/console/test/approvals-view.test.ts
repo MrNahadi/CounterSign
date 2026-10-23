@@ -5,6 +5,7 @@ import {
   AnswerResultSchema,
   type ApprovalsView,
   ApprovalsViewSchema,
+  RecentSummarySchema,
 } from "../src/approval-schemas";
 import {
   APPROVALS_COPY,
@@ -17,6 +18,7 @@ import {
   DENIED_SENTENCE,
   pageView,
   REJECTION_SENTENCES,
+  recentLine,
   signIn,
   signOut,
   timeLeft,
@@ -97,6 +99,7 @@ const card = (extra: Record<string, unknown> = {}) => ({
       verdict: "not_used",
     },
   ],
+  params: null,
   decided_at: "2026-10-20T08:01:00.000Z",
   expires_at: "2026-10-20T08:16:00.000Z",
   state: "open",
@@ -105,6 +108,54 @@ const card = (extra: Record<string, unknown> = {}) => ({
   cannot_execute: null,
   ...extra,
 });
+
+const DOC = `doc_${"0a".repeat(12)}`;
+const SHA = `3f9c2a${"e".repeat(58)}`;
+
+// A held evidence submission, as the gate words its parameters.
+const evidenceCard = (documents: unknown[] = [pdf()]) =>
+  card({
+    action: "paypal.dispute.provide_evidence",
+    action_words: "Send dispute evidence",
+    target: { kind: "dispute", id: "PP-D-123", order_id: null },
+    ticket: null,
+    claim: null,
+    params: {
+      kind: "provide_evidence",
+      items: [
+        {
+          evidence_type: "PROOF_OF_FULFILLMENT",
+          evidence_type_words: "Proof of fulfillment",
+          notes: "Shipped with Carrier under tracking 1ZKIK1042; delivered.\nRecords attached.",
+          tracking_numbers: ["1ZKIK1042"],
+          tracking_carrier: "Carrier (simulated)",
+          refund_ids: [],
+        },
+        {
+          evidence_type: "PROOF_OF_REFUND",
+          evidence_type_words: "Proof of refund",
+          notes: "Refunded $20.00 (refund RF-1037). Records attached.",
+          tracking_numbers: [],
+          tracking_carrier: null,
+          refund_ids: ["RF-1037", "RF-1038"],
+        },
+      ],
+      documents,
+    },
+  });
+
+function pdf(extra: Record<string, unknown> = {}) {
+  return {
+    id: DOC,
+    name: "countersign-evidence-PP-D-123.pdf",
+    sha256: SHA,
+    size: 12_700,
+    available: true,
+    ...extra,
+  };
+}
+
+const approvingOf = (raw: unknown) => cardView(view([raw]).open[0] as never, NOW).approving;
 
 const view = (open: unknown[], recent: unknown[] = []): ApprovalsView =>
   ApprovalsViewSchema.parse({ open, recent });
@@ -188,6 +239,7 @@ describe("cards", () => {
           verdict: { label: "Not used", tone: "neutral" },
         },
       ],
+      approving: null,
       timeLeft: "Expires in 12 min",
       expired: false,
       cannotExecute: null,
@@ -321,7 +373,214 @@ describe("cards", () => {
   });
 });
 
+describe("what you're approving", () => {
+  it("shows every evidence item and document of a held submission", () => {
+    expect(approvingOf(evidenceCard())).toEqual({
+      line: "Approving sends exactly this evidence to PayPal. Nothing is sent until you approve.",
+      rows: [{ label: "Dispute", text: "PP-D-123", mono: true }],
+      items: [
+        {
+          id: "item-1",
+          type: "Proof of fulfillment",
+          notes: "Shipped with Carrier under tracking 1ZKIK1042; delivered.\nRecords attached.",
+          tracking: { carrier: "Carrier (simulated)", numbers: ["1ZKIK1042"] },
+          refundIds: [],
+        },
+        {
+          id: "item-2",
+          type: "Proof of refund",
+          notes: "Refunded $20.00 (refund RF-1037). Records attached.",
+          tracking: null,
+          refundIds: ["RF-1037", "RF-1038"],
+        },
+      ],
+      documents: [
+        {
+          id: DOC,
+          name: "countersign-evidence-PP-D-123.pdf",
+          size: "12.4 KB",
+          sha: { short: "3f9c2aeeeeee…", full: SHA },
+          href: `/api/approvals/documents/${DOC}`,
+          problem: null,
+        },
+      ],
+    });
+    expect(APPROVALS_COPY.approvingHeading).toBe("What you're approving");
+    expect(APPROVALS_COPY.download).toBe("Download");
+  });
+
+  it("offers no download for a document that changed or is gone", () => {
+    const shown = approvingOf(evidenceCard([pdf({ size: null, available: false })]));
+    expect(shown?.documents).toEqual([
+      {
+        id: DOC,
+        name: "countersign-evidence-PP-D-123.pdf",
+        size: null,
+        sha: { short: "3f9c2aeeeeee…", full: SHA },
+        href: null,
+        problem: APPROVALS_COPY.documentGone,
+      },
+    ]);
+    expect(APPROVALS_COPY.documentGone).toBe(
+      "This document changed or is gone. Approving sends nothing.",
+    );
+  });
+
+  it("words document sizes in bytes, KB and MB", () => {
+    const sizes = [1, 512, 1024, 1_000_000, 1_048_576].map(
+      (size) => approvingOf(evidenceCard([pdf({ size })]))?.documents[0]?.size,
+    );
+    expect(sizes).toEqual(["1 byte", "512 bytes", "1.0 KB", "976.6 KB", "1.0 MB"]);
+  });
+
+  it("refuses a card whose parameters aren't the gate's shape", () => {
+    const junk = [
+      { kind: "provide_evidence", items: [], documents: [pdf({ id: "doc_1" })] },
+      { kind: "provide_evidence", items: [], documents: [pdf({ sha256: "abc" })] },
+      {
+        kind: "provide_evidence",
+        items: [],
+        documents: [pdf(), pdf(), pdf(), pdf(), pdf(), pdf()],
+      },
+      { kind: "refund" },
+      { kind: "accept_claim" },
+    ];
+    for (const params of junk) {
+      expect(ApprovalsViewSchema.safeParse({ open: [card({ params })], recent: [] }).success).toBe(
+        false,
+      );
+    }
+    const { params: _, ...bare } = card();
+    expect(ApprovalsViewSchema.safeParse({ open: [bare], recent: [] }).success).toBe(false);
+  });
+
+  it("shows an offer's type, amount and note", () => {
+    const offer = (params: Record<string, unknown>) =>
+      approvingOf(
+        card({
+          action: "paypal.dispute.make_offer",
+          action_words: "Make dispute offer",
+          params: { kind: "make_offer", note: "We can refund half.", ...params },
+        }),
+      );
+    expect(
+      offer({
+        offer_type: "REFUND",
+        offer_type_words: "Refund",
+        amount: { minor: 12000, currency: "USD", display: "$120.00" },
+      }),
+    ).toEqual({
+      line: null,
+      rows: [
+        { label: "Offer", text: "Refund", mono: false },
+        { label: "Amount", text: "$120.00", mono: false },
+        { label: "Note", text: "We can refund half.", mono: false },
+      ],
+      items: [],
+      documents: [],
+    });
+    expect(
+      offer({
+        offer_type: "REPLACEMENT_WITHOUT_REFUND",
+        offer_type_words: "Replacement without refund",
+        amount: null,
+        note: null,
+      })?.rows,
+    ).toEqual([
+      { label: "Offer", text: "Replacement without refund", mono: false },
+      { label: "Note", text: "No note", mono: false },
+    ]);
+    expect(offer({ offer_type: null, offer_type_words: null, amount: null })?.rows[0]).toEqual({
+      label: "Offer",
+      text: "Not set",
+      mono: false,
+    });
+  });
+
+  it("shows accept claim's dispute and note", () => {
+    const claim = (note: string | null) =>
+      approvingOf(
+        card({
+          action: "paypal.dispute.accept_claim",
+          target: { kind: "dispute", id: "PP-D-123", order_id: null },
+          params: { kind: "accept_claim", note },
+        }),
+      );
+    const dispute = { label: "Dispute", text: "PP-D-123", mono: true };
+    expect(claim("Sorry about this.")).toEqual({
+      line: null,
+      rows: [dispute, { label: "Note", text: "Sorry about this.", mono: false }],
+      items: [],
+      documents: [],
+    });
+    expect(claim(null)?.rows).toEqual([dispute, { label: "Note", text: "No note", mono: false }]);
+  });
+
+  it("shows an invoice send's recipients and note", () => {
+    const invoice = (params: Record<string, unknown>) =>
+      approvingOf(
+        card({
+          action: "paypal.invoice.send",
+          params: {
+            kind: "invoice_send",
+            note: null,
+            send_to_recipient: true,
+            additional_recipients: [],
+            ...params,
+          },
+        }),
+      )?.rows;
+    expect(invoice({})).toEqual([
+      { label: "Recipient", text: "PayPal emails the invoice's recipient", mono: false },
+      { label: "Note", text: "No note", mono: false },
+    ]);
+    expect(
+      invoice({
+        send_to_recipient: false,
+        additional_recipients: ["a@example.com", "b@example.com"],
+        note: "Thanks.",
+      }),
+    ).toEqual([
+      { label: "Recipient", text: "PayPal doesn't email the recipient", mono: false },
+      { label: "Also sent to", text: "a@example.com, b@example.com", mono: true },
+      { label: "Note", text: "Thanks.", mono: false },
+    ]);
+  });
+});
+
 describe("outcome sentences", () => {
+  it("says what an approved dispute action did", () => {
+    const sentence = (dispute: unknown) =>
+      answerOutcome(result({ execution: execution({ dispute }) })).sentence;
+    expect(sentence({ id: "PP-D-123", status: "UNDER_REVIEW" })).toBe(
+      "Approved. Dispute PP-D-123 is under review.",
+    );
+    expect(sentence({ id: "PP-D-123", status: null })).toBe(
+      "Approved. PayPal took it for dispute PP-D-123.",
+    );
+    const line = recentLine(
+      RecentSummarySchema.parse({
+        step_up_id: 6,
+        intent_id: INTENT,
+        action: "paypal.dispute.provide_evidence",
+        action_words: "Send dispute evidence",
+        amount: { minor: 24000, currency: "USD", display: "$240.00" },
+        order_number: null,
+        outcome: "approved",
+        at: "2026-10-20T08:00:00.000Z",
+        channel: "approvals_page",
+        execution: {
+          outcome: "executed",
+          refund: null,
+          invoice: null,
+          dispute: { id: "PP-D-123", status: "UNDER_REVIEW" },
+        },
+      }),
+      NOW,
+    );
+    expect(line.detail).toBe("Dispute PP-D-123, UNDER_REVIEW");
+  });
+
   it("says what an approval did", () => {
     const sentence = (extra: Record<string, unknown>) => answerOutcome(result(extra)).sentence;
     expect(

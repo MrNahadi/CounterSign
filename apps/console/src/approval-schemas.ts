@@ -44,6 +44,60 @@ const AmountSchema = z.object({
 
 const RecordSchema = z.object({ id: Id, status: z.string().min(1).max(64) });
 
+// The dispute a dispute action acted on; its status is null when the gate couldn't re-read it.
+const DisputeSchema = z.object({ id: Id, status: z.string().min(1).max(64).nullable() });
+
+export const DocumentIdSchema = z.string().regex(/^doc_[0-9a-f]{24}$/);
+
+const Words = z.string().min(1).max(64);
+const Note = Text.nullable();
+
+// The parameters that execute, as the gate words them from the stored intent (ADR 0035). A
+// refund, and any action with no executor, has none.
+export const CardParamsSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("invoice_send"),
+    note: Note,
+    send_to_recipient: z.boolean(),
+    additional_recipients: z.array(Id).max(100),
+  }),
+  z.object({ kind: z.literal("accept_claim"), note: Note }),
+  z.object({
+    kind: z.literal("make_offer"),
+    offer_type: Words.nullable(),
+    offer_type_words: Words.nullable(),
+    amount: AmountSchema.nullable(),
+    note: Note,
+  }),
+  z.object({
+    kind: z.literal("provide_evidence"),
+    items: z
+      .array(
+        z.object({
+          evidence_type: z.string().regex(/^[A-Z0-9_]{1,64}$/),
+          evidence_type_words: Words,
+          notes: Text,
+          tracking_numbers: z.array(Id).max(100),
+          tracking_carrier: Words.nullable(),
+          refund_ids: z.array(Id).max(20),
+        }),
+      )
+      .max(10),
+    documents: z
+      .array(
+        z.object({
+          id: DocumentIdSchema,
+          name: z.string().min(1).max(256),
+          sha256: IntentHashSchema,
+          size: z.number().int().nonnegative().nullable(),
+          available: z.boolean(),
+        }),
+      )
+      .max(5),
+  }),
+]);
+export type CardParams = z.infer<typeof CardParamsSchema>;
+
 export const CardSchema = z.object({
   step_up_id: Seq,
   intent_id: Id,
@@ -84,6 +138,7 @@ export const CardSchema = z.object({
     }),
   ),
   claims: z.array(ClaimPairSchema).max(64),
+  params: CardParamsSchema.nullable(),
   decided_at: Time,
   expires_at: Time,
   state: z.enum(["open", "answered", "expired"]),
@@ -108,6 +163,7 @@ export const RecentSummarySchema = z.object({
       outcome: z.enum(["executed", "failed", "unknown", "pending"]),
       refund: RecordSchema.nullable(),
       invoice: RecordSchema.nullable(),
+      dispute: DisputeSchema.nullable().default(null),
     })
     .nullable(),
 });
@@ -130,6 +186,7 @@ export const AnswerResultSchema = z.object({
       outcome: z.enum(["executed", "failed", "unknown"]),
       refund: RecordSchema.nullable(),
       invoice: RecordSchema.nullable(),
+      dispute: DisputeSchema.nullable().default(null),
       error: z.object({ name: Text.nullable(), issues: z.array(Text).max(64) }).nullable(),
     })
     .nullable(),

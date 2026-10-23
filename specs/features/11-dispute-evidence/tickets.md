@@ -177,16 +177,16 @@ Notes:
 
 ## T-013: The card's evidence section in the console
 
-Status: open
+Status: done
 Blocked by: T-011
 Tier: standard
 Slice: On the phone, the merchant reads every note and document of a held evidence submission and can download the PDF before approving.
 Test seam: `apps/console/src/` approvals view model and the document route handler
 Acceptance:
-- [ ] The card zod schema accepts `params`; the view model gives the "What you're approving" rows for evidence, offers, accept claim and invoice sends
-- [ ] Documents show name, size, short SHA-256 with the full value available, and a download link to `/api/approvals/documents/<id>`
-- [ ] The route forwards the sign-in cookie as the bearer, passes the bytes through with the gate's content type and attachment header, refuses a malformed ID, and answers 401 and 502 with the fixed sentences
-- [ ] The design check passes on every new or changed file
+- [x] The card zod schema accepts `params`; the view model gives the "What you're approving" rows for evidence, offers, accept claim and invoice sends
+- [x] Documents show name, size, short SHA-256 with the full value available, and a download link to `/api/approvals/documents/<id>`
+- [x] The route forwards the sign-in cookie as the bearer, passes the bytes through with the gate's content type and attachment header, refuses a malformed ID, and answers 401 and 502 with the fixed sentences
+- [x] The design check passes on every new or changed file
 Notes:
 
 ## T-014: The Disputes page

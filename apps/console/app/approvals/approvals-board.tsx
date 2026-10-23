@@ -1,15 +1,17 @@
 "use client";
 
-import { Check, Clock, LogOut, X } from "lucide-react";
+import { Check, Clock, Download, FileText, LogOut, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 import {
   APPROVALS_COPY,
   APPROVALS_POLL_INTERVAL_MS,
+  type ApprovingView,
   answerCard,
   type CardView,
   type ClaimPairView,
   CONTROL_CLASSES,
+  type DocumentView,
   type Outcome,
   type PageView,
   REJECTION_SENTENCES,
@@ -120,6 +122,127 @@ function ClaimPairs({ pairs }: { pairs: ClaimPairView[] }) {
   );
 }
 
+/** A short hash with its full value as the tooltip, and in full for screen readers. */
+function Hash({ hash }: { hash: DocumentView["sha"] }) {
+  return (
+    <span title={hash.full} className="font-mono text-code-xs text-secondary-foreground">
+      <span aria-hidden="true">{`SHA-256 ${hash.short}`}</span>
+      <span className="sr-only">{`SHA-256 ${hash.full}`}</span>
+    </span>
+  );
+}
+
+function Mono({ values }: { values: string[] }) {
+  return (
+    <span className="inline-flex flex-wrap gap-1 align-middle">
+      {values.map((value) => (
+        <Code key={value}>{value}</Code>
+      ))}
+    </span>
+  );
+}
+
+/** What approving sends: the parameters as rows, then each evidence item and document. */
+function Approving({ view }: { view: ApprovingView }) {
+  return (
+    <Section title={APPROVALS_COPY.approvingHeading}>
+      {view.line !== null ? (
+        <p className="text-body-sm text-secondary-foreground">{view.line}</p>
+      ) : null}
+      {view.rows.length > 0 ? (
+        <dl className="flex flex-col divide-y divide-border-subtle">
+          {view.rows.map((row) => (
+            <div
+              key={row.label}
+              className="flex flex-col gap-0.5 py-2 text-body-sm sm:flex-row sm:gap-4"
+            >
+              <dt className="shrink-0 text-secondary-foreground sm:w-28">{row.label}</dt>
+              <dd
+                className={
+                  row.mono
+                    ? "font-mono text-code-sm break-all text-primary-foreground"
+                    : "whitespace-pre-wrap break-words text-primary-foreground"
+                }
+              >
+                {row.text}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {view.items.length > 0 ? (
+        <ul
+          aria-label={APPROVALS_COPY.itemsHeading}
+          className="flex flex-col divide-y divide-border-subtle"
+        >
+          {view.items.map((item) => (
+            <li key={item.id} className="flex flex-col gap-1 py-2 text-body-sm">
+              <p className="font-medium text-primary-foreground">{item.type}</p>
+              <p className="whitespace-pre-wrap break-words text-primary-foreground">
+                {item.notes}
+              </p>
+              {item.tracking !== null ? (
+                <p className="text-secondary-foreground">
+                  {`${APPROVALS_COPY.tracking}, ${item.tracking.carrier}: `}
+                  <Mono values={item.tracking.numbers} />
+                </p>
+              ) : null}
+              {item.refundIds.length > 0 ? (
+                <p className="text-secondary-foreground">
+                  {`${APPROVALS_COPY.refunds}: `}
+                  <Mono values={item.refundIds} />
+                </p>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {view.documents.length > 0 ? (
+        <ul
+          aria-label={APPROVALS_COPY.documentsHeading}
+          className="flex flex-col divide-y divide-border-subtle"
+        >
+          {view.documents.map((file) => (
+            <li
+              key={file.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-body-sm"
+            >
+              <FileText
+                size={16}
+                strokeWidth={1.5}
+                aria-hidden="true"
+                className="shrink-0 text-secondary-foreground"
+              />
+              <span className="min-w-0 break-all font-medium text-primary-foreground">
+                {file.name}
+              </span>
+              {file.size !== null ? (
+                <span className="text-secondary-foreground tabular-nums">{file.size}</span>
+              ) : null}
+              <Hash hash={file.sha} />
+              {file.href !== null ? (
+                <a
+                  href={file.href}
+                  download
+                  aria-label={`${APPROVALS_COPY.download} ${file.name}`}
+                  className={`${CONTROL_CLASSES.download} ml-auto pl-2`}
+                >
+                  <Download size={16} strokeWidth={1.5} aria-hidden="true" />
+                  {APPROVALS_COPY.download}
+                </a>
+              ) : (
+                <span className="basis-full">
+                  <Notice>{file.problem}</Notice>
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Section>
+  );
+}
+
 const OUTCOME_TONES: Record<Outcome["tone"], string> = {
   neutral: "bg-card text-primary-foreground",
   positive: "bg-positive-subtle text-on-positive-subtle-foreground",
@@ -208,6 +331,8 @@ function ApprovalCard({
       ) : null}
 
       {card.claims.length > 0 ? <ClaimPairs pairs={card.claims} /> : null}
+
+      {card.approving !== null ? <Approving view={card.approving} /> : null}
 
       {card.cannotExecute !== null && outcome === null ? (
         <Notice>{card.cannotExecute}</Notice>

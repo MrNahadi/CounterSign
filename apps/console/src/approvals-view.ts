@@ -3,6 +3,7 @@ import {
   AnswerResultSchema,
   type ApprovalsView,
   type Card,
+  type CardParams,
   GateMessageSchema,
   type RecentSummary,
 } from "./approval-schemas";
@@ -32,6 +33,29 @@ export const APPROVALS_COPY = {
   claimsColumn: "What the message claims",
   recordsColumn: "What the records say",
   noClaim: "No claim",
+  approvingHeading: "What you're approving",
+  evidenceLine:
+    "Approving sends exactly this evidence to PayPal. Nothing is sent until you approve.",
+  itemsHeading: "Evidence",
+  documentsHeading: "Documents",
+  tracking: "Tracking",
+  refunds: "Refunds",
+  download: "Download",
+  documentGone: "This document changed or is gone. Approving sends nothing.",
+} as const;
+
+// The rows' labels and fixed values for the parameters that aren't evidence.
+const PARAM_WORDS = {
+  dispute: "Dispute",
+  note: "Note",
+  noNote: "No note",
+  offer: "Offer",
+  notSet: "Not set",
+  amount: "Amount",
+  recipient: "Recipient",
+  emailsRecipient: "PayPal emails the invoice's recipient",
+  noEmail: "PayPal doesn't email the recipient",
+  alsoTo: "Also sent to",
 } as const;
 
 // One sentence per answer the gate can give (requirements.md, "The console").
@@ -122,6 +146,36 @@ export type CheckLine = {
   recordId: string | null;
 };
 
+export type ParamRow = { label: string; text: string; mono: boolean };
+
+export type EvidenceItemView = {
+  /** Stable key: the item's place in the submission, from 1. */
+  id: string;
+  type: string;
+  notes: string;
+  /** The tracking numbers and the carrier name they're sent under; null when there are none. */
+  tracking: { carrier: string; numbers: string[] } | null;
+  refundIds: string[];
+};
+
+export type DocumentView = {
+  id: string;
+  name: string;
+  size: string | null;
+  sha: { short: string; full: string };
+  /** The console route that downloads it; null when it changed or is gone. */
+  href: string | null;
+  problem: string | null;
+};
+
+/** What approving sends, from the card's parameters. */
+export type ApprovingView = {
+  line: string | null;
+  rows: ParamRow[];
+  items: EvidenceItemView[];
+  documents: DocumentView[];
+};
+
 export type CardView = {
   id: string;
   /** The hash the card shows, sent back with the answer. */
@@ -138,6 +192,8 @@ export type CardView = {
   checks: CheckLine[];
   /** What the message claims beside what the records say, one pair per check that decided. */
   claims: ClaimPairView[];
+  /** What approving sends; null for a refund and any action with no executor. */
+  approving: ApprovingView | null;
   timeLeft: string;
   expired: boolean;
   /** Set when Countersign can't carry the action out; the card then offers only Deny. */
@@ -174,6 +230,81 @@ const timeOf = (iso: string) => {
   return Number.isNaN(at) ? 0 : at;
 };
 
+/** "1 byte", "512 bytes", "12.4 KB", "1.0 MB". */
+export function sizeWords(bytes: number): string {
+  if (bytes < 1024) return bytes === 1 ? "1 byte" : `${bytes} bytes`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const shortHash = (full: string) => ({
+  short: full.length > 16 ? `${full.slice(0, 12)}…` : full,
+  full,
+});
+
+const row = (label: string, text: string, mono = false): ParamRow => ({ label, text, mono });
+const noteRow = (note: string | null) => row(PARAM_WORDS.note, note ?? PARAM_WORDS.noNote);
+
+/** What approving sends; a dispute action's rows start with the dispute it acts on. */
+export function approvingView(params: CardParams, target: Card["target"]): ApprovingView {
+  const view: ApprovingView = { line: null, rows: [], items: [], documents: [] };
+  if (target.kind === "dispute") view.rows.push(row(PARAM_WORDS.dispute, target.id, true));
+  switch (params.kind) {
+    case "invoice_send":
+      view.rows.push(
+        row(
+          PARAM_WORDS.recipient,
+          params.send_to_recipient ? PARAM_WORDS.emailsRecipient : PARAM_WORDS.noEmail,
+        ),
+      );
+      if (params.additional_recipients.length > 0) {
+        view.rows.push(row(PARAM_WORDS.alsoTo, params.additional_recipients.join(", "), true));
+      }
+      view.rows.push(noteRow(params.note));
+      return view;
+    case "accept_claim":
+      view.rows.push(noteRow(params.note));
+      return view;
+    case "make_offer":
+      view.rows.push(
+        row(PARAM_WORDS.offer, params.offer_type_words ?? params.offer_type ?? PARAM_WORDS.notSet),
+      );
+      if (params.amount !== null) view.rows.push(row(PARAM_WORDS.amount, params.amount.display));
+      view.rows.push(noteRow(params.note));
+      return view;
+    case "provide_evidence":
+      return {
+        ...view,
+        line: APPROVALS_COPY.evidenceLine,
+        items: params.items.map((item, index) => ({
+          id: `item-${index + 1}`,
+          type: item.evidence_type_words,
+          notes: item.notes,
+          tracking:
+            item.tracking_numbers.length === 0
+              ? null
+              : {
+                  carrier: item.tracking_carrier ?? APPROVALS_COPY.tracking,
+                  numbers: [...item.tracking_numbers],
+                },
+          refundIds: [...item.refund_ids],
+        })),
+        // A document that isn't the one hashed offers no download: approving it sends nothing.
+        documents: params.documents.map((document) => {
+          const available = document.available && document.size !== null;
+          return {
+            id: document.id,
+            name: document.name,
+            size: document.size === null ? null : sizeWords(document.size),
+            sha: shortHash(document.sha256),
+            href: available ? `/api/approvals/documents/${encodeURIComponent(document.id)}` : null,
+            problem: available ? null : APPROVALS_COPY.documentGone,
+          };
+        }),
+      };
+  }
+}
+
 export function cardView(card: Card, now: Date): CardView {
   const left = timeLeft(card.expires_at, now);
   const expired = left === APPROVALS_COPY.expired || card.state !== "open";
@@ -208,6 +339,7 @@ export function cardView(card: Card, now: Date): CardView {
       recordId: check.records.find((record) => record.id !== null)?.id ?? null,
     })),
     claims: card.claims.map(claimPairView),
+    approving: card.params === null ? null : approvingView(card.params, card.target),
     timeLeft: left,
     expired,
     cannotExecute,
@@ -223,6 +355,10 @@ function recentDetail(summary: RecentSummary): string | null {
       return `Refund ${execution.refund.id}, ${execution.refund.status}`;
     if (execution.invoice !== null) {
       return `Invoice ${execution.invoice.id}, ${execution.invoice.status}`;
+    }
+    if (execution.dispute !== null) {
+      const { id, status } = execution.dispute;
+      return status === null ? `Dispute ${id}` : `Dispute ${id}, ${status}`;
     }
     return "Carried out";
   }
@@ -300,6 +436,16 @@ export function answerOutcome(result: AnswerResult): Outcome {
       tone: "positive",
     };
   }
+  if (execution.dispute !== null) {
+    const { id, status } = execution.dispute;
+    return {
+      sentence:
+        status === null
+          ? `Approved. PayPal took it for dispute ${id}.`
+          : `Approved. Dispute ${id} is ${status.toLowerCase().replaceAll("_", " ")}.`,
+      tone: "positive",
+    };
+  }
   return { sentence: UNCONFIRMED_SENTENCE, tone: "warning" };
 }
 
@@ -327,6 +473,7 @@ export const CONTROL_CLASSES = {
   deny: `${BUTTON} ${SECONDARY} h-10 flex-1 gap-2 px-3.5`,
   signIn: `${BUTTON} ${PRIMARY} h-10 w-full gap-2 px-3.5`,
   signOut: `${BUTTON} h-8 gap-1.5 px-2.5 text-secondary-foreground hover:bg-transparent-hover hover:text-primary-foreground`,
+  download: `${BUTTON} ${SECONDARY} h-8 gap-1.5 px-2.5`,
   keyInput:
     "h-10 w-full rounded-lg bg-component-on-container-strong px-2.5 font-mono text-code-sm text-primary-foreground shadow-default placeholder:text-tertiary-foreground aria-invalid:inset-ring aria-invalid:inset-ring-danger-border-default",
 } as const;

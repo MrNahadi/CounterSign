@@ -78,3 +78,10 @@
 - Console: `audit-schemas.ts` names the new fields (optional, so older fixtures parse); `decisions-view.ts` status words "Evidence sent" / "Claim accepted" / "Offer sent"; `decision-view.ts` outcome line, request line and result line by dispute action. The `audit` CLI trail uses `disputeResultWords`.
 - Gotcha: dispute tests live in the new `apps/gate/test/audit-reader-disputes.test.ts` (own log), because `audit-reader.test.ts` counts rows in one shared log.
 - For the human: the console's approvals page (`approvals-view.ts`) still words only refund and invoice executions; T-013 should add the dispute execution there, since the approve answer already carries `dispute`.
+
+## T-013 (done)
+- Console: `CardSchema.params` (`CardParamsSchema`, a discriminated union by `kind`, required and nullable); `cardView` gains `approving` (`approvingView(params, target)`: `line`, `rows`, `items`, `documents`), with a mono "Dispute" row first for dispute targets. Documents carry a size in words, `sha: { short, full }` (title tooltip plus sr-only full value, as on the decision page) and `href` to `/api/approvals/documents/<id>`; one that isn't `available` gets no link and the "changed or is gone" sentence. The approvals board renders it between the claims and the buttons.
+- New `documentRoute` / `loadDocument` in approval-routes.ts and `app/api/approvals/documents/[id]/route.ts`: 400 for a malformed `doc_` ID before asking the gate; passes the bytes on only for a PDF or JSON content type with an `attachment` disposition, 1 byte to `MAX_DOCUMENT_BYTES` (8 MiB), else 502.
+- The approve answer and recent summaries read `execution.dispute` (defaults to null when absent): "Approved. Dispute PP-D-123 is under review." / "Dispute PP-D-123, UNDER_REVIEW".
+- Gotcha: console card fixtures now need `params` (null for a refund); route fixtures carry `dispute: null` on executions, as the gate sends.
+- For the human: a card whose document isn't `available` still offers Approve (the gate's `can_execute` doesn't look at documents); approving records `failed`/`DOCUMENT_CHANGED` and sends nothing, so it fails closed, but the gate could set `cannot_execute` instead.

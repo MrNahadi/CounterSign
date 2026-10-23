@@ -8,6 +8,7 @@ import {
   ApproverKeySchema,
   type Card,
   CardSchema,
+  DocumentIdSchema,
   GateMessageSchema,
   SignInRequestSchema,
   StepUpIdSchema,
@@ -33,7 +34,12 @@ export const APPROVAL_ROUTE_MESSAGES = {
   badSignIn: "Send JSON with the approver key.",
   badAnswer: "Send JSON with answer (approve or deny) and intent_hash.",
   noStepUp: "There's no step-up with that ID.",
+  badDocument: "That isn't an evidence document ID.",
 } as const;
+
+// The evidence documents the gate stores (ADR 0035): the PDF, under 1 MB, and the export JSON.
+export const DOCUMENT_TYPES = ["application/pdf", "application/json"] as const;
+export const MAX_DOCUMENT_BYTES = 8 * 1024 * 1024;
 
 export type ApprovalEnv = Readonly<Record<string, string | undefined>>;
 
@@ -191,6 +197,36 @@ export async function loadApproval(
   return { ok: true, value: card };
 }
 
+export type EvidenceDocument = { bytes: ArrayBuffer; contentType: string; disposition: string };
+
+/**
+ * One evidence document's bytes, with the gate's content type and attachment header. It's passed
+ * on only when the gate types it as a PDF or JSON, as an attachment, and it isn't empty.
+ */
+export async function loadDocument(
+  key: string,
+  id: unknown,
+  deps: ApprovalDeps,
+): Promise<Answer<EvidenceDocument>> {
+  const documentId = DocumentIdSchema.safeParse(id);
+  if (!documentId.success) return refuse(400, APPROVAL_ROUTE_MESSAGES.badDocument);
+  const response = await callGate(deps, key, `/approvals/documents/${documentId.data}`);
+  if (response?.status !== 200) return refusalOf(response);
+  const contentType = response.headers.get("content-type") ?? "";
+  const type = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+  const disposition = response.headers.get("content-disposition") ?? "";
+  if (!(DOCUMENT_TYPES as readonly string[]).includes(type)) return unreachable;
+  if (!/^attachment(;|$)/i.test(disposition)) return unreachable;
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await response.arrayBuffer();
+  } catch {
+    return unreachable;
+  }
+  if (bytes.byteLength === 0 || bytes.byteLength > MAX_DOCUMENT_BYTES) return unreachable;
+  return { ok: true, value: { bytes, contentType, disposition } };
+}
+
 export async function sendAnswer(
   key: string,
   id: unknown,
@@ -322,6 +358,28 @@ export function approvalRoute(
   deps: ApprovalDeps,
 ): Promise<Response> | Response {
   return withKey(request, (key) => loadApproval(key, id, deps));
+}
+
+function documentResponse(request: Request, answer: Answer<EvidenceDocument>): Response {
+  if (!answer.ok) return refusalResponse(request, answer);
+  return new Response(answer.value.bytes, {
+    status: 200,
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Type": answer.value.contentType,
+      "Content-Disposition": answer.value.disposition,
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
+/** `GET /api/approvals/documents/[id]`: one evidence document from the gate, as an attachment. */
+export function documentRoute(
+  request: Request,
+  id: unknown,
+  deps: ApprovalDeps,
+): Promise<Response> | Response {
+  return withKey(request, (key) => loadDocument(key, id, deps), documentResponse);
 }
 
 /** `POST /api/approvals/[id]`: approves or denies one card, by the hash it showed. */
