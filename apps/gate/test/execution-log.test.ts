@@ -301,6 +301,35 @@ describe("execution entries and the execution history", () => {
         expect(ExecutionResultPayloadSchema.safeParse(payload).success).toBe(false);
       }
     });
+
+    it("read a payout reconciliation by poll or webhook, next to the refund forms", () => {
+      const payout = {
+        batchId: "5UXD2E8A7EBQJ",
+        itemId: "8AELMXH8UB2P8",
+        status: "UNCLAIMED",
+        amount: { minor: 4500, currency: "USD" },
+      };
+      const refund = { id: "REF-1", captureId: null, status: "COMPLETED", amount: payout.amount };
+      const event = { id: "WH-1", type: "PAYMENT.PAYOUTS-ITEM.UNCLAIMED" };
+      for (const payload of [
+        { source: "poll", payout, resultSeq: 2 },
+        { source: "poll", payout: { ...payout, status: "ODD" }, resultSeq: null },
+        { source: "webhook", event, payout, resultSeq: null },
+        { source: "poll", refund, resultSeq: 2 },
+        { source: "webhook", event, refund, resultSeq: null },
+      ]) {
+        expect(ReconciliationPayloadSchema.safeParse(payload).success).toBe(true);
+      }
+      for (const payload of [
+        { source: "poll", payout, refund, resultSeq: 2 },
+        { source: "webhook", payout, resultSeq: 2 },
+        { source: "poll", payout: { ...payout, itemId: "" }, resultSeq: 2 },
+        { source: "poll", payout: { ...payout, amount: { minor: 4.5, currency: "USD" } } },
+        { source: "poll", payout: { ...payout, extra: 1 }, resultSeq: 2 },
+      ]) {
+        expect(ReconciliationPayloadSchema.safeParse(payload).success).toBe(false);
+      }
+    });
   });
 
   describe("readExecutionHistory", () => {

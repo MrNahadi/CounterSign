@@ -116,6 +116,90 @@ function sandboxWith(
   return rail;
 }
 
+type SeededPayout = {
+  n: number;
+  // The item status the result names, or null when the batch read after the create named none.
+  item?: string | null;
+  outcome?: "executed" | "unknown";
+};
+
+const PAYEE = "dyeworks@example.com";
+
+// Appends to the directory's audit log a payout request for each, followed by its result.
+async function addPayouts(dir: string, payouts: readonly SeededPayout[]): Promise<string> {
+  const handle = await openPgliteDirectory(dir);
+  try {
+    for (const { n, item = "UNCLAIMED", outcome = "executed" } of payouts) {
+      const seq = (await handle.db.select().from(auditLog)).length;
+      const at = "2026-10-17T09:00:00.000Z";
+      const payout = {
+        batchId: `BATCH${n}`,
+        batchStatus: "PENDING",
+        item: item === null ? null : { id: `ITEM${n}`, status: item },
+      };
+      const written = await appendEntries(handle.db, [
+        executionRequestedEntry({
+          at,
+          intentId: intentId(n),
+          intentHash: String(n).repeat(64),
+          principal: "ops-agent",
+          rail: "paypal",
+          action: "paypal.payout",
+          target: { email: PAYEE },
+          amount: usd(4500),
+          approvalSeq: 1,
+        }),
+        outcome === "executed"
+          ? executionResultEntry({
+              at,
+              intentId: intentId(n),
+              requestSeq: seq + 1,
+              outcome,
+              payout,
+            })
+          : executionResultEntry({
+              at,
+              intentId: intentId(n),
+              requestSeq: seq + 1,
+              outcome,
+              payout,
+            }),
+      ]);
+      if (!written.ok) throw new Error(written.rejection.detail);
+    }
+  } finally {
+    await handle.close();
+  }
+  return dir;
+}
+
+// Puts payout n's batch and its one item, with this status, in the fake sandbox.
+function seedPayout(rail: FakeSandbox, n: number, status: string, batchId = `BATCH${n}`) {
+  const item = {
+    itemId: `ITEM${n}`,
+    status,
+    amount: usd(4500),
+    receiver: PAYEE,
+    senderItemId: "KDW-2026-0412",
+    errorName: null,
+  };
+  rail.payoutBatches.set(batchId, {
+    batchId,
+    batchStatus: "SUCCESS",
+    senderBatchId: intentId(n),
+    items: [item],
+  });
+  rail.payoutItems.set(item.itemId, {
+    ...item,
+    batchId,
+    senderBatchId: intentId(n),
+    timeProcessed: null,
+  });
+}
+
+const payoutReads = (rail: FakeSandbox) =>
+  rail.calls.filter(({ call }) => call === "getPayoutItem" || call === "getPayoutBatch");
+
 const run = (dir: string, rail: FakeSandbox, args: string[] = []) =>
   runReconcile(["--pglite", dir, ...args], ENV, { rail, now: () => NOW });
 
@@ -229,6 +313,125 @@ describe("runReconcile", () => {
       const again = await run(dir, rail);
       expect(again.exitCode).toBe(EXIT_OPEN);
       expect(again.stdout + again.stderr).not.toContain(SECRET);
+    },
+    SLOW,
+  );
+
+  it(
+    "re-reads an executed payout still open, logs a changed status once with its result, then stops",
+    async () => {
+      const dir = await addPayouts(await logWith([]), [{ n: 1 }]);
+      const rail = createFakeSandbox();
+      seedPayout(rail, 1, "UNCLAIMED");
+
+      const unchanged = await run(dir, rail);
+      expect(unchanged.exitCode).toBe(EXIT_RECONCILED);
+      expect(unchanged.stdout).toContain(
+        `Payout ${intentId(1)} to ${PAYEE}: UNCLAIMED, waiting for the payee to claim it.`,
+      );
+      expect(payoutReads(rail)).toEqual([{ call: "getPayoutItem", arg: "ITEM1" }]);
+      expect(await reconciliations(dir)).toHaveLength(0);
+
+      seedPayout(rail, 1, "SUCCESS");
+      const changed = await run(dir, rail);
+      expect(changed.exitCode).toBe(EXIT_RECONCILED);
+      expect(changed.stdout).toContain(`Payout ${intentId(1)} to ${PAYEE}: SUCCESS.`);
+      const [row, ...rest] = await reconciliations(dir);
+      expect(rest).toHaveLength(0);
+      expect(row?.refId).toBe(intentId(1));
+      expect(row?.at).toBe(NOW.toISOString());
+      expect(row?.payload).toEqual({
+        source: "poll",
+        payout: { batchId: "BATCH1", itemId: "ITEM1", status: "SUCCESS", amount: usd(4500) },
+        resultSeq: 2,
+      });
+
+      // SUCCESS is final, so the next run reads nothing and logs nothing.
+      const reads = payoutReads(rail).length;
+      const after = await run(dir, rail);
+      expect(after.exitCode).toBe(EXIT_RECONCILED);
+      expect(after.stdout).not.toContain(`Payout ${intentId(1)}`);
+      expect(payoutReads(rail)).toHaveLength(reads);
+      expect(await reconciliations(dir)).toHaveLength(1);
+
+      const verify = await runLedgerCli(["verify", "--pglite", dir], {});
+      expect(verify.exitCode).toBe(0);
+    },
+    SLOW,
+  );
+
+  it(
+    "finds a payout's item through its batch when the result named none",
+    async () => {
+      const dir = await addPayouts(await logWith([]), [{ n: 1, item: null }]);
+      const rail = createFakeSandbox();
+      seedPayout(rail, 1, "UNCLAIMED");
+
+      const first = await run(dir, rail);
+      expect(first.exitCode).toBe(EXIT_RECONCILED);
+      expect(payoutReads(rail)).toEqual([{ call: "getPayoutBatch", arg: "BATCH1" }]);
+      expect((await reconciliations(dir)).map((row) => row.payload)).toEqual([
+        {
+          source: "poll",
+          payout: { batchId: "BATCH1", itemId: "ITEM1", status: "UNCLAIMED", amount: usd(4500) },
+          resultSeq: 2,
+        },
+      ]);
+
+      // The reconciliation now names the item and its status, which hasn't changed.
+      const second = await run(dir, rail);
+      expect(second.exitCode).toBe(EXIT_RECONCILED);
+      expect(payoutReads(rail).at(-1)).toEqual({ call: "getPayoutItem", arg: "ITEM1" });
+      expect(await reconciliations(dir)).toHaveLength(1);
+    },
+    SLOW,
+  );
+
+  it(
+    "never re-reads a final payout, and exits 1 on a payout it can't re-read or match",
+    async () => {
+      const dir = await addPayouts(await logWith([{ n: 1 }]), [
+        { n: 2 },
+        { n: 3, item: "RETURNED" },
+        { n: 4 },
+      ]);
+      const rail = sandboxWith({ 1: {} });
+      seedPayout(rail, 3, "RETURNED");
+      seedPayout(rail, 4, "SUCCESS", "BATCH-OTHER");
+      rail.failures.getPayoutItem = httpError("get-payout-item", 503);
+
+      const result = await run(dir, rail);
+      expect(result.exitCode).toBe(EXIT_OPEN);
+      expect(result.stdout).toContain("Reconciled 1 refund.");
+      expect(result.stdout).toContain("Couldn't re-read payout item ITEM2");
+      expect(payoutReads(rail).map(({ arg }) => arg)).not.toContain("ITEM3");
+      expect(result.stdout + result.stderr).not.toContain(SECRET);
+      expect(await reconciliations(dir)).toHaveLength(1);
+
+      rail.failures = {};
+      seedPayout(rail, 2, "UNCLAIMED");
+      const again = await run(dir, rail);
+      expect(again.exitCode).toBe(EXIT_OPEN);
+      expect(again.stdout).toContain(
+        `Payout item ITEM4 is in batch BATCH-OTHER, not ${intentId(4)}'s batch BATCH4`,
+      );
+      expect(await reconciliations(dir)).toHaveLength(1);
+    },
+    SLOW,
+  );
+
+  it(
+    "says there's nothing to reconcile on an empty log, and lists a payout with no outcome by payee",
+    async () => {
+      const empty = await run(await logWith([]), createFakeSandbox());
+      expect(empty.exitCode).toBe(EXIT_RECONCILED);
+      expect(empty.stdout).toBe("Nothing to reconcile.\n");
+
+      const dir = await addPayouts(await logWith([]), [{ n: 1, item: null, outcome: "unknown" }]);
+      const open = await run(dir, createFakeSandbox());
+      expect(open.exitCode).toBe(EXIT_OPEN);
+      expect(open.stdout).toContain(`${intentId(1)}  payee ${PAYEE}  3 hours old`);
+      expect(open.stdout).not.toContain(`Payout ${intentId(1)}`);
     },
     SLOW,
   );

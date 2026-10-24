@@ -198,18 +198,57 @@ const ReconciledRefundSchema = z.strictObject({
   amount: MoneySchema,
 });
 
-// `reconciliation`, ref the intent ID, or null for a refund Countersign didn't make. The refund
-// is as re-read from PayPal; `resultSeq` is the matched result, null when none matched.
-export const ReconciliationPayloadSchema = z.discriminatedUnion("source", [
+// A payout item as re-read from PayPal, with its batch (ADR 0039).
+const ReconciledPayoutSchema = z.strictObject({
+  batchId: Id,
+  itemId: Id,
+  status: PayoutStatus,
+  amount: MoneySchema,
+});
+
+// Payout item statuses PayPal doesn't move on from; any other status is still open (ADR 0039).
+export const PAYOUT_FINAL_STATUSES: readonly string[] = [
+  "SUCCESS",
+  "FAILED",
+  "RETURNED",
+  "REFUNDED",
+  "REVERSED",
+  "BLOCKED",
+  "DENIED",
+  "CANCELED",
+];
+
+const WebhookEventSchema = z.strictObject({ id: Id, type: Id });
+
+// A payout's reconciliation never names a refund; the key is only there so readers can ask.
+const NoRefund = z.undefined().optional();
+
+// `reconciliation`, ref the intent ID, or null for a refund or payout Countersign didn't make.
+// The refund or payout item is as re-read from PayPal; `resultSeq` is the matched result, null
+// when none matched.
+export const ReconciliationPayloadSchema = z.union([
   z.strictObject({
     source: z.literal("webhook"),
-    event: z.strictObject({ id: Id, type: Id }),
+    event: WebhookEventSchema,
     refund: ReconciledRefundSchema,
     resultSeq: Seq.nullable(),
   }),
   z.strictObject({
     source: z.literal("poll"),
     refund: ReconciledRefundSchema,
+    resultSeq: Seq.nullable(),
+  }),
+  z.strictObject({
+    source: z.literal("webhook"),
+    event: WebhookEventSchema,
+    refund: NoRefund,
+    payout: ReconciledPayoutSchema,
+    resultSeq: Seq.nullable(),
+  }),
+  z.strictObject({
+    source: z.literal("poll"),
+    refund: NoRefund,
+    payout: ReconciledPayoutSchema,
     resultSeq: Seq.nullable(),
   }),
 ]);
@@ -573,7 +612,7 @@ export async function readReconciliationState(reader: Reader): Promise<Reconcili
       } else {
         const payload = parsePayload(row, ReconciliationPayloadSchema);
         if (payload.source === "webhook") state.events.add(payload.event.id);
-        state.refunds.add(payload.refund.id);
+        if (payload.refund !== undefined) state.refunds.add(payload.refund.id);
       }
     }
     return { known: true, state };
@@ -597,9 +636,23 @@ export type ExecutedIntent = {
   reconciled: { status: (typeof REFUND_STATUSES)[number]; amount: Money } | null;
 };
 
+export type ExecutedPayoutIntent = {
+  intentId: string;
+  // The first result that says `executed`, and the batch it names.
+  resultSeq: number;
+  batchId: string;
+  // The payee email the first request paid; null only if the request names no target.
+  payee: string | null;
+  // The item as the latest reconciliation of the intent names it, else as the result does; null
+  // when neither names one.
+  item: { id: string; status: string } | null;
+};
+
 export type OpenRequest = {
   intentId: string;
   captureId: string | null;
+  // The payee email, for a payout only.
+  payee?: string;
   // The first request's time.
   at: string;
 };
@@ -615,77 +668,139 @@ export type ReconcileWorkRead =
   | { known: true; work: ReconcileWork }
   | { known: false; seq: number; detail: string };
 
-// Reads which executed refunds still need reconciling and which requests are still open. An entry
-// that can't be read makes it unknown, never skipped. Pass a transaction to read under the lock.
-export async function readReconcileWork(reader: Reader): Promise<ReconcileWorkRead> {
-  const rows: ChainRow[] = await reader
+export type PayoutWorkRead =
+  // Executed payouts, in the order of their results, final or not.
+  { known: true; payouts: ExecutedPayoutIntent[] } | { known: false; seq: number; detail: string };
+
+async function readWorkRows(reader: Reader): Promise<ChainRow[]> {
+  return reader
     .select()
     .from(auditLog)
     .where(
       sql`${auditLog.entryType} IN ('execution.requested', 'execution.result', 'reconciliation')`,
     )
     .orderBy(asc(auditLog.seq));
+}
+
+// Reads which executed refunds still need reconciling and which requests are still open. An entry
+// that can't be read makes it unknown, never skipped. Pass a transaction to read under the lock.
+export async function readReconcileWork(reader: Reader): Promise<ReconcileWorkRead> {
+  const rows = await readWorkRows(reader);
   try {
-    type Intent = {
-      request: { seq: number; at: string; captureId: string | null; amount: Money };
-      lastOutcome: ExecutionOutcome | null;
-      executed: { seq: number; refundId: string } | null;
-    };
-    const intents = new Map<string, Intent>();
-    const reconciled = new Map<string, NonNullable<ExecutedIntent["reconciled"]>>();
-    for (const row of rows) {
-      if (row.entryType === "execution.requested") {
-        const payload = parsePayload(row, ExecutionRequestedPayloadSchema);
-        if (!payload.replay && !intents.has(payload.intentId)) {
-          intents.set(payload.intentId, {
-            request: {
-              seq: row.seq,
-              at: row.at,
-              captureId: payload.captureId,
-              amount: payload.amount,
-            },
-            lastOutcome: null,
-            executed: null,
-          });
-        }
-      } else if (row.entryType === "execution.result") {
-        const payload = parsePayload(row, ExecutionResultPayloadSchema);
-        const intent = row.refId === null ? undefined : intents.get(row.refId);
-        if (intent === undefined) {
-          throw new Unreadable(row.seq, `execution.result #${row.seq} comes before any request`);
-        }
-        intent.lastOutcome = payload.outcome;
-        if (payload.outcome === "executed" && "refund" in payload && intent.executed === null) {
-          intent.executed = { seq: row.seq, refundId: payload.refund.id };
-        }
-      } else {
-        const payload = parsePayload(row, ReconciliationPayloadSchema);
-        reconciled.set(payload.refund.id, {
-          status: payload.refund.status,
-          amount: payload.refund.amount,
-        });
-      }
-    }
-    const work: ReconcileWork = { executed: [], open: [] };
-    for (const [intentId, intent] of intents) {
-      if (intent.executed !== null) {
-        work.executed.push({
-          intentId,
-          resultSeq: intent.executed.seq,
-          refundId: intent.executed.refundId,
-          captureId: intent.request.captureId,
-          amount: intent.request.amount,
-          reconciled: reconciled.get(intent.executed.refundId) ?? null,
-        });
-      } else if (intent.lastOutcome === null || intent.lastOutcome === "unknown") {
-        work.open.push({ intentId, captureId: intent.request.captureId, at: intent.request.at });
-      }
-    }
-    work.executed.sort((a, b) => a.resultSeq - b.resultSeq);
-    work.open.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
-    return { known: true, work };
+    return { known: true, work: buildWork(rows).work };
   } catch (error) {
     if (error instanceof Unreadable) return { known: false, seq: error.seq, detail: error.message };
     throw error;
   }
+}
+
+// Reads every executed payout and its item's latest known status (ADR 0039). An entry that can't
+// be read makes it unknown, never skipped. Pass a transaction to read under the lock.
+export async function readPayoutWork(reader: Reader): Promise<PayoutWorkRead> {
+  const rows = await readWorkRows(reader);
+  try {
+    return { known: true, payouts: buildWork(rows).payouts };
+  } catch (error) {
+    if (error instanceof Unreadable) return { known: false, seq: error.seq, detail: error.message };
+    throw error;
+  }
+}
+
+// Throws Unreadable on an entry that can't be read.
+function buildWork(rows: readonly ChainRow[]): {
+  work: ReconcileWork;
+  payouts: ExecutedPayoutIntent[];
+} {
+  type Intent = {
+    request: {
+      seq: number;
+      at: string;
+      captureId: string | null;
+      payee: string | null;
+      amount: Money;
+    };
+    lastOutcome: ExecutionOutcome | null;
+    executed: { seq: number; refundId: string } | null;
+    payout: { seq: number; batchId: string; item: ExecutedPayoutIntent["item"] } | null;
+  };
+  const intents = new Map<string, Intent>();
+  const reconciled = new Map<string, NonNullable<ExecutedIntent["reconciled"]>>();
+  // Each intent's payout item as its latest reconciliation re-read it.
+  const reconciledItems = new Map<string, NonNullable<ExecutedPayoutIntent["item"]>>();
+  for (const row of rows) {
+    if (row.entryType === "execution.requested") {
+      const payload = parsePayload(row, ExecutionRequestedPayloadSchema);
+      if (!payload.replay && !intents.has(payload.intentId)) {
+        const target = payload.target;
+        intents.set(payload.intentId, {
+          request: {
+            seq: row.seq,
+            at: row.at,
+            captureId: payload.captureId,
+            payee: target !== undefined && "email" in target ? target.email : null,
+            amount: payload.amount,
+          },
+          lastOutcome: null,
+          executed: null,
+          payout: null,
+        });
+      }
+    } else if (row.entryType === "execution.result") {
+      const payload = parsePayload(row, ExecutionResultPayloadSchema);
+      const intent = row.refId === null ? undefined : intents.get(row.refId);
+      if (intent === undefined) {
+        throw new Unreadable(row.seq, `execution.result #${row.seq} comes before any request`);
+      }
+      intent.lastOutcome = payload.outcome;
+      if (payload.outcome === "executed" && "refund" in payload && intent.executed === null) {
+        intent.executed = { seq: row.seq, refundId: payload.refund.id };
+      }
+      if (payload.outcome === "executed" && "payout" in payload && intent.payout === null) {
+        const { batchId, item } = payload.payout;
+        intent.payout = { seq: row.seq, batchId, item: item === null ? null : { ...item } };
+      }
+    } else {
+      const payload = parsePayload(row, ReconciliationPayloadSchema);
+      if (payload.refund !== undefined) {
+        reconciled.set(payload.refund.id, {
+          status: payload.refund.status,
+          amount: payload.refund.amount,
+        });
+      } else if (row.refId !== null) {
+        reconciledItems.set(row.refId, {
+          id: payload.payout.itemId,
+          status: payload.payout.status,
+        });
+      }
+    }
+  }
+  const work: ReconcileWork = { executed: [], open: [] };
+  const payouts: ExecutedPayoutIntent[] = [];
+  for (const [intentId, intent] of intents) {
+    if (intent.executed !== null) {
+      work.executed.push({
+        intentId,
+        resultSeq: intent.executed.seq,
+        refundId: intent.executed.refundId,
+        captureId: intent.request.captureId,
+        amount: intent.request.amount,
+        reconciled: reconciled.get(intent.executed.refundId) ?? null,
+      });
+    } else if (intent.payout !== null) {
+      payouts.push({
+        intentId,
+        resultSeq: intent.payout.seq,
+        batchId: intent.payout.batchId,
+        payee: intent.request.payee,
+        item: reconciledItems.get(intentId) ?? intent.payout.item,
+      });
+    } else if (intent.lastOutcome === null || intent.lastOutcome === "unknown") {
+      const { captureId, payee, at } = intent.request;
+      work.open.push({ intentId, captureId, ...(payee === null ? {} : { payee }), at });
+    }
+  }
+  work.executed.sort((a, b) => a.resultSeq - b.resultSeq);
+  payouts.sort((a, b) => a.resultSeq - b.resultSeq);
+  work.open.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  return { work, payouts };
 }

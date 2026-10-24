@@ -1,6 +1,7 @@
 // The reconcile CLI: re-reads every executed refund the audit log hasn't reconciled, logs a
-// reconciliation for each (source poll), and lists requests whose outcome is still open. It never
-// moves money (ADR 0026). Returns the output and exit code rather than writing them.
+// reconciliation for each (source poll), re-reads every executed payout whose item isn't final
+// and logs one when its status has changed (ADR 0039), and lists requests whose outcome is still
+// open. It never moves money (ADR 0026). Returns the output and exit code rather than writing them.
 
 import {
   type Database,
@@ -24,7 +25,14 @@ import {
   parsePayPalEnv,
 } from "@countersign/rail-paypal";
 import type { CliResult } from "./decide-cli";
-import { type ExecutedIntent, readReconcileWork, reconciliationEntry } from "./execution-log";
+import {
+  type ExecutedIntent,
+  type ExecutedPayoutIntent,
+  PAYOUT_FINAL_STATUSES,
+  readPayoutWork,
+  readReconcileWork,
+  reconciliationEntry,
+} from "./execution-log";
 
 export const RECONCILE_USAGE = "Usage: npm run reconcile [-- --pglite <dir>]";
 
@@ -84,6 +92,101 @@ function readFailure(error: unknown): string {
   return error instanceof PayPalError ? error.message : "The read failed unexpectedly.";
 }
 
+// What one payout's re-read gave: a line saying where it is now, and what needs attention.
+type PayoutRun = { line: string | null; problem: string | null };
+
+type ReadItem = {
+  batchId: string;
+  itemId: string;
+  status: string;
+  amount: Money;
+  senderBatchId: string | null;
+};
+
+const PAYOUT_STATUS_WORDS: Record<string, string> = {
+  UNCLAIMED: ", waiting for the payee to claim it",
+};
+
+function payoutLine(payout: ExecutedPayoutIntent, what: string): string {
+  return `Payout ${payout.intentId}${payout.payee === null ? "" : ` to ${payout.payee}`}: ${what}.`;
+}
+
+// Re-reads a payout's item, by its ID or, when none is known yet, through its batch, and logs a
+// reconciliation when its status has changed. The item is read outside the ledger's lock.
+async function reconcilePayout(
+  db: Database,
+  rail: PayPalClient,
+  payout: ExecutedPayoutIntent,
+  now: Date,
+): Promise<PayoutRun> {
+  let item: ReadItem | null;
+  try {
+    if (payout.item !== null) {
+      item = await rail.getPayoutItem(payout.item.id);
+    } else {
+      const batch = await rail.getPayoutBatch(payout.batchId);
+      const [first] = batch.items;
+      item = first
+        ? { ...first, batchId: batch.batchId, senderBatchId: batch.senderBatchId }
+        : null;
+    }
+  } catch (error) {
+    const what = payout.item ? `item ${payout.item.id}` : `batch ${payout.batchId}`;
+    return { line: null, problem: `Couldn't re-read payout ${what}: ${readFailure(error)}` };
+  }
+  if (item === null) {
+    return { line: payoutLine(payout, `batch ${payout.batchId} names no item yet`), problem: null };
+  }
+  if (item.batchId !== payout.batchId) {
+    return {
+      line: null,
+      problem: `Payout item ${item.itemId} is in batch ${item.batchId}, not ${payout.intentId}'s batch ${payout.batchId}.`,
+    };
+  }
+  if (item.senderBatchId !== null && item.senderBatchId !== payout.intentId) {
+    return {
+      line: null,
+      problem: `Payout batch ${item.batchId} was sent as ${item.senderBatchId}, not ${payout.intentId}.`,
+    };
+  }
+  const line = payoutLine(payout, `${item.status}${PAYOUT_STATUS_WORDS[item.status] ?? ""}`);
+  if (payout.item !== null && payout.item.status === item.status) return { line, problem: null };
+
+  const read = item;
+  // Another run may have logged the payout since it was read.
+  const logged = await withAuditLog(db, async (log) => {
+    const again = await readPayoutWork(log.tx);
+    if (!again.known) return false;
+    const current = again.payouts.find((each) => each.intentId === payout.intentId);
+    if (current === undefined) return true;
+    if (current.item?.id !== payout.item?.id || current.item?.status !== payout.item?.status) {
+      return true;
+    }
+    await log.append(
+      reconciliationEntry({
+        at: now.toISOString(),
+        intentId: payout.intentId,
+        source: "poll",
+        payout: {
+          batchId: read.batchId,
+          itemId: read.itemId,
+          status: read.status,
+          amount: read.amount,
+        },
+        resultSeq: payout.resultSeq,
+      }),
+    );
+    return true;
+  });
+  // Never silently skipped: an unreadable log leaves the payout unreconciled.
+  return logged
+    ? { line, problem: null }
+    : {
+        line,
+        problem: `Payout item ${read.itemId} wasn't logged: the audit log has an entry that can't be read.`,
+      };
+}
+
 async function reconcileAll(
   db: Database,
   rail: PayPalClient,
@@ -92,6 +195,13 @@ async function reconcileAll(
   const first = await readReconcileWork(db);
   if (!first.known) {
     return { ok: false, error: `The audit log has an entry that can't be read: ${first.detail}.` };
+  }
+  const payouts = await readPayoutWork(db);
+  if (!payouts.known) {
+    return {
+      ok: false,
+      error: `The audit log has an entry that can't be read: ${payouts.detail}.`,
+    };
   }
 
   const done: string[] = [];
@@ -149,23 +259,44 @@ async function reconcileAll(
     if (problem) problems.push(problem);
   }
 
+  // A payout whose item is final isn't re-read; one still open at PayPal needs no attention.
+  const payoutLines: string[] = [];
+  for (const payout of payouts.payouts) {
+    if (payout.item !== null && PAYOUT_FINAL_STATUSES.includes(payout.item.status)) continue;
+    const { line, problem } = await reconcilePayout(db, rail, payout, now);
+    if (line) payoutLines.push(`  ${line}`);
+    if (problem) problems.push(problem);
+  }
+
   const lines: string[] = [];
   lines.push(
-    done.length === 0
-      ? "No refunds to reconcile."
-      : `Reconciled ${plural(done.length, "refund", "refunds")}.`,
+    first.work.executed.length === 0 && payouts.payouts.length === 0
+      ? "Nothing to reconcile."
+      : done.length === 0
+        ? "No refunds to reconcile."
+        : `Reconciled ${plural(done.length, "refund", "refunds")}.`,
     ...done,
   );
+  if (payoutLines.length > 0) {
+    lines.push("", `Re-read ${plural(payoutLines.length, "payout", "payouts")}.`, ...payoutLines);
+  }
   if (problems.length > 0) lines.push("", "Needs attention", ...problems.map((p) => `  ${p}`));
   const open = first.work.open;
   if (open.length > 0) {
     lines.push("", "Requests with no outcome, oldest first");
     for (const request of open) {
-      lines.push(
-        `  ${request.intentId}  capture ${request.captureId ?? "none"}  ${formatAge(request.at, now)} old`,
-      );
+      const target =
+        request.payee === undefined
+          ? `capture ${request.captureId ?? "none"}`
+          : `payee ${request.payee}`;
+      lines.push(`  ${request.intentId}  ${target}  ${formatAge(request.at, now)} old`);
     }
-    lines.push("Replay the proposal to finish a request, or check PayPal for its refund.");
+    if (open.some((request) => request.payee === undefined)) {
+      lines.push("Replay the proposal to finish a request, or check PayPal for its refund.");
+    }
+    if (open.some((request) => request.payee !== undefined)) {
+      lines.push("The gate never sends a payout twice, so check PayPal for the payout's batch.");
+    }
   }
   const clean = problems.length === 0 && open.length === 0 && unreadable === 0;
   return {

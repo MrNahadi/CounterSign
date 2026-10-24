@@ -94,16 +94,16 @@ Notes:
 
 ## T-007: Payout reconciliation by poll
 
-Status: open
+Status: done
 Blocked by: T-006
 Tier: standard
 Slice: `npm run reconcile` re-reads payouts still open at PayPal and logs their new status.
 Test seam: the reconcile CLI's run function with a fake rail and PGlite
 Acceptance:
-- [ ] The `reconciliation` schema gains the payout form; every older entry still reads
-- [ ] An executed payout whose item is `UNCLAIMED` is re-read; a changed status is logged once, with the matched result; a second run logs nothing
-- [ ] A payout with a final status isn't re-read; the output lines and exit codes are as requirements.md says
-- [ ] Refund reconciliation still passes its tests unchanged
+- [x] The `reconciliation` schema gains the payout form; every older entry still reads
+- [x] An executed payout whose item is `UNCLAIMED` is re-read; a changed status is logged once, with the matched result; a second run logs nothing
+- [x] A payout with a final status isn't re-read; the output lines and exit codes are as requirements.md says
+- [x] Refund reconciliation still passes its tests unchanged
 Notes:
 
 ## T-008: The payouts webhook

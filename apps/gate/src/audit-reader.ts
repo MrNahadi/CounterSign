@@ -702,6 +702,13 @@ function partsOf(row: ChainRow, requests: RequestActions = new Map()): Parsed<Tr
       const parsed = parseEntry(row, ReconciliationPayloadSchema);
       if (!parsed.ok) return parsed;
       const value = parsed.value;
+      // TODO(T-010): describe payout reconciliations; until then they read as not shown.
+      if (value.refund === undefined) {
+        return {
+          ok: false,
+          problem: `reconciliation #${row.seq} is a payout's, which the reader doesn't show yet.`,
+        };
+      }
       return {
         ok: true,
         value: {
