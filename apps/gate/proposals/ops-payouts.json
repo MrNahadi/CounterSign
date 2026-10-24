@@ -1,0 +1,36 @@
+{
+  "description": "The ops agent pays suppliers under its own mandate. A $45.00 payout to a supplier on the payee list waits for the merchant, a payout to anyone else is denied, and a payout in Kenyan shillings is denied because payouts are paid in USD only. None of these write a ticket, and nothing is sent. Illustrative suppliers.",
+  "mandate": "../../../packages/mandate/fixtures/kikapu-studio-ops-v1.json",
+  "principal": "ops-agent",
+  "proposals": [
+    {
+      "tool": "create_payout",
+      "args": {
+        "receiver": "dyeworks@example.com",
+        "amount": { "value": "45.00", "currency_code": "USD" },
+        "reference": "KDW-2026-0412",
+        "note": "Dye for the October batch."
+      },
+      "expect": { "decision": "step_up", "reasons": ["ALWAYS_NEEDS_APPROVAL"] }
+    },
+    {
+      "tool": "create_payout",
+      "args": {
+        "receiver": "refunds.desk@example.com",
+        "amount": { "value": "48.00", "currency_code": "USD" },
+        "reference": "RD-2026-001",
+        "note": "Supplier invoice."
+      },
+      "expect": { "decision": "deny", "reasons": ["PAYEE_NOT_ALLOWLISTED"] }
+    },
+    {
+      "tool": "create_payout",
+      "args": {
+        "receiver": "dyeworks@example.com",
+        "amount": { "value": "6000.00", "currency_code": "KES" },
+        "reference": "KDW-2026-0413"
+      },
+      "expect": { "decision": "deny", "reasons": ["INVALID_PROPOSAL"] }
+    }
+  ]
+}

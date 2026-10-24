@@ -31,3 +31,8 @@
 - Gotcha: `approval-log.ts`'s strict `ParamsSchema` now accepts `reference`, so a payout step-up's stored intent parses. Approval cards don't show it yet (T-009).
 - Gotcha: `propose-invoice.test.ts` and `answer-step-up.test.ts` still use a payout (now with a reference) as "an action with no executor". T-006 must switch them to `pay_order`, as plan.md says.
 - Gotcha: a mandate's `mandate.version` ref is `kikapu-studio-ops@v1` (`mandateRef`), but the payee snapshot's ID is `kikapu-studio-ops v1`, as requirements.md says.
+
+## T-005 (done)
+
+- `agent-cli.ts` proposes as the file's `principal` (`support-agent` or `ops-agent`), with that principal's key variable. A principal outside those two, a missing or short key, or two equal principal keys exit 2 naming the variable (an unknown principal names the two it can run), and a 401 names the variable used. `AGENT_PRINCIPAL` and `AGENT_KEY_VARIABLE` are gone (nothing else imported them). New `apps/gate/proposals/ops-payouts.json` (three proposals, no tickets); the tests run it over a listening gate on PGlite and check that no ticket is written.
+- Gotcha: the agent CLI doesn't read a proposal file's `mandate` key (only the propose CLI does), so `ops-payouts.json` names the ops mandate for the propose CLI and for readers only.

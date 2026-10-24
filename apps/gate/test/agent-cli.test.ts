@@ -11,6 +11,7 @@ import {
   openPgliteDirectory,
   readTicket,
   seedOrders,
+  tickets,
 } from "@countersign/db";
 import type { ShipmentStatus } from "@countersign/mandate";
 import { afterEach, describe, expect, it } from "vitest";
@@ -33,11 +34,14 @@ const SLOW = 60_000;
 const NOW = new Date("2026-10-17T09:00:00+03:00");
 const KEY = "test-support-agent-key-0123456789abcdef";
 const ENV = { COUNTERSIGN_SUPPORT_AGENT_KEY: KEY };
+const OPS_KEY = "test-ops-agent-key-0123456789abcdef0123";
+const BOTH_KEYS = { ...ENV, COUNTERSIGN_OPS_AGENT_KEY: OPS_KEY };
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const proposalsDir = fileURLToPath(new URL("../proposals/", import.meta.url));
 const beat4 = join(proposalsDir, "beat-4-stalled-parcel.json");
 const guarded = join(proposalsDir, "guarded-actions.json");
+const opsPayouts = join(proposalsDir, "ops-payouts.json");
 const entry = fileURLToPath(new URL("../src/agent-main.ts", import.meta.url));
 
 const BUYER_EMAIL = { A: "amina.k@example.com", B: "grace.w@example.com" } as const;
@@ -121,12 +125,16 @@ async function seededWorld(): Promise<{ handle: DatabaseHandle; rail: FakeSandbo
   return { handle, rail };
 }
 
-async function listenGate(handle: DatabaseHandle, rail: FakeSandbox, key = KEY): Promise<string> {
+async function listenGate(
+  handle: DatabaseHandle,
+  rail: FakeSandbox,
+  env: Record<string, string> = ENV,
+): Promise<string> {
   const server = createApp({
     db: handle.db,
     rail: () => rail,
     carrier: createMockCarrier(createDatabaseShipmentStore(handle.db)),
-    env: { COUNTERSIGN_SUPPORT_AGENT_KEY: key },
+    env,
     clock: () => NOW,
   }).listen(0, "127.0.0.1");
   servers.push(server);
@@ -255,7 +263,9 @@ describe("npm run agent when it can't run", { timeout: SLOW }, () => {
 
   it("exits 2 with one line when the gate refuses the key", async () => {
     const { handle, rail } = await seededWorld();
-    const url = await listenGate(handle, rail, "the-gate-holds-another-key-0123456789");
+    const url = await listenGate(handle, rail, {
+      COUNTERSIGN_SUPPORT_AGENT_KEY: "the-gate-holds-another-key-0123456789",
+    });
     const result = await runAgent([guarded, "--url", url], ENV, options(handle));
     expect(result.exitCode).toBe(EXIT_CANT_RUN);
     expect(result.stdout).toBe("");
@@ -329,11 +339,13 @@ describe("npm run agent when it can't run", { timeout: SLOW }, () => {
     );
 
     const other = variant(guarded, (file) => {
-      file.principal = "ops-agent";
+      file.principal = "finance-agent";
     });
-    expect((await runAgent([other], ENV, {})).stderr).toContain(
-      "the stand-in agent proposes as support-agent, not ops-agent.",
-    );
+    const unknown = await runAgent([other], BOTH_KEYS, {});
+    expect(unknown.exitCode).toBe(EXIT_CANT_RUN);
+    expect(unknown.stderr).toContain("proposes as support-agent or ops-agent, not finance-agent.");
+    expect(unknown.stderr).not.toContain(KEY);
+    expect(unknown.stderr).not.toContain(OPS_KEY);
   });
 
   it("exits 2 with the usage for no file, an unknown option or a bad --url", async () => {
@@ -357,5 +369,107 @@ describe("npm run agent when it can't run", { timeout: SLOW }, () => {
     expect(child.stderr).toBe(
       "The agent CLI can't start. Set COUNTERSIGN_SUPPORT_AGENT_KEY in .env.local, 32 or more characters.\n",
     );
+  });
+});
+
+describe("npm run agent as the ops agent", { timeout: SLOW }, () => {
+  it("proposes ops-payouts.json with the ops key, matches every decision and writes no ticket", async () => {
+    const { handle, rail } = await seededWorld();
+    const url = await listenGate(handle, rail, BOTH_KEYS);
+
+    const result = await runAgent([opsPayouts, "--url", url], BOTH_KEYS, options(handle));
+    expect(result.stderr).toBe("");
+    expect(result.exitCode).toBe(EXIT_MATCHED);
+    expect(result.stdout).toContain(`Gate ${url}, as ops-agent`);
+    const blocks = result.stdout.split(/\n(?=Proposal \d+ of \d+\n)/).slice(1);
+    expect(blocks).toHaveLength(3);
+    for (const block of blocks) {
+      expect(block).toContain("Tool      create_payout");
+      expect(block).not.toContain("Expected");
+    }
+    expect(blocks[0]).toContain("Decision  Step-up");
+    expect(blocks[0]).toContain("(ALWAYS_NEEDS_APPROVAL)");
+    expect(blocks[1]).toContain("Decision  Deny");
+    expect(blocks[1]).toContain("(PAYEE_NOT_ALLOWLISTED)");
+    expect(blocks[2]).toContain("Decision  Deny");
+    expect(blocks[2]).toContain("(INVALID_PROPOSAL)");
+
+    // The proposals name no ticket, so none is written, and the gate decided as the ops agent.
+    expect(await handle.db.select().from(tickets)).toEqual([]);
+    const entries = await handle.db.select().from(auditLog);
+    expect(entries.length).toBeGreaterThanOrEqual(3);
+    expect(entries.some((row) => row.payload.includes('"principal":"ops-agent"'))).toBe(true);
+    expect(entries.some((row) => row.payload.includes('"principal":"support-agent"'))).toBe(false);
+    expect(result.stdout).not.toContain(OPS_KEY);
+    // Nothing was sent to PayPal.
+    expect(rail.refunds.size).toBe(0);
+  });
+
+  it("exits 1 when a payout decision differs from the file", async () => {
+    const { handle, rail } = await seededWorld();
+    const url = await listenGate(handle, rail, BOTH_KEYS);
+    const path = variant(opsPayouts, (file) => {
+      (items(file)[1] as FileItem).expect = { decision: "step_up", reasons: [] };
+    });
+    const result = await runAgent([path, "--url", url], BOTH_KEYS, options(handle));
+    expect(result.exitCode).toBe(EXIT_DIFFERED);
+    expect(result.stdout).toContain("Expected step_up, got deny PAYEE_NOT_ALLOWLISTED.");
+    expect(result.stdout).toContain("1 proposal differed from the file.");
+  });
+
+  it("keeps the support agent's files running with both keys set", async () => {
+    const { handle, rail } = await seededWorld();
+    const url = await listenGate(handle, rail, BOTH_KEYS);
+    const result = await runAgent([guarded, "--url", url], BOTH_KEYS, options(handle));
+    expect(result.stderr).toBe("");
+    expect(result.exitCode).toBe(EXIT_MATCHED);
+    expect(result.stdout).toContain(`Gate ${url}, as support-agent`);
+  });
+
+  it("names the ops key variable when it is missing or short, never showing a value", async () => {
+    const short = "too-short-ops-key";
+    for (const env of [ENV, { ...ENV, COUNTERSIGN_OPS_AGENT_KEY: short }]) {
+      const result = await runAgent([opsPayouts], env, {});
+      expect(result.exitCode).toBe(EXIT_CANT_RUN);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe(
+        "The agent CLI can't start. Set COUNTERSIGN_OPS_AGENT_KEY in .env.local, 32 or more characters.\n",
+      );
+      expect(result.stderr).not.toContain(short);
+      expect(result.stderr).not.toContain(KEY);
+    }
+  });
+
+  it("names the support key variable for a support file when only the ops key is set", async () => {
+    const result = await runAgent([guarded], { COUNTERSIGN_OPS_AGENT_KEY: OPS_KEY }, {});
+    expect(result.exitCode).toBe(EXIT_CANT_RUN);
+    expect(result.stderr).toBe(
+      "The agent CLI can't start. Set COUNTERSIGN_SUPPORT_AGENT_KEY in .env.local, 32 or more characters.\n",
+    );
+    expect(result.stderr).not.toContain(OPS_KEY);
+  });
+
+  it("treats two principal keys with the same value as unset, naming the variable", async () => {
+    const same = { COUNTERSIGN_SUPPORT_AGENT_KEY: KEY, COUNTERSIGN_OPS_AGENT_KEY: KEY };
+    const result = await runAgent([opsPayouts], same, {});
+    expect(result.exitCode).toBe(EXIT_CANT_RUN);
+    expect(result.stderr).toContain("COUNTERSIGN_OPS_AGENT_KEY");
+    expect(result.stderr).not.toContain(KEY);
+  });
+
+  it("names the ops key variable, not its value, when the gate refuses the key", async () => {
+    const { handle, rail } = await seededWorld();
+    const url = await listenGate(handle, rail, {
+      ...ENV,
+      COUNTERSIGN_OPS_AGENT_KEY: "the-gate-holds-another-ops-key-0123456789",
+    });
+    const result = await runAgent([opsPayouts, "--url", url], BOTH_KEYS, options(handle));
+    expect(result.exitCode).toBe(EXIT_CANT_RUN);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(
+      `The gate at ${url} refused the principal key (HTTP 401). Check COUNTERSIGN_OPS_AGENT_KEY matches the gate's.\n`,
+    );
+    expect(result.stderr).not.toContain(OPS_KEY);
+    expect(await entryCount(handle)).toBe(0);
   });
 });

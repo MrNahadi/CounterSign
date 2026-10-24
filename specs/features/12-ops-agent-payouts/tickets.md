@@ -66,15 +66,15 @@ Notes:
 
 ## T-005: The agent CLI as the ops agent
 
-Status: open
+Status: done
 Blocked by: T-004
 Tier: simple
 Slice: `npm run agent -- apps/gate/proposals/ops-payouts.json` proposes as the ops agent with its own key.
 Test seam: the agent CLI's run function against a listening gate on PGlite, with test keys
 Acceptance:
-- [ ] The file's `principal` picks the key variable; an unknown principal or a missing key exits 2 and names the variable, never the value
-- [ ] `ops-payouts.json` exists with the three proposals in requirements.md, and every expectation matches
-- [ ] Proposals with no ticket write no ticket; the support agent's files still run unchanged
+- [x] The file's `principal` picks the key variable; an unknown principal or a missing key exits 2 and names the variable, never the value
+- [x] `ops-payouts.json` exists with the three proposals in requirements.md, and every expectation matches
+- [x] Proposals with no ticket write no ticket; the support agent's files still run unchanged
 Notes:
 
 ## T-006: The payout executor

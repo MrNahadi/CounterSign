@@ -1,9 +1,11 @@
-// The stand-in agent CLI: plays the support agent until Resolve exists (phase 8). It writes each
-// proposal file ticket to the ticket store, labelled simulated, as Resolve will (ADR 0029), then
-// connects to the gate's MCP endpoint with the principal key through the MCP SDK's client, calls
-// each proposal's tool and prints each agent response, or the responses as JSON with --json. It
-// holds no PayPal credential: the gate reads and decides. Returns the output and exit code rather
-// than writing them, so tests can call it directly. No AI.
+// The stand-in agent CLI: plays the support agent until Resolve exists (phase 8), and the ops agent
+// (phase 12, ADR 0039). The proposal file's principal picks the key variable. It writes each
+// proposal file ticket to the ticket store, labelled simulated, as Resolve will (ADR 0029); a
+// proposal with no ticket writes none. It then connects to the gate's MCP endpoint with the
+// principal key through the MCP SDK's client, calls each proposal's tool and prints each agent
+// response, or the responses as JSON with --json. It holds no PayPal credential: the gate reads
+// and decides. Returns the output and exit code rather than writing them, so tests can call it
+// directly. No AI.
 
 import {
   type Database,
@@ -26,7 +28,12 @@ import { z } from "zod";
 import { readJson } from "./case-file";
 import { type AgentResponse, AgentResponseSchema } from "./decide";
 import type { CliResult } from "./decide-cli";
-import { parsePrincipalEnv } from "./principals";
+import {
+  OPS_AGENT_KEY_VAR,
+  type PrincipalName,
+  parsePrincipalEnv,
+  SUPPORT_AGENT_KEY_VAR,
+} from "./principals";
 import {
   type Expected,
   type ProposalFile,
@@ -41,8 +48,17 @@ export const AGENT_USAGE =
   "Usage: npm run agent -- <proposal file> [--json] [--url <gate MCP URL>] [--pglite <dir>]";
 
 export const DEFAULT_GATE_URL = "http://127.0.0.1:8787/mcp";
-export const AGENT_PRINCIPAL = "support-agent";
-export const AGENT_KEY_VARIABLE = "COUNTERSIGN_SUPPORT_AGENT_KEY";
+
+// The principals this CLI can propose as, each with the variable holding its key.
+const KEY_VARIABLES = {
+  "support-agent": SUPPORT_AGENT_KEY_VAR,
+  "ops-agent": OPS_AGENT_KEY_VAR,
+} as const satisfies Record<PrincipalName, string>;
+
+const isAgentPrincipal = (name: string): name is PrincipalName =>
+  Object.hasOwn(KEY_VARIABLES, name);
+
+type Agent = { principal: PrincipalName; variable: string };
 
 export const EXIT_MATCHED = 0;
 export const EXIT_DIFFERED = 1;
@@ -91,29 +107,38 @@ function parseArgs(args: readonly string[]): { ok: true; options: Options } | Cl
   };
 }
 
-function loadFile(path: string): { ok: true; file: ProposalFile } | { ok: false; error: string } {
+function loadFile(
+  path: string,
+): { ok: true; file: ProposalFile; agent: Agent } | { ok: false; error: string } {
   const read = readJson(path);
   if (!read.ok) return read;
   const parsed = ProposalFileSchema.safeParse(read.json);
   if (!parsed.success)
     return { ok: false, error: firstIssueMessage("Proposal file", parsed.error) };
-  if (parsed.data.principal !== AGENT_PRINCIPAL) {
-    return {
-      ok: false,
-      error: `${path}: the stand-in agent proposes as ${AGENT_PRINCIPAL}, not ${parsed.data.principal}.`,
-    };
+  const { principal } = parsed.data;
+  if (!isAgentPrincipal(principal)) {
+    const known = Object.keys(KEY_VARIABLES).join(" or ");
+    return { ok: false, error: `${path}: the agent CLI proposes as ${known}, not ${principal}.` };
   }
-  return { ok: true, file: parsed.data };
+  return {
+    ok: true,
+    file: parsed.data,
+    agent: { principal, variable: KEY_VARIABLES[principal] },
+  };
 }
 
-// The principal key, named when missing, never shown.
-function agentKey(env: Environment): { ok: true; key: string } | { ok: false; error: string } {
+// The principal's key, named by its variable when missing, never shown. Two principal variables
+// holding the same value both count as unset, as at the gate.
+function agentKey(
+  env: Environment,
+  { principal, variable }: Agent,
+): { ok: true; key: string } | { ok: false; error: string } {
   const { keys } = parsePrincipalEnv(env);
-  const key = keys.find((item) => item.name === AGENT_PRINCIPAL)?.key;
+  const key = keys.find((item) => item.name === principal)?.key;
   if (key === undefined) {
     return {
       ok: false,
-      error: `The agent CLI can't start. Set ${AGENT_KEY_VARIABLE} in .env.local, 32 or more characters.`,
+      error: `The agent CLI can't start. Set ${variable} in .env.local, 32 or more characters.`,
     };
   }
   return { ok: true, key };
@@ -121,9 +146,9 @@ function agentKey(env: Environment): { ok: true; key: string } | { ok: false; er
 
 // One line for a gate that refused the key, or one that couldn't be reached. Never the gate's
 // own words, which a misconfigured proxy could fill with anything.
-function gateProblem(error: unknown, url: URL): string {
+function gateProblem(error: unknown, url: URL, { variable }: Agent): string {
   if (error instanceof StreamableHTTPError && error.code === 401) {
-    return `The gate at ${url.href} refused the principal key (HTTP 401). Check ${AGENT_KEY_VARIABLE} matches the gate's.`;
+    return `The gate at ${url.href} refused the principal key (HTTP 401). Check ${variable} matches the gate's.`;
   }
   if (error instanceof StreamableHTTPError && (error.code ?? 0) > 0) {
     return `The gate at ${url.href} answered HTTP ${error.code}.`;
@@ -134,6 +159,7 @@ function gateProblem(error: unknown, url: URL): string {
 async function connect(
   url: URL,
   key: string,
+  agent: Agent,
 ): Promise<{ ok: true; client: Client } | { ok: false; error: string }> {
   const client = new Client({ name: "countersign-stand-in-agent", version: "0.7.0" });
   const transport = new StreamableHTTPClientTransport(url, {
@@ -144,14 +170,19 @@ async function connect(
     return { ok: true, client };
   } catch (error) {
     await client.close().catch(() => {});
-    return { ok: false, error: gateProblem(error, url) };
+    return { ok: false, error: gateProblem(error, url, agent) };
   }
 }
 
 type Called = { ok: true; response: AgentResponse } | { ok: false; error: string };
 
 // Calls the proposal's tool. A result the gate marks as an error means nothing was recorded.
-async function call(client: Client, { proposal }: Resolved, url: URL): Promise<Called> {
+async function call(
+  client: Client,
+  { proposal }: Resolved,
+  url: URL,
+  agent: Agent,
+): Promise<Called> {
   const { tool, args, justification } = proposal;
   let result: Awaited<ReturnType<Client["callTool"]>>;
   try {
@@ -160,7 +191,7 @@ async function call(client: Client, { proposal }: Resolved, url: URL): Promise<C
       arguments: { ...args, ...(justification === undefined ? {} : { justification }) },
     });
   } catch (error) {
-    return { ok: false, error: gateProblem(error, url) };
+    return { ok: false, error: gateProblem(error, url, agent) };
   }
   if (result.isError === true) {
     const [first] = Array.isArray(result.content) ? result.content : [];
@@ -228,7 +259,13 @@ function readableLines(ran: Ran, index: number, count: number): string[] {
   return lines;
 }
 
-function render(json: boolean, file: ProposalFile, url: URL, ran: Ran[]): CliResult {
+function render(
+  json: boolean,
+  file: ProposalFile,
+  url: URL,
+  { principal }: Agent,
+  ran: Ran[],
+): CliResult {
   const differed = ran.filter((item) => mismatch(item) !== null).length;
   const exitCode = differed > 0 ? EXIT_DIFFERED : EXIT_MATCHED;
   const summary =
@@ -249,7 +286,7 @@ function render(json: boolean, file: ProposalFile, url: URL, ran: Ran[]): CliRes
       stderr: stderr.length === 0 ? "" : `${stderr.join("\n")}\n`,
     };
   }
-  const lines = [file.description, `Gate ${url.href}, as ${AGENT_PRINCIPAL}`];
+  const lines = [file.description, `Gate ${url.href}, as ${principal}`];
   ran.forEach((item, index) => {
     lines.push("", ...readableLines(item, index, ran.length));
   });
@@ -268,6 +305,7 @@ async function runWith(
   store: Store,
   file: ProposalFile,
   options: Options,
+  agent: Agent,
   key: string,
   now: () => Date,
 ): Promise<CliResult> {
@@ -279,13 +317,13 @@ async function runWith(
   }
   if (!prepared.ok) return cantRun(prepared.error);
 
-  const connected = await connect(options.url, key);
+  const connected = await connect(options.url, key, agent);
   if (!connected.ok) return cantRun(connected.error);
   const { client } = connected;
   try {
     const ran: Ran[] = [];
     for (const [index, resolved] of prepared.resolved.entries()) {
-      const called = await call(client, resolved, options.url);
+      const called = await call(client, resolved, options.url, agent);
       if (!called.ok) {
         const earlier =
           index === 0
@@ -295,13 +333,16 @@ async function runWith(
       }
       ran.push({ resolved, response: called.response });
     }
-    return render(options.json, file, options.url, ran);
+    return render(options.json, file, options.url, agent, ran);
   } finally {
     await client.close().catch(() => {});
   }
 }
 
-/** Runs the stand-in agent. Exit 0 when every decision matched, 1 when any didn't, 2 when it can't run. */
+/**
+ * Runs the stand-in agent as the proposal file's principal. Exit 0 when every decision matched,
+ * 1 when any didn't, 2 when it can't run.
+ */
 export async function runAgent(
   args: readonly string[],
   env: Environment,
@@ -312,7 +353,7 @@ export async function runAgent(
   const { options } = parsed;
   const file = loadFile(options.path);
   if (!file.ok) return cantRun(file.error);
-  const key = agentKey(env);
+  const key = agentKey(env, file.agent);
   if (!key.ok) return cantRun(key.error);
   const now = cliOptions.now ?? (() => new Date());
 
@@ -322,7 +363,7 @@ export async function runAgent(
       storeFailure: (ticketId) => `Couldn't store ticket ${ticketId}.`,
       failure: () => "Couldn't read the seed orders or the ticket store.",
     };
-    return runWith(store, file.file, options, key.key, now);
+    return runWith(store, file.file, options, file.agent, key.key, now);
   }
 
   const target = resolveDatabaseTarget(env, options.pgliteDir);
@@ -340,7 +381,7 @@ export async function runAgent(
       `Couldn't read the seed orders at ${targetName(target)}: ${failureReason(error, target)}. Run npm run db:migrate and npm run seed first.`,
   };
   try {
-    return await runWith(store, file.file, options, key.key, now);
+    return await runWith(store, file.file, options, file.agent, key.key, now);
   } finally {
     await handle.close().catch(() => {});
   }
