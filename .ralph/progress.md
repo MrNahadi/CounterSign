@@ -24,3 +24,10 @@
 - Gotcha: Payouts write money as `{ value, currency }`, not `currency_code`, so they have their own `payoutMoneySchema`. `senderBatchId`, `senderItemId`, `errorName` and `timeProcessed` are null when PayPal leaves them out.
 - Gotcha: `isDuplicateBatch` matches `DUPLICATE` or `SENDER_BATCH_ID` regardless of case, because the documented issue text is lower-case ("Batch with given sender_batch_id already exists"). It only matches a 4xx `http` error.
 - Gotcha: `apps/gate/test/fake-sandbox.ts` has stubs that throw for `createPayout`, `getPayoutBatch` and `getPayoutItem`. T-006 must turn them into a real fake: replay by request ID, a duplicate refusal for a reused batch ID, and seeded items.
+
+## T-004 (done)
+
+- Gate: `ops-agent` principal (`OPS_AGENT_KEY_VAR`, mandate `kikapu-studio-ops-v1.json`); equal principal keys both go to `unset`; the approver is checked against `principalKeyCandidates(env)` (every long-enough principal value, equal ones included). `Principals.mandateProblem` became `mandateProblems: { principal, problem }[]`, and `readMandate` now takes the principal's name. `create_payout` requires `reference` and USD ("Payouts are paid in USD only"). `decide()` replaces `records.payees` with the deciding mandate's list (`withMandatePayees`). `PAYEE_NOT_ALLOWLISTED` is in the catalog and is the `payee.allowlisted` fail code. 27 reason codes. New case `ops-payouts.json`.
+- Gotcha: `approval-log.ts`'s strict `ParamsSchema` now accepts `reference`, so a payout step-up's stored intent parses. Approval cards don't show it yet (T-009).
+- Gotcha: `propose-invoice.test.ts` and `answer-step-up.test.ts` still use a payout (now with a reference) as "an action with no executor". T-006 must switch them to `pay_order`, as plan.md says.
+- Gotcha: a mandate's `mandate.version` ref is `kikapu-studio-ops@v1` (`mandateRef`), but the payee snapshot's ID is `kikapu-studio-ops v1`, as requirements.md says.

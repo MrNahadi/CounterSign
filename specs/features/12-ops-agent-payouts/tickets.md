@@ -48,20 +48,21 @@ Notes:
 
 ## T-004: The ops principal and payout decisions
 
-Status: open
+Status: done
 Blocked by: T-002
 Tier: standard
 Slice: An agent with the ops key proposes a payout over MCP and gets a step-up for a listed supplier or a denial for anyone else; the support agent's payouts stay denied.
 Test seam: `loadPrincipals`, `decide()` and the gate's MCP server over a real listening gate with test keys
 Acceptance:
-- [ ] `COUNTERSIGN_OPS_AGENT_KEY` authenticates `ops-agent` with the ops mandate; equal principal keys both count as unset; the approver key must differ from both; startup lines name variables only
-- [ ] `create_payout` requires `reference` and USD, and its intent carries `{ note, reference }`; existing payout tests and `guarded-actions.json` gain a reference and still pass
-- [ ] `decide()` sets the `payees` snapshot from the deciding mandate only, so records can't add a payee
-- [ ] The four outcomes in requirements.md hold, and `apps/gate/fixtures/cases/ops-payouts.json` matches its expectations under `npm run decide`
-- [ ] The tools-list fixture is re-recorded with the new description and schema
-- [ ] `PAYEE_NOT_ALLOWLISTED` joins the catalog with requirements.md's words and hint; `payee.allowlisted` fail maps to it (the evaluator's fail case changes from `VERIFIER_UNAVAILABLE`); with `ops-payouts.json` the "every code is reached" test covers 27 codes; the payout in `payee-list-missing.json` gains a reference and still expects `PAYEE_LIST_UNKNOWN`
+- [x] `COUNTERSIGN_OPS_AGENT_KEY` authenticates `ops-agent` with the ops mandate; equal principal keys both count as unset; the approver key must differ from both; startup lines name variables only
+- [x] `create_payout` requires `reference` and USD, and its intent carries `{ note, reference }`; existing payout tests and `guarded-actions.json` gain a reference and still pass
+- [x] `decide()` sets the `payees` snapshot from the deciding mandate only, so records can't add a payee
+- [x] The four outcomes in requirements.md hold, and `apps/gate/fixtures/cases/ops-payouts.json` matches its expectations under `npm run decide`
+- [x] The tools-list fixture is re-recorded with the new description and schema
+- [x] `PAYEE_NOT_ALLOWLISTED` joins the catalog with requirements.md's words and hint; `payee.allowlisted` fail maps to it (the evaluator's fail case changes from `VERIFIER_UNAVAILABLE`); with `ops-payouts.json` the "every code is reached" test covers 27 codes; the payout in `payee-list-missing.json` gains a reference and still expects `PAYEE_LIST_UNKNOWN`
 Notes:
 - ADR 0040 moved `PAYEE_NOT_ALLOWLISTED` here from T-001, because this ticket's `ops-payouts.json` is the first decision case that reaches it.
+- `ops-payouts.json` is checked through `runDecideCli` in `decide-cli.test.ts` (the loop can't run `npm run decide` itself), and through `decide()` in `decide.test.ts`.
 
 ## T-005: The agent CLI as the ops agent
 

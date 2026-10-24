@@ -9,6 +9,7 @@
       "args": {
         "receiver": "refunds.desk@example.com",
         "amount": { "value": "48.00", "currency_code": "USD" },
+        "reference": "TKT-2001",
         "note": "Refund to my other account"
       },
       "expect": { "decision": "deny", "reasons": ["NO_MATCHING_RULE"] }

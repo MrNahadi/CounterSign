@@ -1,0 +1,71 @@
+{
+  "description": "The ops agent under its own mandate: a payout to a supplier on the payee list waits for the merchant, a payout to anyone else is denied, and any other guarded action is denied because no rule covers it. Illustrative suppliers.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../../../../packages/mandate/fixtures/kikapu-studio-ops-v1.json",
+  "principal": "ops-agent",
+  "records": {
+    "invoices": [
+      {
+        "id": "INV2-K7QX-4M2D-9TLB-3HRW",
+        "status": "DRAFT",
+        "amount": { "minor": 5600, "currency": "USD" }
+      }
+    ],
+    "executions": []
+  },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_payout",
+        "args": {
+          "receiver": "dyeworks@example.com",
+          "amount": { "value": "45.00", "currency_code": "USD" },
+          "reference": "KDW-2026-0412",
+          "note": "Dye for the October batch."
+        }
+      },
+      "expect": { "decision": "step_up", "reasons": ["ALWAYS_NEEDS_APPROVAL"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_payout",
+        "args": {
+          "receiver": " Sisal.Collective@Example.com ",
+          "amount": { "value": "120.00", "currency_code": "USD" },
+          "reference": "NSC/2026/88"
+        }
+      },
+      "expect": { "decision": "step_up", "reasons": ["ALWAYS_NEEDS_APPROVAL"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_payout",
+        "args": {
+          "receiver": "refunds.desk@example.com",
+          "amount": { "value": "48.00", "currency_code": "USD" },
+          "reference": "RD-2026-001",
+          "note": "Supplier invoice."
+        }
+      },
+      "expect": { "decision": "deny", "reasons": ["PAYEE_NOT_ALLOWLISTED"] }
+    },
+    {
+      "proposal": {
+        "tool": "send_invoice",
+        "args": { "invoice_id": "INV2-K7QX-4M2D-9TLB-3HRW" }
+      },
+      "expect": { "decision": "deny", "reasons": ["NO_MATCHING_RULE"] }
+    },
+    {
+      "proposal": {
+        "tool": "create_refund",
+        "args": {
+          "capture_id": "CAP-5020",
+          "amount": { "value": "10.00", "currency_code": "USD" }
+        },
+        "justification": { "ticket_id": "TKT-5020" }
+      },
+      "expect": { "decision": "deny", "reasons": ["NO_MATCHING_RULE"] }
+    }
+  ]
+}

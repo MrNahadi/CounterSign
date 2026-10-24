@@ -75,7 +75,7 @@ const DESCRIPTIONS: Record<GuardedTool, { text: string; extension: boolean }> = 
   send_invoice: { text: "Send an invoice to its recipients.", extension: false },
   pay_order: { text: "Capture payment for an approved order.", extension: false },
   create_payout: {
-    text: "Send money to a PayPal account by email address.",
+    text: "Pay a supplier on the merchant's list by PayPal email, for one bill (reference).",
     extension: true,
   },
 };

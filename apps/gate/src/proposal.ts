@@ -203,12 +203,20 @@ const PayOrderProposal = z.strictObject({
   justification: OptionalJustification,
 });
 
+// The supplier's bill number (ADR 0039), sent as the payout item's `sender_item_id`.
+const BillReference = z
+  .string()
+  .min(1)
+  .max(63)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._/-]*$/);
+
 const CreatePayoutProposal = z.strictObject({
   tool: z.literal("create_payout"),
   args: z.strictObject({
     // Compared and hashed lower-cased and trimmed (ADR 0027).
     receiver: z.string().transform(normalizePayeeEmail).pipe(Email),
     amount: Amount,
+    reference: BillReference,
     note: z.string().min(1).max(4000).optional(),
   }),
   justification: OptionalJustification,
@@ -425,9 +433,10 @@ function normalizeArgs(parsed: Parsed, records: GateRecords): Normalizing {
     case "pay_order":
       return normalizeOrder(parsed.args.id, records);
     case "create_payout": {
-      const { receiver, amount, note } = parsed.args;
+      const { receiver, amount, reference, note } = parsed.args;
+      if (amount.currency !== "USD") return invalid("Payouts are paid in USD only");
       const target: IntentTarget = { kind: "payee", email: receiver };
-      return { ok: true, amount, target, params: { note: note ?? null } };
+      return { ok: true, amount, target, params: { note: note ?? null, reference } };
     }
   }
 }

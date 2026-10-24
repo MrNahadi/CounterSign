@@ -54,6 +54,10 @@ export const REASONS = {
     words: "Countersign couldn't check earlier refunds.",
     hint: "We need to check this order before refunding. Tell them we'll follow up.",
   },
+  PAYEE_NOT_ALLOWLISTED: {
+    words: "The payee isn't on your list of suppliers.",
+    hint: "We can only pay suppliers on the merchant's list. Ask the team to add them first.",
+  },
   PAYEE_LIST_UNKNOWN: {
     words: "Countersign couldn't read your list of suppliers.",
     hint: "We need to check this payment before sending it. The team will follow up.",

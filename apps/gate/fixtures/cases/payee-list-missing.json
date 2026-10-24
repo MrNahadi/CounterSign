@@ -11,6 +11,7 @@
         "args": {
           "receiver": "dyeworks@example.com",
           "amount": { "value": "45.00", "currency_code": "USD" },
+          "reference": "KDW-2026-0412",
           "note": "Dye for the October batch."
         }
       },

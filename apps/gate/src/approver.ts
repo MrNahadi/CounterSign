@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { bearerKey, type Environment, MIN_KEY_LENGTH, parsePrincipalEnv } from "./principals";
+import { bearerKey, type Environment, MIN_KEY_LENGTH, principalKeyCandidates } from "./principals";
 
 // The approver key (ADR 0032): the one credential the gate's approval API takes. It follows the
 // principal-key rules, and a value equal to any principal key also counts as unset, so no agent
@@ -21,7 +21,7 @@ const digest = (value: string) => createHash("sha256").update(value, "utf8").dig
 // Reads the approver key from the environment with zod, once.
 export function loadApprover(env: Environment): Approver {
   const parsed = KeySchema.safeParse(env[APPROVER_KEY_VAR]);
-  const principalHashes = parsePrincipalEnv(env).keys.map(({ key }) => digest(key));
+  const principalHashes = principalKeyCandidates(env).map(digest);
   const hash = parsed.success ? digest(parsed.data) : null;
   // Compared in constant time against every principal key, with no early exit.
   let clashes = false;

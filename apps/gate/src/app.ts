@@ -11,7 +11,7 @@ import { approverLines, loadApprover } from "./approver";
 import { mountAudit } from "./audit-api";
 import { mountMcp } from "./mcp";
 import type { NudgeFetch } from "./nudge";
-import { loadPrincipals, MIN_KEY_LENGTH, type Principals } from "./principals";
+import { loadPrincipals, MIN_KEY_LENGTH, PRINCIPAL_LABELS, type Principals } from "./principals";
 import { ANSWERS, handlePayPalWebhook, WEBHOOK_BODY_LIMIT, type WebhookAnswer } from "./webhook";
 
 export type AppDeps = {
@@ -23,7 +23,7 @@ export type AppDeps = {
   carrier?: CarrierAdapter;
   env?: Readonly<Record<string, string | undefined>>;
   clock?: () => Date;
-  // The principals, for tests. Defaults to the keys in `env` and the support agent's mandate.
+  // The principals, for tests. Defaults to the keys in `env` and each principal's mandate.
   principals?: Principals;
   // Where startup lines go. Never given a secret's value.
   log?: (line: string) => void;
@@ -34,15 +34,17 @@ export type AppDeps = {
 // The startup lines about principal keys and the mandate: variable names only, never values.
 export function principalLines(principals: Principals): string[] {
   const lines: string[] = [];
-  const { unset, mandateProblem } = principals;
+  const { unset, mandateProblems } = principals;
   if (unset.length > 0) {
     const keys = unset.length === 1 ? "Principal key" : "Principal keys";
     lines.push(
-      `${keys} unset: ${unset.join(", ")} (needs ${MIN_KEY_LENGTH} or more characters). /mcp answers 401 for ${unset.length === 1 ? "it" : "them"}.`,
+      `${keys} unset: ${unset.join(", ")} (needs ${MIN_KEY_LENGTH} or more characters, and no two principal keys may be the same). /mcp answers 401 for ${unset.length === 1 ? "it" : "them"}.`,
     );
   }
-  if (mandateProblem !== null) {
-    lines.push(`The support agent's mandate didn't load, so /mcp answers 401: ${mandateProblem}`);
+  for (const { principal, problem } of mandateProblems) {
+    lines.push(
+      `The ${PRINCIPAL_LABELS[principal]}'s mandate didn't load, so /mcp answers 401 for ${principal}: ${problem}`,
+    );
   }
   return lines;
 }

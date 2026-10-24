@@ -139,6 +139,7 @@ const ParamsSchema = z.strictObject({
     .array(z.strictObject({ id: z.string(), name: z.string(), sha256: z.string() }))
     .nullable()
     .optional(),
+  reference: z.string().nullable().optional(),
 });
 
 // The stored intent, kept exactly as decided so its hash can be checked again.

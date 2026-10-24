@@ -51,6 +51,7 @@
         "args": {
           "receiver": "  Wanjiru.K@Example.com ",
           "amount": { "value": "25.00", "currency_code": "USD" },
+          "reference": "GW-5012",
           "note": "Goodwill credit."
         }
       },

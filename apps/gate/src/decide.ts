@@ -16,7 +16,7 @@ import {
   type Usage,
   type VerifierTrace,
 } from "@countersign/mandate";
-import { runVerifiers, todaysUsage } from "@countersign/verifiers";
+import { CALLS, runVerifiers, todaysUsage } from "@countersign/verifiers";
 import { z } from "zod";
 import { isExecutable } from "./executable";
 import type { GateRecords } from "./gate-records";
@@ -95,8 +95,19 @@ function denied(intentId: string | null, reasons: Reason[]): AgentResponse {
   };
 }
 
+// The records with the deciding mandate's payee list as the `payees` snapshot (ADR 0039). Any
+// `payees` the records held is dropped, so nothing outside the signed mandate can add a payee.
+function withMandatePayees(records: GateRecords, mandate: Mandate): GateRecords {
+  const { payees: _ignored, ...rest } = records;
+  if (mandate.payees === undefined) return rest;
+  const payees = mandate.payees.map(({ email, name }) => ({ email, name }));
+  const id = `${mandate.id} v${mandate.version}`;
+  return { ...rest, payees: { call: CALLS.payees, id, payees } };
+}
+
 export function decide(input: DecideInput): Decided {
-  const { mandate, principal, records, now } = input;
+  const { mandate, principal, now } = input;
+  const records = withMandatePayees(input.records, mandate);
   const decidedAt = now.toISOString();
   const usage = todaysUsage(records, { principal, timeZone: mandate.time_zone, now });
   const base = {

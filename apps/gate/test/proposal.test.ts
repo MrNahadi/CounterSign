@@ -444,6 +444,7 @@ const createPayout = {
   args: {
     receiver: "  Wanjiru.K@Example.com ",
     amount: { value: "25.00", currency_code: "USD" },
+    reference: "GW-5012",
     note: "Goodwill credit.",
   },
 };
@@ -510,7 +511,7 @@ describe("normalizeProposal for send_invoice, pay_order and create_payout", () =
         amount: { minor: 2500, currency: "USD" },
         target: { kind: "payee", email: "wanjiru.k@example.com" },
         ticketId: null,
-        params: { note: "Goodwill credit." },
+        params: { note: "Goodwill credit.", reference: "GW-5012" },
         claim: null,
         mandateVersion: 3,
       },
@@ -523,8 +524,34 @@ describe("normalizeProposal for send_invoice, pay_order and create_payout", () =
     expect(hashIntent(intentOf(plain)).hash).toBe(hashIntent(intentOf(createPayout)).hash);
     expect(
       intentOf({ ...createPayout, args: { ...createPayout.args, note: undefined } }).params,
-    ).toEqual({
-      note: null,
+    ).toEqual({ note: null, reference: "GW-5012" });
+  });
+
+  it("names a payout's ticket only when its justification does", () => {
+    const named = { ...createPayout, justification: { ticket_id: "TKT-5012" } };
+    expect(intentOf(named).ticketId).toBe("TKT-5012");
+    expect(intentOf(createPayout).ticketId).toBeNull();
+  });
+
+  it("changes a payout's hash when its reference changes", () => {
+    const other = withDisputeArgs(createPayout, { reference: "GW-5013" });
+    expect(hashIntent(intentOf(other)).hash).not.toBe(hashIntent(intentOf(createPayout)).hash);
+  });
+
+  it.each(["KDW-2026-0412", "A", "inv.7/2026-x", "9".repeat(63)])(
+    "accepts the bill reference %s",
+    (reference) => {
+      expect(intentOf(withDisputeArgs(createPayout, { reference })).params?.reference).toBe(
+        reference,
+      );
+    },
+  );
+
+  it("denies a payout in any currency but USD, saying so", () => {
+    const kes = withDisputeArgs(createPayout, { amount: { value: "4500", currency_code: "KES" } });
+    expect(normalizeOther(kes)).toEqual({
+      ok: false,
+      reason: { code: "INVALID_PROPOSAL", detail: "Payouts are paid in USD only" },
     });
   });
 
@@ -569,6 +596,21 @@ describe("normalizeProposal for send_invoice, pay_order and create_payout", () =
       withDisputeArgs(createPayout, { amount: { value: "5.00", currency_code: "EUR" } }),
     ],
     ["create_payout with an empty note", withDisputeArgs(createPayout, { note: "" })],
+    ["create_payout with no reference", withDisputeArgs(createPayout, { reference: undefined })],
+    ["create_payout with an empty reference", withDisputeArgs(createPayout, { reference: "" })],
+    [
+      "create_payout with a reference over 63 characters",
+      withDisputeArgs(createPayout, { reference: "R".repeat(64) }),
+    ],
+    [
+      "create_payout with a reference that starts with a dash",
+      withDisputeArgs(createPayout, { reference: "-KDW-1" }),
+    ],
+    [
+      "create_payout with a space in its reference",
+      withDisputeArgs(createPayout, { reference: "KDW 1" }),
+    ],
+    ["create_payout with a numeric reference", withDisputeArgs(createPayout, { reference: 412 })],
     ["create_payout with an unknown key", withDisputeArgs(createPayout, { sender_batch_id: "B1" })],
   ])("denies %s as INVALID_PROPOSAL", (_label, input) => {
     expect(deniedCode(input, otherRecords)).toBe("INVALID_PROPOSAL");

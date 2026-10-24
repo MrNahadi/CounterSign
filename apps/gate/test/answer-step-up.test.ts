@@ -123,7 +123,11 @@ const sendInvoice = {
 
 const payout = {
   tool: "create_payout",
-  args: { receiver: PAYER, amount: { value: "25.00", currency_code: "USD" } },
+  args: {
+    receiver: PAYER,
+    amount: { value: "25.00", currency_code: "USD" },
+    reference: "GW-1037",
+  },
   justification: { ticket_id: "TKT-1037" },
 };
 const isPayout = (proposal: unknown) => proposal === payout;

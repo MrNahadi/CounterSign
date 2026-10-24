@@ -335,9 +335,8 @@ describe("step 2: requirements", () => {
       expect(codes(result)).toEqual(["ALWAYS_NEEDS_APPROVAL"]);
     });
 
-    // ADR 0040: the fail code joins the catalog in T-004, until then a fail still denies.
     it.each<[VerifierResult, string]>([
-      ["fail", "VERIFIER_UNAVAILABLE"],
+      ["fail", "PAYEE_NOT_ALLOWLISTED"],
       ["unknown", "PAYEE_LIST_UNKNOWN"],
     ])("denies a payout when payee.allowlisted is %s, with %s", (result, code) => {
       const evaluation = run([entry("payee.allowlisted", result)]);

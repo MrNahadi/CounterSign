@@ -384,7 +384,7 @@
     },
     {
       "name": "create_payout",
-      "description": "Countersign extension: PayPal's Agent Toolkit has no such tool. Send money to a PayPal account by email address. Countersign decides each call against the merchant's mandate and answers allowed, pending approval or denied, with reasons.",
+      "description": "Countersign extension: PayPal's Agent Toolkit has no such tool. Pay a supplier on the merchant's list by PayPal email, for one bill (reference). Countersign decides each call against the merchant's mandate and answers allowed, pending approval or denied, with reasons.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -403,6 +403,12 @@
             },
             "required": ["value", "currency_code"],
             "additionalProperties": false
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
           },
           "note": {
             "type": "string",
@@ -431,7 +437,7 @@
             "additionalProperties": false
           }
         },
-        "required": ["receiver", "amount"],
+        "required": ["receiver", "amount", "reference"],
         "additionalProperties": false
       }
     },

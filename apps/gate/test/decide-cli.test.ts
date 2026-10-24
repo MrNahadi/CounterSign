@@ -27,6 +27,27 @@ function tempCase(contents: string): string {
   return path;
 }
 
+describe("the decide CLI on the ops agent's payouts", () => {
+  it("holds the listed supplier's payouts, and denies the unlisted payee and other actions", () => {
+    const result = runDecideCli([join(casesDir, "ops-payouts.json"), "--json"]);
+    expect(result.stderr).toBe("");
+    expect(result.exitCode).toBe(EXIT_DECIDED);
+    const responses = AgentResponseSchema.array().parse(JSON.parse(result.stdout));
+    expect(
+      responses.map((response) => [
+        response.decision,
+        response.decision === "allowed" ? [] : response.reasons.map((reason) => reason.code),
+      ]),
+    ).toEqual([
+      ["pending_approval", ["ALWAYS_NEEDS_APPROVAL"]],
+      ["pending_approval", ["ALWAYS_NEEDS_APPROVAL"]],
+      ["denied", ["PAYEE_NOT_ALLOWLISTED"]],
+      ["denied", ["NO_MATCHING_RULE"]],
+      ["denied", ["NO_MATCHING_RULE"]],
+    ]);
+  });
+});
+
 describe("the decide CLI's readable output", () => {
   const result = runDecideCli([beat3]);
   const proposalBlocks = blocks(result.stdout);

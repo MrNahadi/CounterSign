@@ -105,7 +105,11 @@ const PROPOSALS = {
   pay_order: { tool: "pay_order", args: { id: ORDER }, justification },
   create_payout: {
     tool: "create_payout",
-    args: { receiver: " Grace.W@Example.com ", amount: { value: "50.00", currency_code: "USD" } },
+    args: {
+      receiver: " Grace.W@Example.com ",
+      amount: { value: "50.00", currency_code: "USD" },
+      reference: "GW-2026-07",
+    },
     justification,
   },
 } as const;

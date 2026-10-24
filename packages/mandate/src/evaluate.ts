@@ -107,7 +107,7 @@ const REQUIREMENT_CODES: Partial<
   "shipment.status": { fail: "SHIPMENT_STATUS_UNKNOWN", unknown: "SHIPMENT_STATUS_UNKNOWN" },
   "evidence.photo_present": { fail: "NO_PHOTO_EVIDENCE", unknown: "TICKET_UNKNOWN" },
   "ledger.not_duplicate": { fail: "DUPLICATE_REFUND", unknown: "HISTORY_UNKNOWN" },
-  "payee.allowlisted": { unknown: "PAYEE_LIST_UNKNOWN" },
+  "payee.allowlisted": { fail: "PAYEE_NOT_ALLOWLISTED", unknown: "PAYEE_LIST_UNKNOWN" },
 };
 
 // One reason per requirement that isn't `pass`. A verifier missing from the trace is unknown.

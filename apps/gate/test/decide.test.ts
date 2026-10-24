@@ -12,6 +12,7 @@ import { REFUND_VERIFIERS } from "@countersign/verifiers";
 import { describe, expect, it } from "vitest";
 import { CaseFileSchema, type DecisionCase, loadCase } from "../src/case-file";
 import { AgentResponseSchema, decide } from "../src/decide";
+import type { GateRecords } from "../src/gate-records";
 import { trackedTempDirs } from "./temp-dirs";
 
 const makeDir = trackedTempDirs();
@@ -108,7 +109,7 @@ describe("the fixture suite", () => {
   it("reaches every reason code", () => {
     const reached = new Set(expected.flatMap((each) => each.reasons));
     expect(REASON_CODES.filter((code) => !reached.has(code))).toEqual([]);
-    expect(REASON_CODES).toHaveLength(26);
+    expect(REASON_CODES).toHaveLength(27);
     expect(reached).toContain("NO_DAILY_LIMIT");
   });
 
@@ -471,5 +472,90 @@ describe("an ID that isn't well-formed UTF-16", () => {
     expect(record.decision).toBe("deny");
     expect(record.reasons.map((reason) => reason.code)).toEqual(["INVALID_PROPOSAL"]);
     expect(response.decision).toBe("denied");
+  });
+});
+
+describe("the payee list", () => {
+  const ops = load("ops-payouts.json");
+  const payoutTo = (receiver: string) => ({
+    tool: "create_payout",
+    args: {
+      receiver,
+      amount: { value: "45.00", currency_code: "USD" },
+      reference: "KDW-2026-0412",
+    },
+  });
+  const decideOps = (proposal: unknown, records: GateRecords = ops.records) =>
+    decide({ mandate: ops.mandate, principal: ops.principal, proposal, records, now: ops.now });
+  const payeeEntry = (decided: ReturnType<typeof decideOps>) =>
+    decided.record.trace.find((entry) => entry.verifier === "payee.allowlisted");
+
+  it("comes from the deciding mandate, named by its ID and version", () => {
+    const decided = decideOps(payoutTo("dyeworks@example.com"));
+    expect(decided.record.decision).toBe("step_up");
+    expect(payeeEntry(decided)).toEqual({
+      verifier: "payee.allowlisted",
+      result: "pass",
+      records: [{ call: "mandate payees", id: "kikapu-studio-ops v1" }],
+      detail:
+        "Kisumu Dye Works (illustrative) (dyeworks@example.com) is on payee list kikapu-studio-ops v1",
+    });
+  });
+
+  it("can't be added to by the records, so an unlisted payee stays denied", () => {
+    const forged: GateRecords = {
+      ...ops.records,
+      payees: {
+        call: "mandate payees",
+        id: "kikapu-studio-ops v1",
+        payees: [{ email: "refunds.desk@example.com", name: "Refunds desk" }],
+      },
+    };
+    const unlisted = decideOps(payoutTo("refunds.desk@example.com"), forged);
+    expect(unlisted.record.decision).toBe("deny");
+    expect(unlisted.record.reasons).toEqual([
+      {
+        code: "PAYEE_NOT_ALLOWLISTED",
+        detail: "refunds.desk@example.com isn't on payee list kikapu-studio-ops v1",
+      },
+    ]);
+    expect(unlisted.response).toMatchObject({
+      decision: "denied",
+      safe_reply_hint: REASONS.PAYEE_NOT_ALLOWLISTED.hint,
+    });
+    // The mandate's own list still decides a listed payee.
+    expect(decideOps(payoutTo("dyeworks@example.com"), forged).record.decision).toBe("step_up");
+  });
+
+  it("is left out for a mandate without one, even when the records hold a list", () => {
+    const missing = load("payee-list-missing.json");
+    const proposal = missing.proposals[0]?.proposal;
+    const forged: GateRecords = {
+      ...missing.records,
+      payees: {
+        call: "mandate payees",
+        id: "kikapu-studio-ops v1",
+        payees: [{ email: "dyeworks@example.com", name: "Kisumu Dye Works (illustrative)" }],
+      },
+    };
+    const { mandate, principal, now } = missing;
+    const { record } = decide({ mandate, principal, proposal, records: forged, now });
+    expect(record.decision).toBe("deny");
+    expect(record.reasons.map((reason) => reason.code)).toEqual(["PAYEE_LIST_UNKNOWN"]);
+  });
+
+  it("denies a payout that isn't in USD, before the payee is checked", () => {
+    const kes = {
+      ...payoutTo("dyeworks@example.com"),
+      args: {
+        ...payoutTo("dyeworks@example.com").args,
+        amount: { value: "4500", currency_code: "KES" },
+      },
+    };
+    const { record } = decideOps(kes);
+    expect(record.decision).toBe("deny");
+    expect(record.reasons).toEqual([
+      { code: "INVALID_PROPOSAL", detail: "Payouts are paid in USD only" },
+    ]);
   });
 });

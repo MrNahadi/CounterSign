@@ -55,6 +55,11 @@ const table: [string, string, string | null][] = [
     "We need to check this order before refunding. Tell them we'll follow up.",
   ],
   [
+    "PAYEE_NOT_ALLOWLISTED",
+    "The payee isn't on your list of suppliers.",
+    "We can only pay suppliers on the merchant's list. Ask the team to add them first.",
+  ],
+  [
     "PAYEE_LIST_UNKNOWN",
     "Countersign couldn't read your list of suppliers.",
     "We need to check this payment before sending it. The team will follow up.",

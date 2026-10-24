@@ -16,9 +16,9 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { type AppDeps, createApp } from "../src/app";
-import { AgentResponseSchema } from "../src/decide";
+import { type AgentResponse, AgentResponseSchema } from "../src/decide";
 import { UNAUTHORIZED_BODY, UNRECORDED_MESSAGE } from "../src/mcp";
-import { loadPrincipals } from "../src/principals";
+import { loadPrincipals, readPrincipalMandate } from "../src/principals";
 import { READ_MESSAGES } from "../src/reads";
 import { mandateRef } from "../src/record";
 import { createFakeSandbox } from "./fake-sandbox";
@@ -30,6 +30,7 @@ const SLOW = 60_000;
 const NOW = new Date("2026-10-17T09:00:00+03:00");
 const KEY = "test-support-agent-key-0123456789abcdef";
 const ENV = { COUNTERSIGN_SUPPORT_AGENT_KEY: KEY };
+const OPS_KEY = "test-ops-agent-key-0123456789abcdef0123";
 
 const usd = (minor: number) => ({ minor, currency: "USD" as const });
 
@@ -250,7 +251,10 @@ describe("tools/list", () => {
       expect(tool.inputSchema.properties).toHaveProperty("justification");
     }
     const payout = tools.find((tool) => tool.name === "create_payout");
-    expect(payout?.inputSchema.required).toEqual(["receiver", "amount"]);
+    expect(payout?.inputSchema.required).toEqual(["receiver", "amount", "reference"]);
+    expect(payout?.description).toContain(
+      "Pay a supplier on the merchant's list by PayPal email, for one bill (reference).",
+    );
   });
 });
 
@@ -803,5 +807,115 @@ describe("tools/call for guarded tools", { timeout: SLOW }, () => {
       content: [{ type: "text", text: UNRECORDED_MESSAGE }],
       isError: true,
     });
+  });
+
+  describe("as the ops agent", () => {
+    const BOTH = { ...ENV, COUNTERSIGN_OPS_AGENT_KEY: OPS_KEY };
+    const opsGate = async (world: ReturnType<typeof sandboxWith>, key = OPS_KEY) =>
+      connect(
+        await listen({
+          db,
+          rail: () => world.rail,
+          carrier: world.carrier,
+          env: BOTH,
+          clock: () => NOW,
+        }),
+        key,
+      );
+    const payout = (receiver: string, value = "45.00", currency = "USD") => ({
+      receiver,
+      amount: { value, currency_code: currency },
+      reference: "KDW-2026-0412",
+      note: "Dye for the October batch.",
+    });
+    const codes = (response: AgentResponse) =>
+      "reasons" in response ? response.reasons.map((reason) => reason.code) : [];
+
+    it("holds a payout to a listed supplier for approval, and denies an unlisted payee", async () => {
+      const world = beat4World();
+      const client = await opsGate(world);
+
+      const listed = await call(client, "create_payout", payout("dyeworks@example.com"));
+      expect(listed.decision).toBe("pending_approval");
+      expect(codes(listed)).toEqual(["ALWAYS_NEEDS_APPROVAL"]);
+
+      const unlisted = await call(client, "create_payout", payout("refunds.desk@example.com"));
+      expect(unlisted.decision).toBe("denied");
+      expect(codes(unlisted)).toEqual(["PAYEE_NOT_ALLOWLISTED"]);
+
+      const kes = await call(
+        client,
+        "create_payout",
+        payout("dyeworks@example.com", "4500", "KES"),
+      );
+      expect(codes(kes)).toEqual(["INVALID_PROPOSAL"]);
+
+      const refund = await call(client, "create_refund", refundArgs(1035, "18.00", "TKT-1035"));
+      expect(refund.decision).toBe("denied");
+      expect(codes(refund)).toEqual(["NO_MATCHING_RULE"]);
+
+      const decisions = (await entries()).filter((row) => row.entryType === "decision");
+      expect(decisions).toHaveLength(4);
+      for (const row of decisions) expect(row.payload).toContain('"principal":"ops-agent"');
+      expect(decisions[0]?.payload).toContain('"reference":"KDW-2026-0412"');
+      expect(decisions[0]?.payload).toContain('"id":"kikapu-studio-ops"');
+      const versions = (await entries()).filter((row) => row.entryType === "mandate.version");
+      expect(versions.map((row) => row.refId)).toEqual([
+        mandateRef({ id: "kikapu-studio-ops", version: 1 }),
+      ]);
+      expect(world.rail.calls.filter((c) => c.call.startsWith("createPayout"))).toEqual([]);
+      expect((await verifyLog(db)).intact).toBe(true);
+    });
+
+    it("still denies the support agent's payout NO_MATCHING_RULE", async () => {
+      const client = await opsGate(beat4World(), KEY);
+      const response = await call(client, "create_payout", payout("dyeworks@example.com"));
+      expect(response.decision).toBe("denied");
+      expect(codes(response)).toEqual(["NO_MATCHING_RULE"]);
+      const decisions = (await entries()).filter((row) => row.entryType === "decision");
+      expect(decisions[0]?.payload).toContain('"principal":"support-agent"');
+    });
+  });
+});
+
+describe("POST /mcp: the ops agent's key", () => {
+  it("refuses both principals when their keys are equal, naming the variables only", async () => {
+    const lines: string[] = [];
+    const url = await listen({
+      env: {
+        COUNTERSIGN_SUPPORT_AGENT_KEY: KEY,
+        COUNTERSIGN_OPS_AGENT_KEY: KEY,
+        COUNTERSIGN_APPROVER_KEY: "approver-key-illustrative-0123456789abcd",
+      },
+      log: (line) => lines.push(line),
+    });
+    const res = await post(url, { Authorization: `Bearer ${KEY}` });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual(UNAUTHORIZED_BODY);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain("COUNTERSIGN_SUPPORT_AGENT_KEY");
+    expect(lines[0]).toContain("COUNTERSIGN_OPS_AGENT_KEY");
+    expect(lines.join("\n")).not.toContain(KEY);
+  });
+
+  it("refuses only the ops agent when its mandate doesn't load, and says which at startup", async () => {
+    const lines: string[] = [];
+    const env = { ...ENV, COUNTERSIGN_OPS_AGENT_KEY: OPS_KEY };
+    const url = await listen({
+      env,
+      principals: loadPrincipals({
+        env,
+        readMandate: (name) =>
+          name === "ops-agent" ? { id: "broken" } : readPrincipalMandate(name),
+      }),
+      log: (line) => lines.push(line),
+    });
+    expect((await post(url, { Authorization: `Bearer ${OPS_KEY}` })).status).toBe(401);
+    expect((await post(url, { Authorization: `Bearer ${KEY}` })).status).toBe(200);
+    const mandateLines = lines.filter((line) => line.includes("mandate didn't load"));
+    expect(mandateLines).toHaveLength(1);
+    expect(mandateLines[0]).toContain("ops agent");
+    expect(mandateLines[0]).toContain("ops-agent");
+    expect(lines.join("\n")).not.toContain(OPS_KEY);
   });
 });
