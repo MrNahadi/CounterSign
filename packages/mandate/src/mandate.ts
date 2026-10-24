@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { type CanonicalHash, type JsonValue, sha256Canonical } from "./canonical-json";
-import { ACTIONS, type Action as ActionName, CLAIMS, RAILS } from "./intent";
+import { ACTIONS, type Action as ActionName, CLAIMS, normalizePayeeEmail, RAILS } from "./intent";
 import { CURRENCIES } from "./money";
 import { firstIssueMessage, IdSchema, type ParseIssue, parseIssues } from "./parsing";
 import type { RuleReasonCode } from "./reason-codes";
@@ -85,6 +85,17 @@ const Limit = z
     message: "A limit needs per_day_total, per_day_count or both",
   });
 
+// A supplier the principal may pay (ADR 0039). The email is stored as it's compared and hashed.
+const Payee = z.strictObject({
+  email: z
+    .email()
+    .refine(
+      (email) => email === normalizePayeeEmail(email),
+      "A payee email must be lower-cased and trimmed",
+    ),
+  name: z.string().min(1).max(100),
+});
+
 function isTimeZone(name: string): boolean {
   try {
     new Intl.DateTimeFormat("en", { timeZone: name });
@@ -103,6 +114,8 @@ export const MandateSchema = z
     time_zone: z.string().refine(isTimeZone, "Unknown IANA time zone").default("Africa/Nairobi"),
     fallback: z.literal("deny"),
     limits: z.array(Limit),
+    // Absent from a mandate without one, so its hash is as it was before the key existed.
+    payees: z.array(Payee).max(100).optional(),
     rules: z.array(Rule),
   })
   .superRefine((mandate, ctx) => {
@@ -128,10 +141,22 @@ export const MandateSchema = z
       }
       ruleIds.add(rule.id);
     });
+    const emails = new Set<string>();
+    mandate.payees?.forEach((payee, index) => {
+      if (emails.has(payee.email)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["payees", index, "email"],
+          message: `A second payee with email ${payee.email}`,
+        });
+      }
+      emails.add(payee.email);
+    });
   });
 
 export type Mandate = z.infer<typeof MandateSchema>;
 export type Rule = Mandate["rules"][number];
+export type MandatePayee = NonNullable<Mandate["payees"]>[number];
 
 // A rule names one action or a list of them.
 export function ruleActions(rule: Rule): readonly ActionName[] {

@@ -2,17 +2,19 @@
 
 ## T-001: The payee list, payout reason codes and the bill reference in the mandate
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: A mandate can carry a signed payee list, the ops mandate exists, and a payout intent hashes its bill reference.
 Test seam: `@countersign/mandate`'s `parseMandate`, `hashMandate`, `hashIntent`, `evaluate` and `REASONS`
 Acceptance:
-- [ ] `payees` parses as requirements.md says; a repeated, upper-case, untrimmed or malformed email and more than 100 entries are refused with an issue at the entry
-- [ ] `kikapu-studio-ops-v1.json` parses with the values in requirements.md; the kikapu-studio v3 hash is unchanged
-- [ ] `PAYEE_NOT_ALLOWLISTED` and `PAYEE_LIST_UNKNOWN` exist with the words and hints given, and a rule requiring `payee.allowlisted` denies with them on fail and unknown
-- [ ] A payout's hash covers `reference` when set; without it, and for every other action, every existing hash test passes unchanged
+- [x] `payees` parses as requirements.md says; a repeated, upper-case, untrimmed or malformed email and more than 100 entries are refused with an issue at the entry
+- [x] `kikapu-studio-ops-v1.json` parses with the values in requirements.md; the kikapu-studio v3 hash is unchanged
+- [x] `PAYEE_LIST_UNKNOWN` exists with the words and hint given; a rule requiring `payee.allowlisted` denies with it on unknown (and when it's missing from the trace), and still denies on fail (`VERIFIER_UNAVAILABLE` until T-004); `payee-list-missing.json` reaches it, and the "every code is reached" test covers 26 codes
+- [x] A payout's hash covers `reference` when set; without it, and for every other action, every existing hash test passes unchanged
 Notes:
+- ADR 0040: `PAYEE_NOT_ALLOWLISTED` and its fail mapping moved to T-004, the ticket whose decision case first reaches it.
+- `payee-list-missing.json`'s payout has no `reference` yet: `create_payout` refuses it until T-004.
 
 ## T-002: The `payee.allowlisted` verifier
 
@@ -56,7 +58,9 @@ Acceptance:
 - [ ] `decide()` sets the `payees` snapshot from the deciding mandate only, so records can't add a payee
 - [ ] The four outcomes in requirements.md hold, and `apps/gate/fixtures/cases/ops-payouts.json` matches its expectations under `npm run decide`
 - [ ] The tools-list fixture is re-recorded with the new description and schema
+- [ ] `PAYEE_NOT_ALLOWLISTED` joins the catalog with requirements.md's words and hint; `payee.allowlisted` fail maps to it (the evaluator's fail case changes from `VERIFIER_UNAVAILABLE`); with `ops-payouts.json` the "every code is reached" test covers 27 codes; the payout in `payee-list-missing.json` gains a reference and still expects `PAYEE_LIST_UNKNOWN`
 Notes:
+- ADR 0040 moved `PAYEE_NOT_ALLOWLISTED` here from T-001, because this ticket's `ops-payouts.json` is the first decision case that reaches it.
 
 ## T-005: The agent CLI as the ops agent
 

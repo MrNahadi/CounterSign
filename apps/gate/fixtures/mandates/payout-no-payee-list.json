@@ -1,0 +1,17 @@
+{
+  "id": "payout-no-payee-list",
+  "version": 1,
+  "principal": "ops-agent",
+  "time_zone": "Africa/Nairobi",
+  "fallback": "deny",
+  "limits": [{ "currency": "USD", "per_day_total": 50000, "per_day_count": 5 }],
+  "rules": [
+    {
+      "id": "payout-listed-supplier",
+      "action": "paypal.payout",
+      "require": ["payee.allowlisted"],
+      "decide": "step_up",
+      "reason": "ALWAYS_NEEDS_APPROVAL"
+    }
+  ]
+}

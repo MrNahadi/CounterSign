@@ -299,6 +299,25 @@ describe("hashIntent for actions other than a refund", () => {
     expect(hashIntent(other).hash).not.toBe(hashIntent(capture).hash);
   });
 
+  it("hashes a payout's reference only when it's set", () => {
+    const [, payout] = others[4];
+    expect(hashIntent(payout).hash).toBe(
+      "b3ef2f2819f858fa75b38c658da75a2968bb4a234663c2e89a2ec04c039fd2a4",
+    );
+    expect(parsedHash(payout).params).toEqual({ note: "Commission" });
+    const unset: Intent = { ...payout, params: { ...payout.params, reference: null } };
+    expect(hashIntent(unset)).toEqual(hashIntent(payout));
+    const billed: Intent = { ...payout, params: { ...payout.params, reference: "KDW-2026-0412" } };
+    expect(parsedHash(billed).params).toEqual({ note: "Commission", reference: "KDW-2026-0412" });
+    const other: Intent = { ...billed, params: { ...billed.params, reference: "KDW-2026-0413" } };
+    expect(hashIntent(other).hash).not.toBe(hashIntent(billed).hash);
+    expect(hashIntent(billed).hash).not.toBe(hashIntent(payout).hash);
+    // A reference on any other action isn't hashed.
+    const [, claim] = others[0];
+    const claimWithReference: Intent = { ...claim, params: { ...claim.params, reference: "X-1" } };
+    expect(hashIntent(claimWithReference)).toEqual(hashIntent(claim));
+  });
+
   it("hashes a payee's email lower-cased and trimmed", () => {
     const [, payout] = others[4];
     const shouted: Intent = { ...payout, target: { kind: "payee", email: " PAYEE@Example.com " } };

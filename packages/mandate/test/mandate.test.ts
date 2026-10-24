@@ -73,10 +73,103 @@ describe("the fixture mandate", () => {
     expect(mustParse(withoutZone).time_zone).toBe("Africa/Nairobi");
   });
 
+  it("keeps its pinned hash, with no payee list", () => {
+    const mandate = mustParse(fixture);
+    expect(mandate).not.toHaveProperty("payees");
+    expect(hashMandate(mandate).hash).toBe(
+      "c3f3f9c294a8ee05f4c45a71adb60eb74325dc0a4720af624e3c4297befb2374",
+    );
+  });
+
   it("has a hash that changes with the rules", () => {
     const loosened = structuredClone(fixture);
     loosened.rules[0].max.amount = 8001;
     expect(hashMandate(mustParse(loosened)).hash).not.toBe(hashMandate(mustParse(fixture)).hash);
+  });
+});
+
+const opsFixture = JSON.parse(
+  readFileSync(new URL("../fixtures/kikapu-studio-ops-v1.json", import.meta.url), "utf8"),
+);
+
+describe("the ops mandate", () => {
+  it("parses as kikapu-studio-ops v1 for ops-agent", () => {
+    const mandate = mustParse(opsFixture);
+    expect(mandate).toEqual({
+      id: "kikapu-studio-ops",
+      version: 1,
+      principal: "ops-agent",
+      time_zone: "Africa/Nairobi",
+      fallback: "deny",
+      limits: [{ currency: "USD", per_day_total: 50000, per_day_count: 5 }],
+      payees: [
+        { email: "sisal.collective@example.com", name: "Nyanza Sisal Collective (illustrative)" },
+        { email: "dyeworks@example.com", name: "Kisumu Dye Works (illustrative)" },
+      ],
+      rules: [
+        {
+          id: "payout-listed-supplier",
+          action: "paypal.payout",
+          require: ["payee.allowlisted"],
+          decide: "step_up",
+          reason: "ALWAYS_NEEDS_APPROVAL",
+        },
+      ],
+    });
+    expect(requiredVerifiers(mandate, "paypal.payout")).toEqual(["payee.allowlisted"]);
+  });
+
+  it("has a hash that covers its payee list", () => {
+    const changed = structuredClone(opsFixture);
+    changed.payees[1].email = "refunds.desk@example.com";
+    expect(hashMandate(mustParse(changed)).hash).not.toBe(hashMandate(mustParse(opsFixture)).hash);
+    const { hash, canonical } = hashMandate(mustParse(opsFixture));
+    expect(JSON.parse(canonical).payees).toEqual(opsFixture.payees);
+    expect(hashMandate(mustParse(reverseKeys(opsFixture)))).toEqual({ hash, canonical });
+  });
+});
+
+describe("a mandate's payee list", () => {
+  const payee = (email: string, name = "Supplier (illustrative)") => ({ email, name });
+  const withPayees = (payees: unknown) => ({ ...structuredClone(opsFixture), payees });
+
+  it("may be empty or hold up to 100 entries", () => {
+    expect(mustParse(withPayees([])).payees).toEqual([]);
+    const hundred = Array.from({ length: 100 }, (_, index) => payee(`s${index}@example.com`));
+    expect(mustParse(withPayees(hundred)).payees).toHaveLength(100);
+  });
+
+  it.each<[string, unknown, (string | number)[]]>([
+    [
+      "a repeated email",
+      [payee("a@example.com"), payee("b@example.com"), payee("a@example.com", "Again")],
+      ["payees", 2, "email"],
+    ],
+    [
+      "an upper-case email",
+      [payee("a@example.com"), payee("Dye@example.com")],
+      ["payees", 1, "email"],
+    ],
+    ["an untrimmed email", [payee(" a@example.com")], ["payees", 0, "email"]],
+    ["a malformed email", [payee("a@example.com"), payee("not-an-email")], ["payees", 1, "email"]],
+    ["an empty name", [payee("a@example.com", "")], ["payees", 0, "name"]],
+    [
+      "a name over 100 characters",
+      [payee("a@example.com", "n".repeat(101))],
+      ["payees", 0, "name"],
+    ],
+    ["an unknown key", [{ ...payee("a@example.com"), iban: "KE00" }], ["payees", 0, "iban"]],
+    ["an entry that isn't an object", [payee("a@example.com"), "b@example.com"], ["payees", 1]],
+    [
+      "more than 100 entries",
+      Array.from({ length: 101 }, (_, index) => payee(`s${index}@example.com`)),
+      ["payees"],
+    ],
+  ])("refuses %s, with an issue at its path", (_name, payees, path) => {
+    const result = parseMandate(withPayees(payees));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues.map((issue) => issue.path)).toContainEqual(path);
   });
 });
 

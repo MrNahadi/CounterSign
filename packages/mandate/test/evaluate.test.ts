@@ -301,12 +301,55 @@ describe("step 2: requirements", () => {
 
   it("denies a requirement that isn't built yet with VERIFIER_UNAVAILABLE", () => {
     const rules = [
-      { id: "payout", action: "paypal.refund", require: ["payee.allowlisted"], decide: "allow" },
+      { id: "velocity", action: "paypal.refund", require: ["ledger.velocity"], decide: "allow" },
     ];
-    const trace = [...passing(), entry("payee.allowlisted", "unknown")];
+    const trace = [...passing(), entry("ledger.velocity", "unknown")];
     const result = evaluate({ mandate: withRules(rules), intent: refund(), trace });
     expect(result.decision).toBe("deny");
     expect(codes(result)).toEqual(["VERIFIER_UNAVAILABLE"]);
+  });
+
+  describe("under the ops mandate", () => {
+    const ops = parseMandate(
+      JSON.parse(
+        readFileSync(new URL("../fixtures/kikapu-studio-ops-v1.json", import.meta.url), "utf8"),
+      ),
+    );
+    if (!ops.ok) throw new Error(ops.error);
+    const payout: Intent = {
+      principal: "ops-agent",
+      rail: "paypal",
+      action: "paypal.payout",
+      amount: { minor: 4500, currency: "USD" },
+      target: { kind: "payee", email: "dyeworks@example.com" },
+      ticketId: null,
+      params: { note: null, reference: "KDW-2026-0412" },
+      claim: null,
+      mandateVersion: 1,
+    };
+    const run = (trace: TraceEntry[]) => evaluate({ mandate: ops.mandate, intent: payout, trace });
+
+    it("holds a payout to a listed payee for approval", () => {
+      const result = run([entry("payee.allowlisted", "pass")]);
+      expect(result.decision).toBe("step_up");
+      expect(codes(result)).toEqual(["ALWAYS_NEEDS_APPROVAL"]);
+    });
+
+    // ADR 0040: the fail code joins the catalog in T-004, until then a fail still denies.
+    it.each<[VerifierResult, string]>([
+      ["fail", "VERIFIER_UNAVAILABLE"],
+      ["unknown", "PAYEE_LIST_UNKNOWN"],
+    ])("denies a payout when payee.allowlisted is %s, with %s", (result, code) => {
+      const evaluation = run([entry("payee.allowlisted", result)]);
+      expect(evaluation.decision).toBe("deny");
+      expect(evaluation.reasons).toEqual([{ code, detail: `payee.allowlisted ${result}` }]);
+    });
+
+    it("denies a payout whose payee check is missing from the trace", () => {
+      const evaluation = run([]);
+      expect(evaluation.decision).toBe("deny");
+      expect(codes(evaluation)).toEqual(["PAYEE_LIST_UNKNOWN"]);
+    });
   });
 
   it("denies a step-up rule whose requirements fail, rather than holding it", () => {
@@ -543,7 +586,7 @@ describe("step 4: most restrictive wins", () => {
     reason: "ALWAYS_NEEDS_APPROVAL",
   };
   const deny = { id: "no-refunds", action: "paypal.refund", decide: "deny", reason: "RULE_DENIES" };
-  const strict = { ...allow, id: "allow-strict", require: ["payee.allowlisted"] };
+  const strict = { ...allow, id: "allow-strict", require: ["ledger.velocity"] };
 
   it("puts step-up over allow, with the step-up rule's reasons only", () => {
     const result = evaluate({

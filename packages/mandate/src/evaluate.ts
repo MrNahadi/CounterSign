@@ -95,17 +95,20 @@ function fallback(input: EvaluateInput, statusKeptOut: boolean): Reason[] {
 }
 
 // The codes a built verifier raises when a rule requires it and it doesn't pass. Any other
-// verifier isn't built yet, so it can only be unknown (VERIFIER_UNAVAILABLE).
-const REQUIREMENT_CODES: Partial<Record<VerifierName, { fail: ReasonCode; unknown: ReasonCode }>> =
-  {
-    "capture.refundable": { fail: "CAPTURE_NOT_REFUNDABLE", unknown: "CAPTURE_UNKNOWN" },
-    "ticket.from_payer": { fail: "TICKET_NOT_FROM_PAYER", unknown: "PAYER_UNKNOWN" },
-    "dispute.none_open": { fail: "DISPUTE_OPEN", unknown: "DISPUTES_UNKNOWN" },
-    // shipment.status never fails: a status it can't find is unknown.
-    "shipment.status": { fail: "SHIPMENT_STATUS_UNKNOWN", unknown: "SHIPMENT_STATUS_UNKNOWN" },
-    "evidence.photo_present": { fail: "NO_PHOTO_EVIDENCE", unknown: "TICKET_UNKNOWN" },
-    "ledger.not_duplicate": { fail: "DUPLICATE_REFUND", unknown: "HISTORY_UNKNOWN" },
-  };
+// verifier isn't built yet, so it can only be unknown (VERIFIER_UNAVAILABLE). A result with no
+// code of its own is VERIFIER_UNAVAILABLE too (ADR 0040), still a deny.
+const REQUIREMENT_CODES: Partial<
+  Record<VerifierName, { fail?: ReasonCode; unknown?: ReasonCode }>
+> = {
+  "capture.refundable": { fail: "CAPTURE_NOT_REFUNDABLE", unknown: "CAPTURE_UNKNOWN" },
+  "ticket.from_payer": { fail: "TICKET_NOT_FROM_PAYER", unknown: "PAYER_UNKNOWN" },
+  "dispute.none_open": { fail: "DISPUTE_OPEN", unknown: "DISPUTES_UNKNOWN" },
+  // shipment.status never fails: a status it can't find is unknown.
+  "shipment.status": { fail: "SHIPMENT_STATUS_UNKNOWN", unknown: "SHIPMENT_STATUS_UNKNOWN" },
+  "evidence.photo_present": { fail: "NO_PHOTO_EVIDENCE", unknown: "TICKET_UNKNOWN" },
+  "ledger.not_duplicate": { fail: "DUPLICATE_REFUND", unknown: "HISTORY_UNKNOWN" },
+  "payee.allowlisted": { unknown: "PAYEE_LIST_UNKNOWN" },
+};
 
 // One reason per requirement that isn't `pass`. A verifier missing from the trace is unknown.
 function unmetRequirements(rule: Rule, trace: VerifierTrace): Reason[] {

@@ -54,6 +54,10 @@ export const REASONS = {
     words: "Countersign couldn't check earlier refunds.",
     hint: "We need to check this order before refunding. Tell them we'll follow up.",
   },
+  PAYEE_LIST_UNKNOWN: {
+    words: "Countersign couldn't read your list of suppliers.",
+    hint: "We need to check this payment before sending it. The team will follow up.",
+  },
   VERIFIER_UNAVAILABLE: {
     words: "Countersign can't check this yet.",
     hint: "We need to check this request before acting on it. Tell them we'll follow up.",

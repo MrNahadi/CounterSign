@@ -108,7 +108,7 @@ describe("the fixture suite", () => {
   it("reaches every reason code", () => {
     const reached = new Set(expected.flatMap((each) => each.reasons));
     expect(REASON_CODES.filter((code) => !reached.has(code))).toEqual([]);
-    expect(REASON_CODES).toHaveLength(25);
+    expect(REASON_CODES).toHaveLength(26);
     expect(reached).toContain("NO_DAILY_LIMIT");
   });
 

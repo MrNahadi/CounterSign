@@ -1,0 +1,20 @@
+{
+  "description": "A payout under an ops mandate that has no payee list: Countersign can't check the payee, so the payout is denied rather than held. Illustrative supplier.",
+  "now": "2026-10-17T09:00:00+03:00",
+  "mandate": "../mandates/payout-no-payee-list.json",
+  "principal": "ops-agent",
+  "records": { "executions": [] },
+  "proposals": [
+    {
+      "proposal": {
+        "tool": "create_payout",
+        "args": {
+          "receiver": "dyeworks@example.com",
+          "amount": { "value": "45.00", "currency_code": "USD" },
+          "note": "Dye for the October batch."
+        }
+      },
+      "expect": { "decision": "deny", "reasons": ["PAYEE_LIST_UNKNOWN"] }
+    }
+  ]
+}

@@ -55,6 +55,11 @@ const table: [string, string, string | null][] = [
     "We need to check this order before refunding. Tell them we'll follow up.",
   ],
   [
+    "PAYEE_LIST_UNKNOWN",
+    "Countersign couldn't read your list of suppliers.",
+    "We need to check this payment before sending it. The team will follow up.",
+  ],
+  [
     "VERIFIER_UNAVAILABLE",
     "Countersign can't check this yet.",
     "We need to check this request before acting on it. Tell them we'll follow up.",

@@ -62,6 +62,8 @@ export type IntentParams = {
   sendToRecipient?: boolean | null;
   additionalRecipients?: string[] | null;
   documents?: EvidenceDocumentRef[] | null;
+  // The supplier's bill number a payout pays (ADR 0039).
+  reference?: string | null;
 };
 
 export type Intent = {
@@ -96,9 +98,10 @@ export const HASHED_PARAMS = {
 } as const satisfies Record<Action, readonly (keyof IntentParams)[] | null>;
 
 // Parameter keys an action hashes only when they're set, so intents made before the key existed
-// keep their hash (ADR 0035: an evidence submission's documents).
+// keep their hash (ADR 0035: an evidence submission's documents; ADR 0039: a payout's reference).
 export const HASHED_WHEN_SET = {
   "paypal.dispute.provide_evidence": ["documents"],
+  "paypal.payout": ["reference"],
 } as const satisfies Partial<Record<Action, readonly (keyof IntentParams)[]>>;
 
 export function normalizePayeeEmail(email: string): string {
