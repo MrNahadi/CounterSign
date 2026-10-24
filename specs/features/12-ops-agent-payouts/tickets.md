@@ -122,15 +122,15 @@ Notes:
 
 ## T-009: Approval cards for payouts
 
-Status: open
+Status: done
 Blocked by: T-006
 Tier: simple
 Slice: A held payout's card shows exactly who gets paid, how much, for which bill, and with which note.
 Test seam: the gate's card builder and the approval API over a real listening gate
 Acceptance:
-- [ ] A payout card carries `params: { kind: "payout", reference, note, payee_name }`, the name from the ops mandate found by hash
-- [ ] `can_execute` is true for a payout; existing card tests still pass
-- [ ] The ops key gets 401 on the approval API
+- [x] A payout card carries `params: { kind: "payout", reference, note, payee_name }`, the name from the ops mandate found by hash
+- [x] `can_execute` is true for a payout; existing card tests still pass
+- [x] The ops key gets 401 on the approval API
 Notes:
 
 ## T-010: Audit reader lines for payouts

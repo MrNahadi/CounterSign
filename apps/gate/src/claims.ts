@@ -96,15 +96,18 @@ export type ClaimsContext = {
 
 const quoteOf = (text: string): string => [...text].slice(0, CLAIM_QUOTE_LENGTH).join("");
 
+// The loaded mandate a decision was made under, by hash; undefined when the gate doesn't hold it.
+export function mandateByHash(hash: string, mandates: readonly Mandate[]): Mandate | undefined {
+  return mandates.find((candidate) => hashMandate(candidate).hash === hash);
+}
+
 // The verifiers that decided, or null to show every trace entry (the decision's mandate isn't
 // one the gate holds).
 function decidingVerifiers(
   decision: Pick<ClaimsDecision, "intent" | "matchedRules" | "mandate">,
   mandates: readonly Mandate[],
 ): Set<VerifierName> | null {
-  const mandate = mandates.find(
-    (candidate) => hashMandate(candidate).hash === decision.mandate.hash,
-  );
+  const mandate = mandateByHash(decision.mandate.hash, mandates);
   if (mandate === undefined) return null;
   const used = new Set<VerifierName>();
   const { intent } = decision;

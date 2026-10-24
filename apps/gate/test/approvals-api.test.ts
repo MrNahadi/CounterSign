@@ -16,7 +16,7 @@ import {
   writeTicket,
 } from "@countersign/db";
 import { appendEntries } from "@countersign/ledger";
-import { parseMandate, REASONS } from "@countersign/mandate";
+import { hashMandate, parseMandate, REASONS } from "@countersign/mandate";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { type AppDeps, createApp } from "../src/app";
 import { type Card, cardView, TICKET_EXCERPT_LENGTH } from "../src/approval-cards";
@@ -26,7 +26,7 @@ import { APPROVER_KEY_VAR } from "../src/approver";
 import { claimsVsRecords } from "../src/claims";
 import { APPROVAL_WINDOW_MS } from "../src/decide";
 import { EVIDENCE_CARRIER } from "../src/executors";
-import { SUPPORT_AGENT_KEY_VAR } from "../src/principals";
+import { OPS_AGENT_KEY_VAR, SUPPORT_AGENT_KEY_VAR } from "../src/principals";
 import { propose } from "../src/propose";
 import { createFakeSandbox } from "./fake-sandbox";
 
@@ -66,6 +66,21 @@ if (!parsedOps.ok) throw new Error(parsedOps.error);
 const opsMandate = parsedOps.mandate;
 
 const usd = (minor: number) => ({ minor, currency: "USD" as const });
+
+type Who = { mandate: typeof mandate; principal: "support-agent" | "ops-agent" };
+const SUPPORT: Who = { mandate, principal: "support-agent" };
+const OPS: Who = { mandate: opsMandate, principal: "ops-agent" };
+const OPS_KEY = "ops-key-illustrative-0123456789abcdefgh";
+const DYE_WORKS = "dyeworks@example.com";
+const payout = (args: Record<string, unknown> = {}) => ({
+  tool: "create_payout",
+  args: {
+    receiver: DYE_WORKS,
+    amount: { value: "45.00", currency_code: "USD" },
+    reference: "KDW-2026-0412",
+    ...args,
+  },
+});
 
 // Beat 5 (the payer of KIK-1037 asks for $240.00 back for a damaged basket, with a photo), plus a
 // draft invoice and an open dispute.
@@ -264,10 +279,10 @@ describe("the approval API", { timeout: SLOW }, () => {
 
   const entries = () => db.select().from(auditLog).orderBy(asc(auditLog.seq));
 
-  const stepUp = async (w: World, proposal: unknown) => {
+  const stepUp = async (w: World, proposal: unknown, who: Who = SUPPORT) => {
     const result = await propose({
-      mandate,
-      principal: "support-agent",
+      mandate: who.mandate,
+      principal: who.principal,
       proposal,
       now: NOW,
       ...w,
@@ -443,6 +458,65 @@ describe("the approval API", { timeout: SLOW }, () => {
       error: null,
     });
     expect(w.rail.calls.filter((call) => call.call === "createPayout")).toHaveLength(1);
+  });
+
+  it("shows a payout's payee, amount, bill and note, with the name from the ops mandate", async () => {
+    const w = world();
+    const noted = await stepUp(w, payout({ note: "Dye for the October baskets." }), OPS);
+    const bare = await stepUp(w, payout({ reference: "KDW-2026-0413" }), OPS);
+    const url = await gate(w).url;
+
+    const list = await getJson(`${url}/approvals`);
+    expect(list.status).toBe(200);
+    noKeyIn(list.text);
+    const cards: Card[] = list.body.open;
+    const bySeq = (seq: number): Card | undefined => cards.find((card) => card.step_up_id === seq);
+
+    expect(bySeq(noted.seq)).toMatchObject({
+      principal: "ops-agent",
+      action: "paypal.payout",
+      amount: { minor: 4500, currency: "USD", display: "$45.00" },
+      target: { kind: "payee", id: DYE_WORKS },
+      order_number: null,
+      ticket: null,
+      can_execute: true,
+      cannot_execute: null,
+      params: {
+        kind: "payout",
+        reference: "KDW-2026-0412",
+        note: "Dye for the October baskets.",
+        payee_name: "Kisumu Dye Works (illustrative)",
+      },
+    });
+    expect(bySeq(bare.seq)?.params).toEqual({
+      kind: "payout",
+      reference: "KDW-2026-0413",
+      note: null,
+      payee_name: "Kisumu Dye Works (illustrative)",
+    });
+    expect(bySeq(noted.seq)?.checks.map((check) => check.verifier)).toEqual(["payee.allowlisted"]);
+    expect((await getJson(`${url}/approvals/${noted.seq}`)).body).toEqual(bySeq(noted.seq));
+  });
+
+  it("refuses the ops key on the approval API, and writes nothing", async () => {
+    const w = world();
+    const { seq, hash } = await stepUp(w, payout(), OPS);
+    const url = await gate(w, LATER, { ...ENV, [OPS_AGENT_KEY_VAR]: OPS_KEY }).url;
+    const before = await entries();
+
+    const list = await getJson(`${url}/approvals`, OPS_KEY);
+    expect(list.status).toBe(401);
+    expect(list.body).toEqual({ message: APPROVAL_MESSAGES.unauthorized });
+    expect((await getJson(`${url}/approvals/${seq}`, OPS_KEY)).status).toBe(401);
+    const post = await postJson(
+      `${url}/approvals/${seq}`,
+      { answer: "approve", intent_hash: hash },
+      OPS_KEY,
+    );
+    expect(post.status).toBe(401);
+    expect(post.text).not.toContain(OPS_KEY);
+    expect(await entries()).toEqual(before);
+    expect(w.rail.calls.filter((call) => call.call === "createPayout")).toHaveLength(0);
   });
 
   it("refuses agents, wrong keys and no key with 401, and writes nothing", async () => {
@@ -870,6 +944,63 @@ describe("cardView", () => {
         detail: "Held.",
       },
     ]);
+  });
+
+  describe("a payout card's payee name", () => {
+    const payoutStepUp = (email: string, params: StepUp["intent"]["params"]): StepUp => ({
+      ...stepUp,
+      intent: {
+        principal: "ops-agent",
+        rail: "paypal",
+        action: "paypal.payout",
+        amount: usd(4500),
+        target: { kind: "payee", email },
+        ticketId: null,
+        claim: null,
+        mandateVersion: 1,
+        params,
+      },
+      principal: "ops-agent",
+      mandate: { id: "kikapu-studio-ops", version: 1, hash: hashMandate(opsMandate).hash },
+      trace: [],
+      matchedRules: ["payout-listed-supplier"],
+    });
+    const context = (mandates: (typeof mandate)[]) => ({
+      ticket: null,
+      orderNumber: null,
+      mandates,
+    });
+    const listed = payoutStepUp(DYE_WORKS, { note: "October dye.", reference: "KDW-2026-0412" });
+
+    it("comes from the mandate that decided, found by hash among the loaded ones", () => {
+      const card = cardView(listed, context([mandate, opsMandate]));
+      expect(card.params).toEqual({
+        kind: "payout",
+        reference: "KDW-2026-0412",
+        note: "October dye.",
+        payee_name: "Kisumu Dye Works (illustrative)",
+      });
+      expect(card.can_execute).toBe(true);
+    });
+
+    it("is null when the deciding mandate isn't loaded, or doesn't list the payee", () => {
+      expect(cardView(listed, context([mandate])).params).toMatchObject({ payee_name: null });
+      const unlisted = payoutStepUp("refunds.desk@example.com", { reference: "RD-1" });
+      expect(cardView(unlisted, context([opsMandate])).params).toEqual({
+        kind: "payout",
+        reference: "RD-1",
+        note: null,
+        payee_name: null,
+      });
+    });
+
+    it("shows no reference when the stored intent has none", () => {
+      const card = cardView(
+        payoutStepUp(DYE_WORKS, { note: "October dye." }),
+        context([opsMandate]),
+      );
+      expect(card.params).toMatchObject({ kind: "payout", reference: null });
+    });
   });
 
   it("uses a phone number as the sender when the ticket has no email", () => {

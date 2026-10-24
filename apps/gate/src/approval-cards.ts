@@ -24,7 +24,7 @@ import {
   type VerifierName,
 } from "@countersign/mandate";
 import { readStepUps, type StepUp, type StepUpState } from "./approval-log";
-import { type ClaimPair, checksThatDecided, claimsVsRecords } from "./claims";
+import { type ClaimPair, checksThatDecided, claimsVsRecords, mandateByHash } from "./claims";
 import { isExecutable } from "./executable";
 import { type ExecutionOutcome, readIntentRecord } from "./execution-log";
 import { EVIDENCE_CARRIER } from "./executors";
@@ -88,7 +88,8 @@ export type CardDocument = {
   available: boolean;
 };
 
-// The parameters that execute, by action. A refund, and any action with no executor, has none.
+// The parameters that execute, by action. A refund, and any action with no executor, has none. A
+// payout's carry the payee's name too, so the merchant sees who gets paid.
 export type CardParams =
   | {
       kind: "invoice_send";
@@ -105,7 +106,16 @@ export type CardParams =
       amount: CardAmount | null;
       note: string | null;
     }
-  | { kind: "provide_evidence"; items: CardEvidenceItem[]; documents: CardDocument[] };
+  | { kind: "provide_evidence"; items: CardEvidenceItem[]; documents: CardDocument[] }
+  | {
+      kind: "payout";
+      // The supplier's bill number; null only for a stored intent that has none.
+      reference: string | null;
+      note: string | null;
+      // The payee's name on the deciding mandate's list; null when that mandate isn't loaded or
+      // doesn't list the payee.
+      payee_name: string | null;
+    };
 
 export type Card = {
   step_up_id: number;
@@ -204,10 +214,21 @@ const listOf = (values: readonly string[] | null | undefined): string[] => [...(
 export function paramsOf(
   intent: Intent,
   documents: ReadonlyMap<string, number>,
+  mandate: Mandate | undefined,
 ): CardParams | null {
   const params = intent.params ?? {};
   const note = params.note ?? null;
   switch (intent.action) {
+    case "paypal.payout": {
+      const email = intent.target.kind === "payee" ? intent.target.email : null;
+      const payee = mandate?.payees?.find((listed) => listed.email === email);
+      return {
+        kind: "payout",
+        reference: params.reference ?? null,
+        note,
+        payee_name: payee?.name ?? null,
+      };
+    }
     case "paypal.invoice.send":
       return {
         kind: "invoice_send",
@@ -270,7 +291,11 @@ export function cardView(stepUp: StepUp, context: CardContext): Card {
     order_number: context.orderNumber,
     ticket: context.ticket === null ? null : ticketOf(context.ticket),
     claim: intent.claim,
-    params: paramsOf(intent, context.documents ?? new Map()),
+    params: paramsOf(
+      intent,
+      context.documents ?? new Map(),
+      mandateByHash(stepUp.mandate.hash, context.mandates),
+    ),
     reasons: stepUp.reasons.map(({ code, detail }) => ({
       code,
       words: REASONS[code].words,
