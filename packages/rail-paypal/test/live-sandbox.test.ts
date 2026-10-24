@@ -6,6 +6,7 @@
 import { randomBytes } from "node:crypto";
 import {
   createPayPalClient,
+  isDuplicateBatch,
   PAYPAL_ENV_NAMES,
   PAYPAL_WEBHOOK_ID_NAME,
   type PayPalClient,
@@ -17,6 +18,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 const VAULT_ENV_NAME = "PAYPAL_SEED_VAULT_TOKEN";
+const PAYEE_ENV_NAME = "PAYPAL_LIVE_PAYEE_EMAIL";
 
 const present = z.string().min(1);
 const LiveEnvSchema = z.object({
@@ -337,6 +339,70 @@ describe.skipIf(!live.success)(`live PayPal sandbox invoice send (${needs})`, ()
       expect(status).toBeGreaterThanOrEqual(400);
       expect(status).toBeLessThan(500);
       expectNoSecrets([invoiceId, sent]);
+    });
+  }, 90_000);
+});
+
+// A $1.00 payout per run. Payouts must be enabled on the sandbox app. The payee is
+// PAYPAL_LIVE_PAYEE_EMAIL when set (a sandbox personal account), else an example.com address,
+// which stays UNCLAIMED. PayPal adds the item to the batch shortly after the create, so the
+// batch is read until it names one.
+const payeeEmail = z.email().safeParse(process.env[PAYEE_ENV_NAME]);
+const BATCH_READS = 10;
+const BATCH_READ_GAP_MS = 3000;
+
+describe.skipIf(!live.success)(`live PayPal sandbox payout (${needs})`, () => {
+  it("creates a payout once, replays it by request ID, refuses a reused batch ID, and reads it back", async () => {
+    await guarded(async () => {
+      const paypal = client();
+      const input = {
+        requestId: requestId("payout"),
+        senderBatchId: `countersign-live-${runId}`,
+        emailSubject: "Countersign live check (illustrative)",
+        receiver: payeeEmail.success ? payeeEmail.data : `live-${runId}@example.com`,
+        amount: ONE_DOLLAR,
+        note: "Countersign live check",
+        senderItemId: `LIVE-${runId}`,
+      };
+      const created = await paypal.createPayout(input);
+      expect(created.batchId.length).toBeGreaterThan(0);
+
+      const replayed = await paypal.createPayout(input);
+      expect(replayed.batchId).toBe(created.batchId);
+
+      const reused = await paypal
+        .createPayout({ ...input, requestId: requestId("payout-reused") })
+        .then(
+          () => null,
+          (caught: unknown) => caught,
+        );
+      expect(reused).toBeInstanceOf(PayPalError);
+      const refusal = reused as PayPalError;
+      // The refusal's name and issues, so a failure records PayPal's real answer.
+      const said = `HTTP ${refusal.status} ${refusal.paypalName} [${refusal.issues.join("; ")}]`;
+      expect(isDuplicateBatch(refusal), said).toBe(true);
+
+      let batch = await paypal.getPayoutBatch(created.batchId);
+      for (let reads = 1; batch.items.length === 0 && reads < BATCH_READS; reads += 1) {
+        await new Promise((resolve) => setTimeout(resolve, BATCH_READ_GAP_MS));
+        batch = await paypal.getPayoutBatch(created.batchId);
+      }
+      expect(batch.batchId).toBe(created.batchId);
+      expect(batch.senderBatchId).toBe(input.senderBatchId);
+      expect(batch.items).toHaveLength(1);
+      const [listed] = batch.items;
+      if (!listed) throw new Error("The batch names no item.");
+      expect(listed.amount).toEqual(ONE_DOLLAR);
+      expect(listed.senderItemId).toBe(input.senderItemId);
+
+      const item = await paypal.getPayoutItem(listed.itemId);
+      expect(item.itemId).toBe(listed.itemId);
+      expect(item.batchId).toBe(created.batchId);
+      expect(item.senderBatchId).toBe(input.senderBatchId);
+      expect(item.amount).toEqual(ONE_DOLLAR);
+      expect(item.receiver).toBe(input.receiver);
+      expect(["PENDING", "UNCLAIMED", "SUCCESS"]).toContain(item.status);
+      expectNoSecrets([created, replayed, batch, item]);
     });
   }, 90_000);
 });

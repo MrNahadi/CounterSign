@@ -23,8 +23,14 @@ import {
   type PayPalDisputeList,
   type PayPalInvoice,
   type PayPalOrder,
+  type PayPalPayoutBatch,
+  type PayPalPayoutCreated,
+  type PayPalPayoutItem,
   type PayPalRefund,
   type PayPalTransactionPage,
+  payoutBatchSchema,
+  payoutCreatedSchema,
+  payoutItemSchema,
   refundSchema,
   tokenSchema,
   toPayPalAmount,
@@ -115,6 +121,17 @@ export type CreateDraftInvoiceInput = PostOptions & {
 };
 
 // The five `PAYPAL-*` headers PayPal sends with a webhook.
+// One payout to one email (ADR 0039). The gate sets the request ID to the intent hash, the batch
+// ID to the intent ID and the item ID to the bill reference.
+export type CreatePayoutInput = PostOptions & {
+  senderBatchId: string;
+  emailSubject: string;
+  receiver: string;
+  amount: Money;
+  note?: string;
+  senderItemId: string;
+};
+
 export type WebhookTransmission = {
   transmissionId: string;
   transmissionTime: string;
@@ -245,6 +262,11 @@ export type PayPalClient = {
   sendInvoice(input: SendInvoiceInput): Promise<InvoiceSendStatus>;
   // Creates a draft invoice and answers with its ID. For live checks and demos.
   createDraftInvoice(input: CreateDraftInvoiceInput): Promise<string>;
+  // Creates a batch of one payout. Retried after a 5xx or network failure like any POST with a
+  // request ID, since the request ID and batch ID make a repeat replay rather than pay twice.
+  createPayout(input: CreatePayoutInput): Promise<PayPalPayoutCreated>;
+  getPayoutBatch(batchId: string): Promise<PayPalPayoutBatch>;
+  getPayoutItem(itemId: string): Promise<PayPalPayoutItem>;
   // One page of up to 100 transactions in the range.
   searchTransactions(input: TransactionSearchInput): Promise<PayPalTransactionPage>;
   // Never retried. Throws when the check can't complete, so it's never mistaken for a pass.
@@ -431,6 +453,20 @@ const draftInvoiceAnswerSchema = z.union([
     .transform((answer) => answer.href.split("?")[0]?.split("/").pop() ?? "")
     .pipe(resourceId),
 ]);
+
+// A payout's `sender_item_id` is the bill reference: PayPal holds 63 characters (ADR 0039).
+const createPayoutSchema = z.object({
+  requestId: requestIdSchema,
+  senderBatchId: z.string().min(1).max(256),
+  emailSubject: z.string().min(1).max(255),
+  receiver: z.email(),
+  amount: moneyInput,
+  note: z.string().min(1).max(4000).optional(),
+  senderItemId: z
+    .string()
+    .max(63)
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._/-]*$/),
+});
 
 const header = z.string().min(1).max(4096);
 const verifyWebhookSchema = z.object({
@@ -1018,6 +1054,51 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
         },
       });
       return parse(call, answer, draftInvoiceAnswerSchema);
+    },
+
+    async createPayout(input) {
+      const call = "create-payout";
+      const payout = checkInput(call, createPayoutSchema, input);
+      if (payout.amount.currency !== "USD") throw refuse(call, "only USD is sent to PayPal");
+      const amount = toPayPalAmount({ minor: payout.amount.minor, currency: "USD" });
+      if (!amount) throw refuse(call, "amount is invalid");
+      const answer = await send({
+        call,
+        method: "POST",
+        path: "/v1/payments/payouts",
+        requestId: payout.requestId,
+        body: {
+          sender_batch_header: {
+            sender_batch_id: payout.senderBatchId,
+            recipient_type: "EMAIL",
+            email_subject: payout.emailSubject,
+          },
+          items: [
+            {
+              recipient_type: "EMAIL",
+              amount: { value: amount.value, currency: amount.currency_code },
+              receiver: payout.receiver,
+              ...(payout.note === undefined ? {} : { note: payout.note }),
+              sender_item_id: payout.senderItemId,
+            },
+          ],
+        },
+      });
+      return parse(call, answer, payoutCreatedSchema);
+    },
+
+    async getPayoutBatch(batchId) {
+      const call = "get-payout-batch";
+      const id = checkId(call, batchId);
+      const answer = await send({ call, method: "GET", path: `/v1/payments/payouts/${id}` });
+      return parse(call, answer, payoutBatchSchema);
+    },
+
+    async getPayoutItem(itemId) {
+      const call = "get-payout-item";
+      const id = checkId(call, itemId);
+      const answer = await send({ call, method: "GET", path: `/v1/payments/payouts-item/${id}` });
+      return parse(call, answer, payoutItemSchema);
     },
 
     async searchTransactions(input) {

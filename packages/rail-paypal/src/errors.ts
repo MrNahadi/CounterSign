@@ -46,6 +46,17 @@ export class PayPalError extends Error {
   }
 }
 
+// PayPal's refusal of a reused `sender_batch_id` (ADR 0039). Its name isn't documented, so a
+// 4xx counts when its name or any issue mentions a duplicate or the batch ID, in any case: the
+// sandbox writes "Batch with given sender_batch_id already exists".
+const DUPLICATE_BATCH = /DUPLICATE|SENDER_BATCH_ID/i;
+
+export function isDuplicateBatch(error: unknown): boolean {
+  if (!(error instanceof PayPalError) || error.kind !== "http") return false;
+  if (error.status === null || error.status < 400 || error.status >= 500) return false;
+  return [error.paypalName ?? "", ...error.issues].some((text) => DUPLICATE_BATCH.test(text));
+}
+
 function describe(detail: PayPalErrorDetail): string {
   const debug = detail.debugId ? ` Debug ID ${detail.debugId}.` : "";
   switch (detail.kind) {

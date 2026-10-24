@@ -32,18 +32,19 @@ Notes:
 
 ## T-003: The rail client's payout calls
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: `@countersign/rail-paypal` creates a payout batch with a request ID, and reads a batch and an item back.
 Test seam: the PayPal client's public methods against the fake PayPal server, plus one `LIVE=1` case
 Acceptance:
-- [ ] Create payout sends the path, `PayPal-Request-Id`, `sender_batch_header` and one item as requirements.md says, with the amount as PayPal's string, and answers the batch ID and status
-- [ ] Bad input (not USD, zero amount, bad receiver, note over 4000, bad `sender_item_id`, no request ID) is refused before sending
-- [ ] Get payout batch and get payout item parse into minor units with statuses as text
-- [ ] A duplicate-batch refusal fixture is recognised by `isDuplicateBatch`; other 4xx fixtures aren't
-- [ ] Under `LIVE=1`: a $1.00 payout, its replay with the same request ID giving the same batch, a refused reused `sender_batch_id`, and both reads
+- [x] Create payout sends the path, `PayPal-Request-Id`, `sender_batch_header` and one item as requirements.md says, with the amount as PayPal's string, and answers the batch ID and status
+- [x] Bad input (not USD, zero amount, bad receiver, note over 4000, bad `sender_item_id`, no request ID) is refused before sending
+- [x] Get payout batch and get payout item parse into minor units with statuses as text
+- [x] A duplicate-batch refusal fixture is recognised by `isDuplicateBatch`; other 4xx fixtures aren't
+- [x] Under `LIVE=1`: a $1.00 payout, its replay with the same request ID giving the same batch, a refused reused `sender_batch_id`, and both reads
 Notes:
+- The `LIVE=1` case is written but has not run: the loop can't reach PayPal. The duplicate-batch fixture is built from the shape PayPal's docs describe, not recorded.
 
 ## T-004: The ops principal and payout decisions
 

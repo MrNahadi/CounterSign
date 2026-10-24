@@ -11,8 +11,16 @@
 ## For the human
 
 - T-001: before the answerer's verdict arrived, I wrongly acted on a predicted answer and built a "not reachable yet" exception list in `decide.test.ts`. I removed it before committing; the committed work follows the answerer's real verdict, ADR 0040. As the answerer directed, I reworded T-001's third acceptance item and added one to T-004. Please check that you're happy with ADR 0040, since it changes the ticket split.
+- T-003: the `LIVE=1` payout check hasn't run yet. Run it with `LIVE=1` and Payouts enabled on the sandbox app. It reads the batch up to 10 times, 3 s apart, until the item appears. If `isDuplicateBatch` fails there, its message shows PayPal's real name and issues. Update `error-400-duplicate-batch.json` to match.
 
 ## T-002 (done)
 
 - `payee.allowlisted` is built in `packages/verifiers/src/payee.ts`: pass/fail over `records.payees` (`PayeeListSnapshot`, call `mandate payees`, ID `<mandate id> v<version>`); unknown "No payee list" (record ID null) and unknown "Not a payout" (no records) for a non-payee target. Both sides are normalized with `normalizePayeeEmail`.
 - Gotcha: `decide()` does not set `records.payees` until T-004, so through the gate a payout still reaches `PAYEE_LIST_UNKNOWN` (unknown) and a listed payee cannot pass yet. `NOT_BUILT_YET` in `run-verifiers.test.ts` no longer lists `payee.allowlisted`.
+
+## T-003 (done)
+
+- `@countersign/rail-paypal` gains `createPayout` (`CreatePayoutInput`: `requestId`, `senderBatchId`, `emailSubject`, `receiver`, `amount`, `note?`, `senderItemId`), `getPayoutBatch` and `getPayoutItem` (records `PayPalPayoutCreated`, `PayPalPayoutBatch`, `PayPalPayoutItem`), and `isDuplicateBatch` in `errors.ts`. Tests: `packages/rail-paypal/test/payouts.test.ts`, with five new fixtures. There's also a `LIVE=1` payout case in `live-sandbox.test.ts`, which reads `PAYPAL_LIVE_PAYEE_EMAIL` when it's set.
+- Gotcha: Payouts write money as `{ value, currency }`, not `currency_code`, so they have their own `payoutMoneySchema`. `senderBatchId`, `senderItemId`, `errorName` and `timeProcessed` are null when PayPal leaves them out.
+- Gotcha: `isDuplicateBatch` matches `DUPLICATE` or `SENDER_BATCH_ID` regardless of case, because the documented issue text is lower-case ("Batch with given sender_batch_id already exists"). It only matches a 4xx `http` error.
+- Gotcha: `apps/gate/test/fake-sandbox.ts` has stubs that throw for `createPayout`, `getPayoutBatch` and `getPayoutItem`. T-006 must turn them into a real fake: replay by request ID, a duplicate refusal for a reused batch ID, and seeded items.

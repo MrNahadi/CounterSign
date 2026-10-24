@@ -427,6 +427,107 @@ export const verificationSchema = z
     (answer): WebhookVerification => (answer.verification_status === "SUCCESS" ? "pass" : "fail"),
   );
 
+// Payouts v1 (ADR 0039). Statuses stay PayPal's text, unknown values included, so the caller
+// decides what each means. Payouts write money as `{ value, currency }`.
+export type PayPalPayoutCreated = { batchId: string; batchStatus: string };
+
+export type PayPalPayoutBatchItem = {
+  itemId: string;
+  status: string;
+  amount: Money;
+  receiver: string;
+  senderItemId: string | null;
+  // The name of PayPal's error on the item, such as RECEIVER_UNREGISTERED. Null when none.
+  errorName: string | null;
+};
+
+export type PayPalPayoutBatch = {
+  batchId: string;
+  batchStatus: string;
+  senderBatchId: string | null;
+  items: PayPalPayoutBatchItem[];
+};
+
+export type PayPalPayoutItem = PayPalPayoutBatchItem & {
+  batchId: string;
+  senderBatchId: string | null;
+  // PayPal's own time as text. Only shown, never decided on.
+  timeProcessed: string | null;
+};
+
+const payoutMoneySchema = z
+  .object({ currency: text, value: text })
+  .transform((amount, ctx): Money => {
+    const parsed = parseMoney(amount.value, amount.currency);
+    if (parsed.ok) return parsed.money;
+    ctx.addIssue({ code: "custom", message: "Unreadable amount" });
+    return z.NEVER;
+  });
+
+const payoutItemFields = {
+  payout_item_id: text,
+  transaction_status: text,
+  payout_item: z.object({
+    amount: payoutMoneySchema,
+    receiver: text,
+    sender_item_id: z.string().optional(),
+  }),
+  errors: z.object({ name: z.string().optional() }).optional(),
+};
+
+const batchItem = (item: z.infer<z.ZodObject<typeof payoutItemFields>>): PayPalPayoutBatchItem => ({
+  itemId: item.payout_item_id,
+  status: item.transaction_status,
+  amount: item.payout_item.amount,
+  receiver: item.payout_item.receiver,
+  senderItemId: item.payout_item.sender_item_id || null,
+  errorName: item.errors?.name || null,
+});
+
+export const payoutCreatedSchema = z
+  .object({ batch_header: z.object({ payout_batch_id: text, batch_status: text }) })
+  .transform(
+    ({ batch_header: header }): PayPalPayoutCreated => ({
+      batchId: header.payout_batch_id,
+      batchStatus: header.batch_status,
+    }),
+  );
+
+export const payoutBatchSchema = z
+  .object({
+    batch_header: z.object({
+      payout_batch_id: text,
+      batch_status: text,
+      sender_batch_header: z.object({ sender_batch_id: z.string().optional() }).optional(),
+    }),
+    items: z.array(z.object(payoutItemFields)).optional(),
+  })
+  .transform(
+    (batch): PayPalPayoutBatch => ({
+      batchId: batch.batch_header.payout_batch_id,
+      batchStatus: batch.batch_header.batch_status,
+      senderBatchId: batch.batch_header.sender_batch_header?.sender_batch_id || null,
+      items: (batch.items ?? []).map(batchItem),
+    }),
+  );
+
+export const payoutItemSchema = z
+  .object({
+    ...payoutItemFields,
+    payout_batch_id: text,
+    sender_batch_id: z.string().optional(),
+    // Only shown, so a malformed one is dropped rather than failing the read.
+    time_processed: z.string().min(1).max(64).optional().catch(undefined),
+  })
+  .transform(
+    (item): PayPalPayoutItem => ({
+      ...batchItem(item),
+      batchId: item.payout_batch_id,
+      senderBatchId: item.sender_batch_id || null,
+      timeProcessed: item.time_processed ?? null,
+    }),
+  );
+
 // The body of a PayPal error. Every field is optional: an unreadable body still yields an error.
 export const errorBodySchema = z.object({
   name: z.string().optional(),

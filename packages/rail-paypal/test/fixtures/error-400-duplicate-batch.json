@@ -1,0 +1,21 @@
+{
+  "name": "USER_BUSINESS_ERROR",
+  "message": "User business error.",
+  "debug_id": "f7d3a1c2b9e04",
+  "information_link": "https://developer.paypal.com/docs/api/payments.payouts-batch/#errors",
+  "details": [
+    {
+      "field": "SENDER_BATCH_ID",
+      "location": "body",
+      "issue": "Batch with given sender_batch_id already exists",
+      "link": [
+        {
+          "href": "https://api-m.sandbox.paypal.com/v1/payments/payouts/5UXD2E8A7EBQJ",
+          "rel": "self",
+          "method": "GET",
+          "encType": "application/json"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "batch_header": {
+    "sender_batch_header": {
+      "sender_batch_id": "int_01JB7Q3M5N6P7R8S9T0V1W2X3Y",
+      "email_subject": "You have a payment from Kikapu Studio (illustrative)"
+    },
+    "payout_batch_id": "5UXD2E8A7EBQJ",
+    "batch_status": "PENDING"
+  },
+  "links": [
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/payments/payouts/5UXD2E8A7EBQJ",
+      "rel": "self",
+      "method": "GET",
+      "encType": "application/json"
+    }
+  ]
+}

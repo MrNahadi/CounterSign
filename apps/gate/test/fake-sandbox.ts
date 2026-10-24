@@ -100,6 +100,15 @@ export function createFakeSandbox(): FakeSandbox {
     async addTracker() {
       throw new Error("addTracker isn't in the fake sandbox");
     },
+    async createPayout() {
+      throw new Error("createPayout isn't in the fake sandbox");
+    },
+    async getPayoutBatch() {
+      throw new Error("getPayoutBatch isn't in the fake sandbox");
+    },
+    async getPayoutItem() {
+      throw new Error("getPayoutItem isn't in the fake sandbox");
+    },
     // The dispute actions answer 200 and move the dispute to the status PayPal would, unless a
     // failure is injected.
     async acceptClaim(input) {

@@ -6,6 +6,7 @@ export {
   type AdjudicateInput,
   type CreateDraftInvoiceInput,
   type CreateOrderInput,
+  type CreatePayoutInput,
   createPayPalClient,
   DISPUTE_STATES,
   type DisputeEvidence,
@@ -42,7 +43,12 @@ export {
   parsePayPalWebhookId,
   SANDBOX_BASE_URL,
 } from "./config";
-export { PayPalError, type PayPalErrorDetail, type PayPalErrorKind } from "./errors";
+export {
+  isDuplicateBatch,
+  PayPalError,
+  type PayPalErrorDetail,
+  type PayPalErrorKind,
+} from "./errors";
 export {
   type PayPalAmount,
   type PayPalCapture,
@@ -51,6 +57,10 @@ export {
   type PayPalDisputeList,
   type PayPalInvoice,
   type PayPalOrder,
+  type PayPalPayoutBatch,
+  type PayPalPayoutBatchItem,
+  type PayPalPayoutCreated,
+  type PayPalPayoutItem,
   type PayPalPurchaseUnit,
   type PayPalRefund,
   type PayPalRefundStatus,
