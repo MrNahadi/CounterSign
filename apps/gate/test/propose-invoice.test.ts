@@ -28,13 +28,14 @@ const PRINCIPAL = "support-agent";
 const PAYER = "amina.k@example.com";
 const INVOICE = "INV2-ABCD-EFGH-IJKL-MNOP";
 const DISPUTE = "PP-D-4012";
+const ORDER = "ORD-1039";
 
 const mandateFile = fileURLToPath(
   new URL("../../../packages/mandate/fixtures/kikapu-studio-v3.json", import.meta.url),
 );
 const shipped = JSON.parse(readFileSync(mandateFile, "utf8"));
 
-// The shipped mandate with invoice sends and payouts allowed outright.
+// The shipped mandate with invoice sends and order captures allowed outright.
 function mandateAllowing(): Mandate {
   const json = structuredClone(shipped);
   json.rules = json.rules.map((rule: { id: string; action: unknown }) =>
@@ -51,7 +52,7 @@ function mandateAllowing(): Mandate {
   );
   json.rules.push(
     { id: "send-invoices", action: "paypal.invoice.send", decide: "allow" },
-    { id: "payouts", action: "paypal.payout", decide: "allow" },
+    { id: "order-captures", action: "paypal.order.capture", decide: "allow" },
   );
   const parsed = parseMandate(json);
   if (!parsed.ok) throw new Error(parsed.error);
@@ -76,6 +77,23 @@ function world() {
     amount: usd(4500),
     captureIds: ["CAP-1038"],
   });
+  rail.orders.set(ORDER, {
+    id: ORDER,
+    status: "APPROVED",
+    payerEmail: PAYER,
+    payerId: "PAYER1039",
+    purchaseUnits: [
+      {
+        referenceId: "KIK-1039",
+        customId: null,
+        invoiceId: null,
+        amount: usd(3200),
+        captures: [],
+        trackers: [],
+        refunds: [],
+      },
+    ],
+  });
   const carrier = createMockCarrier(createMemoryShipmentStore(new Map()));
   return { rail, carrier };
 }
@@ -94,19 +112,19 @@ const withNote = {
 };
 
 describe("executors", () => {
-  it("are exactly refund, invoice send and the three dispute actions, one each", () => {
+  it("are exactly refund, invoice send, the three dispute actions and payout, one each", () => {
     expect([...EXECUTABLE_ACTIONS]).toEqual([
       "paypal.refund",
       "paypal.invoice.send",
       "paypal.dispute.accept_claim",
       "paypal.dispute.make_offer",
       "paypal.dispute.provide_evidence",
+      "paypal.payout",
     ]);
     expect(Object.keys(EXECUTORS).sort()).toEqual([...EXECUTABLE_ACTIONS].sort());
     expect(isExecutable("paypal.invoice.send")).toBe(true);
-    for (const action of ["paypal.payout", "paypal.order.capture"] as const) {
-      expect(isExecutable(action)).toBe(false);
-    }
+    expect(isExecutable("paypal.payout")).toBe(true);
+    expect(isExecutable("paypal.order.capture")).toBe(false);
   });
 });
 
@@ -275,21 +293,12 @@ describe("propose: an allowed invoice send", { timeout: SLOW }, () => {
 
   it("still denies an allow for an action without an executor ACTION_UNAVAILABLE, and sends nothing", async () => {
     const w = world();
-    const result = decided(
-      await run(w, {
-        tool: "create_payout",
-        args: {
-          receiver: PAYER,
-          amount: { value: "25.00", currency_code: "USD" },
-          reference: "GW-1037",
-        },
-        justification,
-      }),
-    );
+    const result = decided(await run(w, { tool: "pay_order", args: { id: ORDER }, justification }));
     expect(result.record.decision).toBe("deny");
     expect(result.record.reasons.map((reason) => reason.code)).toEqual(["ACTION_UNAVAILABLE"]);
     expect(result.execution).toBeNull();
-    expect(w.rail.calls).toEqual([]);
+    // Only the order's read: nothing is captured.
+    expect(w.rail.calls.map((call) => call.call)).toEqual(["getOrder"]);
     const types = (await entries()).map((row) => row.entryType);
     expect(types.filter((type) => type.startsWith("execution."))).toEqual([]);
   });

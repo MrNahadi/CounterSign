@@ -125,9 +125,20 @@ const refundOf = (statuses: readonly [string, ...string[]]) =>
 // What PayPal answered a sent invoice with: 200 is `SENT`, 202 `SCHEDULED` (ADR 0033).
 export const INVOICE_SEND_STATUSES = ["SENT", "SCHEDULED"] as const;
 
+// A payout's batch, with the status PayPal gave it, and the batch's first item as read once after
+// the create; the item is null when that read failed or named no item (ADR 0039). Statuses stay
+// PayPal's text, unknown values included.
+const PayoutStatus = z.string().min(1).max(64);
+const PayoutResultSchema = z.strictObject({
+  batchId: Id,
+  batchStatus: PayoutStatus,
+  item: z.strictObject({ id: Id, status: PayoutStatus }).nullable(),
+});
+
 // `execution.result`, ref the intent ID. Its time is the entry's `at`. An executed result names
-// the refund it made, for an invoice send the invoice it sent, or for a dispute action the dispute
-// with its status as re-read after the call, null when that read failed (ADR 0035).
+// the refund it made, for an invoice send the invoice it sent, for a dispute action the dispute
+// with its status as re-read after the call, null when that read failed (ADR 0035), or for a
+// payout its batch and item (ADR 0039). A failed or unknown payout may name its batch too.
 export const ExecutionResultPayloadSchema = z.union([
   z.strictObject({
     requestSeq: Seq,
@@ -144,22 +155,38 @@ export const ExecutionResultPayloadSchema = z.union([
     outcome: z.literal("executed"),
     dispute: z.strictObject({ id: Id, status: z.string().min(1).max(64).nullable() }),
   }),
+  z.strictObject({
+    requestSeq: Seq,
+    outcome: z.literal("executed"),
+    payout: PayoutResultSchema,
+  }),
   z
     .strictObject({
       requestSeq: Seq,
       outcome: z.literal("failed"),
       refund: refundOf(["FAILED", "CANCELLED"]).optional(),
+      payout: PayoutResultSchema.optional(),
       error: RailErrorSchema.optional(),
     })
-    .refine((payload) => payload.refund !== undefined || payload.error !== undefined, {
-      message: "A failed result needs the refused refund or PayPal's error",
+    .refine(
+      (payload) =>
+        payload.refund !== undefined || payload.payout !== undefined || payload.error !== undefined,
+      { message: "A failed result needs the refused refund, the denied payout or PayPal's error" },
+    )
+    .refine((payload) => payload.refund === undefined || payload.payout === undefined, {
+      message: "A result names a refund or a payout, not both",
     }),
-  z.strictObject({
-    requestSeq: Seq,
-    outcome: z.literal("unknown"),
-    refund: refundOf(REFUND_STATUSES).optional(),
-    error: RailErrorSchema.optional(),
-  }),
+  z
+    .strictObject({
+      requestSeq: Seq,
+      outcome: z.literal("unknown"),
+      refund: refundOf(REFUND_STATUSES).optional(),
+      payout: PayoutResultSchema.optional(),
+      error: RailErrorSchema.optional(),
+    })
+    .refine((payload) => payload.refund === undefined || payload.payout === undefined, {
+      message: "A result names a refund or a payout, not both",
+    }),
 ]);
 export type ExecutionResultPayload = z.infer<typeof ExecutionResultPayloadSchema>;
 export type ExecutionOutcome = ExecutionResultPayload["outcome"];
@@ -405,13 +432,40 @@ type Executed = Extract<ExecutionResultPayload, { outcome: "executed" }>;
 type ExecutedRefund = Extract<Executed, { refund: unknown }>["refund"];
 type ExecutedInvoice = Extract<Executed, { invoice: unknown }>["invoice"];
 type ExecutedDispute = Extract<Executed, { dispute: unknown }>["dispute"];
+type ExecutedPayout = Extract<Executed, { payout: unknown }>["payout"];
+export type PayoutResult = ExecutedPayout;
 
-// What an executed result made: a refund, for an invoice send the invoice it sent, or for a
-// dispute action the dispute it acted on.
+// What an executed result made: a refund, for an invoice send the invoice it sent, for a dispute
+// action the dispute it acted on, or for a payout its batch and item.
 export type ExecutedRecord =
-  | { seq: number; refund: ExecutedRefund; invoice?: undefined; dispute?: undefined }
-  | { seq: number; invoice: ExecutedInvoice; refund?: undefined; dispute?: undefined }
-  | { seq: number; dispute: ExecutedDispute; refund?: undefined; invoice?: undefined };
+  | {
+      seq: number;
+      refund: ExecutedRefund;
+      invoice?: undefined;
+      dispute?: undefined;
+      payout?: undefined;
+    }
+  | {
+      seq: number;
+      invoice: ExecutedInvoice;
+      refund?: undefined;
+      dispute?: undefined;
+      payout?: undefined;
+    }
+  | {
+      seq: number;
+      dispute: ExecutedDispute;
+      refund?: undefined;
+      invoice?: undefined;
+      payout?: undefined;
+    }
+  | {
+      seq: number;
+      payout: ExecutedPayout;
+      refund?: undefined;
+      invoice?: undefined;
+      dispute?: undefined;
+    };
 
 export type IntentRecord = {
   firstRequest: { seq: number; at: string; payload: FirstRequestPayload };
@@ -462,7 +516,9 @@ export async function readIntentRecord(
               ? { seq: row.seq, refund: payload.refund }
               : "invoice" in payload
                 ? { seq: row.seq, invoice: payload.invoice }
-                : { seq: row.seq, dispute: payload.dispute };
+                : "payout" in payload
+                  ? { seq: row.seq, payout: payload.payout }
+                  : { seq: row.seq, dispute: payload.dispute };
         }
       }
     }

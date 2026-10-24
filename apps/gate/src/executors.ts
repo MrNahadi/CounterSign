@@ -1,9 +1,9 @@
 // One executor per executable action (ADR 0033), shared by an allowed proposal and an approved
 // step-up. Each runs after the transaction that wrote its `execution.requested` entry has
 // committed: it makes the one rail call the stored intent describes and appends the result as
-// `execution.result`. A refund is sent with the intent hash as its PayPal-Request-Id (ADR 0026);
-// an invoice send or a dispute action carries no request ID and is never retried (ADRs 0033 and
-// 0035). No AI, no ledger lock held here.
+// `execution.result`. A refund or a payout is sent with the intent hash as its PayPal-Request-Id
+// (ADRs 0026 and 0039); an invoice send or a dispute action carries no request ID and is never
+// retried (ADRs 0033 and 0035). No AI, no ledger lock held here.
 
 import {
   type Database,
@@ -16,10 +16,12 @@ import type { IntentParams, Money } from "@countersign/mandate";
 import {
   type DisputeEvidence,
   type EvidenceDocument,
+  isDuplicateBatch,
   OFFER_TYPES,
   type OfferType,
   type PayPalClient,
   PayPalError,
+  type PayPalPayoutCreated,
   type PayPalRefund,
 } from "@countersign/rail-paypal";
 import type { ExecutableAction } from "./executable";
@@ -27,6 +29,7 @@ import {
   type ExecutionOutcome,
   type ExecutionResultPayload,
   executionResultEntry,
+  type PayoutResult,
   type RequestTarget,
 } from "./execution-log";
 
@@ -42,6 +45,9 @@ export type Execution = {
   // The dispute a dispute action acted on, with its status as re-read after the call (null when
   // that read failed); absent for every other action.
   dispute?: { id: string; status: string | null };
+  // The batch a payout made and its first item (null when the batch read failed or named none);
+  // absent for every other action, and for a payout PayPal never answered with a batch.
+  payout?: PayoutResult;
   error: RailRefusal | null;
   // The `execution.result` entry; null when no rail call was made or the result couldn't be
   // written (then `resultProblem` says why).
@@ -256,6 +262,63 @@ async function executeProvideEvidence(
   );
 }
 
+// What every payout's email says. Only hashed values may vary, so it's this fixed line, never
+// text from the agent (ADR 0039).
+export const PAYOUT_EMAIL_SUBJECT = "You have a payment from Kikapu Studio (illustrative)";
+
+// Batch statuses that mean PayPal took the payout, and those that mean it never will. Any other,
+// including one PayPal adds later, is unknown, never failed.
+const PAYOUT_TAKEN: readonly string[] = ["PENDING", "PROCESSING", "SUCCESS", "NEW"];
+const PAYOUT_REFUSED: readonly string[] = ["DENIED", "CANCELED"];
+
+// A payout (ADR 0039): one item to the payee's email, request ID the intent hash, batch ID the
+// intent ID and item ID the bill reference. After PayPal answers with a batch, the batch is read
+// once for its first item; a read that fails leaves the item null and keeps the created status.
+async function executePayout(rail: PayPalClient, job: ExecutionJob): Promise<Attempt> {
+  if (!("email" in job.target)) throw new Error("a payout targets no payee");
+  const reference = job.params?.reference;
+  if (typeof reference !== "string") throw new Error("a payout intent has no reference");
+  const note = job.params?.note ?? null;
+  let created: PayPalPayoutCreated;
+  try {
+    created = await rail.createPayout({
+      requestId: job.intentHash,
+      senderBatchId: job.intentId,
+      emailSubject: PAYOUT_EMAIL_SUBJECT,
+      receiver: job.target.email,
+      amount: job.amount,
+      ...(note === null ? {} : { note }),
+      senderItemId: reference,
+    });
+  } catch (error) {
+    // A reused batch ID means an earlier request may have paid, so it's unknown, never failed.
+    if (isDuplicateBatch(error) && error instanceof PayPalError) {
+      return { outcome: "unknown", error: refusal(error) };
+    }
+    return errorAttempt(error);
+  }
+  let payout: PayoutResult = {
+    batchId: created.batchId,
+    batchStatus: created.batchStatus,
+    item: null,
+  };
+  try {
+    const batch = await rail.getPayoutBatch(created.batchId);
+    const [first] = batch.items;
+    payout = {
+      batchId: created.batchId,
+      batchStatus: batch.batchStatus,
+      item: first === undefined ? null : { id: first.itemId, status: first.status },
+    };
+  } catch {
+    // Left null: the payout was created whatever the read says.
+  }
+  const { batchStatus } = payout;
+  if (PAYOUT_TAKEN.includes(batchStatus)) return { outcome: "executed", payout };
+  if (PAYOUT_REFUSED.includes(batchStatus)) return { outcome: "failed", payout };
+  return { outcome: "unknown", payout };
+}
+
 // Exactly the actions in EXECUTABLE_ACTIONS; the type keeps the two lists equal.
 export const EXECUTORS: Record<ExecutableAction, Executor> = {
   "paypal.refund": executeRefund,
@@ -263,6 +326,7 @@ export const EXECUTORS: Record<ExecutableAction, Executor> = {
   "paypal.dispute.accept_claim": executeAcceptClaim,
   "paypal.dispute.make_offer": executeMakeOffer,
   "paypal.dispute.provide_evidence": executeProvideEvidence,
+  "paypal.payout": executePayout,
 };
 
 // Carries out one requested intent through its action's executor and logs the result.
@@ -278,6 +342,7 @@ export async function execute(
     refund: "refund" in attempt ? (attempt.refund ?? null) : null,
     ...("invoice" in attempt ? { invoice: attempt.invoice } : {}),
     ...("dispute" in attempt ? { dispute: attempt.dispute } : {}),
+    ...("payout" in attempt && attempt.payout !== undefined ? { payout: attempt.payout } : {}),
     error: "error" in attempt ? (attempt.error ?? null) : null,
     resultSeq: null,
     resultProblem: null,

@@ -38,13 +38,13 @@ const parsedMandate = parseMandate(JSON.parse(readFileSync(mandateFile, "utf8"))
 if (!parsedMandate.ok) throw new Error(parsedMandate.error);
 const mandate = parsedMandate.mandate;
 
-// The shipped mandate with payouts stepped up too, so an action without an executor reaches a
-// step-up.
-const payoutMandate = (() => {
+// The shipped mandate with order captures stepped up too, so an action without an executor
+// reaches a step-up.
+const captureMandate = (() => {
   const json = JSON.parse(readFileSync(mandateFile, "utf8"));
   json.rules.push({
-    id: "payouts",
-    action: "paypal.payout",
+    id: "order-captures",
+    action: "paypal.order.capture",
     decide: "step_up",
     reason: "ALWAYS_NEEDS_APPROVAL",
   });
@@ -121,16 +121,12 @@ const sendInvoice = {
   justification: { ticket_id: "TKT-1037" },
 };
 
-const payout = {
-  tool: "create_payout",
-  args: {
-    receiver: PAYER,
-    amount: { value: "25.00", currency_code: "USD" },
-    reference: "GW-1037",
-  },
+const payOrder = {
+  tool: "pay_order",
+  args: { id: "ORD-1037" },
   justification: { ticket_id: "TKT-1037" },
 };
-const isPayout = (proposal: unknown) => proposal === payout;
+const isPayOrder = (proposal: unknown) => proposal === payOrder;
 
 const railCalls = (rail: FakeSandbox, call: string) =>
   rail.calls.filter((entry) => entry.call === call);
@@ -173,7 +169,7 @@ describe("answerStepUp", { timeout: SLOW }, () => {
 
   const decide = async (w: World, proposal: unknown, now = NOW) => {
     const result = await propose({
-      mandate: isPayout(proposal) ? payoutMandate : mandate,
+      mandate: isPayOrder(proposal) ? captureMandate : mandate,
       principal: PRINCIPAL,
       proposal,
       now,
@@ -389,7 +385,7 @@ describe("answerStepUp", { timeout: SLOW }, () => {
 
     it("ACTION_UNAVAILABLE: an action without an executor can be denied but not approved", async () => {
       const w = world();
-      const { seq, hash } = await stepUp(w, payout);
+      const { seq, hash } = await stepUp(w, payOrder);
 
       await expectRejected(
         w,

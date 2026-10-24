@@ -72,6 +72,7 @@ function executionView(execution: Execution | null) {
     refund: execution.refund,
     invoice: execution.invoice ?? null,
     dispute: execution.dispute ?? null,
+    payout: execution.payout ?? null,
     error:
       execution.error === null
         ? null

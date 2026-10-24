@@ -52,6 +52,18 @@ const mandateFile = fileURLToPath(
 const parsedMandate = parseMandate(JSON.parse(readFileSync(mandateFile, "utf8")));
 if (!parsedMandate.ok) throw new Error(parsedMandate.error);
 const mandate = parsedMandate.mandate;
+const parsedOps = parseMandate(
+  JSON.parse(
+    readFileSync(
+      fileURLToPath(
+        new URL("../../../packages/mandate/fixtures/kikapu-studio-ops-v1.json", import.meta.url),
+      ),
+      "utf8",
+    ),
+  ),
+);
+if (!parsedOps.ok) throw new Error(parsedOps.error);
+const opsMandate = parsedOps.mandate;
 
 const usd = (minor: number) => ({ minor, currency: "USD" as const });
 
@@ -388,6 +400,49 @@ describe("the approval API", { timeout: SLOW }, () => {
     ]);
     const answered = await getJson(`${url}/approvals/${seq}`);
     expect(answered.body).toMatchObject({ state: "answered", answer: { outcome: "approved" } });
+  });
+
+  it("answers an approved payout with its batch and item", async () => {
+    const w = world();
+    const decided = await propose({
+      mandate: opsMandate,
+      principal: "ops-agent",
+      proposal: {
+        tool: "create_payout",
+        args: {
+          receiver: "dyeworks@example.com",
+          amount: { value: "45.00", currency_code: "USD" },
+          reference: "KDW-2026-0412",
+        },
+      },
+      now: NOW,
+      ...w,
+      db,
+      clock: () => NOW,
+    });
+    if (!decided.ok || decided.replay) throw new Error("not decided");
+    expect(decided.record.decision).toBe("step_up");
+    const url = await gate(w).url;
+
+    const answer = await postJson(`${url}/approvals/${decided.seqs.decision}`, {
+      answer: "approve",
+      intent_hash: decided.record.intentHash,
+    });
+
+    expect(answer.status).toBe(200);
+    expect(answer.body.execution).toEqual({
+      outcome: "executed",
+      refund: null,
+      invoice: null,
+      dispute: null,
+      payout: {
+        batchId: "FAKEBATCH0001",
+        batchStatus: "PENDING",
+        item: { id: "FAKEITEM0001", status: "UNCLAIMED" },
+      },
+      error: null,
+    });
+    expect(w.rail.calls.filter((call) => call.call === "createPayout")).toHaveLength(1);
   });
 
   it("refuses agents, wrong keys and no key with 401, and writes nothing", async () => {

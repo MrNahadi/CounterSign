@@ -79,17 +79,17 @@ Notes:
 
 ## T-006: The payout executor
 
-Status: open
+Status: done
 Blocked by: T-003, T-004
 Tier: standard
 Slice: An approved payout runs once on PayPal and its batch and item are logged.
 Test seam: `execute()`, `propose()` and `answerStepUp` over PGlite with the fake sandbox
 Acceptance:
-- [ ] `EXECUTABLE_ACTIONS` gains `paypal.payout`; tests that used a payout as unexecutable switch to order capture, still `ACTION_UNAVAILABLE`
-- [ ] Approving a payout step-up sends one payout with the intent hash, intent ID, reference, note and fixed subject, reads the batch, and records `payout: { batchId, batchStatus, item }`
-- [ ] Approving again or re-proposing sends nothing
-- [ ] `DENIED` is `failed`; a 4xx `failed`; a duplicate-batch refusal, an unknown batch status and a 5xx `unknown`; a failed batch read leaves `item` null
-- [ ] Executed payouts count in the ops agent's usage; the approve answer carries `payout`; every older execution entry still reads
+- [x] `EXECUTABLE_ACTIONS` gains `paypal.payout`; tests that used a payout as unexecutable switch to order capture, still `ACTION_UNAVAILABLE`
+- [x] Approving a payout step-up sends one payout with the intent hash, intent ID, reference, note and fixed subject, reads the batch, and records `payout: { batchId, batchStatus, item }`
+- [x] Approving again or re-proposing sends nothing
+- [x] `DENIED` is `failed`; a 4xx `failed`; a duplicate-batch refusal, an unknown batch status and a 5xx `unknown`; a failed batch read leaves `item` null
+- [x] Executed payouts count in the ops agent's usage; the approve answer carries `payout`; every older execution entry still reads
 Notes:
 
 ## T-007: Payout reconciliation by poll

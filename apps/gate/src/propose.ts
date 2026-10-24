@@ -163,6 +163,9 @@ async function decideAndRecord(
     if (action.startsWith("paypal.dispute.") && !("disputeId" in target)) {
       throw new Error(`an allowed ${action} targets no dispute`);
     }
+    if (action === "paypal.payout" && !("email" in target)) {
+      throw new Error("an allowed payout targets no payee");
+    }
     // A refund intent already requested is answered as a replay before it's decided. Any other
     // is decided again but sent at most once (ADR 0033), so its trail is read first, under the
     // same lock.
@@ -235,6 +238,7 @@ async function alreadyRequested(
     refund: trail.executed?.refund ?? null,
     ...(trail.executed?.invoice === undefined ? {} : { invoice: trail.executed.invoice }),
     ...(trail.executed?.dispute === undefined ? {} : { dispute: trail.executed.dispute }),
+    ...(trail.executed?.payout === undefined ? {} : { payout: trail.executed.payout }),
     resultSeq: trail.executed?.seq ?? null,
   };
 }

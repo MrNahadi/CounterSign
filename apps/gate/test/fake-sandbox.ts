@@ -1,4 +1,5 @@
 import type {
+  CreatePayoutInput,
   PayPalCapture,
   PayPalClient,
   PayPalDispute,
@@ -6,6 +7,9 @@ import type {
   PayPalDisputeList,
   PayPalInvoice,
   PayPalOrder,
+  PayPalPayoutBatch,
+  PayPalPayoutCreated,
+  PayPalPayoutItem,
   PayPalRefund,
   PayPalTransaction,
   SendInvoiceInput,
@@ -43,6 +47,15 @@ export type FakeSandbox = PayPalClient & {
   invoiceSends: SendInvoiceInput[];
   // IDs of the draft invoices it created.
   createdInvoices: string[];
+  // Payout batches and items by their IDs, as get payout batch and get payout item answer them.
+  // A created payout adds one batch with one item.
+  payoutBatches: Map<string, PayPalPayoutBatch>;
+  payoutItems: Map<string, PayPalPayoutItem>;
+  // The batch status a new payout is created with, and its item's status.
+  payoutBatchStatus: string;
+  payoutItemStatus: string;
+  // Every create payout request, in order, as the rail client received it.
+  payoutsSent: CreatePayoutInput[];
   // What a webhook signature verification answers.
   webhookVerification: "pass" | "fail";
   // Every call made, in order, with its first argument.
@@ -72,6 +85,10 @@ const notFound = (call: string) => httpError(call, 404, "RESOURCE_NOT_FOUND");
 export function createFakeSandbox(): FakeSandbox {
   const byRequestId = new Map<string, string>();
   let nextRefund = 1;
+  // Payouts replay by request ID, and a reused sender batch ID is refused, as PayPal's are.
+  const payoutsByRequestId = new Map<string, PayPalPayoutCreated>();
+  const senderBatchIds = new Set<string>();
+  let nextPayout = 1;
 
   const sandbox: FakeSandbox = {
     captures: new Map(),
@@ -89,6 +106,11 @@ export function createFakeSandbox(): FakeSandbox {
     createdInvoices: [],
     lostResponses: {},
     refundStatus: "COMPLETED",
+    payoutBatches: new Map(),
+    payoutItems: new Map(),
+    payoutBatchStatus: "PENDING",
+    payoutItemStatus: "UNCLAIMED",
+    payoutsSent: [],
     webhookVerification: "pass",
     calls: [],
     async createOrder() {
@@ -100,14 +122,57 @@ export function createFakeSandbox(): FakeSandbox {
     async addTracker() {
       throw new Error("addTracker isn't in the fake sandbox");
     },
-    async createPayout() {
-      throw new Error("createPayout isn't in the fake sandbox");
+    async createPayout(input) {
+      enter("createPayout", input);
+      sandbox.payoutsSent.push(structuredClone(input));
+      const replayed = payoutsByRequestId.get(input.requestId);
+      if (replayed) return answer("createPayout", replayed);
+      if (senderBatchIds.has(input.senderBatchId)) {
+        throw new PayPalError({
+          kind: "http",
+          call: "create-payout",
+          status: 400,
+          paypalName: "USER_BUSINESS_ERROR",
+          issues: ["Batch with given sender_batch_id already exists"],
+          debugId: "fake-debug",
+        });
+      }
+      const n = String(nextPayout++).padStart(4, "0");
+      const created = { batchId: `FAKEBATCH${n}`, batchStatus: sandbox.payoutBatchStatus };
+      const listed = {
+        itemId: `FAKEITEM${n}`,
+        status: sandbox.payoutItemStatus,
+        amount: input.amount,
+        receiver: input.receiver,
+        senderItemId: input.senderItemId,
+        errorName: null,
+      };
+      sandbox.payoutBatches.set(created.batchId, {
+        ...created,
+        senderBatchId: input.senderBatchId,
+        items: [listed],
+      });
+      sandbox.payoutItems.set(listed.itemId, {
+        ...listed,
+        batchId: created.batchId,
+        senderBatchId: input.senderBatchId,
+        timeProcessed: null,
+      });
+      payoutsByRequestId.set(input.requestId, created);
+      senderBatchIds.add(input.senderBatchId);
+      return answer("createPayout", created);
     },
-    async getPayoutBatch() {
-      throw new Error("getPayoutBatch isn't in the fake sandbox");
+    async getPayoutBatch(batchId) {
+      enter("getPayoutBatch", batchId);
+      const batch = sandbox.payoutBatches.get(batchId);
+      if (!batch) throw notFound("get-payout-batch");
+      return structuredClone(batch);
     },
-    async getPayoutItem() {
-      throw new Error("getPayoutItem isn't in the fake sandbox");
+    async getPayoutItem(itemId) {
+      enter("getPayoutItem", itemId);
+      const item = sandbox.payoutItems.get(itemId);
+      if (!item) throw notFound("get-payout-item");
+      return structuredClone(item);
     },
     // The dispute actions answer 200 and move the dispute to the status PayPal would, unless a
     // failure is injected.

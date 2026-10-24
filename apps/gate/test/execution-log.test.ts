@@ -273,6 +273,34 @@ describe("execution entries and the execution history", () => {
       expect(ExecutionResultPayloadSchema.safeParse(outcome).success).toBe(false);
       expect(ReconciliationPayloadSchema.safeParse({ source: "poll" }).success).toBe(false);
     });
+
+    it("read a payout result as executed, failed with or without an error, or unknown", () => {
+      const payout = {
+        batchId: "5UXD2E8A7EBQJ",
+        batchStatus: "PENDING",
+        item: { id: "8AELMXH8UB2P8", status: "UNCLAIMED" },
+      };
+      const error = { name: "USER_BUSINESS_ERROR", issues: [], debugId: null };
+      for (const payload of [
+        { requestSeq: 2, outcome: "executed", payout },
+        { requestSeq: 2, outcome: "executed", payout: { ...payout, item: null } },
+        { requestSeq: 2, outcome: "failed", payout: { ...payout, batchStatus: "DENIED" } },
+        { requestSeq: 2, outcome: "failed", payout, error },
+        { requestSeq: 2, outcome: "unknown", payout: { ...payout, batchStatus: "ODD" } },
+        { requestSeq: 2, outcome: "unknown", payout, error },
+      ]) {
+        expect(ExecutionResultPayloadSchema.safeParse(payload).success).toBe(true);
+      }
+      for (const payload of [
+        { requestSeq: 2, outcome: "executed", payout: { ...payout, batchId: "" } },
+        { requestSeq: 2, outcome: "executed", payout: { ...payout, item: { id: "X" } } },
+        { requestSeq: 2, outcome: "executed", payout, refund: { id: "R", status: "COMPLETED" } },
+        { requestSeq: 2, outcome: "failed", payout, refund: { id: "R", status: "FAILED" } },
+        { requestSeq: 2, outcome: "executed", payout: { ...payout, extra: 1 } },
+      ]) {
+        expect(ExecutionResultPayloadSchema.safeParse(payload).success).toBe(false);
+      }
+    });
   });
 
   describe("readExecutionHistory", () => {
