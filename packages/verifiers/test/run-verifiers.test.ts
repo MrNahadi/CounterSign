@@ -14,7 +14,6 @@ const records: RecordSnapshots = {
 
 // Built in later phases. Until then they can only say unknown.
 const NOT_BUILT_YET = [
-  "payee.allowlisted",
   "ledger.velocity",
   "mpesa.receipt_verified",
   "mpesa.amount_matches_order",

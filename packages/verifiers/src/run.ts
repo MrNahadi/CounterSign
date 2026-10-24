@@ -5,6 +5,7 @@ import { captureRefundable } from "./capture";
 import { disputeNoneOpen } from "./dispute";
 import { entryFor } from "./entry";
 import { ledgerNotDuplicate } from "./ledger";
+import { payeeAllowlisted } from "./payee";
 import { shipmentStatus } from "./shipment";
 import type { RecordSnapshots } from "./snapshots";
 import { evidencePhotoPresent, ticketFromPayer } from "./ticket";
@@ -18,6 +19,7 @@ const BUILT_VERIFIERS: Partial<Record<VerifierName, Verifier>> = {
   "shipment.status": shipmentStatus,
   "evidence.photo_present": evidencePhotoPresent,
   "ledger.not_duplicate": ledgerNotDuplicate,
+  "payee.allowlisted": payeeAllowlisted,
 };
 
 // Every verifier that runs for a refund, whatever the rules need, so the trace is complete.

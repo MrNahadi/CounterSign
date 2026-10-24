@@ -11,3 +11,8 @@
 ## For the human
 
 - T-001: before the answerer's verdict arrived, I wrongly acted on a predicted answer and built a "not reachable yet" exception list in `decide.test.ts`. I removed it before committing; the committed work follows the answerer's real verdict, ADR 0040. As the answerer directed, I reworded T-001's third acceptance item and added one to T-004. Please check that you're happy with ADR 0040, since it changes the ticket split.
+
+## T-002 (done)
+
+- `payee.allowlisted` is built in `packages/verifiers/src/payee.ts`: pass/fail over `records.payees` (`PayeeListSnapshot`, call `mandate payees`, ID `<mandate id> v<version>`); unknown "No payee list" (record ID null) and unknown "Not a payout" (no records) for a non-payee target. Both sides are normalized with `normalizePayeeEmail`.
+- Gotcha: `decide()` does not set `records.payees` until T-004, so through the gate a payout still reaches `PAYEE_LIST_UNKNOWN` (unknown) and a listed payee cannot pass yet. `NOT_BUILT_YET` in `run-verifiers.test.ts` no longer lists `payee.allowlisted`.

@@ -18,16 +18,16 @@ Notes:
 
 ## T-002: The `payee.allowlisted` verifier
 
-Status: open
+Status: done
 Blocked by: T-001
 Tier: simple
 Slice: The verifiers check a payout's email against the mandate's payee list snapshot.
 Test seam: `@countersign/verifiers`' `runVerifiers` with a `payees` snapshot
 Acceptance:
-- [ ] Pass for a listed email in any case or spacing, naming the payee and the list's ID; fail for an unlisted one
-- [ ] Unknown with no snapshot, and for an intent whose target isn't a payee
-- [ ] The trace entry's record names `mandate payees` and the list's ID, or the call it looked for
-- [ ] It runs only when required; a refund's trace is unchanged
+- [x] Pass for a listed email in any case or spacing, naming the payee and the list's ID; fail for an unlisted one
+- [x] Unknown with no snapshot, and for an intent whose target isn't a payee
+- [x] The trace entry's record names `mandate payees` and the list's ID, or the call it looked for
+- [x] It runs only when required; a refund's trace is unchanged
 Notes:
 
 ## T-003: The rail client's payout calls

@@ -14,6 +14,7 @@ export const CALLS = {
   carrier: "carrier GET /shipments/{tracking_number}",
   ticket: "ticket",
   executions: "audit log executions",
+  payees: "mandate payees",
 } as const;
 
 // Where a snapshot came from.
@@ -105,6 +106,13 @@ export type ExecutionSnapshot = SnapshotSource & {
   executedAt: string;
 };
 
+// The payee list of the mandate that decides, and nothing else (ADR 0039). Its ID is the mandate's
+// ID and version, such as `kikapu-studio-ops v1`. Emails are lower-cased and trimmed, as the
+// mandate holds them.
+export type PayeeListSnapshot = SnapshotSource & {
+  payees: readonly { email: string; name: string }[];
+};
+
 // Everything the verifiers may read for one intent. A missing record is never a pass.
 export type RecordSnapshots = {
   captures?: readonly CaptureSnapshot[];
@@ -118,6 +126,8 @@ export type RecordSnapshots = {
   // on anything left out. Absent means it wasn't read, so nothing about it is known; an empty
   // list means nothing has executed.
   executions?: readonly ExecutionSnapshot[];
+  // Absent when the deciding mandate has no payee list, which leaves a payee unknown.
+  payees?: PayeeListSnapshot;
 };
 
 // The trace's reference to a snapshot that was read.
