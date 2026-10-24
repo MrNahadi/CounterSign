@@ -11,7 +11,7 @@ The business that owns the rails, signs the mandate and approves step-ups. In th
 _Avoid_: owner, seller, shop
 
 **Principal**:
-An agent identity that may propose money actions, such as support-agent or ops-agent. Each principal has exactly one mandate.
+An agent identity that may propose money actions: support-agent (Resolve) or ops-agent (supplier payouts). Each principal has exactly one mandate and its own key.
 _Avoid_: bot, user, client
 
 **Customer**:
@@ -43,6 +43,22 @@ _Avoid_: pass-through tool, safe action
 **Countersign extension**:
 A guarded action's MCP tool that PayPal's Agent Toolkit has no equivalent for, such as `provide_dispute_evidence`, `make_offer` or `create_payout`. Every other tool keeps PayPal's name.
 _Avoid_: custom tool, Countersign tool
+
+**Payout**:
+One PayPal Payouts payment from the merchant's balance to a payee's PayPal email, for one bill. Only the ops agent may propose one, and it always needs a step-up.
+_Avoid_: transfer, B2C payment (that's M-Pesa)
+
+**Payee**:
+The supplier a payout pays, named by email.
+_Avoid_: recipient, receiver (PayPal's field name only)
+
+**Payee list**:
+The suppliers a mandate lets its principal pay, by email and name, inside the signed mandate. `payee.allowlisted` checks a payout against it; nothing the agent sends can add to it.
+_Avoid_: allowlist (in UI copy), whitelist, supplier list
+
+**Bill reference**:
+The supplier's bill or invoice number a payout pays. It's part of the intent, so one bill is one intent and is paid at most once, and it's sent to PayPal as the item's `sender_item_id`.
+_Avoid_: invoice ID (that's a PayPal invoice), memo
 
 **Principal key**:
 The secret an agent presents to the gate's MCP server as a bearer token. It names exactly one principal, and through it the mandate. The agent never presents a rail credential.

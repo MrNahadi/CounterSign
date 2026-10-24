@@ -1,6 +1,6 @@
 # Tech stack
 
-Derived from brief §8–§9 and ADRs 0001–0035 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
+Derived from brief §8–§9 and ADRs 0001–0039 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
 
 ## Runtime and tooling
 
@@ -55,9 +55,9 @@ apps/
   baseline-paypal-mcp/  Isolated workspace holding @paypal/mcp + agent-toolkit; nothing imports it, it's spawned over stdio
   storefront/           Next.js Kikapu shop on PayPal JS SDK v6, the product and seed catalogs, and the seed script (`npm run seed`)
 packages/
-  mandate/              Mandate schema, rule evaluator, compiler prompt
+  mandate/              Mandate schema (with the payee list from phase 12), rule evaluator, compiler prompt; fixtures for the support and ops mandates
   verifiers/            Pure verifier functions over record snapshots, with fixtures
-  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds, disputes lookup and webhook signature verification from phase 6, ADR 0025; get dispute, get invoice and transaction search from phase 7; `issueAccessToken()` for baseline mode's child process from phase 8; invoice send and draft invoices from phase 9, ADR 0033; accept claim, make offer, provide evidence and the sandbox-only require evidence and adjudicate from phase 11, ADR 0035)
+  rail-paypal/          Sandbox-only OAuth token cache and REST client (orders, captures, trackers from phase 5; refunds, disputes lookup and webhook signature verification from phase 6, ADR 0025; get dispute, get invoice and transaction search from phase 7; `issueAccessToken()` for baseline mode's child process from phase 8; invoice send and draft invoices from phase 9, ADR 0033; accept claim, make offer, provide evidence and the sandbox-only require evidence and adjudicate from phase 11, ADR 0035; create payout, get payout batch and get payout item from phase 12, ADR 0039)
   rail-mpesa/           Daraja client, callback parsing, receipt store
   ledger/               Hash chain, appends, `ledger verify` and its CLI (entry types: `mandate.version`, `decision`, `execution.requested`, `execution.result`, `reconciliation`, `approval` from phase 9, and `dispute.received` from phase 11); the evidence file and `ledger check-export` (phase 10, ADR 0034)
   db/                   Drizzle schema (audit_log, carrier_shipments, seed_orders, tickets from phase 7 (ADR 0029), and tickets.thread_id, ticket_attachments and agent_runs from phase 8 (ADR 0030), and evidence_documents and dispute_drafts from phase 11 (ADR 0035)), migrations (with the append-only trigger), postgres.js and PGlite clients
@@ -144,6 +144,12 @@ specs/                  Brief, constitution, feature specs
 - `prepare_dispute_evidence` is a non-guarded extension: it moves no money and never answers a payer email, ticket text or credential.
 - Resolve's drafter makes one structured Gemini call that writes notes only; code sets evidence types, tracking numbers, refund IDs and documents. Without the model it uses the fixed template (`drafted_by: template`).
 - Dispute actions (accept claim, make offer, provide evidence) are sent once with no request ID and never retried, like invoice sends. Executed ones count in today's usage.
+- Tracking numbers in evidence go to PayPal as carrier `OTHER` with the fixed name "Carrier (simulated)" (ADR 0036). Failed dispute drafts stay as rows and count against the run cap; a redraft is a new row, and `GET /disputes/:id` takes the dispute ID (ADR 0037). Console routes to Resolve behind the approvals sign-in check the key with the gate first and never send it to Resolve (ADR 0038).
+
+**Payouts** (from phase 12, ADR 0039)
+- The ops agent (`ops-agent`, `COUNTERSIGN_OPS_AGENT_KEY`) has its own mandate, `packages/mandate/fixtures/kikapu-studio-ops-v1.json`. The payee list is the mandate's optional `payees` key; `decide()` hands it to `payee.allowlisted` as the `payees` snapshot, replacing anything in the records. Nothing the agent sends can add a payee.
+- `create_payout` requires `reference` (the supplier's bill number, hashed when set) and USD. The executor sends it once from the gate, with `PayPal-Request-Id` = the intent hash, `sender_batch_id` = the intent ID and `sender_item_id` = the reference; the rail client may retry its own POST. A reused-batch refusal is `unknown`, never `failed`.
+- Payout results and reconciliations carry the batch and item; `npm run reconcile` and the `PAYMENT.PAYOUTS-ITEM.*` webhook re-read items still open at PayPal. Executed payouts count in today's usage even if later returned.
 
 **Secrets and environment**
 - Real values live only in `.env.local` (git-ignored) and on Render. `.env.example` lists the names.
