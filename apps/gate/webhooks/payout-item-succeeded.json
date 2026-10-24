@@ -1,0 +1,56 @@
+{
+  "description": "PayPal tells the gate that payout item 8AELMXH8UB2P8, $45.00 to Kisumu Dye Works (illustrative) for bill KDW-2026-0412, was claimed and paid. The headers and body are in the shape PayPal sends; the signature is made up, so only the fake sandbox's verify-webhook-signature accepts it. The gate reads only resource.payout_item_id and re-reads the item; the rest of the body is never trusted. Illustrative shop and supplier.",
+  "headers": {
+    "paypal-transmission-id": "9c4e1a20-b1d7-11f0-8f2b-payoutitem01",
+    "paypal-transmission-time": "2026-10-24T07:40:14Z",
+    "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-360caa42-fca2a594-illustrative",
+    "paypal-auth-algo": "SHA256withRSA",
+    "paypal-transmission-sig": "cGF5b3V0LWl0ZW0taWxsdXN0cmF0aXZlLXNpZ25hdHVyZS1ub3QtcmVhbA=="
+  },
+  "body": {
+    "id": "WH-1RX43126GA4459612-8KW07451BL2186347",
+    "event_version": "1.0",
+    "create_time": "2026-10-24T07:40:12.000Z",
+    "resource_type": "payouts_item",
+    "event_type": "PAYMENT.PAYOUTS-ITEM.SUCCEEDED",
+    "summary": "A payout item has succeeded",
+    "resource": {
+      "payout_item_id": "8AELMXH8UB2P8",
+      "transaction_id": "4K1528713N2271339",
+      "activity_id": "0E158638XS0329106",
+      "transaction_status": "SUCCESS",
+      "payout_item_fee": { "currency": "USD", "value": "0.00" },
+      "payout_batch_id": "5UXD2E8A7EBQJ",
+      "sender_batch_id": "int_3f9a1c7e5b2d4a6c8e0f1a2b",
+      "payout_item": {
+        "recipient_type": "EMAIL",
+        "amount": { "currency": "USD", "value": "45.00" },
+        "note": "April dye order",
+        "receiver": "dyeworks@example.com",
+        "sender_item_id": "KDW-2026-0412"
+      },
+      "time_processed": "2026-10-24T07:40:11Z",
+      "links": [
+        {
+          "href": "https://api.sandbox.paypal.com/v1/payments/payouts-item/8AELMXH8UB2P8",
+          "rel": "item",
+          "method": "GET",
+          "encType": "application/json"
+        },
+        {
+          "href": "https://api.sandbox.paypal.com/v1/payments/payouts/5UXD2E8A7EBQJ",
+          "rel": "batch",
+          "method": "GET",
+          "encType": "application/json"
+        }
+      ]
+    },
+    "links": [
+      {
+        "href": "https://api.sandbox.paypal.com/v1/notifications/webhooks-events/WH-1RX43126GA4459612-8KW07451BL2186347",
+        "rel": "self",
+        "method": "GET"
+      }
+    ]
+  }
+}

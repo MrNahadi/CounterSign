@@ -669,8 +669,14 @@ export type ReconcileWorkRead =
   | { known: false; seq: number; detail: string };
 
 export type PayoutWorkRead =
-  // Executed payouts, in the order of their results, final or not.
-  { known: true; payouts: ExecutedPayoutIntent[] } | { known: false; seq: number; detail: string };
+  | {
+      known: true;
+      // Executed payouts, in the order of their results, final or not.
+      payouts: ExecutedPayoutIntent[];
+      // Every intent the log has a payout request for, whatever its result.
+      requested: ReadonlySet<string>;
+    }
+  | { known: false; seq: number; detail: string };
 
 async function readWorkRows(reader: Reader): Promise<ChainRow[]> {
   return reader
@@ -699,7 +705,8 @@ export async function readReconcileWork(reader: Reader): Promise<ReconcileWorkRe
 export async function readPayoutWork(reader: Reader): Promise<PayoutWorkRead> {
   const rows = await readWorkRows(reader);
   try {
-    return { known: true, payouts: buildWork(rows).payouts };
+    const { payouts, requested } = buildWork(rows);
+    return { known: true, payouts, requested };
   } catch (error) {
     if (error instanceof Unreadable) return { known: false, seq: error.seq, detail: error.message };
     throw error;
@@ -710,6 +717,7 @@ export async function readPayoutWork(reader: Reader): Promise<PayoutWorkRead> {
 function buildWork(rows: readonly ChainRow[]): {
   work: ReconcileWork;
   payouts: ExecutedPayoutIntent[];
+  requested: Set<string>;
 } {
   type Intent = {
     request: {
@@ -776,7 +784,9 @@ function buildWork(rows: readonly ChainRow[]): {
   }
   const work: ReconcileWork = { executed: [], open: [] };
   const payouts: ExecutedPayoutIntent[] = [];
+  const requested = new Set<string>();
   for (const [intentId, intent] of intents) {
+    if (intent.request.payee !== null) requested.add(intentId);
     if (intent.executed !== null) {
       work.executed.push({
         intentId,
@@ -802,5 +812,5 @@ function buildWork(rows: readonly ChainRow[]): {
   work.executed.sort((a, b) => a.resultSeq - b.resultSeq);
   payouts.sort((a, b) => a.resultSeq - b.resultSeq);
   work.open.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
-  return { work, payouts };
+  return { work, payouts, requested };
 }

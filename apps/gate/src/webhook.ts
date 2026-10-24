@@ -1,7 +1,9 @@
 // The PayPal webhook (ADR 0025, ADR 0026, ADR 0035). A verified PAYMENT.CAPTURE.REFUNDED event is
 // reconciled in the audit log, once per event ID, from the refund as re-read from PayPal, never
 // from the event body. A verified CUSTOMER.DISPUTE.CREATED event appends one `dispute.received`
-// entry per event ID, from the dispute as re-read, and then nudges Resolve. No AI. Nothing here
+// entry per event ID, from the dispute as re-read, and then nudges Resolve. A verified
+// PAYMENT.PAYOUTS-ITEM.* event is reconciled once per event ID from the item as re-read
+// (ADR 0039). No AI. Nothing here
 // logs or answers with the body, a header or a secret.
 
 import type { Database } from "@countersign/db";
@@ -11,17 +13,25 @@ import {
   type PayPalClient,
   type PayPalDisputeDetail,
   PayPalError,
+  type PayPalPayoutItem,
   type PayPalRefund,
   parsePayPalWebhookId,
 } from "@countersign/rail-paypal";
 import { z } from "zod";
 import { disputeReceivedEntry, readDisputeState } from "./dispute-log";
-import { readReconciliationState, reconciliationEntry } from "./execution-log";
+import {
+  type PayoutWorkRead,
+  readPayoutWork,
+  readReconciliationState,
+  reconciliationEntry,
+} from "./execution-log";
 import { type NudgeFetch, nudgeResolve } from "./nudge";
 
 export const WEBHOOK_BODY_LIMIT = "64kb";
 export const REFUNDED_EVENT = "PAYMENT.CAPTURE.REFUNDED";
 export const DISPUTE_CREATED_EVENT = "CUSTOMER.DISPUTE.CREATED";
+// Every payout item event (ADR 0039). Batch events (PAYMENT.PAYOUTSBATCH.*) aren't handled.
+export const PAYOUT_ITEM_EVENTS = "PAYMENT.PAYOUTS-ITEM.";
 
 export type WebhookAnswer = { status: 200 | 400 | 413 | 503; message: string };
 
@@ -55,6 +65,7 @@ const EventSchema = z.object({
 });
 const RefundResourceSchema = z.object({ id: IdSchema });
 const DisputeResourceSchema = z.object({ dispute_id: IdSchema });
+const PayoutItemResourceSchema = z.object({ payout_item_id: IdSchema });
 
 export type WebhookDeps = {
   db?: Database;
@@ -143,6 +154,7 @@ export async function handlePayPalWebhook(
   const verified = { db, rail, event, deps };
   if (event.event_type === REFUNDED_EVENT) return reconcileRefund(verified);
   if (event.event_type === DISPUTE_CREATED_EVENT) return recordDispute(verified);
+  if (event.event_type.startsWith(PAYOUT_ITEM_EVENTS)) return reconcilePayoutItem(verified);
   return ANSWERS.ignored;
 }
 
@@ -195,6 +207,76 @@ async function reconcileRefund({ db, rail, event, deps }: VerifiedEvent): Promis
     });
   } catch {
     // The log couldn't be read or written, or the refund can't be recorded as it is.
+    return ANSWERS.unavailable;
+  }
+}
+
+// The intent a payout item belongs to: the one its sender_batch_id names, when the log has a
+// payout request for it and no executed result of it names another batch. Null otherwise, so an
+// item of a batch Countersign didn't send is logged unmatched. `resultSeq` is the executed result
+// naming the item's batch, null when there is none.
+function payoutMatch(
+  work: Extract<PayoutWorkRead, { known: true }>,
+  item: PayPalPayoutItem,
+): { intentId: string | null; resultSeq: number | null } {
+  const unmatched = { intentId: null, resultSeq: null };
+  const intentId = item.senderBatchId;
+  if (intentId === null || !work.requested.has(intentId)) return unmatched;
+  const executed = work.payouts.find((payout) => payout.intentId === intentId);
+  if (executed === undefined) return { intentId, resultSeq: null };
+  if (executed.batchId !== item.batchId) return unmatched;
+  return { intentId, resultSeq: executed.resultSeq };
+}
+
+async function reconcilePayoutItem({
+  db,
+  rail,
+  event,
+  deps,
+}: VerifiedEvent): Promise<WebhookAnswer> {
+  const resource = PayoutItemResourceSchema.safeParse(event.resource);
+  if (!resource.success) return ANSWERS.badRequest;
+
+  try {
+    // 4. A redelivered event writes nothing. Checked again under the lock below.
+    const before = await readReconciliationState(db);
+    if (!before.known) return ANSWERS.unavailable;
+    if (before.state.events.has(event.id)) return ANSWERS.duplicate;
+
+    // 5. The item as PayPal has it now, read outside the ledger's lock.
+    let item: PayPalPayoutItem;
+    try {
+      item = await rail.getPayoutItem(resource.data.payout_item_id);
+    } catch {
+      return ANSWERS.unavailable;
+    }
+
+    return await withAuditLog(db, async (log) => {
+      const read = await readReconciliationState(log.tx);
+      if (!read.known) return ANSWERS.unavailable;
+      if (read.state.events.has(event.id)) return ANSWERS.duplicate;
+      const work = await readPayoutWork(log.tx);
+      if (!work.known) return ANSWERS.unavailable;
+      const { intentId, resultSeq } = payoutMatch(work, item);
+      await log.append(
+        reconciliationEntry({
+          at: deps.clock().toISOString(),
+          intentId,
+          source: "webhook",
+          event: { id: event.id, type: event.event_type },
+          payout: {
+            batchId: item.batchId,
+            itemId: item.itemId,
+            status: item.status,
+            amount: item.amount,
+          },
+          resultSeq,
+        }),
+      );
+      return ANSWERS.reconciled;
+    });
+  } catch {
+    // The log couldn't be read or written, or the item can't be recorded as it is.
     return ANSWERS.unavailable;
   }
 }

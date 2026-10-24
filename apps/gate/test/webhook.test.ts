@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { IncomingMessage, ServerResponse } from "node:http";
 import { Socket } from "node:net";
 import { asc, auditLog, createTestDatabase, type DatabaseHandle, sql } from "@countersign/db";
@@ -12,6 +13,7 @@ import {
   ReconciliationPayloadSchema,
 } from "../src/execution-log";
 import type { NudgeFetch } from "../src/nudge";
+import { handlePayPalWebhook, type WebhookDeps } from "../src/webhook";
 import { createFakeSandbox, type FakeSandbox, httpError } from "./fake-sandbox";
 
 // Each PGlite start takes a couple of seconds.
@@ -600,6 +602,323 @@ describe("POST /webhooks/paypal with CUSTOMER.DISPUTE.CREATED", () => {
     expect(await reconciliations()).toHaveLength(1);
     expect(await received()).toHaveLength(1);
     expect(nudges).toHaveLength(1);
+  });
+});
+
+describe("POST /webhooks/paypal with PAYMENT.PAYOUTS-ITEM.*", () => {
+  type PayoutFixture = {
+    headers: typeof TRANSMISSION;
+    body: { id: string; resource: { payout_item_id: string; sender_batch_id: string } };
+  };
+  const fixture = JSON.parse(
+    readFileSync(new URL("../webhooks/payout-item-succeeded.json", import.meta.url), "utf8"),
+  ) as PayoutFixture;
+  const PAYOUT_INTENT = fixture.body.resource.sender_batch_id;
+  const ITEM = fixture.body.resource.payout_item_id;
+  const BATCH = "5UXD2E8A7EBQJ";
+  const PAYEE = "dyeworks@example.com";
+
+  const payoutBody = (id: string, itemId: unknown, type = "PAYMENT.PAYOUTS-ITEM.SUCCEEDED") =>
+    JSON.stringify({
+      id,
+      event_type: type,
+      resource_type: "payouts_item",
+      summary: "A body-only-marker payout summary",
+      resource: {
+        payout_item_id: itemId,
+        transaction_status: "SUCCESS",
+        payout_batch_id: "BODYBATCH",
+        sender_batch_id: "int_body-only-marker",
+        payout_item: { amount: { currency: "USD", value: "1.00" }, receiver: "x@example.com" },
+      },
+    });
+
+  const sandboxItem = (overrides: Record<string, unknown> = {}) => ({
+    itemId: ITEM,
+    batchId: BATCH,
+    senderBatchId: PAYOUT_INTENT,
+    status: "SUCCESS",
+    amount: usd(4500),
+    receiver: PAYEE,
+    senderItemId: "KDW-2026-0412",
+    errorName: null,
+    timeProcessed: "2026-10-24T07:40:11Z",
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    sandbox.payoutItems.set(ITEM, sandboxItem());
+  });
+
+  // The ops agent's payout, sent and read back with its item unclaimed.
+  async function seedPayout(
+    result: "executed" | "unknown" = "executed",
+  ): Promise<{ resultSeq: number }> {
+    const written = await appendEntries(handle.db, [
+      executionRequestedEntry({
+        at: "2026-10-24T07:30:00.000Z",
+        intentId: PAYOUT_INTENT,
+        intentHash: "b".repeat(64),
+        principal: "ops-agent",
+        rail: "paypal",
+        action: "paypal.payout",
+        target: { email: PAYEE },
+        amount: usd(4500),
+        approvalSeq: 1,
+      }),
+      executionResultEntry(
+        result === "executed"
+          ? {
+              at: "2026-10-24T07:30:01.000Z",
+              intentId: PAYOUT_INTENT,
+              requestSeq: 1,
+              outcome: "executed",
+              payout: {
+                batchId: BATCH,
+                batchStatus: "PENDING",
+                item: { id: ITEM, status: "UNCLAIMED" },
+              },
+            }
+          : {
+              at: "2026-10-24T07:30:01.000Z",
+              intentId: PAYOUT_INTENT,
+              requestSeq: 1,
+              outcome: "unknown",
+            },
+      ),
+    ]);
+    if (!written.ok) throw new Error(written.rejection.detail);
+    return { resultSeq: written.entries[1]?.seq ?? 0 };
+  }
+
+  const handle_ = (body: string, overrides: Partial<WebhookDeps> = {}) =>
+    handlePayPalWebhook(
+      { headers: TRANSMISSION, body: Buffer.from(body) },
+      { db: handle.db, rail: () => sandbox, env: ENV, clock: () => AT, ...overrides },
+    );
+
+  const payloadOf = (row: { payload: string } | undefined) =>
+    ReconciliationPayloadSchema.parse(JSON.parse(row?.payload ?? ""));
+
+  it(
+    "reconciles the signed fixture once, from the item as re-read",
+    async () => {
+      const { resultSeq } = await seedPayout();
+      const body = JSON.stringify(fixture.body);
+      const answer = await post(appWith(), body, fixture.headers);
+
+      expect(answer.status).toBe(200);
+      expect(JSON.parse(answer.text)).toEqual({ message: "Reconciled." });
+      const [row, ...rest] = await reconciliations();
+      expect(rest).toHaveLength(0);
+      expect(row?.refId).toBe(PAYOUT_INTENT);
+      expect(row?.at).toBe(AT.toISOString());
+      expect(payloadOf(row)).toEqual({
+        source: "webhook",
+        event: { id: fixture.body.id, type: "PAYMENT.PAYOUTS-ITEM.SUCCEEDED" },
+        payout: { batchId: BATCH, itemId: ITEM, status: "SUCCESS", amount: usd(4500) },
+        resultSeq,
+      });
+      expect(sandbox.calls.find((call) => call.call === "verifyWebhookSignature")?.arg).toEqual(
+        expect.objectContaining({ webhookId: WEBHOOK_ID, rawBody: body }),
+      );
+      expect(sandbox.calls.filter((call) => call.call === "getPayoutItem")).toEqual([
+        { call: "getPayoutItem", arg: ITEM },
+      ]);
+      expect((await verifyLog(handle.db)).intact).toBe(true);
+    },
+    SLOW,
+  );
+
+  it("logs the item as PayPal has it, never the event body", async () => {
+    await seedPayout();
+    sandbox.payoutItems.set(ITEM, sandboxItem({ status: "UNCLAIMED" }));
+    const answer = await handle_(payoutBody("WH-PAYOUT-1", ITEM));
+
+    expect(answer).toEqual({ status: 200, message: "Reconciled." });
+    const [row] = await reconciliations();
+    expect(row?.payload).not.toContain("body-only-marker");
+    expect(payloadOf(row)).toMatchObject({
+      payout: { batchId: BATCH, itemId: ITEM, status: "UNCLAIMED", amount: usd(4500) },
+    });
+  });
+
+  it('answers a redelivered event ID "Already reconciled." and writes nothing', async () => {
+    await seedPayout();
+    await handle_(payoutBody("WH-PAYOUT-1", ITEM));
+    const before = await entries();
+    const reads = sandbox.calls.filter((call) => call.call === "getPayoutItem").length;
+
+    const again = await handle_(payoutBody("WH-PAYOUT-1", ITEM, "PAYMENT.PAYOUTS-ITEM.UNCLAIMED"));
+
+    expect(again).toEqual({ status: 200, message: "Already reconciled." });
+    expect(await entries()).toEqual(before);
+    expect(sandbox.calls.filter((call) => call.call === "getPayoutItem")).toHaveLength(reads);
+  });
+
+  it("handles any PAYMENT.PAYOUTS-ITEM.* event type", async () => {
+    await seedPayout();
+    const types = ["UNCLAIMED", "RETURNED", "FAILED", "BLOCKED", "HELD", "REFUNDED", "DENIED"];
+    for (const [index, type] of types.entries()) {
+      const answer = await handle_(
+        payoutBody(`WH-PAYOUT-${index}`, ITEM, `PAYMENT.PAYOUTS-ITEM.${type}`),
+      );
+      expect(answer).toEqual({ status: 200, message: "Reconciled." });
+    }
+    expect(await reconciliations()).toHaveLength(types.length);
+  });
+
+  it("links a payout whose result is unknown to its intent, with no result", async () => {
+    await seedPayout("unknown");
+    expect((await handle_(payoutBody("WH-PAYOUT-1", ITEM))).status).toBe(200);
+
+    const [row] = await reconciliations();
+    expect(row?.refId).toBe(PAYOUT_INTENT);
+    expect(payloadOf(row).resultSeq).toBeNull();
+  });
+
+  describe("logs an item of a batch Countersign didn't send with a null ref and no result", () => {
+    it("when no request names its sender_batch_id", async () => {
+      await seedExecuted();
+      sandbox.payoutItems.set(ITEM, sandboxItem({ senderBatchId: "someone-elses-batch" }));
+      expect(await handle_(payoutBody("WH-PAYOUT-1", ITEM))).toEqual({
+        status: 200,
+        message: "Reconciled.",
+      });
+
+      const [row] = await reconciliations();
+      expect(row?.refId).toBeNull();
+      expect(payloadOf(row).resultSeq).toBeNull();
+      expect(payloadOf(row)).toMatchObject({ payout: { batchId: BATCH, itemId: ITEM } });
+    });
+
+    it("when PayPal gives no sender_batch_id", async () => {
+      await seedPayout();
+      sandbox.payoutItems.set(ITEM, sandboxItem({ senderBatchId: null }));
+      await handle_(payoutBody("WH-PAYOUT-1", ITEM));
+
+      const [row] = await reconciliations();
+      expect(row?.refId).toBeNull();
+      expect(payloadOf(row).resultSeq).toBeNull();
+    });
+
+    it("when the intent's executed result names another batch", async () => {
+      await seedPayout();
+      sandbox.payoutItems.set(ITEM, sandboxItem({ batchId: "OTHERBATCH01" }));
+      await handle_(payoutBody("WH-PAYOUT-1", ITEM));
+
+      const [row] = await reconciliations();
+      expect(row?.refId).toBeNull();
+      expect(payloadOf(row).resultSeq).toBeNull();
+    });
+  });
+
+  describe("refuses without writing anything", () => {
+    const writesNothing = async (answer: () => Promise<{ status: number }>, status: number) => {
+      await seedPayout();
+      const before = await entries();
+      expect((await answer()).status).toBe(status);
+      expect(await entries()).toEqual(before);
+    };
+
+    it("400 for a missing or malformed payout_item_id, before any read", async () => {
+      await writesNothing(() => handle_(payoutBody("WH-P", undefined)), 400);
+      await writesNothing(() => handle_(payoutBody("WH-P", " ")), 400);
+      await writesNothing(() => handle_(payoutBody("WH-P", 42)), 400);
+      expect(sandbox.calls.some((call) => call.call === "getPayoutItem")).toBe(false);
+    });
+
+    it("400 for a bad signature, before reading the item", async () => {
+      sandbox.webhookVerification = "fail";
+      await writesNothing(() => handle_(payoutBody("WH-P", ITEM)), 400);
+      expect(sandbox.calls.some((call) => call.call === "getPayoutItem")).toBe(false);
+    });
+
+    it("503 when the item can't be re-read", async () => {
+      await writesNothing(() => handle_(payoutBody("WH-P", "UNKNOWNITEM1")), 503);
+      sandbox.failures.getPayoutItem = httpError("get-payout-item", 500);
+      await writesNothing(() => handle_(payoutBody("WH-P", ITEM)), 503);
+    });
+
+    it("503 when the re-read item can't be recorded as it is", async () => {
+      sandbox.payoutItems.set(ITEM, sandboxItem({ amount: { minor: 1.5, currency: "USD" } }));
+      await writesNothing(() => handle_(payoutBody("WH-P", ITEM)), 503);
+    });
+
+    it("503 when an entry in the log can't be read", async () => {
+      const bad = await appendEntries(handle.db, [
+        { entryType: "execution.result", refId: PAYOUT_INTENT, at: AT.toISOString(), payload: "x" },
+      ]);
+      expect(bad.ok).toBe(true);
+      const before = await entries();
+      expect(await handle_(payoutBody("WH-P", ITEM))).toEqual({
+        status: 503,
+        message: "Try again later.",
+      });
+      expect(await entries()).toEqual(before);
+    });
+
+    it("503 when the log can't be written", async () => {
+      await seedPayout();
+      await handle.db.execute(sql`
+        CREATE FUNCTION test_refuse_insert() RETURNS trigger AS $$
+        BEGIN RAISE EXCEPTION 'refused'; END; $$ LANGUAGE plpgsql`);
+      await handle.db.execute(sql`
+        CREATE TRIGGER test_refuse_insert BEFORE INSERT ON audit_log
+        FOR EACH ROW EXECUTE FUNCTION test_refuse_insert()`);
+      try {
+        expect((await handle_(payoutBody("WH-P", ITEM))).status).toBe(503);
+        expect(await reconciliations()).toHaveLength(0);
+      } finally {
+        await handle.db.execute(sql`DROP TRIGGER test_refuse_insert ON audit_log`);
+        await handle.db.execute(sql`DROP FUNCTION test_refuse_insert()`);
+      }
+    });
+
+    it("503 when the database is missing", async () => {
+      await writesNothing(() => handle_(payoutBody("WH-P", ITEM), { db: undefined }), 503);
+    });
+  });
+
+  it("acknowledges PAYMENT.PAYOUTSBATCH.* and ignores it", async () => {
+    await seedPayout();
+    const before = await entries();
+    for (const [index, type] of ["PROCESSING", "SUCCESS", "DENIED"].entries()) {
+      const answer = await post(
+        appWith(),
+        payoutBody(`WH-BATCH-${index}`, ITEM, `PAYMENT.PAYOUTSBATCH.${type}`),
+      );
+      expect(answer.status).toBe(200);
+      expect(JSON.parse(answer.text)).toEqual({ message: "Event type not handled." });
+    }
+    expect(await entries()).toEqual(before);
+    expect(sandbox.calls.some((call) => call.call === "getPayoutItem")).toBe(false);
+  });
+
+  it("still reconciles refunds and records disputes beside payouts", async () => {
+    await seedExecuted();
+    await seedPayout();
+    sandbox.disputeDetails.set(DISPUTE, {
+      id: DISPUTE,
+      status: "WAITING_FOR_SELLER_RESPONSE",
+      amount: usd(24000),
+      captureIds: [CAPTURE],
+    });
+    const app = appWith({ fetch: async () => ({ ok: true }) });
+    const answers = [
+      await post(app, payoutBody("WH-PAYOUT-1", ITEM)),
+      await post(app, eventBody("WH-EVENT-1", "REFUND-1")),
+      await post(app, disputeBody("WH-DISPUTE-1", DISPUTE)),
+    ];
+
+    expect(answers.map((answer) => JSON.parse(answer.text).message)).toEqual([
+      "Reconciled.",
+      "Reconciled.",
+      "Recorded.",
+    ]);
+    const rows = await reconciliations();
+    expect(rows.map((row) => row.refId)).toEqual([PAYOUT_INTENT, INTENT]);
+    expect(payloadOf(rows[1]).refund?.id).toBe("REFUND-1");
   });
 });
 

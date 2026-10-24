@@ -108,16 +108,16 @@ Notes:
 
 ## T-008: The payouts webhook
 
-Status: open
+Status: done
 Blocked by: T-007
 Tier: standard
 Slice: A signed `PAYMENT.PAYOUTS-ITEM.*` event makes the gate re-read the item and reconcile it once.
 Test seam: `handlePayPalWebhook` with a fake verifier and fake rail, and the webhook route over HTTP
 Acceptance:
-- [ ] A verified item event logs one reconciliation from the re-read item, never the body; a redelivered event ID writes nothing
-- [ ] An item of a batch Countersign didn't send is logged with a null ref; an unreadable item or log answers 503
-- [ ] `PAYMENT.PAYOUTSBATCH.*` is acknowledged and ignored; refund and dispute webhooks still pass
-- [ ] A signed fixture `apps/gate/webhooks/payout-item-succeeded.json` exists
+- [x] A verified item event logs one reconciliation from the re-read item, never the body; a redelivered event ID writes nothing
+- [x] An item of a batch Countersign didn't send is logged with a null ref; an unreadable item or log answers 503
+- [x] `PAYMENT.PAYOUTSBATCH.*` is acknowledged and ignored; refund and dispute webhooks still pass
+- [x] A signed fixture `apps/gate/webhooks/payout-item-succeeded.json` exists
 Notes:
 
 ## T-009: Approval cards for payouts
