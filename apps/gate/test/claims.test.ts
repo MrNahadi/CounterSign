@@ -417,6 +417,19 @@ describe("claims vs records", { timeout: SLOW }, () => {
       expect(pairs.some((pair) => pair.check === "message")).toBe(false);
     });
 
+    it("never says Matches beside a ticket the store lacks, even when the check read one", async () => {
+      // A decision recorded from a case file: the verifiers read the case's ticket snapshot,
+      // but the ticket store doesn't hold it.
+      const decision = await beat5();
+      const pairs = claimsVsRecords(decision, { ticket: null, orderNumber: "KIK-1037", mandates });
+      for (const check of ["ticket.from_payer", "evidence.photo_present"]) {
+        const pair = pairs.find((candidate) => candidate.check === check);
+        expect(pair?.claim?.text).toBe("Ticket TKT-1037 isn't in the ticket store");
+        expect(pair?.verdict).toBe("passes");
+      }
+      expect(pairs.some((pair) => pair.check === "message")).toBe(false);
+    });
+
     it("says No ticket named when the intent names none", async () => {
       const decision = await beat5();
       const intent = decision.intent;

@@ -168,20 +168,31 @@ function imageCount(ticket: Ticket): number {
   ).length;
 }
 
+// What the claim side says, and whether it asserts anything the check's record can match.
+type ClaimText = { text: string; asserted: boolean };
+
 // The claim a ticket-based check tests, or the fixed sentence for a ticket that isn't there.
-function ticketClaim(intent: Intent, ticket: Ticket | null, text: (ticket: Ticket) => string) {
-  if (intent.ticketId === null) return NO_TICKET_NAMED;
+// That sentence asserts nothing: the check may have read the ticket from records the store
+// doesn't hold (a recorded decision case), so its pass is Passes, never Matches.
+function ticketClaim(
+  intent: Intent,
+  ticket: Ticket | null,
+  text: (ticket: Ticket) => string,
+): ClaimText {
+  if (intent.ticketId === null) return { text: NO_TICKET_NAMED, asserted: false };
   if (ticket === null || ticket.id !== intent.ticketId) {
-    return `Ticket ${intent.ticketId} isn't in the ticket store`;
+    return { text: `Ticket ${intent.ticketId} isn't in the ticket store`, asserted: false };
   }
-  return text(ticket);
+  return { text: text(ticket), asserted: true };
 }
+
+const asserts = (text: string): ClaimText => ({ text, asserted: true });
 
 function senderOf(ticket: Ticket): string | null {
   return ticket.senderEmail ?? ticket.senderPhone;
 }
 
-function claimFor(entry: TraceEntry, intent: Intent, context: ClaimsContext): string | null {
+function claimFor(entry: TraceEntry, intent: Intent, context: ClaimsContext): ClaimText | null {
   switch (entry.verifier) {
     case "ticket.from_payer":
       return ticketClaim(intent, context.ticket, (ticket) => {
@@ -189,10 +200,10 @@ function claimFor(entry: TraceEntry, intent: Intent, context: ClaimsContext): st
         return sender === null ? `Ticket ${ticket.id} names no sender` : `Sent from ${sender}`;
       });
     case "shipment.status":
-      return intent.claim === null ? null : CLAIM_WORDS[intent.claim];
+      return intent.claim === null ? null : asserts(CLAIM_WORDS[intent.claim]);
     case "capture.refundable": {
       const asks = `Asks for ${ACTION_WORDS[intent.action]} ${formatMoney(intent.amount)}`;
-      return context.orderNumber === null ? asks : `${asks} on ${context.orderNumber}`;
+      return asserts(context.orderNumber === null ? asks : `${asks} on ${context.orderNumber}`);
     }
     case "evidence.photo_present":
       return ticketClaim(intent, context.ticket, (ticket) => {
@@ -205,16 +216,16 @@ function claimFor(entry: TraceEntry, intent: Intent, context: ClaimsContext): st
   }
 }
 
-function verdictFor(entry: TraceEntry, intent: Intent, claim: string | null): ClaimVerdict {
+function verdictFor(entry: TraceEntry, intent: Intent, claim: ClaimText | null): ClaimVerdict {
   if (entry.verifier === "shipment.status") return shipmentVerdict(entry, intent.claim);
-  return plainVerdict(entry.result, claim !== null);
+  return plainVerdict(entry.result, claim?.asserted === true);
 }
 
 function checkPair(entry: TraceEntry, intent: Intent, context: ClaimsContext): ClaimPair {
   const claim = claimFor(entry, intent, context);
   return {
     check: entry.verifier,
-    claim: claim === null ? null : { text: claim, quote: null, simulated: false },
+    claim: claim === null ? null : { text: claim.text, quote: null, simulated: false },
     record: {
       words: VERIFIER_WORDS[entry.verifier],
       detail: entry.detail,
