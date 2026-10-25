@@ -281,7 +281,7 @@ It exits 0 when every proposal got its expected decision, and 1 when one didn't 
 
 ## Approve from your phone
 
-When the gate holds an intent, it becomes a card the merchant answers with one tap. An approval is bound to the intent's hash, works once, and expires as a deny after 15 minutes. An approved refund, invoice send or dispute answer executes once, from the stored intent. Payouts and order captures can't run yet, and their card says so.
+When the gate holds an intent, it becomes a card the merchant answers with one tap. An approval is bound to the intent's hash, works once, and expires as a deny after 15 minutes. An approved refund, invoice send, dispute answer or payout executes once, from the stored intent. Order captures can't run yet, and their card says so.
 
 1. Set the approver key in `.env.local`: `COUNTERSIGN_APPROVER_KEY`, at least 32 characters and different from every principal key. Unset or too short, every approval route answers 401 and the gate's startup line names the variable.
 2. Start the gate and the console (see "Run the apps"), and propose a refund that steps up, such as `beat-5-damaged.json` above.
@@ -365,6 +365,38 @@ The `disputes` commands need the PayPal sandbox variables. They exit 0 on succes
 - `npm test` runs beat 7 from webhook to approved submission against a fake sandbox. Its webhook, `apps/gate/webhooks/beat-7-dispute-created.json`, has PayPal's shape and a made-up signature that only the fake sandbox accepts.
 - The live check, `LIVE=1 npm test -- apps/gate/test/disputes-live.test.ts` with the PayPal variables and `PAYPAL_LIVE_DISPUTE_ID`, requires evidence, sends a built PDF through an approved step-up and adjudicates in the seller's favor. It hasn't been run yet. If it fails, beat 7 becomes the evidence pack plus a recorded sandbox submission, labelled as such.
 
+## Pay a supplier
+
+A second agent, the ops agent, pays the shop's suppliers through PayPal Payouts. It has its own key and its own mandate, so it can't refund, and the support agent can't pay out. Every payout waits for you to approve exactly that payout, and nothing is sent until you do.
+
+1. **The ops key.** Set `COUNTERSIGN_OPS_AGENT_KEY` in `.env.local`, at least 32 characters and different from the support agent's key and the approver key. It opens `/mcp` as `ops-agent` under the ops mandate, `packages/mandate/fixtures/kikapu-studio-ops-v1.json`. It never opens the approval or audit pages.
+2. **The payee list.** The ops mandate lists the suppliers it may pay, by PayPal email and name. A payout to anyone else is denied `PAYEE_NOT_ALLOWLISTED`, and nothing the agent sends can add a payee. Payouts are in USD only, and up to $500.00 and 5 payouts a day. Each one names the supplier's bill (`reference`), which is part of the intent and goes to PayPal as the item's `sender_item_id`.
+3. **The card.** Start the gate and the console and run the ops agent's file. Then open `/approvals`: the card shows the payee's name and email, the amount, the bill reference and the note. Approving sends that payout once, with the intent hash as its `PayPal-Request-Id` and the intent ID as its `sender_batch_id`, so neither approving again nor proposing the same payout again sends a second one. The approve answer shows the batch and the item's status.
+4. **Reconcile.** A payout to an address with no PayPal account waits for the payee to claim it. `npm run reconcile` re-reads every payout still open at PayPal and logs its new status, such as `SUCCESS` or `RETURNED`, with one line each. Once the gate has a public URL (phase 13), the `PAYMENT.PAYOUTS-ITEM.*` webhook does the same. `/decisions` shows each payout's result and reconciliations.
+
+```bash
+npm run decide -- apps/gate/fixtures/cases/ops-payouts.json   # step-up, and two denials, from recorded records
+npm run agent -- apps/gate/proposals/ops-payouts.json         # the same three over MCP, as ops-agent
+npm run approvals -- approve <id> --hash <intent hash>        # or approve the card on /approvals
+npm run reconcile
+```
+
+| File | Proposals | Expected |
+|---|---|---|
+| `ops-payouts.json` | $45.00 to Kisumu Dye Works for bill `KDW-2026-0412`; $48.00 to `refunds.desk@example.com`; a payout in KES | Step-up `ALWAYS_NEEDS_APPROVAL`; deny `PAYEE_NOT_ALLOWLISTED`; deny `INVALID_PROPOSAL` |
+
+| Variable | Used for |
+|---|---|
+| `COUNTERSIGN_OPS_AGENT_KEY` | The ops agent's principal key, read by the gate and `npm run agent` (at least 32 characters). Names only here; never commit the value |
+| `PAYPAL_LIVE_PAYEE_EMAIL` | Optional. A sandbox personal account for the `LIVE=1` payout checks, so a payout can end `SUCCESS` |
+
+### What is illustrative in a payout
+
+- The suppliers, Nyanza Sisal Collective and Kisumu Dye Works, are illustrative, and their `example.com` addresses have no PayPal account, so a sandbox payout to them stays unclaimed. The mandate and the card label them so.
+- The ops agent is `npm run agent`, a stand-in that runs a file. No AI runs on the payout path.
+- `npm test` runs the payout from `ops-payouts.json` through the card's approval to a reconciled `SUCCESS` against a fake sandbox.
+- The live checks, `LIVE=1 npm test -- packages/rail-paypal/test/live-sandbox.test.ts apps/gate/test/payouts-live.test.ts` with the PayPal variables, need Payouts enabled on the sandbox app. They send $1.00 payouts on the sandbox: one through the ops agent, an approved card and `npm run reconcile`. They haven't been run yet.
+
 ## Connect an agent
 
 The gate serves MCP at `POST /mcp` on its port (`http://127.0.0.1:8787/mcp` locally). Any MCP client can connect, as long as it sends a principal key as a bearer token:
@@ -373,17 +405,18 @@ The gate serves MCP at `POST /mcp` on its port (`http://127.0.0.1:8787/mcp` loca
 Authorization: Bearer <principal key>
 ```
 
-The gate reads the key from `COUNTERSIGN_SUPPORT_AGENT_KEY` and knows one principal in this phase, `support-agent`, which uses the demo mandate. A key shorter than 32 characters counts as unset. A missing, wrong or unset key gets HTTP 401 with one fixed body that says nothing about which principals exist. The agent never holds a PayPal credential: the gate keeps those.
+The gate knows two principals, each with its own key and mandate: `support-agent` (`COUNTERSIGN_SUPPORT_AGENT_KEY`, the demo mandate) and `ops-agent` (`COUNTERSIGN_OPS_AGENT_KEY`, the ops mandate; see "Pay a supplier"). A key shorter than 32 characters counts as unset, and two principal keys with the same value both count as unset. A missing, wrong or unset key gets HTTP 401 with one fixed body that says nothing about which principals exist. The agent never holds a PayPal credential: the gate keeps those.
 
 ```bash
 npm run dev --workspace @countersign/gate                              # start the gate
 npm run agent -- apps/gate/proposals/beat-4-stalled-parcel.json        # a refund, allowed and executed
 npm run agent -- apps/gate/proposals/guarded-actions.json              # three denials
+npm run agent -- apps/gate/proposals/ops-payouts.json                  # as ops-agent: a payout step-up, two denials
 npm run agent -- apps/gate/proposals/guarded-actions.json --json
 npm run agent -- apps/gate/proposals/guarded-actions.json --url http://127.0.0.1:8787/mcp
 ```
 
-`npm run agent` is a stand-in agent until Resolve exists. It writes each proposal's simulated ticket to the store, connects with the principal key, calls each proposal's tool and prints the agent response. It needs only `COUNTERSIGN_SUPPORT_AGENT_KEY`. It exits 0 when every decision matched `expect`, 1 when one differed, and 2 when it can't run (a missing variable, an unreadable file, the gate unreachable or answering 401).
+`npm run agent` is a stand-in agent until Resolve exists. It writes each proposal's simulated ticket to the store, connects with the principal key, calls each proposal's tool and prints the agent response. It proposes as the file's `principal`, so it needs only that principal's key: `COUNTERSIGN_SUPPORT_AGENT_KEY` or `COUNTERSIGN_OPS_AGENT_KEY`. It exits 0 when every decision matched `expect`, 1 when one differed, and 2 when it can't run (a missing variable, an unreadable file, the gate unreachable or answering 401).
 
 ### Tools
 
@@ -414,7 +447,7 @@ Under the demo mandate, the other guarded tools decide like this:
 | `pay_order`, `create_payout` | Deny `NO_MATCHING_RULE`: the support agent can never pay out |
 | Any of the above, when the target can't be read | Deny `TARGET_UNKNOWN` |
 
-Refunds, invoice sends and the three dispute actions execute. If a mandate allowed a payout or an order capture, the gate would deny it `ACTION_UNAVAILABLE` and send nothing. Step-ups wait for your approval (see "Approve from your phone").
+Refunds, invoice sends, payouts and the three dispute actions execute. If a mandate allowed an order capture, the gate would deny it `ACTION_UNAVAILABLE` and send nothing. Step-ups wait for your approval (see "Approve from your phone").
 
 The tickets in `guarded-actions.json` and the proposal files are simulated, and the people in them are illustrative.
 
@@ -435,7 +468,8 @@ Countersign is mid-build. The roadmap runs from 16 October to submission on 11 N
 | 9 | Phone step-up approvals: the approval API, the `/approvals` page with a QR code, `npm run approvals` | Done; live checks (`LIVE=1`) have not been run |
 | 10 | Claims vs records and the audit console: `/decisions`, `/audit`, evidence export, `npm run audit` | Done; checks against real sandbox data are manual |
 | 11 | Dispute evidence: the dispute webhook, `npm run disputes`, the evidence PDF, the drafter, `/disputes` | Done; live checks (`LIVE=1`) have not been run |
-| 12 to 13 | Payouts, the hosted judge path | Planned |
+| 12 | Supplier payouts: the ops agent, the payee list, payout cards, payout reconciliation | Done; live checks (`LIVE=1`) have not been run |
+| 13 | The hosted judge path | Planned |
 | 14 to 18 | Bench, "Attack it yourself", the AG Studio Risk desk, the mandate compiler, the M-Pesa rail | Planned |
 | 19 to 20 | Smoke tests, monitoring and submission | Planned |
 
@@ -463,6 +497,7 @@ These were run by hand against live sandboxes on 16 October 2026. Findings are i
 | Support tickets | Simulated in `npm run propose` and `npm run agent`: each proposal file states the ticket and its sender. Resolve's tickets are simulated too |
 | Carrier tracking | Simulated. PayPal only knows shipped or cancelled, so lost, stalled and delivered come from a carrier mock |
 | Disputes | Real sandbox disputes through `npm run disputes`. The tests' beat 7 webhook is a fixture with a made-up signature |
+| Payouts | Real sandbox payouts once a card is approved. The suppliers are illustrative, so their payouts stay unclaimed |
 | Kikapu Studio, Achieng, and every person and order in the fixtures | Illustrative |
 | M-Pesa | Partly real in spike S6; the rail itself is secondary and built last |
 

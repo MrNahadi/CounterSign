@@ -162,13 +162,13 @@ Notes:
 
 ## T-012: Demo files, live check and README
 
-Status: open
+Status: done
 Blocked by: T-005, T-008, T-011
 Tier: standard
 Slice: A supplier payout can be run end to end against the sandbox from the README, and the live check exists.
 Test seam: `apps/gate/test/payouts-live.test.ts` (skips with a reason unless `LIVE=1` and the PayPal variables are set) and the README
 Acceptance:
-- [ ] The live test proposes with a test ops key, approves with a test approver key, checks one payout on the sandbox and reconciles it; it skips cleanly without its variables
-- [ ] `npm test` runs the payout from `ops-payouts.json` through approval to a reconciled `SUCCESS` against the fake sandbox
-- [ ] README gains "Pay a supplier" (the ops key, the payee list, the card, reconcile, what's illustrative) and marks phase 12 done; CONTEXT.md's payout terms match what was built
+- [x] The live test proposes with a test ops key, approves with a test approver key, checks one payout on the sandbox and reconciles it; it skips cleanly without its variables
+- [x] `npm test` runs the payout from `ops-payouts.json` through approval to a reconciled `SUCCESS` against the fake sandbox
+- [x] README gains "Pay a supplier" (the ops key, the payee list, the card, reconcile, what's illustrative) and marks phase 12 done; CONTEXT.md's payout terms match what was built
 Notes:

@@ -45,7 +45,7 @@ A guarded action's MCP tool that PayPal's Agent Toolkit has no equivalent for, s
 _Avoid_: custom tool, Countersign tool
 
 **Payout**:
-One PayPal Payouts payment from the merchant's balance to a payee's PayPal email, for one bill. Only the ops agent may propose one, and it always needs a step-up.
+One PayPal Payouts payment from the merchant's balance to a payee's PayPal email, for one bill. Only the ops agent's mandate has a payout rule, and every payout it allows needs a step-up. The gate sends it once, as a batch of one item.
 _Avoid_: transfer, B2C payment (that's M-Pesa)
 
 **Payee**:
@@ -57,7 +57,7 @@ The suppliers a mandate lets its principal pay, by email and name, inside the si
 _Avoid_: allowlist (in UI copy), whitelist, supplier list
 
 **Bill reference**:
-The supplier's bill or invoice number a payout pays. It's part of the intent, so one bill is one intent and is paid at most once, and it's sent to PayPal as the item's `sender_item_id`.
+The supplier's bill or invoice number a payout pays. It's part of the intent and is sent to PayPal as the item's `sender_item_id`. The same payee, amount, note and bill are one intent, sent at most once; a changed amount or note on the same bill is a new intent, so the card shows the bill.
 _Avoid_: invoice ID (that's a PayPal invoice), memo
 
 **Principal key**:
@@ -109,7 +109,7 @@ The `execution.requested` audit-log entry written with an allow, in the same tra
 _Avoid_: pending refund, attempt
 
 **Execution outcome**:
-What the rail call's `execution.result` entry records: executed (the refund is completed or pending), failed (PayPal refused it or it failed), or unknown (no definite answer, so money may have moved).
+What the rail call's `execution.result` entry records: executed (the refund is completed or pending, or the payout batch was accepted), failed (PayPal refused it or it failed), or unknown (no definite answer, so money may have moved).
 _Avoid_: status, success
 
 **Replay**:
@@ -121,7 +121,7 @@ A refund reconciled from PayPal that no execution result names, so Countersign d
 _Avoid_: orphan refund, unknown refund
 
 **Reconciliation**:
-Matching an execution to the webhook or callback that confirms it.
+Matching an execution to what the rail says about it later: a refund's or payout item's status, re-read by `npm run reconcile` or after a webhook or callback, never taken from the event body.
 _Avoid_: sync, settlement
 
 ### Records and verification
