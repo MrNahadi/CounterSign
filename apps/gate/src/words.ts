@@ -42,6 +42,7 @@ const SOURCE_WORDS: Record<string, string> = {
   [CALLS.carrier]: "Carrier (simulated)",
   [CALLS.ticket]: "Ticket store",
   [CALLS.executions]: "Audit log",
+  [CALLS.payees]: "Your mandate's payee list",
 };
 
 // A record's source in words, by the call it came from. A call with no words shows as itself.

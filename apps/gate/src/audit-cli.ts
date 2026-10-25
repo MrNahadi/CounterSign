@@ -182,17 +182,29 @@ function trailWords(parts: TrailParts): string {
       return `Asked PayPal for ${parts.amount.display}${parts.replay ? " (a re-send)" : ""}.`;
     case "execution.result": {
       if (parts.outcome === "failed") {
+        if (parts.payout) return `PayPal denied the payout batch ${parts.payout.batch_id}.`;
         return `PayPal refused it: ${parts.error?.name ?? "no reason given"}.`;
       }
       if (parts.outcome === "unknown") return "PayPal hasn't confirmed it yet.";
+      if (parts.payout) {
+        const { batch_id, item, payee, amount } = parts.payout;
+        const sent = `Paid out${amount ? ` ${amount.display}` : ""}${payee ? ` to ${payee}` : ""}`;
+        return `${sent} (batch ${batch_id}, item ${item ? item.status.toLowerCase() : "not read"}).`;
+      }
       if (parts.refund) return `PayPal refunded it: ${parts.refund.id} ${parts.refund.status}.`;
       if (parts.invoice)
         return `The invoice was sent: ${parts.invoice.id} ${parts.invoice.status}.`;
       if (parts.dispute) return disputeResultWords(parts.dispute);
       return "PayPal carried it out.";
     }
-    case "reconciliation":
-      return `Matched ${parts.event ? `webhook ${parts.event.id}` : "a poll"} to refund ${parts.refund.id} (${parts.refund.status}).`;
+    case "reconciliation": {
+      const by = parts.event ? `webhook ${parts.event.id}` : "a poll";
+      if (parts.payout) {
+        const { item_id, status, payee } = parts.payout;
+        return `Matched ${by} to payout ${payee ? `to ${payee}` : `item ${item_id}`} (${status.toLowerCase()}).`;
+      }
+      return `Matched ${by} to refund ${parts.refund?.id ?? "unknown"} (${parts.refund?.status ?? "unknown"}).`;
+    }
     case "mandate.version":
       return `Mandate ${parts.id} version ${parts.version}.`;
   }

@@ -135,15 +135,15 @@ Notes:
 
 ## T-010: Audit reader lines for payouts
 
-Status: open
+Status: done
 Blocked by: T-007
 Tier: simple
 Slice: The audit console and `audit` CLI describe payout results and reconciliations in words.
 Test seam: the gate's audit-reader exports over PGlite
 Acceptance:
-- [ ] Payout results and reconciliations summarise as requirements.md says; an unreadable one says it can't be read
-- [ ] Decision rows for payouts show the payee as target and "Payout sent" when executed; the trail includes request, result and reconciliations
-- [ ] `payee.allowlisted` reads as requirements.md says in claims vs records; existing reader tests pass
+- [x] Payout results and reconciliations summarise as requirements.md says; an unreadable one says it can't be read
+- [x] Decision rows for payouts show the payee as target and "Payout sent" when executed; the trail includes request, result and reconciliations
+- [x] `payee.allowlisted` reads as requirements.md says in claims vs records; existing reader tests pass
 Notes:
 
 ## T-011: The console for payouts

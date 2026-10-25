@@ -77,7 +77,7 @@ const Limit = z.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SI
 export const DecisionFiltersSchema = z.strictObject({
   decision: z.enum(DECISIONS).optional(),
   // A case-insensitive substring of the order number, sender, target ID, intent ID or executed
-  // refund or invoice ID. Empty matches everything.
+  // refund, invoice or payout batch or item ID. Empty matches everything.
   q: z.string().max(200).optional(),
   // Only rows older than this `seq`.
   before: Seq.optional(),
@@ -187,6 +187,13 @@ export type RowExecution = {
   // The dispute an executed dispute action acted on, with its status as re-read after the call
   // (null when that read failed).
   dispute: { id: string; status: string | null } | null;
+  // The payout an executed payout sent: its batch and status, and the item as read after (null
+  // when that read failed).
+  payout: {
+    batch_id: string;
+    batch_status: string;
+    item: { id: string; status: string } | null;
+  } | null;
 };
 
 export type RowStatus =
@@ -277,6 +284,21 @@ function orderNumberOf(book: OrderBook, target: IntentTarget): string | null {
   return null;
 }
 
+const NO_RESULT = { refund: null, invoice: null, dispute: null, payout: null } as const;
+
+type ResultPayout = Extract<
+  z.infer<typeof ExecutionResultPayloadSchema>,
+  { outcome: "executed"; payout: unknown }
+>["payout"];
+
+function payoutOf(payout: ResultPayout): NonNullable<RowExecution["payout"]> {
+  return {
+    batch_id: payout.batchId,
+    batch_status: payout.batchStatus,
+    item: payout.item === null ? null : { id: payout.item.id, status: payout.item.status },
+  };
+}
+
 // What carrying out an intent did, from its requests and results; null when it was never
 // requested. An entry that can't be read makes it unknown, unless a readable result already says
 // money moved.
@@ -306,14 +328,15 @@ function executionOf(entries: readonly ChainRow[]): RowExecution | null {
             "invoice" in result ? { id: result.invoice.id, status: result.invoice.status } : null,
           dispute:
             "dispute" in result ? { id: result.dispute.id, status: result.dispute.status } : null,
+          payout: "payout" in result ? payoutOf(result.payout) : null,
         };
       }
     }
   }
   if (executed !== null) return executed;
-  if (unreadable) return { outcome: "unknown", refund: null, invoice: null, dispute: null };
+  if (unreadable) return { outcome: "unknown", ...NO_RESULT };
   if (!requested) return null;
-  return { outcome: last ?? "pending", refund: null, invoice: null, dispute: null };
+  return { outcome: last ?? "pending", ...NO_RESULT };
 }
 
 type StepUpTrack = { seq: number; intentId: string; expiresAt: string };
@@ -362,9 +385,7 @@ function stepUpStates(
               kind: "approved",
               execution: executions.get(intentId) ?? {
                 outcome: "pending",
-                refund: null,
-                invoice: null,
-                dispute: null,
+                ...NO_RESULT,
               },
             },
       );
@@ -482,6 +503,8 @@ function matches(row: ReadableDecisionRow, needle: string): boolean {
     row.intent_id,
     row.status?.execution?.refund?.id,
     row.status?.execution?.invoice?.id,
+    row.status?.execution?.payout?.batch_id,
+    row.status?.execution?.payout?.item?.id,
   ];
   return fields.some((field) => typeof field === "string" && field.toLowerCase().includes(needle));
 }
@@ -558,13 +581,31 @@ export type TrailParts =
       invoice: { id: string; status: string } | null;
       // The action comes from the request this result answers; null when that can't be read.
       dispute: { id: string; status: string | null; action: Action | null } | null;
+      // The payee and amount come from the request this result answers; null when that can't
+      // be read.
+      payout: {
+        batch_id: string;
+        batch_status: string;
+        item: { id: string; status: string } | null;
+        payee: string | null;
+        amount: ShownMoney | null;
+      } | null;
       error: { name: string | null; issues: string[]; debug_id: string | null } | null;
     }
   | {
       kind: "reconciliation";
       source: "webhook" | "poll";
       event: { id: string; type: string } | null;
-      refund: { id: string; status: string; amount: ShownMoney };
+      // A refund's or a payout's, never both. The payout's payee comes from the intent's request;
+      // null when the entry names no intent or the request can't be read.
+      refund: { id: string; status: string; amount: ShownMoney } | null;
+      payout: {
+        batch_id: string;
+        item_id: string;
+        status: string;
+        amount: ShownMoney;
+        payee: string | null;
+      } | null;
       result_seq: number | null;
     }
   | { kind: "mandate.version"; id: string; version: number };
@@ -613,21 +654,35 @@ export type UnreadableDecisionDetail = {
 
 const shown = (money: Money): ShownMoney => amountOf(money);
 
-// The action each request entry asked for, by the request's `seq`. A request that can't be read
-// has none.
-type RequestActions = ReadonlyMap<number, Action>;
+// What a request entry asked for. The payee is the target's email, for a payout only.
+type RequestInfo = { action: Action; amount: Money; payee: string | null };
 
-function requestActionsOf(rows: readonly ChainRow[]): Map<number, Action> {
-  const actions = new Map<number, Action>();
+// The requests, by their own `seq` and by the intent they ask for (the first one). A request that
+// can't be read is missing.
+type Requests = {
+  bySeq: ReadonlyMap<number, RequestInfo>;
+  byIntent: ReadonlyMap<string, RequestInfo>;
+};
+
+const NO_REQUESTS: Requests = { bySeq: new Map(), byIntent: new Map() };
+
+function requestsOf(rows: readonly ChainRow[]): Requests {
+  const bySeq = new Map<number, RequestInfo>();
+  const byIntent = new Map<string, RequestInfo>();
   for (const row of rows) {
     if (row.entryType !== "execution.requested") continue;
     const parsed = parseEntry(row, ExecutionRequestedPayloadSchema);
-    if (parsed.ok) actions.set(row.seq, parsed.value.action);
+    if (!parsed.ok) continue;
+    const { action, amount, target } = parsed.value;
+    const payee = action === "paypal.payout" && target && "email" in target ? target.email : null;
+    const info = { action, amount, payee };
+    bySeq.set(row.seq, info);
+    if (row.refId !== null && !byIntent.has(row.refId)) byIntent.set(row.refId, info);
   }
-  return actions;
+  return { bySeq, byIntent };
 }
 
-function partsOf(row: ChainRow, requests: RequestActions = new Map()): Parsed<TrailParts> {
+function partsOf(row: ChainRow, requests: Requests = NO_REQUESTS): Parsed<TrailParts> {
   switch (row.entryType) {
     case "decision": {
       const parsed = parseDecision(row);
@@ -676,7 +731,9 @@ function partsOf(row: ChainRow, requests: RequestActions = new Map()): Parsed<Tr
       const refund = "refund" in value && value.refund ? value.refund : null;
       const invoice = "invoice" in value ? value.invoice : null;
       const dispute = "dispute" in value ? value.dispute : null;
+      const payout = "payout" in value && value.payout ? value.payout : null;
       const error = "error" in value && value.error ? value.error : null;
+      const request = requests.bySeq.get(value.requestSeq);
       return {
         ok: true,
         value: {
@@ -686,10 +743,13 @@ function partsOf(row: ChainRow, requests: RequestActions = new Map()): Parsed<Tr
           refund: refund ? { id: refund.id, status: refund.status } : null,
           invoice: invoice ? { id: invoice.id, status: invoice.status } : null,
           dispute: dispute
+            ? { id: dispute.id, status: dispute.status, action: request?.action ?? null }
+            : null,
+          payout: payout
             ? {
-                id: dispute.id,
-                status: dispute.status,
-                action: requests.get(value.requestSeq) ?? null,
+                ...payoutOf(payout),
+                payee: request?.payee ?? null,
+                amount: request ? shown(request.amount) : null,
               }
             : null,
           error: error
@@ -702,24 +762,29 @@ function partsOf(row: ChainRow, requests: RequestActions = new Map()): Parsed<Tr
       const parsed = parseEntry(row, ReconciliationPayloadSchema);
       if (!parsed.ok) return parsed;
       const value = parsed.value;
-      // TODO(T-010): describe payout reconciliations; until then they read as not shown.
-      if (value.refund === undefined) {
-        return {
-          ok: false,
-          problem: `reconciliation #${row.seq} is a payout's, which the reader doesn't show yet.`,
-        };
-      }
+      const { refund } = value;
+      const payout = refund === undefined ? value.payout : null;
       return {
         ok: true,
         value: {
           kind: "reconciliation",
           source: value.source,
           event: value.source === "webhook" ? { ...value.event } : null,
-          refund: {
-            id: value.refund.id,
-            status: value.refund.status,
-            amount: shown(value.refund.amount),
-          },
+          refund:
+            refund === undefined
+              ? null
+              : { id: refund.id, status: refund.status, amount: shown(refund.amount) },
+          payout: payout
+            ? {
+                batch_id: payout.batchId,
+                item_id: payout.itemId,
+                status: payout.status,
+                amount: shown(payout.amount),
+                payee:
+                  (row.refId === null ? undefined : requests.byIntent.get(row.refId))?.payee ??
+                  null,
+              }
+            : null,
           result_seq: value.resultSeq,
         },
       };
@@ -736,7 +801,7 @@ function partsOf(row: ChainRow, requests: RequestActions = new Map()): Parsed<Tr
 }
 
 function trailOf(rows: readonly ChainRow[]): TrailEntry[] {
-  const requests = requestActionsOf(rows);
+  const requests = requestsOf(rows);
   return rows.map((row) => {
     const base = { seq: row.seq, type: row.entryType, at: row.at, hash: row.hash };
     const parts = partsOf(row, requests);
@@ -919,7 +984,7 @@ function disputeReceivedSummary(row: ChainRow): Parsed<string> {
   };
 }
 
-function summaryOf(row: ChainRow, orders: OrderBook, requests: RequestActions): Parsed<string> {
+function summaryOf(row: ChainRow, orders: OrderBook, requests: Requests): Parsed<string> {
   if (row.entryType === "dispute.received") return disputeReceivedSummary(row);
   if (row.entryType === "decision") {
     const parsed = parseDecision(row);
@@ -963,13 +1028,37 @@ function summaryOf(row: ChainRow, orders: OrderBook, requests: RequestActions): 
       if (value.outcome === "executed" && value.dispute) {
         return { ok: true, value: disputeResultWords(value.dispute) };
       }
+      if (value.outcome === "executed" && value.payout) {
+        const { batch_id, item, payee, amount } = value.payout;
+        const sent = `Paid out${amount ? ` ${amount.display}` : ""}${payee ? ` to ${payee}` : ""}`;
+        const itemWords = item === null ? "not read" : statusWords(item.status);
+        return { ok: true, value: `${sent} (batch ${batch_id}, item ${itemWords}).` };
+      }
+      if (value.outcome === "failed" && value.payout) {
+        return { ok: true, value: `PayPal denied the payout batch ${value.payout.batch_id}.` };
+      }
       if (value.outcome === "failed") {
         const reason = value.error?.name ?? value.refund?.status.toLowerCase() ?? "no reason given";
-        return { ok: true, value: `PayPal refused it: ${reason}.` };
+        const isPayout = requests.bySeq.get(value.request_seq)?.action === "paypal.payout";
+        return { ok: true, value: `PayPal refused ${isPayout ? "the payout" : "it"}: ${reason}.` };
       }
       return { ok: true, value: "PayPal's answer isn't known." };
     }
     case "reconciliation": {
+      if (value.payout) {
+        const { item_id, status, payee } = value.payout;
+        const now = statusWords(status);
+        return {
+          ok: true,
+          value:
+            payee === null
+              ? `Payout item ${item_id} is now ${now}, which matches no request.`
+              : `Payout to ${payee} is now ${now}.`,
+        };
+      }
+      if (value.refund === null) {
+        return { ok: false, problem: `reconciliation #${row.seq} names no refund or payout.` };
+      }
       const refund = value.refund.id;
       if (value.event !== null) {
         return {
@@ -995,28 +1084,49 @@ function summaryOf(row: ChainRow, orders: OrderBook, requests: RequestActions): 
   }
 }
 
-// The actions of the requests that the page's dispute results answer. A dispute result doesn't
-// say which action it was, so its request is read, even when that is on another page. A request
-// that isn't there, can't be read, or belongs to another intent gives no action.
-async function requestActionsFor(
-  db: Database,
-  rows: readonly ChainRow[],
-): Promise<Map<number, Action>> {
+// The requests that the page's results and payout reconciliations need, even when they are on
+// another page. A dispute result doesn't say which action it was, a failed result might be a
+// payout's, and a payout result or reconciliation takes its payee and amount from the request.
+// A request that isn't there, can't be read, or belongs to another intent is missing.
+async function requestsFor(db: Database, rows: readonly ChainRow[]): Promise<Requests> {
   const wanted = new Map<number, string | null>();
+  const intents = new Set<string>();
   for (const row of rows) {
-    if (row.entryType !== "execution.result") continue;
-    const parsed = parseEntry(row, ExecutionResultPayloadSchema);
-    if (parsed.ok && "dispute" in parsed.value) wanted.set(parsed.value.requestSeq, row.refId);
+    if (row.entryType === "execution.result") {
+      const parsed = parseEntry(row, ExecutionResultPayloadSchema);
+      if (
+        parsed.ok &&
+        (parsed.value.outcome === "failed" || "dispute" in parsed.value || "payout" in parsed.value)
+      ) {
+        wanted.set(parsed.value.requestSeq, row.refId);
+      }
+    } else if (row.entryType === "reconciliation" && row.refId !== null) {
+      const parsed = parseEntry(row, ReconciliationPayloadSchema);
+      if (parsed.ok && parsed.value.refund === undefined) intents.add(row.refId);
+    }
   }
-  const found = await Promise.all(
-    [...wanted.keys()].map((seq) =>
-      db.select().from(auditLog).where(eq(auditLog.seq, seq)).limit(1),
+  const [bySeq, byIntent] = await Promise.all([
+    Promise.all(
+      [...wanted.keys()].map((seq) =>
+        db.select().from(auditLog).where(eq(auditLog.seq, seq)).limit(1),
+      ),
     ),
-  );
-  const requests: ChainRow[] = found
-    .flat()
-    .filter((request) => request.refId === wanted.get(request.seq));
-  return requestActionsOf(requests);
+    Promise.all(
+      [...intents].map((intentId) =>
+        db
+          .select()
+          .from(auditLog)
+          .where(and(eq(auditLog.entryType, "execution.requested"), eq(auditLog.refId, intentId)))
+          .orderBy(asc(auditLog.seq))
+          .limit(1),
+      ),
+    ),
+  ]);
+  const requests: ChainRow[] = [
+    ...bySeq.flat().filter((request) => request.refId === wanted.get(request.seq)),
+    ...byIntent.flat(),
+  ];
+  return requestsOf(requests);
 }
 
 // Every audit-log row newest first, paged, each with one summary sentence, plus the total.
@@ -1033,7 +1143,7 @@ export async function readEntries(db: Database, filters: EntryPageFilters): Prom
     readOrderBook(db),
   ]);
   const rows: ChainRow[] = page.slice(0, limit);
-  const requests = await requestActionsFor(db, rows);
+  const requests = await requestsFor(db, rows);
   const entries = rows.map((row): EntryRow => {
     const summary = summaryOf(row, orders, requests);
     return {
