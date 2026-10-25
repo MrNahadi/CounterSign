@@ -148,16 +148,16 @@ Notes:
 
 ## T-011: The console for payouts
 
-Status: open
+Status: done
 Blocked by: T-009, T-010
 Tier: standard
 Slice: On the phone the merchant reads a held payout and approves it; the decision page shows the payout and its later status.
 Test seam: `apps/console/src/` approvals, decisions and decision view models and their schemas
 Acceptance:
-- [ ] The card schema accepts the payout `params`; the view gives the "What you're approving" rows and copy in requirements.md
-- [ ] The approve answer and recent summaries read `execution.payout`
-- [ ] Decisions and decision-page lines word payout results, reconciliations and item statuses as given; older answers still parse
-- [ ] The design check passes on every new or changed file
+- [x] The card schema accepts the payout `params`; the view gives the "What you're approving" rows and copy in requirements.md
+- [x] The approve answer and recent summaries read `execution.payout`
+- [x] Decisions and decision-page lines word payout results, reconciliations and item statuses as given; older answers still parse
+- [x] The design check passes on every new or changed file
 Notes:
 
 ## T-012: Demo files, live check and README

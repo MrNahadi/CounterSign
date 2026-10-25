@@ -410,6 +410,7 @@ describe("the approval API", { timeout: SLOW }, () => {
           refund: { id: answer.body.execution.refund.id, status: "COMPLETED" },
           invoice: null,
           dispute: null,
+          payout: null,
         },
       }),
     ]);
@@ -458,6 +459,26 @@ describe("the approval API", { timeout: SLOW }, () => {
       error: null,
     });
     expect(w.rail.calls.filter((call) => call.call === "createPayout")).toHaveLength(1);
+
+    const after = await getJson(`${url}/approvals`);
+    expect(after.body.recent).toEqual([
+      expect.objectContaining({
+        step_up_id: decided.seqs.decision,
+        action: "paypal.payout",
+        outcome: "approved",
+        execution: {
+          outcome: "executed",
+          refund: null,
+          invoice: null,
+          dispute: null,
+          payout: {
+            batchId: "FAKEBATCH0001",
+            batchStatus: "PENDING",
+            item: { id: "FAKEITEM0001", status: "UNCLAIMED" },
+          },
+        },
+      }),
+    ]);
   });
 
   it("shows a payout's payee, amount, bill and note, with the name from the ops mandate", async () => {
@@ -781,6 +802,7 @@ describe("the approval API", { timeout: SLOW }, () => {
           refund: null,
           invoice: null,
           dispute: { id: DISPUTE, status: "UNDER_REVIEW" },
+          payout: null,
         },
       }),
     ]);

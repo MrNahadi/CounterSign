@@ -38,11 +38,22 @@ const RecordRef = z.object({ id: Id, status: z.string().min(1).max(64) });
 // A dispute's status is null when the gate couldn't re-read it after the call.
 const DisputeRef = z.object({ id: Id, status: z.string().min(1).max(64).nullable() });
 
+const PayoutItemRef = z.object({ id: Id, status: z.string().min(1).max(64) });
+
+// The batch an executed payout made, and its first item as read after the call (null when that
+// read failed). Older answers have none.
+const PayoutRef = z.object({
+  batch_id: Id,
+  batch_status: z.string().min(1).max(64),
+  item: PayoutItemRef.nullable(),
+});
+
 const ExecutionSchema = z.object({
   outcome: z.enum(["executed", "failed", "unknown", "pending"]),
   refund: RecordRef.nullable(),
   invoice: RecordRef.nullable(),
   dispute: DisputeRef.nullable().optional(),
+  payout: PayoutRef.nullable().optional(),
 });
 
 const StatusSchema = z.discriminatedUnion("kind", [
@@ -172,6 +183,10 @@ const TrailPartsSchema = z.discriminatedUnion("kind", [
     refund: RecordRef.nullable(),
     invoice: RecordRef.nullable(),
     dispute: DisputeRef.extend({ action: Name.nullable() }).nullable().optional(),
+    // The payee and amount come from the request; null when it can't be read.
+    payout: PayoutRef.extend({ payee: Id.nullable(), amount: MoneySchema.nullable() })
+      .nullable()
+      .optional(),
     error: z
       .object({
         name: Text.nullable(),
@@ -184,7 +199,18 @@ const TrailPartsSchema = z.discriminatedUnion("kind", [
     kind: z.literal("reconciliation"),
     source: z.enum(["webhook", "poll"]),
     event: z.object({ id: Id, type: Id }).nullable(),
-    refund: z.object({ id: Id, status: z.string().min(1).max(64), amount: MoneySchema }),
+    // A refund's or a payout's; older answers name a refund only.
+    refund: z.object({ id: Id, status: z.string().min(1).max(64), amount: MoneySchema }).nullable(),
+    payout: z
+      .object({
+        batch_id: Id,
+        item_id: Id,
+        status: z.string().min(1).max(64),
+        amount: MoneySchema,
+        payee: Id.nullable(),
+      })
+      .nullable()
+      .optional(),
     result_seq: Seq.nullable(),
   }),
   z.object({

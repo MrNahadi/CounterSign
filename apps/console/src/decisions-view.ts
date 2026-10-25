@@ -112,9 +112,11 @@ function executionWords(row: ReadableRow, execution: Execution): string {
     case "executed":
       return (
         DISPUTE_EXECUTED_WORDS.get(row.action ?? "") ??
-        (execution.invoice !== null || row.action === "paypal.invoice.send"
-          ? "Invoice sent"
-          : "Refunded")
+        (execution.payout != null || row.action === "paypal.payout"
+          ? "Payout sent"
+          : execution.invoice !== null || row.action === "paypal.invoice.send"
+            ? "Invoice sent"
+            : "Refunded")
       );
     case "failed":
       return "PayPal refused it";

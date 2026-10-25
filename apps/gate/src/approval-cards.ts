@@ -26,7 +26,7 @@ import {
 import { readStepUps, type StepUp, type StepUpState } from "./approval-log";
 import { type ClaimPair, checksThatDecided, claimsVsRecords, mandateByHash } from "./claims";
 import { isExecutable } from "./executable";
-import { type ExecutionOutcome, readIntentRecord } from "./execution-log";
+import { type ExecutionOutcome, type PayoutResult, readIntentRecord } from "./execution-log";
 import { EVIDENCE_CARRIER } from "./executors";
 import { ACTION_WORDS, codeWords } from "./words";
 
@@ -151,6 +151,8 @@ export type CardExecution = {
   invoice: { id: string; status: string } | null;
   // The dispute a dispute action acted on, with its status as re-read after the call.
   dispute: { id: string; status: string | null } | null;
+  // The batch an executed payout made and its first item, as read after the call.
+  payout: PayoutResult | null;
 };
 
 export type RecentSummary = {
@@ -386,9 +388,10 @@ export async function buildCard(
 
 async function executionOf(db: Database, intentId: string): Promise<CardExecution> {
   const read = await readIntentRecord(db, intentId);
-  if (!read.known) return { outcome: "unknown", refund: null, invoice: null, dispute: null };
+  const none = { refund: null, invoice: null, dispute: null, payout: null };
+  if (!read.known) return { outcome: "unknown", ...none };
   const { trail } = read;
-  if (trail === null) return { outcome: "pending", refund: null, invoice: null, dispute: null };
+  if (trail === null) return { outcome: "pending", ...none };
   const { executed } = trail;
   return {
     outcome: executed !== null ? "executed" : (trail.lastOutcome ?? "pending"),
@@ -398,6 +401,13 @@ async function executionOf(db: Database, intentId: string): Promise<CardExecutio
       : null,
     dispute: executed?.dispute
       ? { id: executed.dispute.id, status: executed.dispute.status }
+      : null,
+    payout: executed?.payout
+      ? {
+          batchId: executed.payout.batchId,
+          batchStatus: executed.payout.batchStatus,
+          item: executed.payout.item === null ? null : { ...executed.payout.item },
+        }
       : null,
   };
 }

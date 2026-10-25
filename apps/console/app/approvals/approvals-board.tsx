@@ -165,6 +165,11 @@ function Approving({ view }: { view: ApprovingView }) {
                 }
               >
                 {row.text}
+                {row.code !== undefined ? (
+                  <span className="block font-mono text-code-xs break-all text-secondary-foreground">
+                    {row.code}
+                  </span>
+                ) : null}
               </dd>
             </div>
           ))}

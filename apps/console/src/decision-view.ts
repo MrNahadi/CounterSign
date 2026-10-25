@@ -8,6 +8,7 @@ import {
   DECISIONS_COPY,
   type Tone,
 } from "./decisions-view";
+import { payoutStatusInline } from "./payout-words";
 import { formatTime } from "./time";
 
 // What a decision's page shows (ADR 0034), worked out from the gate's parsed decision detail and a
@@ -50,6 +51,7 @@ export const DECISION_COPY = {
   noMoneyMoved: "No money moved.",
   refunded: "PayPal refunded it.",
   invoiceSent: "The invoice was sent.",
+  payoutSent: "The payout was sent.",
   notConfirmed: "PayPal hasn't confirmed it yet.",
 } as const;
 
@@ -206,6 +208,14 @@ export function absoluteTime(iso: string): string {
 const isInvoice = (detail: Readable, execution: Execution | null) =>
   execution?.invoice != null || detail.action === "paypal.invoice.send";
 
+const isPayout = (detail: Readable, execution: Execution | null) =>
+  execution?.payout != null || detail.action === "paypal.payout";
+
+function executedSentence(detail: Readable, execution: Execution): string {
+  if (isPayout(detail, execution)) return DECISION_COPY.payoutSent;
+  return isInvoice(detail, execution) ? DECISION_COPY.invoiceSent : DECISION_COPY.refunded;
+}
+
 function outcomeSentence(detail: Readable): string {
   const execution = detail.status?.execution ?? null;
   // A step-up whose answer can't be read may have run, so it's unconfirmed, not "no money moved".
@@ -214,8 +224,7 @@ function outcomeSentence(detail: Readable): string {
   switch (execution.outcome) {
     case "executed":
       return (
-        DISPUTE_ACTION_COPY.get(detail.action ?? "")?.outcome ??
-        (isInvoice(detail, execution) ? DECISION_COPY.invoiceSent : DECISION_COPY.refunded)
+        DISPUTE_ACTION_COPY.get(detail.action ?? "")?.outcome ?? executedSentence(detail, execution)
       );
     case "unknown":
     case "pending":
@@ -283,6 +292,21 @@ function whyOf(detail: Readable): Extract<DecisionPageView, { readable: true }>[
 
 const lower = (text: string) => text.toLowerCase();
 
+type TrailParts = Extract<Readable["trail"][number], { readable: true }>["parts"];
+type PayoutResultParts = NonNullable<Extract<TrailParts, { kind: "execution.result" }>["payout"]>;
+
+// "Paid out $45.00 to <payee>, batch <id> (waiting for the payee to claim it)." Without the
+// request's payee and amount it only names the batch.
+function payoutResultPieces(payout: PayoutResultParts): Piece[] {
+  const { batch_id, item, payee, amount } = payout;
+  const start: Piece[] =
+    payee === null || amount === null
+      ? [{ text: "PayPal took the payout, batch " }]
+      : [{ text: `Paid out ${amount.display} to ` }, { mono: payee }, { text: ", batch " }];
+  const end = item === null ? "." : ` (${payoutStatusInline(item.status)}).`;
+  return [...start, { mono: batch_id }, { text: end }];
+}
+
 /** One trail entry as its sentence (requirements.md, "What happened"). */
 export function trailPieces(entry: Readable["trail"][number]): Piece[] {
   if (!entry.readable) {
@@ -313,6 +337,9 @@ export function trailPieces(entry: Readable["trail"][number]): Piece[] {
       const again = parts.replay ? " again" : "";
       const dispute = DISPUTE_ACTION_COPY.get(parts.action ?? "");
       if (dispute !== undefined) return [{ text: `Asked PayPal${again} to ${dispute.asked}.` }];
+      if (parts.action === "paypal.payout") {
+        return [{ text: `Asked PayPal${again} to pay out ${parts.amount.display}.` }];
+      }
       return parts.request_id === null
         ? [{ text: `Asked PayPal${again} to send the invoice.` }]
         : [{ text: `Asked PayPal${again} to refund ${parts.amount.display}.` }];
@@ -344,9 +371,18 @@ export function trailPieces(entry: Readable["trail"][number]): Piece[] {
             saysStatus && status !== null ? `: ${lower(status).replaceAll("_", " ")}.` : ".";
           return [{ text: start ?? "PayPal acted on " }, { mono: id }, { text: end }];
         }
+        if (parts.payout != null) return payoutResultPieces(parts.payout);
         return [{ text: "PayPal did it." }];
       }
       if (parts.outcome === "unknown") return [{ text: "PayPal didn't confirm it." }];
+      // A batch PayPal took and then denied carries no error, only its batch.
+      if (parts.payout != null && parts.error === null) {
+        return [
+          { text: "PayPal denied the payout batch " },
+          { mono: parts.payout.batch_id },
+          { text: "." },
+        ];
+      }
       const name = parts.error?.name ?? null;
       const debug = parts.error?.debug_id ?? null;
       return [
@@ -354,11 +390,26 @@ export function trailPieces(entry: Readable["trail"][number]): Piece[] {
         ...(debug === null ? [] : [{ text: " Debug ID " }, { mono: debug }, { text: "." }]),
       ];
     }
-    case "reconciliation":
-      return parts.source === "webhook" && parts.event !== null
+    case "reconciliation": {
+      const webhook = parts.source === "webhook" ? parts.event : null;
+      if (parts.payout != null) {
+        const { item_id, status } = parts.payout;
+        const end = { text: `: ${payoutStatusInline(status)}.` };
+        return webhook !== null
+          ? [
+              { text: "Matched webhook " },
+              { mono: webhook.id },
+              { text: " to payout item " },
+              { mono: item_id },
+              end,
+            ]
+          : [{ text: "Re-read payout item " }, { mono: item_id }, end];
+      }
+      if (parts.refund === null) return [{ text: "Reconciled, with no refund or payout named." }];
+      return webhook !== null
         ? [
             { text: "Matched webhook " },
-            { mono: parts.event.id },
+            { mono: webhook.id },
             { text: " to refund " },
             { mono: parts.refund.id },
             { text: `, ${lower(parts.refund.status)}.` },
@@ -368,6 +419,7 @@ export function trailPieces(entry: Readable["trail"][number]): Piece[] {
             { mono: parts.refund.id },
             { text: `: ${lower(parts.refund.status)}.` },
           ];
+    }
     case "mandate.version":
       return [{ text: `Mandate ${parts.id} version ${parts.version}.` }];
   }

@@ -81,6 +81,7 @@ const recent = {
     refund: null,
     invoice: { id: "INV2-1", status: "SENT" },
     dispute: null,
+    payout: null,
   },
 };
 
@@ -97,6 +98,7 @@ const answered = {
     refund: { id: "4XJ1", status: "COMPLETED" },
     invoice: null,
     dispute: null,
+    payout: null,
     error: null,
   },
 };

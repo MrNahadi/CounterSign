@@ -719,7 +719,9 @@ describe("controls", () => {
     const source = readFileSync(new URL("../src/approvals-view.ts", import.meta.url), "utf8");
     const imports = [...source.matchAll(/from "([^"]+)"/g)].map((match) => match[1]);
     for (const name of imports)
-      expect(["./approval-schemas", "./audit-schemas", "./time"]).toContain(name);
+      expect(["./approval-schemas", "./audit-schemas", "./payout-words", "./time"]).toContain(name);
+    const words = readFileSync(new URL("../src/payout-words.ts", import.meta.url), "utf8");
+    expect(words).not.toMatch(/\bimport\b/);
   });
 
   it("keeps the approver key and the gate's address out of the page's client code", () => {

@@ -8,6 +8,7 @@ import {
   type RecentSummary,
 } from "./approval-schemas";
 import type { ClaimPair } from "./audit-schemas";
+import { payoutStatusInline } from "./payout-words";
 import { formatTime } from "./time";
 
 // What the approvals page shows (ADR 0032), worked out from the gate's parsed answers. Pure apart
@@ -36,6 +37,8 @@ export const APPROVALS_COPY = {
   approvingHeading: "What you're approving",
   evidenceLine:
     "Approving sends exactly this evidence to PayPal. Nothing is sent until you approve.",
+  payoutLine:
+    "Approving sends exactly this payout through PayPal. Nothing is sent until you approve.",
   itemsHeading: "Evidence",
   documentsHeading: "Documents",
   tracking: "Tracking",
@@ -56,6 +59,8 @@ const PARAM_WORDS = {
   emailsRecipient: "PayPal emails the invoice's recipient",
   noEmail: "PayPal doesn't email the recipient",
   alsoTo: "Also sent to",
+  payee: "Payee",
+  reference: "Bill reference",
 } as const;
 
 // One sentence per answer the gate can give (requirements.md, "The console").
@@ -78,7 +83,7 @@ const VERIFIER_WORDS: Record<string, string> = {
   "dispute.none_open": "No open dispute",
   "shipment.status": "Shipment status",
   "evidence.photo_present": "Photo attached",
-  "payee.allowlisted": "Payee is on the allowlist",
+  "payee.allowlisted": "Payee is on your list",
   "ledger.not_duplicate": "Not a duplicate",
   "ledger.velocity": "Refund rate",
   "mpesa.receipt_verified": "M-Pesa receipt verified",
@@ -146,7 +151,8 @@ export type CheckLine = {
   recordId: string | null;
 };
 
-export type ParamRow = { label: string; text: string; mono: boolean };
+/** One parameter; `code` is a second line in mono under the text, such as a payee's email. */
+export type ParamRow = { label: string; text: string; mono: boolean; code?: string };
 
 export type EvidenceItemView = {
   /** Stable key: the item's place in the submission, from 1. */
@@ -246,7 +252,11 @@ const row = (label: string, text: string, mono = false): ParamRow => ({ label, t
 const noteRow = (note: string | null) => row(PARAM_WORDS.note, note ?? PARAM_WORDS.noNote);
 
 /** What approving sends; a dispute action's rows start with the dispute it acts on. */
-export function approvingView(params: CardParams, target: Card["target"]): ApprovingView {
+export function approvingView(
+  params: CardParams,
+  target: Card["target"],
+  amount: Card["amount"],
+): ApprovingView {
   const view: ApprovingView = { line: null, rows: [], items: [], documents: [] };
   if (target.kind === "dispute") view.rows.push(row(PARAM_WORDS.dispute, target.id, true));
   switch (params.kind) {
@@ -272,6 +282,19 @@ export function approvingView(params: CardParams, target: Card["target"]): Appro
       if (params.amount !== null) view.rows.push(row(PARAM_WORDS.amount, params.amount.display));
       view.rows.push(noteRow(params.note));
       return view;
+    case "payout":
+      // The name comes from the deciding mandate's list; without one the email stands alone.
+      view.rows.push(
+        params.payee_name === null
+          ? row(PARAM_WORDS.payee, target.id, true)
+          : { ...row(PARAM_WORDS.payee, params.payee_name), code: target.id },
+        row(PARAM_WORDS.amount, amount.display),
+        params.reference === null
+          ? row(PARAM_WORDS.reference, PARAM_WORDS.notSet)
+          : row(PARAM_WORDS.reference, params.reference, true),
+        noteRow(params.note),
+      );
+      return { ...view, line: APPROVALS_COPY.payoutLine };
     case "provide_evidence":
       return {
         ...view,
@@ -339,7 +362,7 @@ export function cardView(card: Card, now: Date): CardView {
       recordId: check.records.find((record) => record.id !== null)?.id ?? null,
     })),
     claims: card.claims.map(claimPairView),
-    approving: card.params === null ? null : approvingView(card.params, card.target),
+    approving: card.params === null ? null : approvingView(card.params, card.target, card.amount),
     timeLeft: left,
     expired,
     cannotExecute,
@@ -359,6 +382,12 @@ function recentDetail(summary: RecentSummary): string | null {
     if (execution.dispute !== null) {
       const { id, status } = execution.dispute;
       return status === null ? `Dispute ${id}` : `Dispute ${id}, ${status}`;
+    }
+    if (execution.payout !== null) {
+      const { batchId, item } = execution.payout;
+      return item === null
+        ? `Payout batch ${batchId}`
+        : `Payout batch ${batchId}, ${payoutStatusInline(item.status)}`;
     }
     return "Carried out";
   }
@@ -418,6 +447,13 @@ export function answerOutcome(result: AnswerResult): Outcome {
     return { sentence: UNCONFIRMED_SENTENCE, tone: "warning" };
   }
   if (execution.outcome === "failed") {
+    // A batch PayPal took and then denied carries no error, only its batch.
+    if (execution.payout !== null && execution.error === null) {
+      return {
+        sentence: `Approved, but PayPal denied the payout batch ${execution.payout.batchId}.`,
+        tone: "danger",
+      };
+    }
     return {
       sentence: `Approved, but PayPal refused it: ${refusalText(execution.error)}`,
       tone: "danger",
@@ -443,6 +479,16 @@ export function answerOutcome(result: AnswerResult): Outcome {
         status === null
           ? `Approved. PayPal took it for dispute ${id}.`
           : `Approved. Dispute ${id} is ${status.toLowerCase().replaceAll("_", " ")}.`,
+      tone: "positive",
+    };
+  }
+  if (execution.payout !== null) {
+    const { batchId, item } = execution.payout;
+    return {
+      sentence:
+        item === null
+          ? `Approved. Payout sent, batch ${batchId}.`
+          : `Approved. Payout sent, batch ${batchId} (${payoutStatusInline(item.status)}).`,
       tone: "positive",
     };
   }

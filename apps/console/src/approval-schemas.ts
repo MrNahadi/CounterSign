@@ -95,8 +95,24 @@ export const CardParamsSchema = z.discriminatedUnion("kind", [
       )
       .max(5),
   }),
+  z.object({
+    kind: z.literal("payout"),
+    // The supplier's bill number; null only for a stored intent that has none.
+    reference: Id.nullable(),
+    note: Note,
+    // The payee's name on the deciding mandate's list; null when it isn't listed there.
+    payee_name: Text.nullable(),
+  }),
 ]);
 export type CardParams = z.infer<typeof CardParamsSchema>;
+
+// The batch a payout made and its first item, as the gate read them after the call (the item is
+// null when that read failed or named none). Older answers have none.
+const PayoutSchema = z.object({
+  batchId: Id,
+  batchStatus: z.string().min(1).max(64),
+  item: z.object({ id: Id, status: z.string().min(1).max(64) }).nullable(),
+});
 
 export const CardSchema = z.object({
   step_up_id: Seq,
@@ -164,6 +180,7 @@ export const RecentSummarySchema = z.object({
       refund: RecordSchema.nullable(),
       invoice: RecordSchema.nullable(),
       dispute: DisputeSchema.nullable().default(null),
+      payout: PayoutSchema.nullable().default(null),
     })
     .nullable(),
 });
@@ -187,6 +204,7 @@ export const AnswerResultSchema = z.object({
       refund: RecordSchema.nullable(),
       invoice: RecordSchema.nullable(),
       dispute: DisputeSchema.nullable().default(null),
+      payout: PayoutSchema.nullable().default(null),
       error: z.object({ name: Text.nullable(), issues: z.array(Text).max(64) }).nullable(),
     })
     .nullable(),
