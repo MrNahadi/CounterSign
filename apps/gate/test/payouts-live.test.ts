@@ -274,8 +274,8 @@ describe.skipIf(!live.success)(`live payouts (${needs})`, { timeout: SLOW * 3 },
         amount: { value: "1.00", currency_code: "USD" },
         reference,
       };
+      // The file schema requires `mandate`; the agent CLI never reads it, so it stays as is.
       file.proposals = [first];
-      delete file.mandate;
       const path = join(tempDir("payouts-live-file-"), "ops-payouts.json");
       writeFileSync(path, JSON.stringify(file));
 
