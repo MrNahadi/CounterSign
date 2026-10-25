@@ -376,6 +376,18 @@ _Avoid_: seeding job, import
 One of the two vaulted sandbox buyer accounts (A and B) that pay for seeded orders. Two exist so that a ticket can come from someone other than an order's payer.
 _Avoid_: test user, customer
 
+**Demo reset**:
+Restoring the hosted demo to its seed state: the audit log, tickets, runs, drafts and evidence documents are cleared, the log restarts with a `demo.reset` entry naming where the old one ended, and only the seeded orders whose captures changed are replaced. It runs only on a database flagged as a demo, and never resets the day's run cap.
+_Avoid_: wipe, purge, factory reset
+
+**Start page**:
+The console's first page: the 60-second guide, the scenario launcher, the phone code for Approvals and the demo reset.
+_Avoid_: landing page, home, dashboard
+
+**Scenario**:
+One fixed demo message file (`apps/resolve-agent/scenarios/`) that the start page's launcher sends to Resolve in a chosen mode. Its sender is resolved from the seed state.
+_Avoid_: test case, script, demo (when you mean one scenario)
+
 **Visitor attack**:
 A message a hosted-demo visitor writes in "Attack it yourself" to try to make money move.
 _Avoid_: user attack, judge test

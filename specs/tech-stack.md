@@ -1,6 +1,6 @@
 # Tech stack
 
-Derived from brief §8–§9 and ADRs 0001–0039 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
+Derived from brief §8–§9 and ADRs 0001–0040 in `docs/adr/`. The ADR wins if one is more specific than this file. A change to anything here needs a new ADR.
 
 ## Runtime and tooling
 
@@ -155,7 +155,7 @@ specs/                  Brief, constitution, feature specs
 - Real values live only in `.env.local` (git-ignored) and on Render. `.env.example` lists the names.
 - Load env with `tsx --env-file-if-exists=.env.local`, so scripts also run in cloud sessions, where the environment holds the values and there's no `.env.local`. Never print, log or commit a secret, `DATABASE_URL` included.
 - Principal keys (from phase 7) are environment variables, one per principal: `COUNTERSIGN_SUPPORT_AGENT_KEY` now, `COUNTERSIGN_OPS_AGENT_KEY` from phase 12. A key shorter than 32 characters counts as unset. The gate and Resolve read the same variable.
-- Service addresses (from phase 8): `GATE_MCP_URL` (Resolve's way to the gate, default `http://127.0.0.1:8787/mcp`) and `RESOLVE_AGENT_URL` (the console's way to Resolve, default `http://127.0.0.1:8788`). From phase 9: `GATE_URL` (the console's way to the gate's approval API, default `http://127.0.0.1:8787`) and `CONSOLE_PUBLIC_URL` (optional, the address the QR code points at). From phase 11 the gate also reads `RESOLVE_AGENT_URL` (for the dispute nudge). `PAYPAL_LIVE_DISPUTE_ID` (optional) names a sandbox dispute for phase 11's `LIVE=1` check.
+- Service addresses (from phase 8): `GATE_MCP_URL` (Resolve's way to the gate, default `http://127.0.0.1:8787/mcp`) and `RESOLVE_AGENT_URL` (the console's way to Resolve, default `http://127.0.0.1:8788`). From phase 9: `GATE_URL` (the console's way to the gate's approval API, default `http://127.0.0.1:8787`) and `CONSOLE_PUBLIC_URL` (optional, the address the QR code points at). From phase 11 the gate also reads `RESOLVE_AGENT_URL` (for the dispute nudge). `PAYPAL_LIVE_DISPUTE_ID` (optional) names a sandbox dispute for phase 11's `LIVE=1` check, and `PAYPAL_LIVE_PAYEE_EMAIL` (optional) a sandbox personal account for phase 12's live payout check, so it ends `SUCCESS` rather than `UNCLAIMED`.
 - The approver key (from phase 9) is `COUNTERSIGN_APPROVER_KEY`, read by the gate only. Under 32 characters, or equal to a principal key, it counts as unset.
 - Unit tests never need credentials. Tests that hit live sandboxes run only under `LIVE=1` and are not part of the Feedback commands.
 
