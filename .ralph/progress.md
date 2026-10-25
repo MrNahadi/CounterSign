@@ -82,3 +82,7 @@
 
 - New `apps/gate/test/payouts-live.test.ts`: one scenario (`payASupplier`) runs the agent CLI on `ops-payouts.json` over a listening gate (test ops and approver keys), approves the one open card through `POST /approvals/:id`, closes the gate, then runs `runReconcile --pglite` on the same directory and checks the chain. Under `npm test` it runs on the fake sandbox and reconciles to `SUCCESS`. Under `LIVE=1` it sends one $1.00 payout with a fresh reference (`KDW-LIVE-<hex>`) and reconciles up to 10 times, 3 s apart, until the item is `UNCLAIMED` or `SUCCESS`. With `PAYPAL_LIVE_PAYEE_EMAIL` set, it adds that address to an in-memory copy of the ops mandate (`readMandate`). README gains "Pay a supplier", marks phase 12 done and drops the stale "payouts can't run yet" and "one principal" lines. CONTEXT.md's Payout, Bill reference, Execution outcome and Reconciliation entries now match what was built.
 - Gotcha: one PGlite directory can't be opened twice, so close the gate's handle before `runReconcile` opens the directory.
+
+## Validation
+
+- Live payout check (2026-10-25): PayPal's reused-batch refusal is HTTP 400 `USER_BUSINESS_ERROR` with the issue "Batch with given sender_batch_id already exists" (field `SENDER_BATCH_ID`), matching `error-400-duplicate-batch.json`. The sandbox does not replay a payout by `PayPal-Request-Id`: the same request again answers that same refusal, not the first batch. The live check now accepts either. In the gate a client retry after a lost 201 is therefore `unknown` (duplicate batch), never a second payout.

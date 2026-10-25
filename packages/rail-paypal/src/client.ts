@@ -263,7 +263,8 @@ export type PayPalClient = {
   // Creates a draft invoice and answers with its ID. For live checks and demos.
   createDraftInvoice(input: CreateDraftInvoiceInput): Promise<string>;
   // Creates a batch of one payout. Retried after a 5xx or network failure like any POST with a
-  // request ID, since the request ID and batch ID make a repeat replay rather than pay twice.
+  // request ID, since the batch ID makes a repeat a reused-batch refusal rather than pay twice
+  // (the sandbox doesn't replay payouts by request ID; see `isDuplicateBatch`).
   createPayout(input: CreatePayoutInput): Promise<PayPalPayoutCreated>;
   getPayoutBatch(batchId: string): Promise<PayPalPayoutBatch>;
   getPayoutItem(itemId: string): Promise<PayPalPayoutItem>;
