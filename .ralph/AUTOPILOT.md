@@ -9,7 +9,8 @@ The repo files are your memory. Your own context will be compacted or lost. Afte
 - **One writer.** Before any work, and after every push, follow section 1's check. If a push is rejected because the remote moved (non-fast-forward), another conductor is running: stop at once, without retrying or merging.
 - **Shell.** One plain command per Bash call. No `;` or `&&` chains, no `$(...)`, no shell variables. A pipe into `tail`, `head` or `grep` is fine. Compound commands trigger permission prompts that nobody will answer.
 - **Push after every commit**, on whatever branch you're on: `git push origin <branch>`. A push is the heartbeat that tells the watchdog you're alive.
-- **Fresh context per ticket.** You never build tickets yourself. Each build iteration, plan and validation runs in a sub-agent (the Agent tool, `general-purpose`), so your own context stays small. Keep your messages to a line or two.
+- **Fresh context per ticket.** You never build tickets yourself. Each build iteration runs in its own `claude -p` session through `.ralph/ralph.sh`, and each plan, review and validation runs in a sub-agent (the Agent tool, `general-purpose`), so your own context stays small. Keep your messages to a line or two.
+- **Effort.** Everything runs at effort `high`: build iterations, planners, Goldfish reviewers, validators and deciders. Only questions run at `xhigh`, through the `answerer` agent, which pins it itself.
 - **Never:** edit `specs/brief.md` or §8's non-negotiables; spend money or sign up for anything; contact a person; print, log or commit a secret; force-push, rebase, reset or delete branches; add AI attribution to a commit. Environment variables hold the sandbox secrets in the cloud, and `.env.local` doesn't exist here: run scripts with `--env-file-if-exists=.env.local`, never `--env-file`.
 - **Human-only work** goes in `.ralph/human.md` under `## Open`, one line each: what's needed, why, and which phase it blocks. Then carry on with everything around it. Only stop when nothing buildable is left.
 
@@ -26,28 +27,34 @@ The repo files are your memory. Your own context will be compacted or lost. Afte
 
 ## 2. Plan the next feature
 
-Spawn one sub-agent with this task (substitute nothing; it reads the files itself):
+From phase 13 on, planning follows the Elephant-Goldfish Model in `.ralph/egm/PROCESS.md`: one planner sub-agent (the Elephant) drafts a design doc, fresh Goldfish sub-agents try to break it in two review rounds, the Elephant resolves every finding, and only then writes tickets. Read `PROCESS.md` once per feature, and keep the Elephant's agent ID: you resume it with SendMessage for every later step.
 
-> You are the autopilot's planner for Countersign. Follow `.claude/skills/spec-ralph/SKILL.md` Phase 6 (replan) and then Phase 3 (feature spec), with these changes, which brief §14 v1.4 authorizes:
+1. **Draft.** Spawn the Elephant with the planner task below, but in place of its last three bullets: write `design.md` from `.ralph/egm/design-template.md`, plus `requirements.md` and `validation.md`, and no tickets yet; commit `docs(NN): design draft`; don't push; reply with the branch name only. Push the branch.
+2. **Round A.** Spawn the five round A Goldfish in parallel with `PROCESS.md`'s Goldfish prompt. When all have replied, send the Elephant `PROCESS.md`'s resolving prompt for round A. Push.
+3. **Round B.** The same with the three round B Goldfish. Push.
+4. **Re-audit.** Rerun once, in parallel, only the reviewers whose Blockers the Elephant says it fixed, then have it resolve that last round. Push.
+5. **Tickets.** Send the Elephant the planner task's last three bullets, telling it to derive the tickets from `design.md`'s Detailed Implementation Plan, each naming its files and small enough for one iteration under about $3. Push, then go to section 3.
+
+The planner task:
+
+> You are the autopilot's planner for Countersign, the Elephant in `.ralph/egm/PROCESS.md`. Follow `.claude/skills/spec-ralph/SKILL.md` Phase 6 (replan) and then Phase 3 (feature spec), with these changes, which brief §14 v1.4 authorizes:
 > - You are on `main`. Read `specs/brief.md` in full, then `specs/roadmap.md`, `specs/tech-stack.md`, `CONTEXT.md`, the ADR titles in `docs/adr/`, and `.ralph/human.md`.
 > - Phase 6: tick any roadmap item that is merged but unticked. Fold anything the last feature changed into the roadmap, `tech-stack.md` and `CONTEXT.md`. Never edit the brief.
 > - Take the next unticked roadmap item. Skip phase 2 (interactive spikes): its open spikes, S3 and S7, are built inside the phases that need them. If an item can only be done by a human (the submission, interviews, paying for plans), move its human parts to `.ralph/human.md`, build any part an agent can (docs, scripts, config), and take the next item.
 > - Plan for the cloud: credentials are environment variables (`PAYPAL_*`, `DARAJA_*`, `GEMINI_API_KEY`, `CALLBACK_PATH_SECRET`; no `RENDER_*` or `AG_STUDIO_*` yet). Anything that needs a missing credential, a paid plan or a public URL is built and tested against fixtures, and its live check goes in `validation.md` and `.ralph/human.md`.
-> - `git switch -c feature/NN-slug`. Write `specs/features/NN-slug/` (plan, requirements, validation, tickets in the format in `.claude/skills/spec-ralph/references/ticket-format.md`), in the style of `specs/features/03-decide-refund-from-records/`. Mark each ticket `Tier: simple` or `Tier: standard`. Live sandbox tests run only under `LIVE=1` and stay out of the Feedback commands.
-> - Send open questions to the `answerer` agent. Where it escalates, decide yourself using brief §10's ranked trade-offs, record an ADR with `Decided-by: autopilot (delegated)`, and add one line to `.ralph/human.md` under `## Decided for you`.
+> - `git switch -c feature/NN-slug`. Write `specs/features/NN-slug/`: `design.md` (from `.ralph/egm/design-template.md`, in place of a plan), requirements and validation now, and tickets in the format in `.claude/skills/spec-ralph/references/ticket-format.md` only after the reviews, in the style of the latest feature folder. Mark each ticket `Tier: simple` or `Tier: standard`. Live sandbox tests run only under `LIVE=1` and stay out of the Feedback commands.
+> - Send open questions to the `answerer` agent. Where it escalates, decide yourself using brief §10's ranked trade-offs, record an ADR with `Decided-by: autopilot (delegated)`, and add one line to `.ralph/human.md` under `## Decided for you`. A critical decision, as `.ralph/egm/PROCESS.md` defines it, also gets a Goldfish argument against it before you settle.
 > - Install every new dependency the plan names now, with exact versions: `npm install --save-exact <pkg>@<version> --workspace <workspace>`. Check the version exists and is at least two weeks old. Add it to `tech-stack.md`'s pinned table.
 > - Write the feature folder path to `.ralph/current-feature`, and replace `.ralph/progress.md` with a one-line header for the new feature.
 > - Run the four Feedback commands. Commit everything as `docs(NN): feature spec` and stop. Don't push. Reply with the branch name and the ticket count only.
 
-Then push the new branch: `git push -u origin feature/NN-slug`. Go to section 3.
-
 ## 3. Build the tickets
 
-Repeat until the feature is complete, up to 60 build iterations per feature:
+Build with the Ralph loop, up to 60 build iterations per feature. `.ralph/push-loop.sh` runs `.ralph/ralph.sh` one iteration at a time (a fresh `claude -p` session per ticket, Opus for `Tier: standard` and Sonnet for `Tier: simple`, both at `high`) and pushes after every new commit. It also waits out usage limits on its own.
 
-1. `grep -nE '^## T-|^Status:|^Blocked by:|^Tier:' <FEATURE>/tickets.md`, where FEATURE is the path in `.ralph/current-feature`. Find the first ready ticket, using `.ralph/PROMPT.md` section 1's rule.
-2. **A ticket is ready:** spawn a sub-agent with the prompt `You are one iteration of Countersign's build loop. Read .ralph/PROMPT.md and follow it exactly.` Use model `sonnet` for a `Tier: simple` ticket, and `opus` otherwise.
-3. When it returns, `git log --oneline -1`. A new commit means progress: `git push origin <branch>`. No new commit three iterations in a row is a stall: go to section 5.
+1. Run `bash .ralph/push-loop.sh /home/user/CounterSign 30` as a background command with the longest timeout (2 hours). Rerun it when it stops at that limit.
+2. When it exits, read the `LOOP:` lines of its output. A rejected push (exit 10) means another writer: stop at once. A stall (exit 3) means three iterations without a commit: go to section 5.
+3. If an iteration was cut off, the tree may be dirty: stash it as `<ticket> partial`, which the next iteration picks up.
 4. If `.ralph/done` exists, read it and delete it:
    - `COMPLETE`: go to section 4.
    - `WAITING`: go to section 5.

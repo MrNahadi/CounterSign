@@ -4,8 +4,9 @@
 # Stop any time with Ctrl-C. Rerun to resume; state lives in the repo files.
 #
 # Models: builder sessions run Claude Opus 5.5 at high effort. A ticket marked
-# "Tier: simple" runs Claude Sonnet 5.5 at xhigh. The answerer pins Claude Opus 5.5
-# at xhigh in .claude/agents/answerer.md, whatever the builder runs on.
+# "Tier: simple" runs Claude Sonnet 5.5, also at high. Only questions run at xhigh:
+# the answerer pins Claude Opus 5.5 at xhigh in .claude/agents/answerer.md,
+# whatever the builder runs on.
 #
 # Token discipline (from the Warzone Hackathon loop):
 #   - every iteration is a new session that is never saved or resumed,
@@ -36,7 +37,7 @@ WARN_USD="${RALPH_WARN_USD:-3}"
 LIMIT_WAIT_MIN="${RALPH_LIMIT_WAIT:-15}"
 
 STANDARD_MODEL="claude-opus-5-5";   STANDARD_EFFORT="high"
-SIMPLE_MODEL="claude-sonnet-5-5";   SIMPLE_EFFORT="xhigh"
+SIMPLE_MODEL="claude-sonnet-5-5";   SIMPLE_EFFORT="high"
 
 # This variable would override the answerer's own effort level, so the script uses --effort instead.
 unset CLAUDE_CODE_EFFORT_LEVEL
