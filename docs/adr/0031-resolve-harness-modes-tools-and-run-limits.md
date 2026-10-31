@@ -1,6 +1,6 @@
 # 0031. Resolve's two modes share one prompt, one config and one local order-book tool; baseline spawns PayPal's server per run with a fresh token; runs have hard limits and rerun only before any tool call
 
-Status: accepted, applies ADRs 0011, 0014, 0015 and 0017 to phase 8 (nothing in them changes)
+Status: accepted, amended by ADR 0044 for the hosted demo (on Render the gate mints each baseline run's token and Resolve holds no PayPal credential); applies ADRs 0011, 0014, 0015 and 0017 to phase 8 (nothing in them changes)
 Decided-by: autopilot (delegated), phase 8 feature spec, 18 Oct 2026, under brief §14 v1.4. The answerer's rules escalate the order-book tool and the prompt, because they bear on "the baseline isn't tuned to fail" (§8), an intent question. The planner session had no way to start the answerer agent, so it applied the answerer's rules itself. Decided by brief §10 trade-offs 1 (fail closed), 2 (honest evidence) and 4 (a stranger understands it). The owner can overturn it (`.ralph/human.md`, Decided for you)
 Question: How exactly do Resolve's protected and baseline modes differ? Customers name orders as `KIK-1042`, but PayPal's tools need PayPal's order and capture IDs: how does the agent get from one to the other? How does baseline mode get a PayPal token without the model seeing it? What limits a run, and when may a run be retried?
 Decision:

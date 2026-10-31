@@ -1,6 +1,6 @@
 # 0041. Countersign runs on Render from one blueprint: four paid services with Resolve private, one internal-only Postgres 18, a reconcile cron, internal addresses from `hostport`, and keys Render generates
 
-Status: accepted, applies ADRs 0001, 0007, 0008, 0009, 0028, 0030 and 0032 to hosting (nothing in them changes)
+Status: accepted, amended by ADR 0044 (round A: no PayPal variables on Resolve, manual deploys, `CONSOLE_PUBLIC_URL`, a 5 GB disk); applies ADRs 0001, 0007, 0008, 0009, 0028, 0030 and 0032 to hosting (nothing in them changes)
 Decided-by: autopilot (delegated), phase 13 design draft, 25 Oct 2026, under brief §14 v1.4. It's a critical decision (`.ralph/egm/PROCESS.md`): it fixes the Render contract and decides where every secret lives. The planner session had no way to start the answerer agent or a Goldfish sub-agent, so it applied the answerer's rules itself and wrote the strongest case against its own choice below; round A's Design Critic reviews it fresh. Render's blueprint fields are researched. Decided by brief §10 trade-offs 1 (fail closed, credential custody) and 3 (the judge path works every time). The owner can overturn it (`.ralph/human.md`, Decided for you)
 Question: Phase 13 puts the demo on Render (brief §5 items 8 and 18, spike S7). Which services exist and of what type, how do they find each other, where does each secret live and who creates it, how is the database reached, and how is the blueprint checked when no agent can deploy it?
 Decision:
