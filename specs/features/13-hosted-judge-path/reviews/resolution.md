@@ -92,3 +92,29 @@ Totals: 60 PROPOSE FIX, 2 CONTEST, 25 nits not resolved. Blockers fixed: Compreh
 | M7 Quoted CUJ copy doesn't match (Major) | FIX | CUJ 2 quotes the exact sentence; CUJ 3 describes the prompts and points to requirements. |
 | M8 Avoided terms (Major) | FIX | "step-up", "step-up card", "the reset"; the judge approves on the card. |
 | Nits N1 to N17 | not resolved: reviewer dropped by the slimmed review | |
+
+# Round B resolution
+
+Elephant, 31 Oct 2026, per `.ralph/egm/PROCESS.md` step 5, slimmed to one reviewer (Implementation Readiness with Codebase Details checks; `B-readiness.md`, NO-GO). The round A re-audit (`A2-comprehension.md`) confirmed B-1 holds. One critical decision (finding 5, a secret's lifetime) went to the answerer first. It chose option A and the Elephant followed it; ADR 0044 and `.ralph/human.md` record it.
+
+Totals: 17 PROPOSE FIX, 0 CONTEST. Blocker fixed: finding 1, so Implementation Readiness is the one re-audit.
+
+| Finding | Call | Why, and the edit |
+|---|---|---|
+| 1 Pairing routes collide with `/approvals/:id` (Blocker) | FIX | Item 12b: `mountPairing` goes before `mountApprovals` in `createApp`, with a comment; `test/pairing.test.ts` runs through `createApp`; validation check 12. |
+| 2 Pairing-code request sent as GET (Major) | FIX | Item 21: `callGate(…, { json: "{}" })`, and only an exact 201 with a parsed code counts. |
+| 3 `RAIL_WORST_CALL_MS` undefined; the check couldn't hold (Major) | FIX | Item 8: `signal` on `FetchLike`; `read` maps body timeouts to `network`; network failures stay unretried (wording fixed). Formula (2 + 2 + `MAX_RETRIES`) × 30 s + `MAX_RETRIES` × 10 s = 200 s; `MAX_RAIL_CALLS_PER_EXECUTION = 2` (dispute actions and payouts read back); 600 s > 400 s. |
+| 4 Token's path to the queue unspecified (Major) | FIX | Item 14: `SuppliedTokens` (`hold`, `take`) created in `serve.ts` and shared by `createApp` and `createModeRunner`; `RunQueue` unchanged; `take` comes first, so every exit drops the token; held only on the enqueue path. |
+| 5 Fallback rerun loses its token (Major) | FIX | Critical, so the answerer was asked (option A): the token passes to the one rerun; its life is checked when the rerun starts, and 60 s or less fails closed; tests added; ADR 0044 part 4 updated. |
+| 6 Resolve can't tell it has no PayPal variables (Major) | FIX | `AppDeps.canMintTokens` (default true), set from `parsePayPalEnv(env).ok` in `serve.ts`; a test for each value. |
+| 7 A throw from dispute sync after the clear loses the report (Major) | FIX | Item 9 step 8 catches it as `disputes: { error: "the gate couldn't read its records" }`; requirements and validation check 4 follow. |
+| 8 Gate manifest lacks `@countersign/seed` (Major) | FIX | Item 1 adds it to `apps/gate/package.json`; the repo has no `tsconfig` paths. |
+| 9 `limitSession` with `withSignIn`; 429 isn't a `Refusal` (Major) | FIX | `Refusal["status"]` gains 429. `limitSession` returns `Refusal \| null` and runs inside the sign-in callback. Order: key cookie, gate check, session, limit. Only the three POST routes are limited (item 19a, requirements). |
+| 10 Unset `RESOLVE_AGENT_URL` refused (Major) | FIX | Item 12a uses `resolveAgentUrl(env)` from `nudge.ts`; 503 only on null; added to the symbol table. |
+| 11 Ledger test pins `ENTRY_TYPES` (Nit) | FIX | Item 5 says to add `"demo.reset"` to the expected list. |
+| 12 Two `Set-Cookie` headers (Nit) | FIX | Item 19a: `json()` takes an array and appends; sign-in sets both cookies, sign-out clears both. |
+| 13 Always-throwing issuer redundant (Nit) | FIX | Dropped; `paypalTokenIssuer` already fails as needed (item 14). |
+| 14 Reset builds a rail per request (Nit) | FIX | Items 10 and 12a pass `railOnce`. |
+| 15 `Reader` not exported (Nit) | FIX | Item 8 exports it; `busyRefusal` is typed with it. |
+| 16 `runsQueuedSince` homeless; string comparison (Nit) | FIX | Item 4 puts it in `packages/db/src/demo-reset.ts` with a `::timestamptz` cast and a 5 s skew margin; validation check 4. |
+| 17 Launch body mapping and wiring implicit (Nit) | FIX | Item 12a shows the `{ access_token, expires_at }` mapping, the global `fetch` (`AppDeps.launchFetch` for tests) and the `mountBaselineLaunch` call. |
