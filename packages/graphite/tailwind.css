@@ -150,6 +150,7 @@
   --leading-caption-base: var(--leading-caption-base);
   --leading-caption-sm: var(--leading-caption-sm);
   --leading-caption-xs: var(--leading-caption-xs);
+  --leading-code-sm: var(--leading-code-sm);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
