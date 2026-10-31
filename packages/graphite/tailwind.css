@@ -134,6 +134,7 @@
   --text-caption-xs: var(--text-caption-xs);
   --text-caption-xs--line-height: var(--leading-caption-xs);
   --text-code-sm: var(--text-code-sm);
+  --text-code-sm--line-height: var(--leading-code-sm);
   --text-code-xs: var(--text-code-xs);
 
   --leading-heading-1: var(--leading-heading-1);
