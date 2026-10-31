@@ -4,6 +4,10 @@ From phase 13 on, the autopilot plans each feature with the Elephant-Goldfish Mo
 
 The plugin's own `/egm-review` and `/egm-resolve` are human-only and stop for a person at every stage, so the autopilot runs the same pipeline itself, without stopping. Nobody waits on the owner (brief §14).
 
+## Running the roles
+
+Run every role as a lean session with `.ralph/role.sh` (no MCP servers, no skills, project settings only), not as an Agent sub-agent: `role.sh elephant` resumes the feature's one planner session, `role.sh goldfish` runs a fresh Sonnet reviewer, `role.sh validator` a fresh validator. `.ralph/HANDOVER.md`'s slimmed review (three Goldfish in round A, Implementation Readiness only in round B, re-audit only for Blockers) overrides the tables below.
+
 ## Roles
 
 - **Elephant**: one planner sub-agent per feature. The conductor resumes the same agent (SendMessage) for drafting, resolving and ticketing, so it keeps its reasoning. It never writes product code.
