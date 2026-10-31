@@ -1,6 +1,6 @@
 # Graphite design system
 
-Graphite is a design system for dense, calm product UI. It's monochrome first, with one blue accent, hairline edges and small type. Light is the default theme and dark is fully supported.
+Graphite is a design system for calm, roomy product UI. It's monochrome first, with one blue accent, hairline edges and generous spacing. Light is the default theme and dark is fully supported.
 
 This file is written for coding agents and for people. If you're an agent building UI, read the rules in "How to use this file" first, then use the token file in Appendix A as the single source of truth for values.
 
@@ -13,13 +13,13 @@ Graphite is modeled on the public Interfere design system. Its raw palette is [R
 3. Light is the default. Add `class="dark"` or `data-theme="dark"` to `<html>` for dark. Both themes use the same token names, so components never branch on theme.
 4. Pair every fill with its text token. A `--color-x-solid` fill always takes `--color-on-x-solid-foreground` text, and a `--color-x-subtle` fill takes `--color-on-x-subtle-foreground`.
 5. Icons come from Lucide or Phosphor. No emojis anywhere in the UI, including empty states, toasts and buttons.
-6. When this file doesn't cover a case, pick the option that adds the least visual weight.
+6. When this file doesn't cover a case, pick the option that adds the least visual weight. When unsure about spacing, add space rather than remove it.
 
 ## Principles
 
 **Monochrome first.** The primary button is black in light mode and white in dark. Blue is reserved for brand moments, links, focus rings and selection. If a screen has more than one or two blue things on it, something is wrong.
 
-**Dense and quiet.** UI text is 13px and body copy is 15px. Hierarchy comes from weight, color and spacing, not from size jumps or decoration.
+**Roomy and quiet.** UI text is 14px and body copy is 16px. Controls, rows and cards get enough space that a screen never feels packed. A screen shows less at once, and each thing on it is easier to read. Hierarchy comes from weight, color and spacing, not from size jumps or decoration.
 
 **Transparency over fixed grays.** Fills, borders and secondary text use alpha steps, such as black at 6% for a border. The same token then looks right on white, on a card, or inside a modal.
 
@@ -217,7 +217,7 @@ Every family also has `-hover` and `-active` variants and `-subtle-hover` / `-su
 - Links are `brand-foreground`, medium weight, no underline until hover.
 - Selection states use brand: checked checkboxes, switches that are on, the selected row tint (`brand-subtle`).
 - Don't put text on `card` that relies on the card for contrast. Cards are a 2 to 4% tint, so treat them as transparent.
-- White on `brand-solid`, `danger-solid` and `positive-solid` measures 3.1 to 3.9:1. That passes for UI components and large text. For important 13px labels, prefer the primary button.
+- White on `brand-solid`, `danger-solid` and `positive-solid` measures 3.1 to 3.9:1. That passes for UI components and large text. For important 14px labels, prefer the primary button.
 
 ## Typography
 
@@ -227,20 +227,20 @@ All sizes derive from a 4px base. Headings use -0.01em tracking.
 
 | Style | Token | Size | Line height | Default weight |
 |---|---|---|---|---|
-| Heading 1 | `--text-heading-1` | 56px | 56px | 500 |
+| Heading 1 | `--text-heading-1` | 56px | 60px | 500 |
 | Heading 2 | `--text-heading-2` | 44px | 56px | 500 |
 | Heading 3 | `--text-heading-3` | 36px | 44px | 500 |
 | Heading 4 | `--text-heading-4` | 28px | 36px | 500 |
 | Heading 5 | `--text-heading-5` | 24px | 32px | 600 |
 | Heading 6 | `--text-heading-6` | 20px | 24px | 600 |
-| Body large | `--text-body-lg` | 18px | 24px | 400 |
-| Body base | `--text-body-base` | 15px | 24px | 400 |
-| Body small | `--text-body-sm` | 13px | 20px | 400 |
-| Caption large | `--text-caption-lg` | 12px | 16px | 400 |
-| Caption base | `--text-caption-base` | 11px | 16px | 400 |
-| Caption small | `--text-caption-sm` | 10px | 16px | 400 |
-| Caption extra small | `--text-caption-xs` | 8px | 12px | 500 |
-| Code small | `--text-code-sm` | 13px | 20px | 400 |
+| Body large | `--text-body-lg` | 18px | 28px | 400 |
+| Body base | `--text-body-base` | 16px | 24px | 400 |
+| Body small | `--text-body-sm` | 14px | 20px | 400 |
+| Caption large | `--text-caption-lg` | 13px | 18px | 400 |
+| Caption base | `--text-caption-base` | 12px | 16px | 400 |
+| Caption small | `--text-caption-sm` | 11px | 16px | 400 |
+| Caption extra small | `--text-caption-xs` | 10px | 12px | 500 |
+| Code small | `--text-code-sm` | 13px | 22px | 400 |
 | Code extra small | `--text-code-xs` | 12px | 16px | 400 |
 
 ### Weights
@@ -256,8 +256,9 @@ There's no bold in the sans. Weight 700 only exists for the serif.
 
 ### Type rules
 
-- Product UI runs on body small (13px). Body base (15px) is for reading: docs, descriptions, long-form settings help.
-- Uppercase captions take medium weight and `--tracking-caption-upper` (0.05em). Use them for group headings in menus and sidebars.
+- Product UI runs on body small (14px). Body base (16px) is for reading: docs, descriptions, long-form settings help.
+- Helper text, metadata and table sub-lines use caption large (13px). Caption small and extra small are only for avatar initials and tiny counters, never for sentences.
+- Uppercase captions take medium weight and `--tracking-caption-upper` (0.05em). Use them for eyebrows and group headings in menus and sidebars, not for table headers.
 - Use `font-variant-numeric: tabular-nums` for tables, timers and anything that updates in place.
 - The serif is for display moments only, at Heading 3 or larger. Never use it in controls.
 - The pixel font is for tiny accents, such as a "1m 34s" timer. Never set a sentence in it.
@@ -265,16 +266,27 @@ There's no bold in the sans. Weight 700 only exists for the serif.
 
 ## Spacing and layout
 
-The base unit is 4px. Use these steps, available as `--space-1` through `--space-16` where the number is the multiple of 4: 4, 8, 12, 16, 20, 24, 32, 40, 48, 64.
+The base unit is 4px. Use these steps, available as `--space-1` through `--space-24` where the number is the multiple of 4: 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96.
+
+Graphite runs at a comfortable density. Give things room first, then remove space only where a screen genuinely needs to show more rows. Never pack a screen to fit more in.
 
 | Context | Value |
 |---|---|
-| Gap between an icon and its label | 4 to 8px, matching the button size |
-| Padding inside cards | 16px, or 20px for roomy cards |
-| Gap between form fields | 16px |
-| Gap between page sections | 32 to 48px |
+| Gap between an icon and its label | 6 to 8px, matching the button size |
+| Label to input, input to helper text | 8px |
+| Gap between form fields | 20px |
+| Padding inside cards (`--card-padding`) | 24px. Use 16px only for small cards nested inside another card |
+| Gap between cards in a grid (`--grid-gap`) | 24px |
+| Section heading: eyebrow, title and description | 8px apart |
+| Section heading to its content | 28px |
+| Gap between page sections (`--section-gap`) | 80px, 56px below 900px |
+| Padding inside the main container | 48px top, 56px sides, 96px bottom. 32px, 16px and 64px below 900px |
+| Content max width (`--content-max`) | 1120px, centered in the container |
+| Toolbar above a table | 14px by 20px padding, 12px gap |
 | Container inset from shell | 8px |
-| Sidebar width | 240px |
+| Sidebar width (`--sidebar-width`) | 260px, nav items 36px tall and 2px apart, 24px between nav groups |
+
+**Signs a screen is too dense:** more than one row of controls in a toolbar, two badges or shortcut hints competing in one button, table text under 14px, cards touching at less than 24px, or a section that runs straight into the next with no clear gap. Remove an element before you shrink the spacing.
 
 Content widths come from the source container scale: 320, 384, 448, 512, 576, 672 and 768px. Dialogs use 448 or 512. Forms and settings pages cap at 672.
 
@@ -293,7 +305,7 @@ Content widths come from the source container scale: 320, 384, 448, 512, 576, 67
 | `--radius-5xl` | 24px | Hero panels, marketing cards |
 | `--radius-full` | 9999px | Pills, avatars, switches |
 
-When one rounded element sits inside another, the inner radius equals the outer radius minus the padding between them. A menu with 12px radius and 4px padding gets 8px items.
+When one rounded element sits inside another, the inner radius equals the outer radius minus the padding between them. A menu with 12px radius and 4px padding gets 8px items, and a 16px card with 8px padding gets 8px children.
 
 ## Elevation
 
@@ -328,7 +340,7 @@ Edges come from box-shadow rings, not borders, so they never change an element's
 - Every interactive element shows a 1px `brand-border-focus` outline on `:focus-visible`. It's blue 10 in light and blue 9 in dark, which keeps it at 3:1 or better on every surface. Inputs draw it inset with `outline-offset: -1px`. Buttons with a solid fill add a 2px ring offset in `--color-container` so the ring stays visible.
 - The tokens include a `prefers-contrast: more` block. When the OS asks for more contrast, secondary and tertiary text go to full strength and borders darken. Don't override it.
 - Measured contrast in light mode: primary text 16.3:1, secondary 5.9:1, brand text 4.8:1, danger text 5.0:1, tertiary 3.3:1. Dark mode is higher across the board.
-- Minimum hit target is 24px. On touch layouts, use the 40px button size for primary actions.
+- Minimum hit target is 28px, the small button. On touch layouts, use the 44px button size for primary actions.
 - Icon-only buttons need an `aria-label` and a tooltip.
 
 ## Iconography
@@ -343,7 +355,7 @@ Edges come from box-shadow rings, not borders, so they never change an element's
 
 ### Button
 
-All buttons share one structure: flex, centered, medium weight, 13px text, no wrapping, label truncates with an ellipsis.
+All buttons share one structure: flex, centered, medium weight, 14px text, no wrapping, label truncates with an ellipsis.
 
 | Variant | Fill | Text | Hover fill | Use |
 |---|---|---|---|---|
@@ -358,31 +370,31 @@ All buttons share one structure: flex, centered, medium weight, 13px text, no wr
 
 | Size | Height | Side padding | Gap | Icon | Text |
 |---|---|---|---|---|---|
-| Extra small | 20px | 6px | 4px | 12px | 12px |
-| Small | 24px | 8px | 4px | 14px | 13px |
-| Medium | 28px | 10px | 6px | 16px | 13px |
-| Large | 32px | 12px | 6px | 16px | 13px |
-| Extra large | 40px | 14px | 8px | 20px | 13px |
+| Extra small | 24px | 8px | 4px | 12px | 12px |
+| Small | 28px | 10px | 6px | 14px | 13px |
+| Medium | 32px | 14px | 6px | 16px | 14px |
+| Large | 36px | 16px | 6px | 16px | 14px |
+| Extra large | 44px | 20px | 8px | 20px | 15px |
 
 - Shapes: rounded uses `--radius-lg` (8px). Pill uses `--radius-full`. Extra-large icon-only buttons use 10px.
 - When a button starts with an icon, reduce the start padding by the icon offset (2 to 4px) so the visual padding looks even. Same for a trailing icon.
 - Icon-only buttons are square, width equal to height.
 - Pending state: swap the leading icon for a spinner, keep the label, keep the width, and block clicks.
 - Disabled: `disabled` fill and `disabled-foreground` text with `cursor: not-allowed`. Transparent buttons stay transparent.
-- A keyboard hint can sit inside a button, on the right, using the Kbd component at 16px.
+- A keyboard hint can sit inside a secondary button, on the right, using the small Kbd (18px). Leave it off primary buttons and toolbars, where it adds clutter; show shortcuts in menus, tooltips and the command palette instead.
 
 ### Input and textarea
 
-- Height 32px by default, 28px in dense toolbars. Side padding 10px. Radius `--radius-lg`.
-- Fill `component-on-container-strong` plus `--shadow-default`. Text `primary-foreground` at 13px. Placeholder `tertiary-foreground`.
+- Height 36px by default, 32px in toolbars. Side padding 12px. Radius `--radius-lg`.
+- Fill `component-on-container-strong` plus `--shadow-default`. Text `primary-foreground` at 14px. Placeholder `tertiary-foreground`.
 - Focus: inset 1px ring in `brand-border-focus`.
-- Error: inset ring in `danger-border-default`, with a helper line below in `danger-foreground` at 12px.
-- Textarea uses the same styling with 8px vertical padding and a minimum of 3 rows.
-- Labels sit above at 13px medium in `primary-foreground`. Helper text below at 12px in `secondary-foreground`.
+- Error: inset ring in `danger-border-default`, with a helper line below in `danger-foreground` at 13px.
+- Textarea uses the same styling with 10px by 12px padding, a 22px line height and a minimum height of 112px.
+- Labels sit above at 14px medium in `primary-foreground`. Helper text below at 13px in `secondary-foreground`. Keep 8px between label, field and helper.
 
 ### Input OTP
 
-- Cells are 40 by 44px, radius `--radius-lg`, with the input fill and `--shadow-default`. Digits are mono at 18px with tabular numbers.
+- Cells are 44 by 52px with 8px between them, radius `--radius-lg`, with the input fill and `--shadow-default`. Digits are mono at 18px with tabular numbers.
 - Group cells in threes with an 8px `border-strong` dash between groups.
 - The cell where the next digit goes shows the inset `brand-border-focus` ring.
 - Back the cells with one real input (`autocomplete="one-time-code"`, `inputmode="numeric"`) so paste and autofill work.
@@ -390,94 +402,98 @@ All buttons share one structure: flex, centered, medium weight, 13px text, no wr
 ### Select, combobox, menu, context menu, popover
 
 - Surface `modal`, `--shadow-large`, radius `--radius-2xl`, 4px padding.
-- Items are 32px tall, 8px side padding, radius `--radius-lg`, 13px text.
+- Items are 36px tall (`--menu-item-height`), 10px side padding, 10px icon gap, radius `--radius-lg`, 14px text. Minimum width 240px.
 - Highlighted item gets `transparent-hover`. Checked items show a 16px check icon on the left.
-- Group headings use uppercase caption base in `tertiary-foreground`.
-- Shortcuts sit right-aligned in `tertiary-foreground`.
-- Separators are 1px `border-subtle` with 4px vertical margin.
+- Group headings use uppercase caption base (12px) in `tertiary-foreground`, with 8px above and 6px below.
+- Shortcuts sit right-aligned in `tertiary-foreground` at 13px.
+- Separators are 1px `border-subtle` with 6px vertical margin.
 
 ### Command palette
 
 - Surface `modal`, `--shadow-xl`, radius `--radius-3xl`, width 640px, opened with Cmd+K or Ctrl+K.
-- Search input is 48px tall with no ring, separated from results by a 1px `border-subtle`.
-- Results follow the menu item spec at 36px tall.
+- Search input is 56px tall with 20px side padding and no ring, separated from results by a 1px `border-subtle`.
+- Results follow the menu item spec at 40px tall, in a list with 6px padding.
+- Footer with key hints: 12px by 20px padding, caption large.
 
 ### Dialog and drawer
 
 - Overlay is `--color-overlay`: black at 30% in light and 50% in dark.
-- Dialog: surface `modal`, `--shadow-xl`, radius `--radius-3xl`, 20px padding, width 448 or 512px.
-- Title is Heading 6 at weight 600. Description is body small in `secondary-foreground`.
+- Dialog: surface `modal`, `--shadow-xl`, radius `--radius-3xl`, 28px padding, 24px between title block and footer, width 448 or 512px.
+- Title is Heading 6 at weight 600. Description is body small at a 22px line height in `secondary-foreground`, 8px below the title.
 - Footer buttons are right-aligned, large size, with the primary or danger action last.
 - Drawer: same surface. On mobile it's a bottom sheet with 16px top corners and a 32 by 4px grab handle in `border-strong`.
 
 ### Card
 
-- Fill `container` with `--shadow-border`, radius `--radius-2xl`, 16px padding.
-- Use `card` fill instead of the ring when grouping content inside a container.
-- A card title is 13px medium, its description 13px regular in `secondary-foreground`.
+- Fill `container` with `--shadow-border`, radius `--radius-3xl`, 24px padding (`--card-padding`), 20px between the blocks inside.
+- Use `card` fill instead of the ring when grouping content inside a container. Small nested cards can drop to `--radius-2xl` and 16px padding.
+- A card title is 16px semibold with heading tracking. Its description sits on its own line 4px below, at 13px in `secondary-foreground`. Don't squeeze the title and a note onto one line.
 
 ### Code card and inline code
 
 - Inline code: mono at 13px, `component` fill, 4px radius, 2px by 4px padding.
-- Code blocks: `sunken` fill, `--radius-2xl`, 12px by 16px padding, mono 13px at 20px line height, horizontal scroll, never wrap.
+- Code blocks: `sunken` fill, `--radius-2xl`, 16px by 20px padding, mono 13px at 22px line height, horizontal scroll, never wrap.
 - Header row with filename in caption large and a copy button (transparent, small, icon-only).
 
 ### Badge
 
-- Height 20px, 6px side padding, caption large (12px) medium, radius `--radius-md` or `--radius-full`.
+- Height 24px, 8px side padding, caption base (12px) medium, radius `--radius-md` or `--radius-full`.
 - Neutral: `component` fill, `secondary-foreground` text.
 - Status: subtle fill with its `on-*-subtle` text. An optional 6px dot in the solid color goes before the label.
 
 ### Kbd
 
 - Mono at 12px, `component` fill, `secondary-foreground` text, radius `--radius-sm`.
-- Minimum width and height 20px, centered.
+- Minimum width and height 22px, or 18px for the small size, centered.
 - Show modifier symbols on macOS (⌘ ⌥ ⇧) and words elsewhere (Ctrl, Alt, Shift).
 
 ### Avatar and avatar group
 
-- Circular. Sizes 20, 24, 32 and 40px. Initials in medium weight at about 40% of the avatar size.
+- Circular. Sizes 20, 28, 32 and 40px, with 28px as the default in tables and lists. Initials in medium weight at about 40% of the avatar size.
 - Without a photo, fill with step 3 of a hue picked from the user's ID and set initials in step 11 of the same hue.
 - Groups overlap by about a fifth of the size. Separate them with a mask cutout, not a colored ring, so the edge works on any background. Show overflow as "+5" in a neutral avatar.
 
 ### Tabs and segmented control
 
-- Underline tabs: 13px medium, `secondary-foreground` idle, `primary-foreground` active, with a 2px `inverted-solid` bar under the active tab.
-- Segmented control: `sunken` track with radius `--radius-xl` and 2px padding. The active segment uses `component-on-sunken` with `--shadow-default` and radius `--radius-lg`.
+- Underline tabs: 14px medium, 44px tall, 24px apart, `secondary-foreground` idle, `primary-foreground` active, with a 2px `inverted-solid` bar under the active tab.
+- Segmented control: `sunken` track with radius `--radius-xl` and 2px padding. Segments are 28px tall with 12px side padding, so the whole control is 32px. The active segment uses `component-on-sunken` with `--shadow-default` and radius `--radius-lg`.
 
 ### Checkbox, radio and switch
 
-- Checkbox: 16px, radius `--radius-sm`, 1px `border-control` ring when unchecked. Checked fills with `brand-solid` and shows a white check icon.
-- Radio: 16px circle, same states, with a 6px white dot when selected.
-- Switch: 32 by 18px pill. Track `component-active` when off and `brand-solid` when on. White 14px thumb with `--shadow-default`, moving over 150ms. Disabled switches use the `disabled` track and a `disabled-foreground` thumb.
+- Checkbox: 18px, radius `--radius-sm`, 1px `border-control` ring when unchecked. Checked fills with `brand-solid` and shows a white check icon.
+- Radio: 18px circle, same states, with a 6px white dot when selected.
+- Switch: 36 by 20px pill. Track `component-active` when off and `brand-solid` when on. White 16px thumb with `--shadow-default`, moving over 150ms. Disabled switches use the `disabled` track and a `disabled-foreground` thumb.
+- Each option row is at least 28px tall with 10px between the control and its label. Stack options 8px apart.
 
 ### Tooltip
 
-- Surface `standout` with a 1px inset `border-on-standout` ring, text `on-standout-primary-foreground`, 12px, radius `--radius-lg`, 4px by 8px padding.
+- Surface `standout` with a 1px inset `border-on-standout` ring, text `on-standout-primary-foreground`, 13px, radius `--radius-lg`, 6px by 10px padding.
 - Opens after 500ms, closes immediately. Sits 6px from the trigger.
 - Keyboard shortcuts inside a tooltip use `on-standout-secondary-foreground`.
 
 ### Toast
 
-- Surface `modal`, `--shadow-large`, radius `--radius-2xl`, width 360px, bottom right on desktop and bottom center on mobile.
-- Title 13px medium, description 13px in `secondary-foreground`. A 16px status icon on the left in the status foreground color.
+- Surface `modal`, `--shadow-large`, radius `--radius-2xl`, width 360px, 16px padding, 12px icon gap. Bottom right on desktop, 24px from the edges, and bottom center on mobile. Stacked toasts sit 12px apart.
+- Title 14px medium, description 14px in `secondary-foreground`. A 16px status icon on the left in the status foreground color.
 - Auto-dismiss after 4 seconds, pause on hover.
 
 ### Table
 
-- Header row: caption base (11px) uppercase medium, `tertiary-foreground`, 32px tall.
-- Body rows: 13px, 40px tall, 1px `border-subtle` dividers, `transparent-hover` on hover.
+- Header row: 13px medium in sentence case, `secondary-foreground`, 44px tall (`--table-header-height`). No uppercase headers.
+- Body rows: 14px, 56px tall (`--table-row-height`), 16px cell padding, 1px `border-subtle` dividers, `transparent-hover` on hover.
+- A cell can hold a second line at 13px in `tertiary-foreground`, 2px below the first, such as a company's segment and city under its name.
+- Keep the toolbar above a table to one row: status, search, one filter, a view switch and the primary action. Put everything else in a menu.
 - Numbers right-aligned and tabular. IDs and hashes in mono.
 
 ### Accordion and collapsible
 
-- Trigger is 13px medium with a 16px chevron on the right that rotates 180 degrees over 200ms.
-- Panel content is 13px in `secondary-foreground` with 12px bottom padding.
+- Trigger is 14px medium, 52px tall, with a 16px chevron on the right that rotates 180 degrees over 200ms.
+- Panel content is 14px at a 22px line height in `secondary-foreground` with 16px bottom padding.
 
 ### Breadcrumb
 
-- 13px. Ancestors in `secondary-foreground`, current page in `primary-foreground` medium.
-- Separator is a "/" in `tertiary-foreground` with 6px space either side.
+- 14px. Ancestors in `secondary-foreground`, current page in `primary-foreground` medium.
+- Separator is a "/" in `tertiary-foreground` with 8px space either side.
 
 ### Skeleton, spinner and divider
 
@@ -496,6 +512,9 @@ All buttons share one structure: flex, centered, medium weight, 13px text, no wr
 |---|---|
 | Use one primary button per screen | Line up three solid buttons in a row |
 | Get hierarchy from weight and color | Jump to big type sizes in product UI |
+| Give cards 24px padding and 24px gaps | Let cards, rows or sections crowd each other |
+| Keep table rows at 56px with 14px text | Shrink rows or text to fit more on screen |
+| Keep one row of toolbar controls | Stack breadcrumbs, badges and shortcut hints into every toolbar |
 | Use alpha tokens for borders and fills | Hardcode a gray like `#e5e5e5` |
 | Use rings for edges | Add CSS borders that shift layout by 1px |
 | Keep blue for links, focus, selection and one brand action | Tint backgrounds or headings blue |
@@ -505,7 +524,7 @@ All buttons share one structure: flex, centered, medium weight, 13px text, no wr
 ## Appendix A: tokens.css
 
 ```css
-/* Graphite tokens. Palette: Radix Colors (MIT). Light is the default theme; add class="dark" or data-theme="dark" on <html> for dark. */
+/* Graphite tokens. Palette: Radix Colors (MIT). Light is the default theme; add class="dark" or data-theme="dark" on <html> for dark. Comfortable density: 14px UI text, 32px default controls, 56px table rows. */
 :root, .light, [data-theme="light"] {
   color-scheme: light;
   /* gray */
@@ -623,27 +642,31 @@ All buttons share one structure: flex, centered, medium weight, 13px text, no wr
   --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
   --font-pixel: "Departure Mono", var(--font-mono);
   --font-weight-regular: 400; --font-weight-semimedium: 450; --font-weight-medium: 500; --font-weight-semibold: 600;
-  --text-heading-1: 56px; --leading-heading-1: 56px;
+  --text-heading-1: 56px; --leading-heading-1: 60px;
   --text-heading-2: 44px; --leading-heading-2: 56px;
   --text-heading-3: 36px; --leading-heading-3: 44px;
   --text-heading-4: 28px; --leading-heading-4: 36px;
   --text-heading-5: 24px; --leading-heading-5: 32px;
   --text-heading-6: 20px; --leading-heading-6: 24px;
   --tracking-heading: -0.01em;
-  --text-body-lg: 18px; --leading-body-lg: 24px;
-  --text-body-base: 15px; --leading-body-base: 24px;
-  --text-body-sm: 13px; --leading-body-sm: 20px;
-  --text-caption-lg: 12px; --leading-caption-lg: 16px;
-  --text-caption-base: 11px; --leading-caption-base: 16px;
-  --text-caption-sm: 10px; --leading-caption-sm: 16px;
-  --text-caption-xs: 8px; --leading-caption-xs: 12px;
+  --text-body-lg: 18px; --leading-body-lg: 28px;
+  --text-body-base: 16px; --leading-body-base: 24px;
+  --text-body-sm: 14px; --leading-body-sm: 20px;
+  --text-caption-lg: 13px; --leading-caption-lg: 18px;
+  --text-caption-base: 12px; --leading-caption-base: 16px;
+  --text-caption-sm: 11px; --leading-caption-sm: 16px;
+  --text-caption-xs: 10px; --leading-caption-xs: 12px;
   --tracking-caption-upper: 0.05em;
-  --text-code-sm: 13px; --text-code-xs: 12px;
+  --text-code-sm: 13px; --leading-code-sm: 22px; --text-code-xs: 12px;
   /* space, radius, motion */
   --space: 4px;
-  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px; --space-20: 80px; --space-24: 96px;
   --radius-xs: 2px; --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 10px;
-  --control-xs: 20px; --control-sm: 24px; --control-md: 28px; --control-lg: 32px; --control-xl: 40px;
+  --control-xs: 24px; --control-sm: 28px; --control-md: 32px; --control-lg: 36px; --control-xl: 44px;
+  /* layout */
+  --sidebar-width: 260px; --nav-item-height: 36px; --content-max: 1120px;
+  --card-padding: 24px; --grid-gap: 24px; --section-gap: 80px;
+  --table-row-height: 56px; --table-header-height: 44px; --menu-item-height: 36px;
   --radius-2xl: 12px; --radius-3xl: 16px; --radius-4xl: 20px; --radius-5xl: 24px; --radius-full: 9999px;
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
@@ -794,6 +817,8 @@ All buttons share one structure: flex, centered, medium weight, 13px text, no wr
 ## Appendix B: changes from the source
 
 Graphite keeps the Interfere token structure and values with these exceptions.
+
+- Density: Graphite runs one step roomier than the source. UI text is 14px instead of 13px and body is 16px instead of 15px. Captions move up one pixel, with 10px as the floor, and controls move up one step to 24, 28, 32, 36 and 44px. Table rows are 56px with sentence-case headers. Cards take 24px padding and 24px gaps, and page sections sit 80px apart. New layout tokens (`--sidebar-width`, `--card-padding`, `--grid-gap`, `--section-gap`, `--table-row-height`, `--table-header-height`, `--menu-item-height`, `--nav-item-height`, `--content-max`) and space steps 20 and 24 record these values.
 
 - Fonts: Berkeley Mono becomes Geist Mono, and Heldane Text becomes Newsreader. Both originals need paid licenses.
 - Light mode text contrast: brand, positive, warning and danger text move from alpha step 10 to step 11, and subtle-badge text moves from step 9 to step 11. Each now measures about 4.3 to 5.0:1. Dark mode already passed and keeps the original values.

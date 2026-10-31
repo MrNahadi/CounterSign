@@ -1,4 +1,4 @@
-/* Graphite tokens. Palette: Radix Colors (MIT). Light is the default theme; add class="dark" or data-theme="dark" on <html> for dark. */
+/* Graphite tokens. Palette: Radix Colors (MIT). Light is the default theme; add class="dark" or data-theme="dark" on <html> for dark. Comfortable density: 14px UI text, 32px default controls, 56px table rows. */
 :root, .light, [data-theme="light"] {
   color-scheme: light;
   /* gray */
@@ -116,27 +116,31 @@
   --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
   --font-pixel: "Departure Mono", var(--font-mono);
   --font-weight-regular: 400; --font-weight-semimedium: 450; --font-weight-medium: 500; --font-weight-semibold: 600;
-  --text-heading-1: 56px; --leading-heading-1: 56px;
+  --text-heading-1: 56px; --leading-heading-1: 60px;
   --text-heading-2: 44px; --leading-heading-2: 56px;
   --text-heading-3: 36px; --leading-heading-3: 44px;
   --text-heading-4: 28px; --leading-heading-4: 36px;
   --text-heading-5: 24px; --leading-heading-5: 32px;
   --text-heading-6: 20px; --leading-heading-6: 24px;
   --tracking-heading: -0.01em;
-  --text-body-lg: 18px; --leading-body-lg: 24px;
-  --text-body-base: 15px; --leading-body-base: 24px;
-  --text-body-sm: 13px; --leading-body-sm: 20px;
-  --text-caption-lg: 12px; --leading-caption-lg: 16px;
-  --text-caption-base: 11px; --leading-caption-base: 16px;
-  --text-caption-sm: 10px; --leading-caption-sm: 16px;
-  --text-caption-xs: 8px; --leading-caption-xs: 12px;
+  --text-body-lg: 18px; --leading-body-lg: 28px;
+  --text-body-base: 16px; --leading-body-base: 24px;
+  --text-body-sm: 14px; --leading-body-sm: 20px;
+  --text-caption-lg: 13px; --leading-caption-lg: 18px;
+  --text-caption-base: 12px; --leading-caption-base: 16px;
+  --text-caption-sm: 11px; --leading-caption-sm: 16px;
+  --text-caption-xs: 10px; --leading-caption-xs: 12px;
   --tracking-caption-upper: 0.05em;
-  --text-code-sm: 13px; --text-code-xs: 12px;
+  --text-code-sm: 13px; --leading-code-sm: 22px; --text-code-xs: 12px;
   /* space, radius, motion */
   --space: 4px;
-  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px; --space-20: 80px; --space-24: 96px;
   --radius-xs: 2px; --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 10px;
-  --control-xs: 20px; --control-sm: 24px; --control-md: 28px; --control-lg: 32px; --control-xl: 40px;
+  --control-xs: 24px; --control-sm: 28px; --control-md: 32px; --control-lg: 36px; --control-xl: 44px;
+  /* layout */
+  --sidebar-width: 260px; --nav-item-height: 36px; --content-max: 1120px;
+  --card-padding: 24px; --grid-gap: 24px; --section-gap: 80px;
+  --table-row-height: 56px; --table-header-height: 44px; --menu-item-height: 36px;
   --radius-2xl: 12px; --radius-3xl: 16px; --radius-4xl: 20px; --radius-5xl: 24px; --radius-full: 9999px;
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
