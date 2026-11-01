@@ -168,14 +168,14 @@ Notes:
 
 ## T-012: Resolve's scenario-file rules as a shared module
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: The `resolve` CLI's message-file loading lives in `scenario-file.ts`, and an unseeded sender says which order or buyer is missing.
 Test seam: `loadMessageFile` and `senderEmail` in `apps/resolve-agent/src/scenario-file.ts`; the CLI's existing tests
 Acceptance:
-- [ ] `test/resolve-cli.test.ts` passes unchanged and the CLI's output is unchanged
-- [ ] `senderEmail`'s not-seeded refusal carries `unseeded` "Order KIK-…", "Buyer A" or "Buyer B", or null for other errors, with today's sentence as `error`
+- [x] `test/resolve-cli.test.ts` passes unchanged and the CLI's output is unchanged
+- [x] `senderEmail`'s not-seeded refusal carries `unseeded` "Order KIK-…", "Buyer A" or "Buyer B", or null for other errors, with today's sentence as `error`
 Notes:
 - Item 13. Files: `apps/resolve-agent/src/{scenario-file,resolve-cli}.ts`, `apps/resolve-agent/test/scenario-file.test.ts`.
 
