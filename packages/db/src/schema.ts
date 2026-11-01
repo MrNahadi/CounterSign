@@ -262,3 +262,10 @@ export const disputeDrafts = pgTable(
 
 export type DisputeDraftRow = typeof disputeDrafts.$inferSelect;
 export type NewDisputeDraftRow = typeof disputeDrafts.$inferInsert;
+
+// How many runs and drafts the demo reset cleared, per UTC date of their `queued_at` (ADR 0042),
+// so a reset never raises the day's run cap. Only ever added to. Not hashed, no trigger.
+export const clearedRunCounts = pgTable("cleared_run_counts", {
+  utcDate: text("utc_date").primaryKey(),
+  runs: integer("runs").notNull(),
+});

@@ -20,16 +20,16 @@ Notes:
 
 ## T-002: Clearing the demo tables in `@countersign/db`
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: The database can lock, count and clear the demo's six tables in one transaction, carrying each date's run count into `cleared_run_counts`.
 Test seam: `@countersign/db`'s `lockDemoTables`, `countUnfinishedWork`, `clearDemoTables`, `countClearedRunsOnDate` and `runsQueuedSince`, on PGlite
 Acceptance:
-- [ ] Migration 0007 adds `cleared_run_counts`, named `0007_cleared_run_counts.sql` with the journal tag to match
-- [ ] `clearDemoTables` empties the six tables, leaves `seed_orders` and `carrier_shipments` untouched, and returns the old head and counts; it adds each UTC date's run and draft counts (every status, by `queued_at`), and clearing twice adds up (validation check 3)
-- [ ] `countUnfinishedWork` counts only `queued` and `running`, on a database or a transaction
-- [ ] `runsQueuedSince` compares as `timestamptz` with the 5-second margin; a run queued 4 s before counts and one queued 6 s before doesn't
+- [x] Migration 0007 adds `cleared_run_counts`, named `0007_cleared_run_counts.sql` with the journal tag to match
+- [x] `clearDemoTables` empties the six tables, leaves `seed_orders` and `carrier_shipments` untouched, and returns the old head and counts; it adds each UTC date's run and draft counts (every status, by `queued_at`), and clearing twice adds up (validation check 3)
+- [x] `countUnfinishedWork` counts only `queued` and `running`, on a database or a transaction
+- [x] `runsQueuedSince` compares as `timestamptz` with the 5-second margin; a run queued 4 s before counts and one queued 6 s before doesn't
 Notes:
 - Item 4. Files: `packages/db/src/{schema,demo-reset,index}.ts`, `packages/db/drizzle/0007_*` and its snapshot and journal, `packages/db/test/demo-reset.test.ts`.
 

@@ -7,4 +7,6 @@ Gotchas only, one line each.
 - The gate's `mountPairing` must come before `mountApprovals`, or `/approvals/:id` swallows `/approvals/pair` (T-011).
 - Baseline runs never write the audit log (ADR 0031), so the reset catches them by `queued_at`, not by log entries (T-008).
 - Every reset test moves the clock past the one-minute cooldown between resets (T-007, T-008, T-025).
+- T-002: `packages/db/src/demo-reset.ts` adds `lockDemoTables`, `countUnfinishedWork`, `clearDemoTables`, `countClearedRunsOnDate`, `runsQueuedSince` and migration 0007 (`cleared_run_counts`). `@countersign/db` now exports its own `Transaction` and `DemoReader` types; ledger's `Transaction` in `log.ts` is the same shape.
+- Drizzle's `db.execute` result isn't typed with `.rows` on the shared `Database` type; read with `select(...).from(sql\`...\`)` instead (T-002).
 - Right after a container restart, one `npm test` run failed 2 test files at load (no failing test); the next two runs passed. Rerun once before debugging.
