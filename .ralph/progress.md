@@ -11,3 +11,5 @@ Gotchas only, one line each.
 - Drizzle's `db.execute` result isn't typed with `.rows` on the shared `Database` type; read with `select(...).from(sql\`...\`)` instead (T-002).
 - Right after a container restart, one `npm test` run failed 2 test files at load (no failing test); the next two runs passed. Rerun once before debugging.
 - T-003: `demo.reset` is in `ENTRY_TYPES`, and `overDailyCap` adds `countClearedRunsOnDate`. The gate audit reader does not summarise `demo.reset` yet (T-009).
+- T-004: `syncDisputes(db, rail, { now, env, nudgeFetch? })` is in `apps/gate/src/dispute-sync.ts` (also exports `DISPUTE_PAGE_SIZE`); `ok: false` carries `error` plus the `lines` recorded before it stopped. `npm run lint` shows one pre-existing warning in `apps/resolve-agent/src/queue.ts` (void in a union); it exits 0.
+- T-001 is still `blocked-question` (`questions/open/T-001-npm-install-not-allowed.md`, unanswered); T-007 can't start until it is answered and done.

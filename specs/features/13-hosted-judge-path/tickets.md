@@ -48,14 +48,14 @@ Notes:
 
 ## T-004: Dispute sync as a shared function
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: The gate can sync disputes from code, and `npm run disputes -- sync` formats the same result exactly as before.
 Test seam: `syncDisputes(db, rail, deps)` in `apps/gate/src/dispute-sync.ts`; the disputes CLI's existing tests
 Acceptance:
-- [ ] `test/disputes-cli.test.ts` passes unchanged (validation check 6)
-- [ ] `syncDisputes` returns the counts and lines for a sync with recorded, already recorded and problem disputes, and `ok: false` with `error` for each of the three can't-run cases
+- [x] `test/disputes-cli.test.ts` passes unchanged (validation check 6)
+- [x] `syncDisputes` returns the counts and lines for a sync with recorded, already recorded and problem disputes, and `ok: false` with `error` for each of the three can't-run cases
 Notes:
 - Item 7. Files: `apps/gate/src/{dispute-sync,disputes-cli}.ts`, `apps/gate/test/dispute-sync.test.ts`.
 

@@ -16,7 +16,6 @@ import {
   takePgliteOption,
   targetName,
 } from "@countersign/db";
-import { withAuditLog } from "@countersign/ledger";
 import { formatMoney } from "@countersign/mandate";
 import {
   createPayPalClient,
@@ -28,8 +27,9 @@ import {
 } from "@countersign/rail-paypal";
 import { z } from "zod";
 import type { CliResult } from "./decide-cli";
-import { type DisputeState, disputeReceivedEntry, readDisputeState } from "./dispute-log";
-import { type NudgeFetch, nudgeResolve } from "./nudge";
+import { type DisputeState, readDisputeState } from "./dispute-log";
+import { DISPUTE_PAGE_SIZE, type DisputeSyncDeps, syncDisputes } from "./dispute-sync";
+import type { NudgeFetch } from "./nudge";
 
 export const DISPUTES_USAGE = [
   "Usage: npm run disputes -- <command> [--pglite <dir>]",
@@ -44,8 +44,7 @@ export const EXIT_OK = 0;
 export const EXIT_NEGATIVE = 1;
 export const EXIT_CANT_RUN = 2;
 
-// The largest page PayPal's dispute list answers.
-const PAGE_SIZE = 50;
+const PAGE_SIZE = DISPUTE_PAGE_SIZE;
 
 export type DisputesCliDeps = {
   // A rail client to use instead of one built from the environment, for tests. The environment's
@@ -143,82 +142,13 @@ async function readState(db: Database): Promise<LogRead> {
     : { ok: false, error: `The audit log has an entry that can't be read: ${read.detail}.` };
 }
 
-type SyncDeps = { now: () => Date; env: Environment; nudgeFetch?: NudgeFetch };
-
-async function sync(db: Database, rail: PayPalClient, deps: SyncDeps): Promise<CliResult> {
-  const before = await readState(db);
-  if (!before.ok) return cantRun(before.error);
-  let page: Awaited<ReturnType<PayPalClient["listMerchantDisputes"]>>;
-  try {
-    page = await rail.listMerchantDisputes({
-      pageSize: PAGE_SIZE,
-      disputeState: "REQUIRED_ACTION",
-    });
-  } catch (error) {
-    return cantRun(`Couldn't list the merchant's disputes: ${failure(error)}`);
+async function sync(db: Database, rail: PayPalClient, deps: DisputeSyncDeps): Promise<CliResult> {
+  const result = await syncDisputes(db, rail, deps);
+  if (!result.ok) {
+    // What was recorded before the sync stopped stays in the output.
+    return { ...output(EXIT_CANT_RUN, result.lines), stderr: cantRun(result.error).stderr };
   }
-
-  const lines: string[] = [];
-  let problems = 0;
-  for (const { id } of page.disputes) {
-    if (before.state.disputes.has(id)) {
-      lines.push(`Already recorded ${id}.`);
-      continue;
-    }
-    let dispute: PayPalDisputeDetail;
-    try {
-      dispute = await rail.getDispute(id);
-    } catch (error) {
-      problems += 1;
-      lines.push(`Couldn't re-read ${id}: ${failure(error)}`);
-      continue;
-    }
-    let entry: ReturnType<typeof disputeReceivedEntry>;
-    try {
-      entry = disputeReceivedEntry({ at: deps.now().toISOString(), source: "poll", dispute });
-    } catch {
-      problems += 1;
-      lines.push(`Couldn't record ${id}: PayPal's dispute doesn't fit a dispute.received entry.`);
-      continue;
-    }
-    // The dispute was read outside the lock; another run or a webhook may have logged it since.
-    const logged = await withAuditLog(db, async (log) => {
-      const again = await readDisputeState(log.tx);
-      if (!again.known) return "unknown" as const;
-      if (again.state.disputes.has(dispute.id)) return "skipped" as const;
-      await log.append(entry);
-      return "logged" as const;
-    });
-    if (logged === "unknown") {
-      // What was recorded before stays in the output.
-      return {
-        ...output(EXIT_CANT_RUN, lines),
-        stderr: `${id} wasn't recorded: the audit log has an entry that can't be read.\n`,
-      };
-    }
-    if (logged === "skipped") {
-      lines.push(`Already recorded ${id}.`);
-      continue;
-    }
-    const [capture] = dispute.captureIds;
-    lines.push(
-      capture === undefined
-        ? `Recorded dispute ${dispute.id} for ${formatMoney(dispute.amount)}. It names no capture.`
-        : `Recorded dispute ${dispute.id} on capture ${capture} for ${formatMoney(dispute.amount)}.`,
-    );
-    const nudged = await nudgeResolve(dispute.id, {
-      env: deps.env,
-      ...(deps.nudgeFetch ? { fetch: deps.nudgeFetch } : {}),
-    });
-    if (!nudged) {
-      lines.push(`Resolve wasn't reachable; run npm run resolve -- dispute ${dispute.id}.`);
-    }
-  }
-  if (page.disputes.length === 0) lines.push("No disputes are waiting for the seller.");
-  if (!page.complete) {
-    lines.push(`PayPal had more pages of disputes. Only the first ${PAGE_SIZE} were read.`);
-  }
-  return output(problems === 0 ? EXIT_OK : EXIT_NEGATIVE, lines);
+  return output(result.problems === 0 ? EXIT_OK : EXIT_NEGATIVE, result.lines);
 }
 
 async function list(db: Database, rail: PayPalClient): Promise<CliResult> {
