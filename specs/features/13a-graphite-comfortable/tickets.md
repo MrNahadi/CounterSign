@@ -103,15 +103,15 @@ Notes:
 
 ## T-007: The Decisions list
 
-Status: open
+Status: done
 Blocked by: T-005
 Tier: simple
 Slice: `/decisions` shows the chain card and a table card with a one-row toolbar, 44px headers and 56px rows.
 Test seam: `npm run ui:shots -- --only decisions`
 Acceptance:
-- [ ] `npm run ui:shots -- --only decisions` prints `0 failures`
-- [ ] `console-setup.test.ts` passes unchanged (the literal `overflow-x-auto` wrapper around the table)
-- [ ] `decisions/page.tsx` defines no `LINK`, `BUTTON`, `SECONDARY`, `HEAD`, `CELL` or `COLUMN`, and contains no `uppercase`
+- [x] `npm run ui:shots -- --only decisions` prints `0 failures`
+- [x] `console-setup.test.ts` passes unchanged (the literal `overflow-x-auto` wrapper around the table)
+- [x] `decisions/page.tsx` defines no `LINK`, `BUTTON`, `SECONDARY`, `HEAD`, `CELL` or `COLUMN`, and contains no `uppercase`
 Notes:
 - File: `apps/console/app/decisions/page.tsx` (design.md step 6). This is the first table card: later table tickets follow its shape.
 
