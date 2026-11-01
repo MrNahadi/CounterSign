@@ -275,9 +275,12 @@ export function densityChecks(input: DensityInput): Finding[] {
   }
 
   if (runs("overflow")) {
+    // The layout viewport, not `innerWidth`: on a mobile viewport Chromium zooms out to fit
+    // overflowing content, which grows `innerWidth` to the page's width and hides the overflow.
+    const view = document.documentElement.clientWidth;
     const scrollWidth = document.documentElement.scrollWidth;
-    if (scrollWidth > window.innerWidth) {
-      fail("overflow", `the page is ${scrollWidth}px wide in a ${window.innerWidth}px viewport`);
+    if (scrollWidth > view) {
+      fail("overflow", `the page is ${scrollWidth}px wide in a ${view}px viewport`);
     }
   }
 

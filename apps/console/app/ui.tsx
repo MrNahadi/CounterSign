@@ -1,5 +1,5 @@
 import { CircleAlert, LoaderCircle } from "lucide-react";
-import { type HTMLAttributes, type ReactNode, useId } from "react";
+import { Fragment, type HTMLAttributes, type ReactNode, useId } from "react";
 import {
   CARD,
   CARD_DESCRIPTION,
@@ -51,9 +51,26 @@ export function Badge({
   );
 }
 
+// A reason code or tool name wraps only after an underscore (a `<wbr>` there), or moves whole to
+// its own line; it breaks mid-word only when it can't fit a line by itself.
+function breakAtUnderscores(children: ReactNode): ReactNode {
+  if (typeof children !== "string" || !children.includes("_")) return children;
+  const parts = children.split("_");
+  return parts.map((part, i) =>
+    i < parts.length - 1 ? (
+      // biome-ignore lint/suspicious/noArrayIndexKey: the parts of one fixed string never reorder
+      <Fragment key={i}>
+        {part}_<wbr />
+      </Fragment>
+    ) : (
+      part
+    ),
+  );
+}
+
 export const Code = ({ children }: { children: ReactNode }) => (
-  <code className="rounded-sm bg-component px-1 py-0.5 font-mono text-code-sm leading-body-sm break-all">
-    {children}
+  <code className="rounded-sm bg-component px-1 py-0.5 font-mono text-code-sm leading-body-sm wrap-anywhere">
+    {breakAtUnderscores(children)}
   </code>
 );
 

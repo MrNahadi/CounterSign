@@ -148,12 +148,11 @@ function Row({ row }: { row: DecisionListRow }) {
         <Badge tone={row.decision.tone}>{row.decision.label}</Badge>
       </td>
       <td className={`${TD} min-w-64`}>
-        <span className="text-primary-foreground">{row.why.words}</span>
+        <span className="block text-primary-foreground">{row.why.words}</span>
         {row.why.code !== null ? (
-          <>
-            {" "}
+          <span className="mt-0.5 block">
             <Code>{row.why.code}</Code>
-          </>
+          </span>
         ) : null}
       </td>
       <td className={`${TD} whitespace-nowrap`}>

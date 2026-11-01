@@ -155,7 +155,7 @@ export function fixtures(now: Date): Fixtures {
         claim: "damaged",
         reasons: [
           {
-            code: "AMOUNT_OVER_LIMIT",
+            code: "ABOVE_AUTO_LIMIT",
             words: "The amount is over what Resolve may refund alone",
             detail: "$240.00 is above the $100.00 limit.",
           },
@@ -384,7 +384,7 @@ export function fixtures(now: Date): Fixtures {
         amount: usd(24_000),
         reasons: [
           {
-            code: "AMOUNT_OVER_LIMIT",
+            code: "ABOVE_AUTO_LIMIT",
             words: "The amount is over what Resolve may refund alone",
             detail: "$240.00 is above the $100.00 limit.",
           },
@@ -820,7 +820,7 @@ export function fixtures(now: Date): Fixtures {
                   decision: "pending_approval",
                   intent_id: heldIntent,
                   reasons: [
-                    { code: "AMOUNT_OVER_LIMIT", detail: "$240.00 is above the $100.00 limit." },
+                    { code: "ABOVE_AUTO_LIMIT", detail: "$240.00 is above the $100.00 limit." },
                   ],
                 }),
               ),

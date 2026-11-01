@@ -132,8 +132,10 @@ export const CARD_DESCRIPTION = "text-caption-lg text-secondary-foreground";
 // DESIGN.md Spacing: cards in a stack or grid 24px apart.
 export const STACK = "flex flex-col gap-(--grid-gap)";
 
-// DESIGN.md Table: a table card with a ring, clipped.
-export const TABLE_CARD = "flex flex-col overflow-hidden rounded-3xl bg-container shadow-border";
+// DESIGN.md Table: a table card with a ring, clipped. `relative` so a cell's `sr-only` text (an
+// absolute box) is clipped by the card instead of widening the page at phone width.
+export const TABLE_CARD =
+  "relative flex flex-col overflow-hidden rounded-3xl bg-container shadow-border";
 // DESIGN.md Spacing: the toolbar above a table, 14px by 20px padding, 12px gap.
 export const TOOLBAR =
   "flex flex-wrap items-center gap-3 border-b border-border-subtle px-5 py-3.5";
@@ -157,8 +159,9 @@ export const SUB_LINE = "mt-0.5 block text-caption-lg text-secondary-foreground"
 export const NUMBER = "text-right whitespace-nowrap tabular-nums";
 // DESIGN.md Table: IDs, hashes, types and refs in mono 13px, on the 14px text's line height.
 export const MONO = "font-mono text-code-sm leading-body-sm";
-// DESIGN.md Table: mono values that may break anywhere (hashes).
-export const MONO_BREAK = `${MONO} break-all`;
+// DESIGN.md Table: mono values (IDs, hashes) move whole to the next line, and break mid-value
+// only when they can't fit a line by themselves.
+export const MONO_BREAK = `${MONO} wrap-anywhere`;
 
 // DESIGN.md Spacing: main container padding, 32/16/64 below 900px and 48/56/96 from 900px.
 export const PAGE_PAD = "px-4 pt-8 pb-16 wide:px-14 wide:pt-12 wide:pb-24";
