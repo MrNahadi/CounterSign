@@ -325,15 +325,15 @@ Notes:
 
 ## T-023: The Render blueprint and its test
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: `render.yaml` describes the hosted demo, and a test checks its invariants.
 Test seam: `tests/render-blueprint.test.ts` over `render.yaml`
 Acceptance:
-- [ ] `render.yaml` is design item 22's file exactly; `yaml` 2.9.1 is a pinned root devDependency
-- [ ] The test checks every invariant in item 23: types, paid plans, `autoDeployTrigger: off`, references, hostports, the URL each start-command prefix sets, each service's variables (no `PAYPAL_*` on Resolve), the disk, and no secret-looking value (validation check 11)
-- [ ] Changing a start-command prefix to the wrong variable, or adding a `free` plan, makes the test fail
+- [x] `render.yaml` is design item 22's file exactly; `yaml` 2.9.1 is a pinned root devDependency
+- [x] The test checks every invariant in item 23: types, paid plans, `autoDeployTrigger: off`, references, hostports, the URL each start-command prefix sets, each service's variables (no `PAYPAL_*` on Resolve), the disk, and no secret-looking value (validation check 11)
+- [x] Changing a start-command prefix to the wrong variable, or adding a `free` plan, makes the test fail
 Notes:
 - Items 22 and 23. `yaml` 2.9.1 is already installed by the conductor. Files: `render.yaml`, `tests/render-blueprint.test.ts`, `package.json`, `package-lock.json`.
 
