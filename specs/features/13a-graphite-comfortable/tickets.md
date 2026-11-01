@@ -145,17 +145,18 @@ Notes:
 
 ## T-010: The inbox
 
-Status: open
+Status: done
 Blocked by: T-005
 Tier: standard
 Slice: `/inbox` has the comfortable header, a 360px thread list beside the thread, and a 28px-padded "Simulate a message" dialog.
 Test seam: `npm run ui:shots -- --only inbox,inbox-thread`
 Acceptance:
-- [ ] `npm run ui:shots -- --only inbox,inbox-thread` prints `0 failures`
-- [ ] `composer.test.ts`, `inbox-view.test.ts` and `console-setup.test.ts` pass unchanged
-- [ ] `inbox-header.tsx` defines no `BUTTON`, `PRIMARY`, `SECONDARY` or `FIELD`; the dialog uses `TEXTAREA` and large footer buttons
+- [x] `npm run ui:shots -- --only inbox,inbox-thread` prints `0 failures`
+- [x] `composer.test.ts`, `inbox-view.test.ts` and `console-setup.test.ts` pass unchanged
+- [x] `inbox-header.tsx` defines no `BUTTON`, `PRIMARY`, `SECONDARY` or `FIELD`; the dialog uses `TEXTAREA` and large footer buttons
 Notes:
 - Files: `apps/console/app/inbox/page.tsx`, `inbox-parts.tsx`, `inbox-header.tsx` (design.md step 9). Standard because the split pane loses its inner scroll and the dialog's bottom sheet must still work below 640px; the harness doesn't open the dialog, so open it once in a phone-width shot by hand and note the result here.
+- Dialog checked by hand (temporary click in `shoot.ts`, reverted): at 390px it's a bottom sheet anchored to the bottom edge with 16px top corners, the 32 by 4px handle, 28px padding, and every field and the Cancel / Send message footer in view; the scoped `hit-target` and `small-text` checks on the open dialog found nothing. At 1440px (dark) it's a centred 512px dialog.
 
 ## T-011: The customer chat
 
