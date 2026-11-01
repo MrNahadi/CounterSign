@@ -235,7 +235,7 @@ The audit-log `approval` entry for one tap on a card: approved, denied, or rejec
 _Avoid_: approval event, response
 
 **Approver key**:
-The secret the merchant signs in to the approvals page with, `COUNTERSIGN_APPROVER_KEY`. It lets its holder answer step-ups and nothing else, and it's never a principal key.
+The secret the merchant signs in to the console with, `COUNTERSIGN_APPROVER_KEY`. It opens step-ups, the inbox and customer chat, the scenario launcher (including a baseline launch), phone pairing and the demo reset. It never works on `/mcp`, and it's never a principal key. The gate alone checks it, and it never goes to Resolve.
 _Avoid_: admin password, merchant token
 
 **Executor**:
@@ -361,7 +361,7 @@ The demo shop page that creates real sandbox orders for Kikapu Studio.
 _Avoid_: checkout app
 
 **Seed state**:
-The known starting data (orders, trackers, receipts, tickets) that a demo reset restores.
+The known starting data that a demo reset restores: the 30 seeded orders, their trackers and carrier records. The inbox starts empty, and the three scenario files are its tickets. M-Pesa receipts join the seed in phase 18.
 _Avoid_: fixtures (reserved for tests), sample data
 
 **Seed catalog**:
@@ -377,7 +377,7 @@ One of the two vaulted sandbox buyer accounts (A and B) that pay for seeded orde
 _Avoid_: test user, customer
 
 **Demo reset**:
-Restoring the hosted demo to its seed state: the audit log, tickets, runs, drafts and evidence documents are cleared, the log restarts with a `demo.reset` entry naming where the old one ended, and only the seeded orders whose captures changed are replaced. It runs only on a database flagged as a demo, and never resets the day's run cap.
+Restoring the hosted demo to its seed state. It replaces the seeded orders whose captures changed, or have execution history, before it clears anything. Then the audit log, tickets, runs, drafts and evidence documents are cleared, and the log restarts with a `demo.reset` entry naming where the old one ended. It runs only when the gate has `COUNTERSIGN_DEMO_RESET=on`, only for the approver key, and never resets the day's run cap.
 _Avoid_: wipe, purge, factory reset
 
 **Start page**:

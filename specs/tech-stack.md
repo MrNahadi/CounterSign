@@ -42,6 +42,7 @@ Pin exact versions with no `^` or `~`. The build loop can't install packages. Si
 | @biomejs/biome | 2.5.15 | root |
 | vitest | 4.1.12 | root |
 | @playwright/test | 1.64.1 | root |
+| yaml | 2.9.1 | root, devDependency (the `render.yaml` blueprint test only) |
 
 Next.js and React stay on versions with the October 2026 security fixes (ADR 0010). Check for Next.js security releases weekly until 22 Dec.
 
@@ -63,6 +64,8 @@ packages/
   db/                   Drizzle schema (audit_log, carrier_shipments, seed_orders, tickets from phase 7 (ADR 0029), and tickets.thread_id, ticket_attachments and agent_runs from phase 8 (ADR 0030), and evidence_documents and dispute_drafts from phase 11 (ADR 0035)), migrations (with the append-only trigger), postgres.js and PGlite clients
   graphite/             Graphite tokens (byte-identical copy), Tailwind theme, AG Studio theme
   carrier-mock/         Carrier adapter interface, and the mock over carrier_shipments (stored status, never derived from the clock; ADR 0023)
+  seed/                 `@countersign/seed` (phase 13): the product and seed catalogs, the seed run, run IDs and the vault-token reader, shared by the storefront's `npm run seed` and the gate's demo reset; no AI SDK
+render.yaml             The Render blueprint (phase 13, ADR 0041): the only deploy config, no secrets in it
 bench/                  cases/, runner, results/ (committed, dated)
 docs/                   adr/, spikes.md, validation.md, threat model, architecture, judge guide
 Graphite Design/        The design system source (DESIGN.md, graphite-tokens.css). App work never edits DESIGN.md or graphite-tokens.css (the owner's); it may align the other files with DESIGN.md (ADR 0045)
@@ -123,6 +126,13 @@ specs/                  Brief, constitution, feature specs
 - Protected and baseline modes differ only in the MCP transport. The system instruction is a byte-stable constant, and a test pins that both modes send the same instruction, config and user turn. The one local tool is `find_order` (the shop's order book over `seed_orders`; never the payer's email).
 - Runs execute one at a time per process, with at most 8 model calls and 12 tool calls. A run is retried (once, on the fallback model) only if it ended `model_unavailable` before any tool call; interrupted runs are marked failed, never rerun. `RESOLVE_DAILY_RUN_CAP` (default 200 per UTC day) bounds AI calls until phase 15's limits.
 - Baseline mode mints a fresh sandbox token per run through `@countersign/rail-paypal` and spawns `@paypal/mcp` from `apps/baseline-paypal-mcp` with `process.execPath`; nothing imports the toolkit.
+- Hosted (from phase 13, ADRs 0043 and 0044): every console route to Resolve needs the approver sign-in, checked with the gate first (`withSignIn`), and the key never goes to Resolve. `RESOLVE_BASELINE` is `on` (default), `scenarios` or `off`; any other value counts as `off`. `POST /scenarios/:id` starts the three demo scenarios from `scenarios/`. On Render, Resolve holds no PayPal credential: the gate's `POST /baseline/launch` mints one sandbox token per launch and sends it with the scenario. Resolve keeps it in memory for that run and its one fallback rerun, and fails the run closed if 60 seconds or less of its life is left. The daily cap also counts runs cleared by a reset.
+
+**Demo reset** (from phase 13, ADRs 0042, 0044 and 0046)
+- `POST /demo/reset` exists only when the gate has `COUNTERSIGN_DEMO_RESET` exactly `on`, and takes only the approver key. There is no reset CLI.
+- Order of work: checks that need no lock (database, PayPal, vault tokens, then busy work), the order check, one seed run for the orders to replace, then one audit-log transaction that locks the demo tables, checks again, clears them and appends `demo.reset`. Nothing is cleared unless every replacement exists and the transaction commits. The dispute sync runs after the commit.
+- It refuses (409) while a run or draft is queued or running, while an `execution.requested` from the last 10 minutes has no result (or can't be read), and for one minute after a reset. The `cleared_run_counts` table keeps the run cap across resets; today's usage for the mandate's limits restarts with the log.
+- Every request the rail client makes times out after 30 seconds, so an execution always ends inside the reset's 10-minute window.
 
 **Approvals** (from phase 9, ADRs 0032 and 0033)
 - A step-up is a `decision` entry with decision `step_up`; its ID is the entry's `seq`, and open, answered and expired are worked out from the log and the clock, never stored. Every answer, rejections included, is an `approval` entry.
@@ -156,7 +166,9 @@ specs/                  Brief, constitution, feature specs
 - Load env with `tsx --env-file-if-exists=.env.local`, so scripts also run in cloud sessions, where the environment holds the values and there's no `.env.local`. Never print, log or commit a secret, `DATABASE_URL` included.
 - Principal keys (from phase 7) are environment variables, one per principal: `COUNTERSIGN_SUPPORT_AGENT_KEY` now, `COUNTERSIGN_OPS_AGENT_KEY` from phase 12. A key shorter than 32 characters counts as unset. The gate and Resolve read the same variable.
 - Service addresses (from phase 8): `GATE_MCP_URL` (Resolve's way to the gate, default `http://127.0.0.1:8787/mcp`) and `RESOLVE_AGENT_URL` (the console's way to Resolve, default `http://127.0.0.1:8788`). From phase 9: `GATE_URL` (the console's way to the gate's approval API, default `http://127.0.0.1:8787`) and `CONSOLE_PUBLIC_URL` (optional, the address the QR code points at). From phase 11 the gate also reads `RESOLVE_AGENT_URL` (for the dispute nudge). `PAYPAL_LIVE_DISPUTE_ID` (optional) names a sandbox dispute for phase 11's `LIVE=1` check, and `PAYPAL_LIVE_PAYEE_EMAIL` (optional) a sandbox personal account for phase 12's live payout check, so it ends `SUCCESS` rather than `UNCLAIMED`.
-- The approver key (from phase 9) is `COUNTERSIGN_APPROVER_KEY`, read by the gate only. Under 32 characters, or equal to a principal key, it counts as unset.
+- The approver key (from phase 9) is `COUNTERSIGN_APPROVER_KEY`, read by the gate only. Under 32 characters, or equal to a principal key, it counts as unset. From phase 13 it also opens the inbox and chat, the scenario launcher, the baseline launch, phone pairing and the demo reset.
+- Phase 13 adds `COUNTERSIGN_DEMO_RESET` (gate, `on` enables the reset), `RESOLVE_BASELINE` (Resolve), `STOREFRONT_URL` (console, optional) and `CONSOLE_PUBLIC_URL` on Render. The gate also reads `PAYPAL_SEED_VAULT_TOKEN` and `PAYPAL_SEED_VAULT_TOKEN_B` for the reset. On Render, only the gate, the storefront and the cron job hold PayPal credentials, and only Resolve holds `GEMINI_API_KEY`.
+- The console (from phase 13) sets a random `countersign_session` cookie at sign-in, by key or by phone pairing. In any 10 minutes a session may start 12 runs and 3 resets, and past that the console answers 429. Pairing codes (single-use, 5 minutes) and the limits live in memory, so the gate and the console stay at one instance.
 - Unit tests never need credentials. Tests that hit live sandboxes run only under `LIVE=1` and are not part of the Feedback commands.
 
 **Git**
@@ -176,8 +188,10 @@ Each runs from the repo root and must pass on a clean checkout. All four have pa
 
 ## Hosting (Render)
 
-- **Web services:** gate, resolve-agent, console and storefront, all on paid plans from creation.
-- **Database:** Postgres 18 on a paid plan. Migrations run as the pre-deploy command.
-- **Cron jobs:** reconciliation and the daily hosted smoke test.
+- **Blueprint:** `render.yaml` at the repo root (ADRs 0041 and 0044). `tests/render-blueprint.test.ts` pins its invariants. Steps for the owner are in `docs/hosting.md`.
+- **Services:** the gate, console and storefront are public web services. Resolve is a private service, reached only by the other services over Render's private network through `*_HOSTPORT`. All are on paid plans from creation, at one instance, with `autoDeployTrigger: off`, so deploys are manual.
+- **Database:** Postgres 18 on a paid plan, `ipAllowList: []`, 5 GB disk. Migrations run as the gate's pre-deploy command.
+- **Cron jobs:** reconciliation and dispute sync every 10 minutes (it fails when either fails); the daily hosted smoke test comes in phase 19.
+- **Secrets:** nothing secret is in the file. Render generates the three Countersign keys on the gate; every other secret is `sync: false`.
 - Each service binds to `0.0.0.0` and reads `PORT`.
 - Render installs Node from `.node-version`. Spike S7 confirms it picks 26.x; if not, fall back to 24 (ADR 0008).

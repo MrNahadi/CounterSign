@@ -339,15 +339,15 @@ Notes:
 
 ## T-024: Hosting docs, the judge guide and the glossary
 
-Status: open
+Status: done
 Blocked by: T-023
 Tier: simple
 Slice: The owner can deploy from `docs/hosting.md`, judges have a guide to lift into the README, and the glossary and tech stack match the build.
 Test seam: `npm run lint` and the docs' links (no code)
 Acceptance:
-- [ ] `docs/hosting.md` covers every step in item 24, including manual deploys, `CONSOLE_PUBLIC_URL`, one dispute per judge and rotating the approver key
-- [ ] `docs/judge-guide.md` has the five steps, where each credential is, phone pairing with its paste fallback, and what's real and simulated
-- [ ] `CONTEXT.md`'s Approver key, Seed state and Demo reset entries, and `specs/tech-stack.md`, say what item 24 lists
+- [x] `docs/hosting.md` covers every step in item 24, including manual deploys, `CONSOLE_PUBLIC_URL`, one dispute per judge and rotating the approver key
+- [x] `docs/judge-guide.md` has the five steps, where each credential is, phone pairing with its paste fallback, and what's real and simulated
+- [x] `CONTEXT.md`'s Approver key, Seed state and Demo reset entries, and `specs/tech-stack.md`, say what item 24 lists
 Notes:
 - Item 24. Copy by `Graphite Design/brand-book.md`. Files: `docs/{hosting,judge-guide}.md`, `CONTEXT.md`, `specs/tech-stack.md`.
 
