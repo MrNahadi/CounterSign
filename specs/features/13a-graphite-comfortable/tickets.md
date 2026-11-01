@@ -89,15 +89,15 @@ Notes:
 
 ## T-006: Approvals and the shared sign-in
 
-Status: open
+Status: done
 Blocked by: T-005
 Tier: simple
 Slice: The phone approvals page and the sign-in every console page shares are rebuilt on the recipes, with 44px Approve, Deny and Sign in.
 Test seam: `CONTROL_CLASSES` through `approvals-view.test.ts`; `npm run ui:shots -- --only approvals,approvals-signed-out`
 Acceptance:
-- [ ] `approvals-view.test.ts` expects Approve and Deny at 44px, every control at least 28px, and allows `./controls`; it passes, and no other assertion in it changed
-- [ ] `npm run ui:shots -- --only approvals,approvals-signed-out` prints `0 failures`
-- [ ] `approvals-board.tsx` and `sign-in.tsx` define no `BUTTON`, `PRIMARY`, `SECONDARY` or `COLUMN`, and `SIGN_IN_COLUMN` is gone
+- [x] `approvals-view.test.ts` expects Approve and Deny at 44px, every control at least 28px, and allows `./controls`; it passes, and no other assertion in it changed
+- [x] `npm run ui:shots -- --only approvals,approvals-signed-out` prints `0 failures`
+- [x] `approvals-board.tsx` and `sign-in.tsx` define no `BUTTON`, `PRIMARY`, `SECONDARY` or `COLUMN`, and `SIGN_IN_COLUMN` is gone
 Notes:
 - Files: `apps/console/src/approvals-view.ts`, `apps/console/test/approvals-view.test.ts`, `apps/console/app/approvals/approvals-board.tsx`, `apps/console/app/sign-in.tsx`; check `approvals/page.tsx` (design.md step 5).
 
