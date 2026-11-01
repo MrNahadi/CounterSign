@@ -228,15 +228,15 @@ Notes:
 
 ## T-016: `bundle.css` and the component previews
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: The reference stylesheet and its previews render the comfortable sizes.
 Test seam: text searches in validation.md check 7, and the design check's raw-hex rule applied to the diff
 Acceptance:
-- [ ] Every item under requirements.md's `components/bundle.css` and `components/*/preview.html` headings is applied, using `var(--menu-item-height)`, `var(--table-row-height)`, `var(--table-header-height)` and `var(--card-padding)` where named
-- [ ] `.gr-kbd-sm`, `.gr-table td .gr-sub` and `.gr-command-footer` exist; `.gr-avatar-24` is renamed `.gr-avatar-28` in the CSS and in every preview
-- [ ] The diff adds no raw hex colour, and no table header rule sets `text-transform: uppercase`
+- [x] Every item under requirements.md's `components/bundle.css` and `components/*/preview.html` headings is applied, using `var(--menu-item-height)`, `var(--table-row-height)`, `var(--table-header-height)` and `var(--card-padding)` where named
+- [x] `.gr-kbd-sm`, `.gr-table td .gr-sub` and `.gr-command-footer` exist; `.gr-avatar-24` is renamed `.gr-avatar-28` in the CSS and in every preview
+- [x] The diff adds no raw hex colour, and no table header rule sets `text-transform: uppercase`
 Notes:
 - Files: `Graphite Design/components/bundle.css` and the `preview.html` files the search in design.md step 14 finds.
 
