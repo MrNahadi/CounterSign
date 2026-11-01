@@ -1,5 +1,7 @@
 import { encode } from "uqr";
 import { z } from "zod";
+import { type ApprovalDeps, callGate, readJson } from "./approval-routes";
+import { PairingCodeAnswerSchema } from "./approval-schemas";
 
 // The "Open on your phone" QR code (phase 9): the approvals URL and the SVG rects drawn from
 // `uqr`'s module matrix. The page draws them with token classes, so no colour value lives here.
@@ -30,6 +32,24 @@ export function approvalsUrl(input: {
     return `${url.origin}${url.pathname.replace(/\/+$/, "")}/approvals`;
   }
   return null;
+}
+
+export const PAIRING_CODES_PATH = "/approvals/pairing-codes";
+
+/**
+ * The start page's phone link (ADR 0044): `url` plus `#pair=<code>` when the gate, asked with the
+ * approver key, mints a pairing code (exactly 201 with a parsed code). Any other answer, or no
+ * answer, gives the plain `url`, and the phone signs in with the key.
+ */
+export async function pairedApprovalsUrl(
+  url: string,
+  key: string,
+  deps: ApprovalDeps,
+): Promise<string> {
+  const response = await callGate(deps, key, PAIRING_CODES_PATH, { json: "{}" });
+  if (response?.status !== 201) return url;
+  const minted = await readJson(response, PairingCodeAnswerSchema);
+  return minted === null ? url : `${url}#pair=${encodeURIComponent(minted.code)}`;
 }
 
 /** The request's origin from its forwarding headers; Render terminates TLS in front of the app. */

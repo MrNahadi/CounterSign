@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { approverKeyFromHeader } from "../src/approval-routes";
 import { CARD_GAP, DESCRIPTION, LINK, STACK } from "../src/controls";
-import { approvalsUrl, qrView, requestOrigin } from "../src/qr-view";
+import { approvalsUrl, pairedApprovalsUrl, qrView, requestOrigin } from "../src/qr-view";
 import { inboxAccess } from "../src/resolve-routes";
 import { SCENARIO_CARDS, START_COPY, storefrontLink } from "../src/start-view";
 import { ConsoleShell } from "./console-shell";
@@ -78,10 +78,15 @@ export default async function StartPage() {
       />
     );
   } else {
-    const url = approvalsUrl({
+    const plain = approvalsUrl({
       publicUrl: process.env.CONSOLE_PUBLIC_URL,
       origin: requestOrigin(requestHeaders),
     });
+    // A fresh pairing code in the fragment signs the phone in (ADR 0044); else the plain URL.
+    const url =
+      plain === null || key === null
+        ? plain
+        : await pairedApprovalsUrl(plain, key, { env: process.env });
     const qr = url === null ? null : qrView(url);
     rest = (
       <>

@@ -311,15 +311,15 @@ Notes:
 
 ## T-022: The phone code signs the phone in
 
-Status: open
+Status: done
 Blocked by: T-018, T-021
 Tier: standard
 Slice: The start page's QR code carries a fresh pairing code, and the approvals page trades it and shows the cards signed in.
 Test seam: the start page's QR URL builder; `pair-from-link.tsx`'s exchange through `/api/approvals/pair` (a component test with a fake fetch)
 Acceptance:
-- [ ] The QR URL carries `#pair=<code>` only when the gate's POST answers exactly 201 with a parsed code; otherwise it's the plain `/approvals` URL
-- [ ] On the approvals page, a `#pair=` fragment is removed from the address bar and posted once; a 200 refreshes the page; a 401 shows the gate's sentence above the sign-in with `role="alert"`; no fragment renders nothing
-- [ ] The design check passes on every changed file
+- [x] The QR URL carries `#pair=<code>` only when the gate's POST answers exactly 201 with a parsed code; otherwise it's the plain `/approvals` URL
+- [x] On the approvals page, a `#pair=` fragment is removed from the address bar and posted once; a 200 refreshes the page; a 401 shows the gate's sentence above the sign-in with `role="alert"`; no fragment renders nothing
+- [x] The design check passes on every changed file
 Notes:
 - Item 21 (pairing parts). UI: follow `Graphite Design/DESIGN.md`, reuse `apps/console/app/ui.tsx` primitives, hard-code no density values. Files: `apps/console/app/page.tsx`, `apps/console/app/approvals/{page,pair-from-link}.tsx`, `apps/console/test/pair-from-link.test.tsx`.
 

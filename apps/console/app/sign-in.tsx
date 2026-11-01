@@ -2,9 +2,9 @@
 
 import { LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useId, useState } from "react";
+import { type FormEvent, type ReactNode, useId, useState } from "react";
 import { APPROVALS_COPY, CONTROL_CLASSES, signIn } from "../src/approvals-view";
-import { FIELD, FIELD_ERROR, FORM, ICON, LABEL, STROKE } from "../src/controls";
+import { FIELD, FIELD_ERROR, FORM, ICON, LABEL, STACK, STROKE } from "../src/controls";
 import { Page, PageHeader, Spinner } from "./ui";
 
 // The approver sign-in (ADR 0032), shared by every page the approvals cookie opens: the
@@ -16,6 +16,7 @@ export function SignIn({
   line,
   message,
   level = 1,
+  before,
 }: {
   title: string;
   line: string;
@@ -23,6 +24,8 @@ export function SignIn({
   message: string | null;
   // 1 is a page of its own; 2 sits inside a page that has its own title (the start page).
   level?: 1 | 2;
+  // Shown above the title, such as a refused phone pairing code.
+  before?: ReactNode;
 }) {
   const router = useRouter();
   const id = useId();
@@ -45,7 +48,7 @@ export function SignIn({
     router.refresh();
   }
 
-  const form = (
+  const fields = (
     <>
       <PageHeader as={level === 1 ? "h1" : "h2"} title={title} description={line} />
       <form noValidate onSubmit={submit} className={`${FORM} max-w-sm`}>
@@ -86,5 +89,14 @@ export function SignIn({
       </form>
     </>
   );
+  const form =
+    before === undefined ? (
+      fields
+    ) : (
+      <div className={STACK}>
+        {before}
+        <div className="flex flex-col">{fields}</div>
+      </div>
+    );
   return level === 1 ? <Page width="form">{form}</Page> : <section>{form}</section>;
 }

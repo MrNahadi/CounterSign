@@ -11,9 +11,12 @@ import { approvalsUrl, qrView, requestOrigin } from "../../src/qr-view";
 import { ConsoleShell } from "../console-shell";
 import { SignIn } from "../sign-in";
 import { ApprovalsBoard } from "./approvals-board";
+import { PairFromLink } from "./pair-from-link";
 
 // The approvals page (ADR 0032): read from the gate on the server with the approver's cookie, at
-// each render. The board re-renders it every 3 seconds while it's open.
+// each render. The board re-renders it every 3 seconds while it's open. In every state,
+// `PairFromLink` trades a phone pairing code from the start page's QR link (ADR 0044); a refused
+// code shows above the sign-in.
 
 export const metadata: Metadata = { title: "Approvals · Countersign console" };
 export const dynamic = "force-dynamic";
@@ -24,7 +27,12 @@ export default async function ApprovalsPage() {
   if (key === null) {
     return (
       <ConsoleShell openApprovals={null}>
-        <SignIn title="Approvals" line={APPROVALS_COPY.signInLine} message={null} />
+        <SignIn
+          before={<PairFromLink />}
+          title="Approvals"
+          line={APPROVALS_COPY.signInLine}
+          message={null}
+        />
       </ConsoleShell>
     );
   }
@@ -33,6 +41,7 @@ export default async function ApprovalsPage() {
     return (
       <ConsoleShell openApprovals={null}>
         <SignIn
+          before={<PairFromLink />}
           title="Approvals"
           line={APPROVALS_COPY.signInLine}
           message={APPROVAL_ROUTE_MESSAGES.signInAgain}
@@ -43,6 +52,7 @@ export default async function ApprovalsPage() {
   if (!answer.ok) {
     return (
       <ConsoleShell openApprovals={null}>
+        <PairFromLink quiet />
         <ApprovalsBoard view={null} problem={answer.message} />
       </ConsoleShell>
     );
@@ -55,6 +65,8 @@ export default async function ApprovalsPage() {
   const view = pageView(answer.value, new Date());
   return (
     <ConsoleShell openApprovals={view.openCount}>
+      {/* Already signed in: a code is still dropped from the address bar and traded, quietly. */}
+      <PairFromLink quiet />
       <ApprovalsBoard view={view} problem={null} qr={qr} />
     </ConsoleShell>
   );
