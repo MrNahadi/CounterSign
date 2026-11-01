@@ -253,16 +253,16 @@ Notes:
 
 ## T-018: Session limits and the console's pairing route
 
-Status: open
+Status: done
 Blocked by: T-011, T-016
 Tier: standard
 Slice: Signing in starts a rate-limited session, and a phone can trade a pairing code for the sign-in.
 Test seam: `limitSession`, `signInRoute`, `signOutRoute` and `pairRoute`
 Acceptance:
-- [ ] Sign-in sets the approver and session cookies, and sign-out clears both
-- [ ] The 13th run or 4th reset in 10 minutes from one session gives 429 with its sentence; another session isn't affected; no session cookie gives 401 "Sign in again." with the key cookie cleared
-- [ ] The pair route sets both cookies on a gate 200, never answers the key, and passes the gate's 401 sentence; a gate failure is 502
-- [ ] `callGate` with a null key sends no `authorization` header
+- [x] Sign-in sets the approver and session cookies, and sign-out clears both
+- [x] The 13th run or 4th reset in 10 minutes from one session gives 429 with its sentence; another session isn't affected; no session cookie gives 401 "Sign in again." with the key cookie cleared
+- [x] The pair route sets both cookies on a gate 200, never answers the key, and passes the gate's 401 sentence; a gate failure is 502
+- [x] `callGate` with a null key sends no `authorization` header
 Notes:
 - Item 19a. Files: `apps/console/src/{session-limits,approval-routes}.ts`, `apps/console/app/api/approvals/pair/route.ts`, `apps/console/test/{session-limits,pair-route}.test.ts`.
 

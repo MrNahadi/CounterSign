@@ -14,6 +14,10 @@ export const ApproverKeySchema = z.string().regex(/^[\x21-\x7e]{32,512}$/);
 
 export const SignInRequestSchema = z.strictObject({ key: z.string().max(1024) });
 
+// Phone pairing (ADR 0044): the code from the QR link's fragment, and the gate's answer to it.
+export const PairRequestSchema = z.strictObject({ code: z.string().min(1).max(64) });
+export const PairAnswerSchema = z.object({ approver_key: ApproverKeySchema });
+
 export const APPROVAL_ANSWERS = ["approve", "deny"] as const;
 export const AnswerRequestSchema = z.strictObject({
   answer: z.enum(APPROVAL_ANSWERS),

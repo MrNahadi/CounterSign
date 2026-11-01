@@ -14,6 +14,7 @@ import {
   signOutRoute,
   withSignIn,
 } from "../src/approval-routes";
+import { SESSION_COOKIE } from "../src/session-limits";
 
 // The console's approval routes and the approver login, with the gate played by an injected fetch.
 
@@ -224,9 +225,14 @@ describe("signing in", () => {
     expect(fake.calls[0]?.init.method).toBe("GET");
     expect(fake.calls[0]?.init.redirect).toBe("error");
     expect(bearer(fake.calls[0] as Call)).toBe(`Bearer ${KEY}`);
-    const cookie = response.headers.get("set-cookie") ?? "";
+    const [cookie, session] = response.headers.getSetCookie();
     expect(cookie).toBe(
       `${APPROVER_COOKIE}=${encodeURIComponent(KEY)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200`,
+    );
+    expect(session).toMatch(
+      new RegExp(
+        `^${SESSION_COOKIE}=[A-Za-z0-9_-]{22}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200$`,
+      ),
     );
     expect(await response.json()).toEqual({ signed_in: true });
   });
@@ -241,7 +247,9 @@ describe("signing in", () => {
         }),
         { env, fetch: gate(200, view).fetch },
       );
-      expect(response.headers.get("set-cookie")).toMatch(/; Secure$/);
+      const cookies = response.headers.getSetCookie();
+      expect(cookies).toHaveLength(2);
+      for (const cookie of cookies) expect(cookie).toMatch(/; Secure$/);
     }
   });
 
@@ -305,14 +313,27 @@ describe("signing in", () => {
     }
   });
 
-  it("signs out by clearing the cookie", async () => {
+  it("starts a new session on each sign-in", async () => {
+    const sessions = new Set<string>();
+    for (let i = 0; i < 3; i += 1) {
+      const response = await signInRoute(
+        request("/api/approvals/session", { method: "POST", body: JSON.stringify({ key: KEY }) }),
+        { env, fetch: gate(200, view).fetch },
+      );
+      sessions.add(response.headers.getSetCookie()[1]?.split(";")[0] ?? "");
+    }
+    expect(sessions.size).toBe(3);
+  });
+
+  it("signs out by clearing the key and session cookies", async () => {
     const response = signOutRoute(
       request("/api/approvals/session", { method: "DELETE", cookie: signedIn }),
     );
     expect(response.status).toBe(200);
-    expect(response.headers.get("set-cookie")).toBe(
+    expect(response.headers.getSetCookie()).toEqual([
       `${APPROVER_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`,
-    );
+      `${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`,
+    ]);
   });
 });
 
@@ -687,11 +708,21 @@ describe("the approver key stays secret", () => {
   });
 
   it("keeps the routes free of server-only imports and logging, so a client component can import them", () => {
-    for (const path of ["../src/approval-routes.ts", "../src/approval-schemas.ts"]) {
+    for (const path of [
+      "../src/approval-routes.ts",
+      "../src/approval-schemas.ts",
+      "../src/session-limits.ts",
+    ]) {
       const source = readFileSync(new URL(path, import.meta.url), "utf8");
       const imports = [...source.matchAll(/from "([^"]+)"/g)].map((match) => match[1]);
       for (const name of imports)
-        expect(["zod", "./approval-schemas", "./audit-schemas"]).toContain(name);
+        expect([
+          "zod",
+          "./approval-schemas",
+          "./audit-schemas",
+          "./approval-routes",
+          "./session-limits",
+        ]).toContain(name);
       expect(source).not.toMatch(/console\.|process\.env|server-only/);
     }
   });

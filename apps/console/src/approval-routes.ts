@@ -10,9 +10,12 @@ import {
   CardSchema,
   DocumentIdSchema,
   GateMessageSchema,
+  PairAnswerSchema,
+  PairRequestSchema,
   SignInRequestSchema,
   StepUpIdSchema,
 } from "./approval-schemas";
+import { clearSessionCookie, newSessionCookie } from "./session-limits";
 
 // The console's way to the gate's approval API (ADR 0032): server code only, at `GATE_URL`. The
 // approver types the key once; it lives in an HttpOnly, SameSite=Strict cookie and is sent to the
@@ -25,6 +28,7 @@ export const APPROVER_COOKIE = "countersign_approver";
 export const APPROVER_COOKIE_MAX_AGE = 12 * 60 * 60;
 export const REQUEST_TIMEOUT_MS = 10_000;
 export const MAX_BODY_BYTES = 16 * 1024;
+export const PAIR_BODY_BYTES = 1024;
 
 export const APPROVAL_ROUTE_MESSAGES = {
   wrongKey: "That key isn't right.",
@@ -32,6 +36,7 @@ export const APPROVAL_ROUTE_MESSAGES = {
   signedOut: "Sign in with the approver key.",
   unreachable: "The gate isn't reachable. Start it, then try again.",
   badSignIn: "Send JSON with the approver key.",
+  badPair: "Send JSON with the pairing code.",
   badAnswer: "Send JSON with answer (approve or deny) and intent_hash.",
   noStepUp: "There's no step-up with that ID.",
   badDocument: "That isn't an evidence document ID.",
@@ -126,18 +131,17 @@ const clearCookie = (request: Request) => cookie(request, "", 0);
 
 // --- Calling the gate ----------------------------------------------------------------------
 
+/** Calls the gate with `key` as the bearer, or with no `authorization` header when it's null. */
 export async function callGate(
   deps: ApprovalDeps,
-  key: string,
+  key: string | null,
   path: string,
   post?: { json: string },
 ): Promise<Response | null> {
   const base = gateUrl(deps.env);
   if (base === null) return null;
-  const headers: Record<string, string> = {
-    accept: "application/json",
-    authorization: `Bearer ${key}`,
-  };
+  const headers: Record<string, string> = { accept: "application/json" };
+  if (key !== null) headers.authorization = `Bearer ${key}`;
   if (post !== undefined) headers["content-type"] = "application/json";
   try {
     return await (deps.fetch ?? fetch)(new URL(path, base), {
@@ -276,9 +280,14 @@ export async function sendAnswer(
 
 // --- Route handlers ------------------------------------------------------------------------
 
-function json(status: number, body: unknown, setCookieHeader?: string): Response {
+function json(
+  status: number,
+  body: unknown,
+  setCookieHeader?: string | readonly string[],
+): Response {
   const headers = new Headers({ "Cache-Control": "no-store" });
-  if (setCookieHeader !== undefined) headers.set("Set-Cookie", setCookieHeader);
+  const cookies = typeof setCookieHeader === "string" ? [setCookieHeader] : setCookieHeader;
+  for (const value of cookies ?? []) headers.append("Set-Cookie", value);
   return Response.json(body, { status, headers });
 }
 
@@ -377,12 +386,44 @@ export async function signInRoute(request: Request, deps: ApprovalDeps): Promise
     return json(401, { message: APPROVAL_ROUTE_MESSAGES.wrongKey });
   }
   if (!checked.ok) return json(502, { message: APPROVAL_ROUTE_MESSAGES.unreachable });
-  return json(200, { signed_in: true }, setCookie(request, key.data));
+  return json(200, { signed_in: true }, [setCookie(request, key.data), newSessionCookie(request)]);
 }
 
-/** `DELETE /api/approvals/session`: signs out. */
+/** `DELETE /api/approvals/session`: signs out, clearing the key and the session. */
 export function signOutRoute(request: Request): Response {
-  return json(200, { signed_in: false }, clearCookie(request));
+  return json(200, { signed_in: false }, [clearCookie(request), clearSessionCookie(request)]);
+}
+
+/**
+ * `POST /api/approvals/pair`: trades a phone's pairing code with the gate (ADR 0044), with no key,
+ * for the approver key, then sets the cookies the sign-in sets. The key never goes in the answer.
+ */
+export async function pairRoute(request: Request, deps: ApprovalDeps): Promise<Response> {
+  let input: unknown;
+  try {
+    const text = await readLimited(request, PAIR_BODY_BYTES);
+    input = text === null ? undefined : JSON.parse(text);
+  } catch {
+    input = undefined;
+  }
+  const body = PairRequestSchema.safeParse(input);
+  if (!body.success) return json(400, { message: APPROVAL_ROUTE_MESSAGES.badPair });
+  const response = await callGate(deps, null, "/approvals/pair", {
+    json: JSON.stringify({ code: body.data.code }),
+  });
+  if (response?.status === 200) {
+    const answer = await readJson(response, PairAnswerSchema);
+    if (answer === null) return json(502, { message: APPROVAL_ROUTE_MESSAGES.unreachable });
+    return json(200, { ok: true }, [
+      setCookie(request, answer.approver_key),
+      newSessionCookie(request),
+    ]);
+  }
+  if (response?.status === 401) {
+    const message = await readJson(response, GateMessageSchema);
+    if (message !== null) return json(401, { message: message.message });
+  }
+  return json(502, { message: APPROVAL_ROUTE_MESSAGES.unreachable });
 }
 
 /** `GET /api/approvals`: the open cards and recent answers. */
