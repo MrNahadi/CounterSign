@@ -239,15 +239,15 @@ Notes:
 
 ## T-017: The inbox and chat ask for the sign-in
 
-Status: open
+Status: done
 Blocked by: T-016
 Tier: simple
 Slice: Signed out, the inbox shows the shared sign-in and the customer chat says to sign in on the start page.
 Test seam: `src/chat.ts`'s load and send functions; the inbox page's server render
 Acceptance:
-- [ ] The inbox renders the shared sign-in with requirements.md's title and line when signed out, "Sign in again." after a gate 401, and the existing `Notice` on a 502
-- [ ] The chat maps a 401 to `signedOut: true` with `CHAT_SIGNED_OUT`, and shows the sentence and the "Go to the start page" link in place of the form
-- [ ] The design check passes on every changed file
+- [x] The inbox renders the shared sign-in with requirements.md's title and line when signed out, "Sign in again." after a gate 401, and the existing `Notice` on a 502
+- [x] The chat maps a 401 to `signedOut: true` with `CHAT_SIGNED_OUT`, and shows the sentence and the "Go to the start page" link in place of the form
+- [x] The design check passes on every changed file
 Notes:
 - Item 18. UI: follow `Graphite Design/DESIGN.md`, reuse `apps/console/app/ui.tsx` primitives, hard-code no density values. Files: `apps/console/app/inbox/page.tsx`, `apps/console/src/chat.ts`, `apps/console/app/chat/customer-chat.tsx`, `apps/console/test/chat.test.ts`.
 

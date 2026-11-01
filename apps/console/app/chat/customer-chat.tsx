@@ -1,11 +1,13 @@
 "use client";
 
 import { ImagePlus, Info, LoaderCircle, Send, Store, X } from "lucide-react";
+import Link from "next/link";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import {
   CHAT_CONTROLS,
   CHAT_NOTICE,
   CHAT_POLL_MS,
+  CHAT_SIGNED_OUT,
   CHAT_STORAGE_KEY,
   CHAT_WORKING,
   type ChatEntry,
@@ -15,9 +17,10 @@ import {
   emailProblem,
   loadChat,
   parseStoredChat,
+  sendChat,
 } from "../../src/chat";
-import { checkPhoto, MODE_STORAGE_KEY, parseMode, sendMessage } from "../../src/composer";
-import { ALERT, CARD_TITLE, FIELD, FIELD_ERROR, FORM, HELP, LABEL } from "../../src/controls";
+import { checkPhoto, MODE_STORAGE_KEY, parseMode } from "../../src/composer";
+import { ALERT, CARD_TITLE, FIELD, FIELD_ERROR, FORM, HELP, LABEL, LINK } from "../../src/controls";
 
 // The customer's simulated chat, laid out for a phone (a 448px column on wider screens). Built
 // from Graphite's Input, Button and Spinner specs: 44px touch controls, a primary send button,
@@ -115,6 +118,7 @@ export function CustomerChat() {
   const [problem, setProblem] = useState<Problem>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [signedOut, setSignedOut] = useState(false);
 
   useEffect(() => {
     const stored = parseStoredChat(readStorage(CHAT_STORAGE_KEY));
@@ -135,6 +139,10 @@ export function CustomerChat() {
       if (result.ok) {
         setView(result.view);
         setLoadError(null);
+        return;
+      }
+      if (result.signedOut) {
+        setSignedOut(true);
         return;
       }
       setLoadError(result.message);
@@ -225,10 +233,11 @@ export function CustomerChat() {
     }
     setProblem(null);
     setPending(true);
-    const sent = await sendMessage(composed.request);
+    const sent = await sendChat(composed.request);
     setPending(false);
     if (!sent.ok) {
-      setSendError(sent.message);
+      if (sent.signedOut) setSignedOut(true);
+      else setSendError(sent.message);
       return;
     }
     setBody("");
@@ -259,7 +268,14 @@ export function CustomerChat() {
           <p className={HELP}>{CHAT_NOTICE}</p>
         </header>
 
-        {email === null ? (
+        {signedOut ? (
+          <div role="alert" className="flex flex-col items-start gap-3 px-4 pt-8 pb-12">
+            <p className="text-body-base text-secondary-foreground">{CHAT_SIGNED_OUT}</p>
+            <Link href="/" className={LINK}>
+              Go to the start page
+            </Link>
+          </div>
+        ) : email === null ? (
           <form noValidate onSubmit={start} className={`${FORM} px-4 pt-8 pb-12`}>
             <div className="flex flex-col gap-2">
               <h2 className="text-heading-6 font-semibold tracking-heading">Chat with the shop</h2>

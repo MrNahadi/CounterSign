@@ -2,6 +2,7 @@ import type { z } from "zod";
 import {
   type Answer,
   type ApprovalDeps,
+  checkKey,
   refusalResponse,
   refuse,
   withSignIn,
@@ -48,6 +49,29 @@ export type ResolveDeps = {
 export type RouteDeps = ResolveDeps & ApprovalDeps;
 
 const unreachable = refuse(502, RESOLVE_UNREACHABLE);
+
+export const INBOX_SIGN_IN = {
+  title: "Inbox",
+  line: "Sign in with the approver key to see the inbox.",
+} as const;
+
+export type InboxAccess =
+  | { state: "open" }
+  | { state: "signed-out"; message: string | null }
+  | { state: "unreachable"; message: string };
+
+/**
+ * Whether the inbox page may read Resolve: the cookie's key, taken by the gate (ADR 0043). No key
+ * shows the sign-in plain, a gate 401 shows it with "Sign in again.", anything else is unreachable.
+ */
+export async function inboxAccess(key: string | null, deps: ApprovalDeps): Promise<InboxAccess> {
+  if (key === null) return { state: "signed-out", message: null };
+  const checked = await checkKey(key, deps);
+  if (checked.ok) return { state: "open" };
+  return checked.status === 401
+    ? { state: "signed-out", message: checked.message }
+    : { state: "unreachable", message: checked.message };
+}
 
 /** Resolve's base URL, or null when `RESOLVE_AGENT_URL` isn't an http(s) URL. */
 export function resolveAgentUrl(env: ResolveEnv): URL | null {

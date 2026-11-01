@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { APPROVAL_ROUTE_MESSAGES } from "./approval-routes";
 import { RESOLVE_UNREACHABLE } from "./resolve-routes";
 import {
   type Channel,
@@ -133,7 +134,10 @@ export function messageRequest(form: ComposerForm, mode: Mode): ComposedMessage 
     : refuse("body", "The message isn't valid. Check its fields and photos.");
 }
 
-export type SendResult = { ok: true; threadId: string } | { ok: false; message: string };
+// `signedOut` is set only when the console answered 401: the approver key is missing or stale.
+export type SendResult =
+  | { ok: true; threadId: string }
+  | { ok: false; message: string; signedOut?: true };
 
 /** Posts the message through the console's route; Resolve's 400 sentence comes back as is. */
 export async function sendMessage(
@@ -149,6 +153,9 @@ export async function sendMessage(
     });
   } catch {
     return { ok: false, message: RESOLVE_UNREACHABLE };
+  }
+  if (response.status === 401) {
+    return { ok: false, signedOut: true, message: APPROVAL_ROUTE_MESSAGES.signedOut };
   }
   let answer: unknown;
   try {

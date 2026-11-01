@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { APPROVAL_ROUTE_MESSAGES, APPROVER_COOKIE } from "../src/approval-routes";
 import {
   attachmentRoute,
+  INBOX_SIGN_IN,
+  inboxAccess,
   NO_PHOTO,
   NO_THREAD,
   RESOLVE_UNREACHABLE,
@@ -307,6 +309,54 @@ describe("GET /api/resolve/attachments/[id]", () => {
       ).toEqual({
         status: 502,
         body: { message: RESOLVE_UNREACHABLE },
+      });
+    }
+  });
+});
+
+describe("inboxAccess", () => {
+  it("has the inbox's sign-in title and line", () => {
+    expect(INBOX_SIGN_IN).toEqual({
+      title: "Inbox",
+      line: "Sign in with the approver key to see the inbox.",
+    });
+  });
+
+  it("is signed out, with no message, when there's no key, and asks the gate nothing", async () => {
+    const resolve = resolveAt(() => Response.json({}));
+    expect(await inboxAccess(null, { env, fetch: resolve.fetch })).toEqual({
+      state: "signed-out",
+      message: null,
+    });
+    expect(resolve.gateCalls).toEqual([]);
+  });
+
+  it("is open when the gate takes the key, and Resolve hears nothing", async () => {
+    const resolve = resolveAt(() => Response.json({}));
+    expect(await inboxAccess(KEY, { env, fetch: resolve.fetch })).toEqual({ state: "open" });
+    expect(resolve.calls).toEqual([]);
+  });
+
+  it("says 'Sign in again.' after a gate 401", async () => {
+    const resolve = resolveAt(
+      () => Response.json({}),
+      () => Response.json({ message: "A valid approver key is required." }, { status: 401 }),
+    );
+    expect(await inboxAccess(KEY, { env, fetch: resolve.fetch })).toEqual({
+      state: "signed-out",
+      message: APPROVAL_ROUTE_MESSAGES.signInAgain,
+    });
+  });
+
+  it("gives the unreachable sentence when the gate fails or answers junk", async () => {
+    for (const gate of [
+      () => new Response("<html>", { status: 500 }),
+      () => Response.json({ nope: true }),
+    ]) {
+      const resolve = resolveAt(() => Response.json({}), gate);
+      expect(await inboxAccess(KEY, { env, fetch: resolve.fetch })).toEqual({
+        state: "unreachable",
+        message: APPROVAL_ROUTE_MESSAGES.unreachable,
       });
     }
   });

@@ -1,11 +1,14 @@
 import "server-only";
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
+import { approverKeyFromHeader } from "../../src/approval-routes";
 import { button, DESCRIPTION, ICON, STROKE } from "../../src/controls";
 import { listIsWorking, POLL_INTERVAL_MS, threadListItems, threadView } from "../../src/inbox-view";
-import { loadThread, loadThreads } from "../../src/resolve-routes";
+import { INBOX_SIGN_IN, inboxAccess, loadThread, loadThreads } from "../../src/resolve-routes";
 import { ConsoleShell } from "../console-shell";
+import { SignIn } from "../sign-in";
 import { Notice, Page } from "../ui";
 import { InboxHeader } from "./inbox-header";
 import { ThreadDetail, ThreadList } from "./inbox-parts";
@@ -23,6 +26,23 @@ export default async function InboxPage({ searchParams }: PageProps<"/inbox">) {
   const { thread } = await searchParams;
   const selectedId = typeof thread === "string" ? thread : null;
   const deps = { env: process.env };
+  const access = await inboxAccess(approverKeyFromHeader((await headers()).get("cookie")), deps);
+  if (access.state === "signed-out") {
+    return (
+      <ConsoleShell openApprovals={null}>
+        <SignIn title={INBOX_SIGN_IN.title} line={INBOX_SIGN_IN.line} message={access.message} />
+      </ConsoleShell>
+    );
+  }
+  if (access.state === "unreachable") {
+    return (
+      <ConsoleShell>
+        <Page>
+          <Notice>{access.message}</Notice>
+        </Page>
+      </ConsoleShell>
+    );
+  }
   const now = new Date();
   const [list, detail] = await Promise.all([
     loadThreads(deps),

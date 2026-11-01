@@ -3,6 +3,7 @@ import { APPROVER_COOKIE } from "../src/approval-routes";
 import {
   CHAT_CONTROLS,
   CHAT_NOTICE,
+  CHAT_SIGNED_OUT,
   CHAT_UNANSWERED,
   type ChatForm,
   chatRequest,
@@ -10,6 +11,7 @@ import {
   emailProblem,
   loadChat,
   parseStoredChat,
+  sendChat,
 } from "../src/chat";
 import { toBase64 } from "../src/composer";
 import { messagesRoute, RESOLVE_UNREACHABLE, threadRoute } from "../src/resolve-routes";
@@ -329,6 +331,7 @@ describe("loadChat", () => {
     expect(await loadChat(THREAD, { fetch: gone.fetch })).toEqual({
       ok: false,
       missing: true,
+      signedOut: false,
       message: "This chat has ended. Start a new one.",
     });
     for (const answer of [
@@ -339,6 +342,7 @@ describe("loadChat", () => {
       expect(await loadChat(THREAD, { fetch: throughRoute(answer).fetch })).toEqual({
         ok: false,
         missing: false,
+        signedOut: false,
         message: RESOLVE_UNREACHABLE,
       });
     }
@@ -348,6 +352,40 @@ describe("loadChat", () => {
     expect((await loadChat(THREAD, { fetch: failing })).ok).toBe(false);
   });
 
+  it("says to sign in on the start page when the console answers 401", async () => {
+    expect(CHAT_SIGNED_OUT).toBe(
+      "Sign in with the approver key on the start page, then come back.",
+    );
+    const signedOut = { ok: false, missing: false, signedOut: true, message: CHAT_SIGNED_OUT };
+    // No cookie: the route refuses before it calls Resolve.
+    const resolved: string[] = [];
+    const noCookie = (async (input: string | URL | Request) =>
+      threadRoute(new Request(`http://console.test${String(input)}`), THREAD, {
+        env,
+        fetch: (async (target: string | URL | Request) => {
+          resolved.push(String(target));
+          return Response.json(detail);
+        }) as typeof fetch,
+      })) as typeof fetch;
+    expect(await loadChat(THREAD, { fetch: noCookie })).toEqual(signedOut);
+    expect(resolved).toEqual([]);
+    // A key the gate refuses.
+    const refusedKey = (async (input: string | URL | Request) =>
+      threadRoute(
+        new Request(`http://console.test${String(input)}`, { headers: { cookie: SIGNED_IN } }),
+        THREAD,
+        {
+          env,
+          fetch: (async () =>
+            Response.json(
+              { message: "A valid approver key is required." },
+              { status: 401 },
+            )) as typeof fetch,
+        },
+      )) as typeof fetch;
+    expect(await loadChat(THREAD, { fetch: refusedKey })).toEqual(signedOut);
+  });
+
   it("treats an email thread as gone", async () => {
     const email = { ...detail, messages: [message(THREAD, "Hi", { channel: "email" })] };
     const route = throughRoute(() => Response.json(email));
@@ -355,6 +393,52 @@ describe("loadChat", () => {
       ok: false,
       missing: true,
     });
+  });
+});
+
+describe("sendChat", () => {
+  const request = () => {
+    const composed = chatRequest(form, "protected");
+    if (!composed.ok) throw new Error("the form should compose");
+    return composed.request;
+  };
+  const browser = (route: (request: Request) => Promise<Response> | Response) =>
+    (async (input: string | URL | Request, init?: RequestInit) =>
+      route(new Request(`http://console.test${String(input)}`, init))) as typeof fetch;
+  const post = (cookie: string | null) => (req: Request) =>
+    new Request(req, {
+      headers: cookie === null ? {} : { cookie },
+    });
+
+  it("sends the message through the console's route", async () => {
+    const accepted = { ticket_id: SECOND, thread_id: THREAD, run_id: id("run", "d") };
+    const resolve = (async () => Response.json(accepted, { status: 202 })) as typeof fetch;
+    const result = await sendChat(request(), {
+      fetch: browser((req) =>
+        messagesRoute(post(SIGNED_IN)(req), { env, fetch: withGate(resolve) }),
+      ),
+    });
+    expect(result).toEqual({ ok: true, threadId: THREAD });
+  });
+
+  it("maps a 401 to signedOut with the start-page sentence", async () => {
+    const calls: string[] = [];
+    const resolve = (async (target: string | URL | Request) => {
+      calls.push(String(target));
+      return Response.json({});
+    }) as typeof fetch;
+    const result = await sendChat(request(), {
+      fetch: browser((req) => messagesRoute(post(null)(req), { env, fetch: withGate(resolve) })),
+    });
+    expect(result).toEqual({ ok: false, signedOut: true, message: CHAT_SIGNED_OUT });
+    expect(calls).toEqual([]);
+  });
+
+  it("keeps Resolve's sentences for other refusals", async () => {
+    const result = await sendChat(request(), {
+      fetch: (async () => Response.json({ message: "Nope." }, { status: 400 })) as typeof fetch,
+    });
+    expect(result).toEqual({ ok: false, signedOut: false, message: "Nope." });
   });
 });
 

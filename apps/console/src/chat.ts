@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type ComposerPhoto, messageRequest } from "./composer";
+import { type ComposerPhoto, messageRequest, sendMessage } from "./composer";
 import { button, INPUT, INPUT_HEIGHT } from "./controls";
 import { RESOLVE_UNREACHABLE } from "./resolve-routes";
 import {
@@ -20,6 +20,7 @@ export const CHAT_NOTICE = "Simulated chat. Kikapu Studio is an illustrative sho
 export const CHAT_UNANSWERED = "Resolve couldn't answer this one. The shop will reply soon.";
 export const CHAT_WORKING = "Resolve is writing a reply";
 export const CHAT_GONE = "This chat has ended. Start a new one.";
+export const CHAT_SIGNED_OUT = "Sign in with the approver key on the start page, then come back.";
 export const CHAT_POLL_MS = 2_000;
 export const CHAT_STORAGE_KEY = "countersign-resolve-chat";
 const THREADS_PATH = "/api/resolve/threads";
@@ -145,10 +146,37 @@ export function chatView(thread: ThreadDetail): ChatView | null {
 
 export type ChatLoad =
   | { ok: true; view: ChatView }
-  | { ok: false; missing: boolean; message: string };
+  | { ok: false; missing: boolean; signedOut: boolean; message: string };
 
-const unreachable: ChatLoad = { ok: false, missing: false, message: RESOLVE_UNREACHABLE };
-const gone: ChatLoad = { ok: false, missing: true, message: CHAT_GONE };
+const unreachable: ChatLoad = {
+  ok: false,
+  missing: false,
+  signedOut: false,
+  message: RESOLVE_UNREACHABLE,
+};
+const gone: ChatLoad = { ok: false, missing: true, signedOut: false, message: CHAT_GONE };
+const signedOut: ChatLoad = {
+  ok: false,
+  missing: false,
+  signedOut: true,
+  message: CHAT_SIGNED_OUT,
+};
+
+export type ChatSend =
+  | { ok: true; threadId: string }
+  | { ok: false; signedOut: boolean; message: string };
+
+/** Sends the chat's message through the console's route; a 401 says to sign in on the start page. */
+export async function sendChat(
+  request: MessageRequest,
+  deps: { fetch?: typeof fetch } = {},
+): Promise<ChatSend> {
+  const sent = await sendMessage(request, deps);
+  if (sent.ok) return sent;
+  return sent.signedOut === true
+    ? { ok: false, signedOut: true, message: CHAT_SIGNED_OUT }
+    : { ok: false, signedOut: false, message: sent.message };
+}
 
 /** Reads the chat's thread through the console's route. */
 export async function loadChat(
@@ -165,6 +193,7 @@ export async function loadChat(
   } catch {
     return unreachable;
   }
+  if (response.status === 401) return signedOut;
   if (response.status === 404) return gone;
   if (response.status !== 200) return unreachable;
   let parsed: ReturnType<typeof ThreadDetailSchema.safeParse>;
