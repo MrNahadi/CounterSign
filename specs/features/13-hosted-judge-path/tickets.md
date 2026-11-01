@@ -139,15 +139,15 @@ Notes:
 
 ## T-010: The gate launches hosted baseline runs with a token it mints
 
-Status: open
+Status: done
 Blocked by: T-006
 Tier: standard
 Slice: The approver can start a baseline scenario through the gate, which mints one sandbox token and hands it only to Resolve.
 Test seam: `POST /baseline/launch` on a listening `createApp`, with a fake Resolve that records its body
 Acceptance:
-- [ ] 401 without the approver key; 400 for a bad body; each 502 and 503 sentence in requirements.md; 503 for Resolve's address only when `resolveAgentUrl` is null (unset uses the default)
-- [ ] The fake Resolve receives `{ mode: "baseline", paypal_token: { access_token, expires_at } }`, and its 202, 400, 404, 409, 500 and 503 answers pass through
-- [ ] The token appears in no answer body and no log line
+- [x] 401 without the approver key; 400 for a bad body; each 502 and 503 sentence in requirements.md; 503 for Resolve's address only when `resolveAgentUrl` is null (unset uses the default)
+- [x] The fake Resolve receives `{ mode: "baseline", paypal_token: { access_token, expires_at } }`, and its 202, 400, 404, 409, 500 and 503 answers pass through
+- [x] The token appears in no answer body and no log line
 Notes:
 - Item 12a. Files: `apps/gate/src/{baseline-launch,app}.ts`, `apps/gate/test/baseline-launch.test.ts`.
 

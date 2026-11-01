@@ -9,6 +9,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { mountApprovals } from "./approvals-api";
 import { approverLines, loadApprover } from "./approver";
 import { mountAudit } from "./audit-api";
+import { mountBaselineLaunch } from "./baseline-launch";
 import { demoResetEnabled, type Reseed } from "./demo-reset";
 import { mountDemoReset } from "./demo-reset-api";
 import { mountMcp } from "./mcp";
@@ -33,6 +34,9 @@ export type AppDeps = {
   fetch?: NudgeFetch;
   // The demo reset's way to place replacement orders, for tests. Defaults to a seed run.
   reseed?: Reseed;
+  // The baseline launch's way to Resolve, for tests. Defaults to the global fetch; it needs the
+  // answer's body, which a NudgeFetch doesn't give.
+  launchFetch?: typeof fetch;
 };
 
 // The startup lines about principal keys and the mandate: variable names only, never values.
@@ -109,6 +113,16 @@ export function createApp(deps: AppDeps = {}) {
     ...(deps.db ? { db: deps.db } : {}),
     mandates: principals.mandates,
     clock: webhookDeps.clock,
+  });
+  mountBaselineLaunch(app, {
+    approver,
+    rail:
+      railOnce ??
+      (() => {
+        throw new Error("no rail");
+      }),
+    env: webhookDeps.env,
+    ...(deps.launchFetch ? { fetch: deps.launchFetch } : {}),
   });
   // Off unless COUNTERSIGN_DEMO_RESET is exactly "on"; then the path is Express's 404.
   if (demoResetEnabled(webhookDeps.env)) {
