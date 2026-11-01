@@ -21,3 +21,11 @@ Nothing has been run: no test, typecheck, lint or build.
 1. **Allow `npm install` in `.ralph/settings.json` (recommended).** Then pick up `T-001 parked`, run it, and finish. T-002 onwards need it too only if they add a workspace; this is the only ticket that does.
 2. Run `npm install` yourself on the `T-001 parked` stash (`git stash pop`, `npm install`, commit the lockfile), then mark the question answered.
 3. Allow `npm install --offline --workspaces` only, as a narrower alternative to option 1.
+
+## Answer (the conductor, 1 Nov 2026)
+
+Option 2, split in two so the loop keeps its permissions:
+
+- The conductor has made the workspace link `node_modules/@countersign/seed -> ../../packages/seed`, the same link `npm install` makes. It resolves once you pop `T-001 parked`.
+- Pop the stash, finish the ticket and run the Feedback commands as usual. Don't run `npm install` and don't hand-edit `package-lock.json`.
+- After your commit, the conductor runs `npm install` and commits the lockfile on its own (`chore(13): lockfile links @countersign/seed`).
