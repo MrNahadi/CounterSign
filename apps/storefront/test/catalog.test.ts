@@ -1,6 +1,12 @@
+import {
+  buildDemoShipment,
+  CARRIER_NAME,
+  DEMO_ORDERS,
+  getProduct,
+  PRODUCTS,
+  productFor,
+} from "@countersign/seed";
 import { describe, expect, it } from "vitest";
-import { getProduct, PRODUCTS } from "../src/products";
-import { buildDemoShipment, CARRIER_NAME, DEMO_ORDERS, productFor } from "../src/seed-catalog";
 
 const SEEDED_AT = "2026-10-17T09:30:00.000Z";
 const DAY = 86_400_000;

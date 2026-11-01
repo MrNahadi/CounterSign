@@ -2,7 +2,6 @@
 // `list` shows what's seeded. Returns the output and exit code rather than writing them, so tests
 // can call it directly. No message ever holds a PayPal secret, a vault token or DATABASE_URL.
 
-import { randomBytes } from "node:crypto";
 import { createDatabaseShipmentStore, createMockCarrier } from "@countersign/carrier-mock";
 import {
   asc,
@@ -26,9 +25,17 @@ import {
   TimestampSchema,
 } from "@countersign/mandate";
 import { createPayPalClient, type FetchLike, parsePayPalEnv } from "@countersign/rail-paypal";
+import {
+  DEMO_ORDERS,
+  newRunId,
+  productFor,
+  RunIdSchema,
+  randomRunSuffix,
+  runSeed,
+  type SeedReport,
+  VAULT_ENV_NAMES,
+} from "@countersign/seed";
 import { z } from "zod";
-import { DEMO_ORDERS, productFor, RunIdSchema } from "./seed-catalog";
-import { runSeed, type SeedReport } from "./seed-run";
 
 export type SeedCliResult = { exitCode: number; stdout: string; stderr: string };
 
@@ -49,7 +56,7 @@ export const EXIT_OK = 0;
 export const EXIT_PARTIAL = 1;
 export const EXIT_CANT_RUN = 2;
 
-export const VAULT_ENV_NAMES = ["PAYPAL_SEED_VAULT_TOKEN", "PAYPAL_SEED_VAULT_TOKEN_B"] as const;
+export { newRunId, VAULT_ENV_NAMES };
 
 const RUN_ID_RULE = "The run ID must be 4 to 24 lowercase letters and digits.";
 
@@ -234,19 +241,6 @@ function readSeedEnv(env: Environment) {
   return { ok: false as const, error: sentences.join(" ") };
 }
 
-const RandomSuffixSchema = z.string().regex(/^[a-z0-9]{4,10}$/);
-
-const randomSuffix = () => {
-  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
-  return [...randomBytes(6)].map((byte) => alphabet[byte % alphabet.length]).join("");
-};
-
-/** A new run ID: the seeding date and a random suffix, such as `20261017k3x9qa`. */
-export function newRunId(seededAt: string, suffix: string): string {
-  const date = TimestampSchema.parse(seededAt).slice(0, 10).replaceAll("-", "");
-  return RunIdSchema.parse(`${date}${RandomSuffixSchema.parse(suffix)}`);
-}
-
 const TableSchema = z.array(z.object({ present: z.boolean() })).length(1);
 
 // Whether `seed_orders` exists. Also the first query, so an unreachable database fails here.
@@ -362,7 +356,7 @@ export async function runSeedCli(
   const seededAt = (options.clock ?? (() => new Date().toISOString()))();
   if (!TimestampSchema.safeParse(seededAt).success)
     return cantRun("The seeding time isn't an ISO 8601 timestamp.");
-  const runId = command.runId ?? newRunId(seededAt, (options.randomSuffix ?? randomSuffix)());
+  const runId = command.runId ?? newRunId(seededAt, (options.randomSuffix ?? randomRunSuffix)());
   const paypal = createPayPalClient({
     env,
     ...(options.fetch ? { fetch: options.fetch } : {}),

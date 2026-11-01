@@ -1,7 +1,7 @@
+import { PRODUCTS } from "@countersign/seed";
 import { describe, expect, it } from "vitest";
 import { NOT_SET_UP_MESSAGE } from "../src/checkout";
 import { readCaptureResponse, readCreateResponse } from "../src/checkout-client";
-import { PRODUCTS } from "../src/products";
 import { productPageProps, SHOP_NOTICE, shopListProps } from "../src/shop-props";
 
 // What the shop pages hand to the browser, and how the browser reads the checkout routes' answers.

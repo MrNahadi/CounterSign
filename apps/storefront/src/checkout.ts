@@ -11,8 +11,8 @@ import {
   type PayPalOrder,
   parsePayPalEnv,
 } from "@countersign/rail-paypal";
+import { getProduct, type Product } from "@countersign/seed/products";
 import { z } from "zod";
-import { getProduct, type Product } from "./products";
 
 export const CUSTOM_ID_PREFIX = "storefront:";
 export const CAPTURE_REQUEST_PREFIX = "countersign-storefront-capture-";

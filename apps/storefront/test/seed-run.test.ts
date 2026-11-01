@@ -5,9 +5,8 @@ import {
   eq,
   seedOrders,
 } from "@countersign/db";
+import { DEMO_ORDERS, runSeed, SAME_BUYER_PROBLEM, type SeedRunInput } from "@countersign/seed";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { DEMO_ORDERS } from "../src/seed-catalog";
-import { runSeed, SAME_BUYER_PROBLEM, type SeedRunInput } from "../src/seed-run";
 import {
   BUYER_A_EMAIL,
   BUYER_B_EMAIL,

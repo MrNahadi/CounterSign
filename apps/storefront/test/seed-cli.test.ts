@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { openPgliteDirectory, seedOrders } from "@countersign/db";
 import type { FetchLike } from "@countersign/rail-paypal";
+import { DEMO_ORDERS } from "@countersign/seed";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DEMO_ORDERS } from "../src/seed-catalog";
 import {
   EXIT_CANT_RUN,
   EXIT_OK,

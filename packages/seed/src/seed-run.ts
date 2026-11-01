@@ -78,7 +78,7 @@ function inputProblem(runId: string, vaultTokens: SeedRunInput["vaultTokens"], s
 }
 
 // A seed row read back from `seed_orders`. One that fails this is treated as not seeded.
-const StoredRowSchema = z.object({
+export const StoredRowSchema = z.object({
   orderNumber: z.string().regex(/^KIK-\d{4}$/),
   runId: RunIdSchema,
   paypalOrderId: z.string().min(1),

@@ -11,7 +11,12 @@ try {
 }
 
 const config: NextConfig = {
-  transpilePackages: ["@countersign/graphite", "@countersign/mandate", "@countersign/rail-paypal"],
+  transpilePackages: [
+    "@countersign/graphite",
+    "@countersign/mandate",
+    "@countersign/rail-paypal",
+    "@countersign/seed",
+  ],
 };
 
 export default config;

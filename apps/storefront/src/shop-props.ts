@@ -3,8 +3,8 @@
 
 import { formatMoney } from "@countersign/mandate";
 import { parsePayPalEnv } from "@countersign/rail-paypal";
+import { getProduct, PRODUCTS, type Product } from "@countersign/seed/products";
 import { NOT_SET_UP_MESSAGE } from "./checkout";
-import { getProduct, PRODUCTS, type Product } from "./products";
 
 export const SHOP_NOTICE =
   "Kikapu Studio is an illustrative demo shop. Payments use the PayPal sandbox, so no real money moves.";

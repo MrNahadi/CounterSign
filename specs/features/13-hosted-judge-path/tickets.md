@@ -4,18 +4,19 @@ Built from `design.md`'s Detailed Implementation Plan ("item N" below). Copy, st
 
 ## T-001: The shared `@countersign/seed` package
 
-Status: blocked-question
+Status: done
 Blocked by:
 Tier: simple
 Slice: The seed catalog and seed run live in `@countersign/seed`, the storefront and gate depend on it, and `npm run seed` behaves exactly as before.
 Test seam: `@countersign/seed`'s exports (`runSeed`, `DEMO_ORDERS`, `StoredRowSchema`, `newRunId`, `randomRunSuffix`, `readVaultTokens`, `VAULT_ENV_NAMES`) and the storefront's existing seed tests
 Acceptance:
-- [ ] The storefront's catalog, seed-run, seed-cli and shop-page tests pass, importing from `@countersign/seed`; `npm run seed -- --dry-run` prints the same plan as before (validation check 2)
-- [ ] `readVaultTokens` gives both tokens, or `missing` names only, in `VAULT_ENV_NAMES` order; `randomRunSuffix` gives 6 characters of `[a-z0-9]`
-- [ ] `StoredRowSchema` is exported; `seed-cli.ts` still exports `newRunId` and `VAULT_ENV_NAMES`
-- [ ] The no-AI test lists `seed`; `npm run build` builds the storefront with the package transpiled
+- [x] The storefront's catalog, seed-run, seed-cli and shop-page tests pass, importing from `@countersign/seed`; `npm run seed -- --dry-run` prints the same plan as before (validation check 2) (the dry-run plan is asserted by the seed-cli tests; the loop can't run the CLI itself, so check 2 still needs a human run)
+- [x] `readVaultTokens` gives both tokens, or `missing` names only, in `VAULT_ENV_NAMES` order; `randomRunSuffix` gives 6 characters of `[a-z0-9]`
+- [x] `StoredRowSchema` is exported; `seed-cli.ts` still exports `newRunId` and `VAULT_ENV_NAMES`
+- [x] The no-AI test lists `seed`; `npm run build` builds the storefront with the package transpiled
 Notes:
-- Parked stash: T-001 parked (question: `questions/open/T-001-npm-install-not-allowed.md`).
+- The conductor ran `npm install` after this commit to link the workspace in `package-lock.json`; this iteration did not touch the lockfile.
+- Deviation: the package also exports `@countersign/seed/products`. The storefront's web code (`checkout.ts`, `shop-props.ts`) imports the catalog from it, because the barrel pulls `@countersign/db` into the Turbopack bundle and the build fails on db's `import.meta.url` paths.
 - Items 1, 2 and 3. Files: `packages/seed/` (new: `package.json`, `tsconfig.json`, `src/index.ts`, `src/run-id.ts`, and `products.ts`, `seed-catalog.ts` and `seed-run.ts` moved with `git mv`), `apps/storefront/src/{seed-cli,shop-props,checkout}.ts`, `apps/storefront/test/*`, `apps/storefront/{package.json,next.config.ts}`, `apps/gate/package.json`, `tests/no-ai-in-decision-path.test.ts`, `package-lock.json`.
 
 ## T-002: Clearing the demo tables in `@countersign/db`
