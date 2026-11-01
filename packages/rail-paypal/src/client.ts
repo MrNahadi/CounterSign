@@ -49,6 +49,8 @@ export type FetchLike = (
     method: string;
     headers: Record<string, string>;
     body?: string | Uint8Array<ArrayBuffer>;
+    // Aborts the request and the reading of its body once RAIL_REQUEST_TIMEOUT_MS has passed.
+    signal?: AbortSignal;
   },
 ) => Promise<Response>;
 
@@ -279,8 +281,15 @@ export type PayPalClient = {
 
 // A token with less than this left is replaced before the next call.
 const TOKEN_MARGIN_MS = 5 * 60_000;
-const MAX_RETRIES = 2;
-const MAX_RETRY_WAIT_MS = 10_000;
+export const MAX_RETRIES = 2;
+export const MAX_RETRY_WAIT_MS = 10_000;
+// Every request, the token request included, fails as a network error if it hasn't answered and
+// delivered its body by then.
+export const RAIL_REQUEST_TIMEOUT_MS = 30_000;
+// The longest one client call can take: two token requests (the first, and one after a 401), the
+// request and its one re-authorised resend, and MAX_RETRIES retries with their waits.
+export const RAIL_WORST_CALL_MS =
+  (2 + 2 + MAX_RETRIES) * RAIL_REQUEST_TIMEOUT_MS + MAX_RETRIES * MAX_RETRY_WAIT_MS;
 const BACKOFF_MS = 250;
 const MAX_DISPUTE_PAGES = 5;
 const DISPUTES_PATH = "/v1/customer/disputes";
@@ -497,6 +506,9 @@ type CallSpec = {
 
 type Answer = { status: number; body: unknown; debugId: string | null };
 
+// A response whose body hasn't been read yet, with the call that clears its deadline.
+type Reached = { response: Response; done: () => void };
+
 type Multipart = { contentType: string; bytes: Uint8Array<ArrayBuffer> };
 
 type FormPart = { name: string; fileName?: string; contentType: string; bytes: Uint8Array };
@@ -547,7 +559,7 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
 
   async function requestToken(): Promise<{ token: string; expiresAt: number }> {
     const call = "oauth-token";
-    const response = await reach(call, `${config.baseUrl}/v1/oauth2/token`, {
+    const reached = await reach(call, `${config.baseUrl}/v1/oauth2/token`, {
       method: "POST",
       headers: {
         Authorization: `Basic ${basic}`,
@@ -556,7 +568,7 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
       },
       body: "grant_type=client_credentials",
     });
-    const answer = await read(call, response);
+    const answer = await read(call, reached);
     if (answer.status !== 200) throw httpError(call, answer);
     const token = tokenSchema.safeParse(answer.body);
     if (!token.success) throw unreadable(call, answer, token.error);
@@ -584,27 +596,60 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
     return accessToken();
   }
 
+  // Sends one request under its own deadline. The deadline also aborts reading the body, so the
+  // caller must `read` or `drop` the answer, which clears it.
   async function reach(
     call: string,
     url: string,
-    init: Parameters<FetchLike>[1],
-  ): Promise<Response> {
+    init: Omit<Parameters<FetchLike>[1], "signal">,
+  ): Promise<Reached> {
+    const controller = new AbortController();
+    // The global timer, not AbortSignal.timeout, so tests can drive it with fake timers.
+    const timer = setTimeout(
+      () => controller.abort(new DOMException("The request timed out.", "TimeoutError")),
+      RAIL_REQUEST_TIMEOUT_MS,
+    );
+    const done = () => clearTimeout(timer);
     try {
-      return await fetchFn(url, init);
+      const response = await fetchFn(url, { ...init, signal: controller.signal });
+      return { response, done };
     } catch (error) {
-      const reason = error instanceof Error ? error.name : "the request failed";
-      throw new PayPalError({
-        kind: "network",
-        call,
-        status: null,
-        reason: scrub(reason) ?? undefined,
-      });
+      done();
+      throw networkError(call, error);
     }
   }
 
-  async function read(call: string, response: Response): Promise<Answer> {
+  // An answer whose body isn't wanted (a 401 or a retry). Nothing in it can change the outcome.
+  async function drop({ response, done }: Reached): Promise<void> {
+    try {
+      await response.body?.cancel();
+    } catch {
+    } finally {
+      done();
+    }
+  }
+
+  // A request that failed, timed out or was cut off before its body arrived. Never retried.
+  function networkError(call: string, error: unknown): PayPalError {
+    const reason = error instanceof Error ? error.name : "the request failed";
+    return new PayPalError({
+      kind: "network",
+      call,
+      status: null,
+      reason: scrub(reason) ?? undefined,
+    });
+  }
+
+  async function read(call: string, { response, done }: Reached): Promise<Answer> {
     const debugId = response.headers.get("paypal-debug-id");
-    const raw = await response.text();
+    let raw: string;
+    try {
+      raw = await response.text();
+    } catch (error) {
+      throw networkError(call, error);
+    } finally {
+      done();
+    }
     if (raw.trim() === "") return { status: response.status, body: undefined, debugId };
     try {
       return { status: response.status, body: JSON.parse(raw), debugId };
@@ -673,7 +718,7 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
         headers.Prefer = "return=representation";
         if (spec.requestId !== undefined) headers["PayPal-Request-Id"] = spec.requestId;
       }
-      const response = await reach(spec.call, `${config.baseUrl}${spec.path}`, {
+      const reached = await reach(spec.call, `${config.baseUrl}${spec.path}`, {
         method: spec.method,
         headers,
         body:
@@ -681,9 +726,10 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
           spec.rawBody ??
           (spec.body === undefined ? undefined : JSON.stringify(spec.body)),
       });
+      const { response } = reached;
       if (response.status === 401 && !reauthorized) {
         reauthorized = true;
-        await response.body?.cancel();
+        await drop(reached);
         token = await replaceToken(token);
         continue;
       }
@@ -694,11 +740,11 @@ export function createPayPalClient(options: PayPalClientOptions): PayPalClient {
       ) {
         const wait = retryWait(response, retries);
         retries += 1;
-        await response.body?.cancel();
+        await drop(reached);
         await sleep(wait);
         continue;
       }
-      const answer = await read(spec.call, response);
+      const answer = await read(spec.call, reached);
       if (!response.ok) throw httpError(spec.call, answer);
       return answer;
     }

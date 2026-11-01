@@ -76,15 +76,15 @@ Notes:
 
 ## T-006: A timeout on every PayPal request
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: No rail call can hang: each request, body included, times out after 30 seconds as a network error, with a stated worst case per call.
 Test seam: the PayPal client's public methods against a fake server, with fake timers
 Acceptance:
-- [ ] A server that hangs before answering, and one that hangs mid-body, each end in a `network` `PayPalError` within `RAIL_REQUEST_TIMEOUT_MS`; the token request is bounded the same way
-- [ ] Network failures still aren't retried; 429 and 5xx retries behave as before (existing tests pass)
-- [ ] `RAIL_WORST_CALL_MS`, `MAX_RETRIES` and `MAX_RETRY_WAIT_MS` are exported, and `RAIL_WORST_CALL_MS` is 200,000 with today's constants
+- [x] A server that hangs before answering, and one that hangs mid-body, each end in a `network` `PayPalError` within `RAIL_REQUEST_TIMEOUT_MS`; the token request is bounded the same way
+- [x] Network failures still aren't retried; 429 and 5xx retries behave as before (existing tests pass)
+- [x] `RAIL_WORST_CALL_MS`, `MAX_RETRIES` and `MAX_RETRY_WAIT_MS` are exported, and `RAIL_WORST_CALL_MS` is 200,000 with today's constants
 Notes:
 - Item 8 (rail part). Files: `packages/rail-paypal/src/client.ts`, `packages/rail-paypal/test/timeouts.test.ts`.
 
