@@ -43,3 +43,47 @@ Checks 1 to 5 are part of the Feedback commands. Checks 6 to 8 run by hand at va
 
 1. Open the console and the storefront on your own desktop browser and phone, in light and dark, and say whether the comfortable density reads as you intended. Anything you'd change goes to `.ralph/human.md` as a follow-up; the values come from your `DESIGN.md`, so changing them there changes them everywhere once the tokens are updated.
 2. Before recording the video, check the approvals card at phone width: Approve and Deny are now 44px and the card is roomier, so less of a long card fits on one screen.
+
+## Validation notes (1 Nov 2026)
+
+**Automated checks.**
+
+- **Check 1:** typecheck, lint, test (2230 passed, 20 skipped) and build all pass. Lint has one warning, in `apps/resolve-agent/src/queue.ts`, which this branch doesn't touch. The test diff matches check 1 with two differences. `apps/console/test/audit-routes.test.ts` also gains one allowed-imports line (`../src/controls`). There are also three new test files: `packages/graphite/test/tokens-json.test.ts` (check 8), `tests/ui-shots/shoot.test.ts` and `tests/ui-shots/upstream.test.ts`. None of them weakens an existing assertion.
+- **Checks 2 to 5:** pass.
+- **Check 6:** `ui:shots: 56 shots, 0 failures`. No `fonts` notes, so every shot used Inter.
+- **Check 7:** passes in intent. "240px" is still in `Menu/README.md` and `bundle.css`, but only as the menu's minimum width, which requirements.md asks for. `text-transform: uppercase` in `bundle.css` is only on `.gr-label-meta`, a preview's scaffolding, and `.gr-menu-group`, a menu group heading. Neither is on a table header, and DESIGN.md allows both. `bundle.css` adds no raw hex.
+- **Check 8:** `tokens.json` parses, and `tokens-json.test.ts` compares every type style, `space-*`, `control-*` and layout value with the CSS. The only other change is one type style's `usage` string.
+
+**Manual review 1: screenshots against DESIGN.md.** I opened 22 of the 56 shots. The other 34 rest on check 6's automated checks.
+
+| Screen | Light desktop | Light phone | Dark desktop | Dark phone |
+|---|---|---|---|---|
+| decisions | pass, reason codes on their own line, unbroken (f013846) | pass | not opened | pass |
+| decision | pass | not opened | not opened | pass |
+| decision-unreadable | not opened | not opened | pass | not opened |
+| approvals | not opened | pass, Approve 44px, one action per card | pass | not opened |
+| approvals-signed-out | not opened | not opened | not opened | pass, Sign in 44px |
+| audit | not opened | pass, table scrolls inside its card | pass | not opened |
+| audit-check | pass | not opened | not opened | not opened |
+| inbox | pass | not opened | not opened | not opened |
+| inbox-thread | not opened | pass | pass, the selected thread's blue is selection | not opened |
+| disputes | pass | not opened | not opened | not opened |
+| chat | not opened | pass, full-bleed | not opened | not opened |
+| risk-desk | pass, header only (no licence, widgets loading) | not opened | not opened | not opened |
+| shop | pass, serif only on the display headline | not opened | not opened | pass |
+| product | not opened | not opened | pass | not opened |
+
+On a phone, the sidebar is one row that scrolls sideways. Disputes, Decisions and Audit log sit past the screen edge, and Approvals' count badge is cut off by the theme control. `main` had the same layout, so this isn't a regression. It's listed for the owner in `.ralph/human.md`.
+
+**Manual reviews 2 to 4.** A throwaway Playwright script ran against the harness's fake upstreams and `next start` (in gitignored `test-results/`, run with `npx vitest run --root test-results`, because `npx tsx` and `npx playwright` weren't allowed in this session). Every check passed:
+
+- Clicking through: the decision filter (`?decision=deny`), search (`?q=KIK-1035`), Older (`?before=35`), a decision link, the breadcrumb, Check the chain, and Draft again. Draft again shows "Resolve isn't reachable. Start it, then try again."
+- Simulate a message closes with Escape and with Cancel. At 390px, a thread link opens the thread and All threads goes back.
+- Each of the theme control's three choices is checked when chosen, and System clears the saved value. Sign out shows Sign in.
+- Tab through `/decisions` and `/approvals` in both themes: every stop gets a 1px `brand-border-focus` outline, inset (-1px) except Approve, which is offset 2px. The outline fades in over 150ms with `transition-colors`.
+- With `reducedMotion: "reduce"`, a pressed Approve doesn't scale, and no transition is left that changes anything but colour.
+- With `prefers-contrast: more`, secondary text steps up from `#0000009b` to `#000000df` and tertiary from `#00000072` to `#0000009b`.
+
+**Manual review 5.** `paypal-checkout.tsx` matches requirements.md: a ring card with `--card-padding`, a 24px badge, 12px receipt rows and 13px mono IDs. `.ralph/progress.md` says no AG Studio param was dropped.
+
+**Fixes.** `fix(13a): T-002 question lives only in questions/answered, with its question kept`.
