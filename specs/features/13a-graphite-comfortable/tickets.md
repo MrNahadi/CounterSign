@@ -21,7 +21,7 @@ Notes:
 
 ## T-002: The harness runner: fake upstreams, both apps and 56 shots
 
-Status: open
+Status: blocked-question
 Blocked by: T-001
 Tier: standard
 Slice: `npm run ui:shots` starts the fake gate and Resolve, both built Next apps and Chromium, and writes a full-page PNG for every screen, theme and width with a report.
@@ -37,6 +37,8 @@ Notes:
 - Files: `tests/ui-shots/upstream.ts`, `tests/ui-shots/shoot.ts`, root `package.json` (`ui:shots` script only; `@playwright/test` is already there).
 - design.md step 2f (`npx playwright install` in `scripts/cloud-setup.sh`) is dropped: this container has Chromium preinstalled, and runs never call `npx playwright install` (conductor, 1 Nov). Don't edit `scripts/cloud-setup.sh`.
 - The density checks come in T-003. Here `densityChecks` may be a stub that returns no findings, but the `__name` init script, `scope` and `checks` plumbing go in now.
+- Parked stash: T-002 parked
+- Blocked: `npm run ui:shots` isn't in `.claude/settings.json`'s allow list, so the loop can't run the harness. See `questions/open/T-002-harness-not-on-allow-list.md`. The stash passes typecheck, lint, test and build. Not yet checked: the full run's acceptance items.
 
 ## T-003: The density checks
 
