@@ -82,6 +82,39 @@ All four commands pass on a clean checkout, and nothing in them needs credential
 
 ### Run the apps
 
+For local development, run these from the repository root (PowerShell works):
+
+```bash
+npm run local:setup
+npm run dev
+```
+
+The setup command generates any missing local principal and approver keys in the ignored
+`.env.local`, without displaying them. Sign in with `COUNTERSIGN_APPROVER_KEY` from that file
+(or your existing environment, if already configured). It reports missing credential names only.
+The launcher loads the existing root `.env` first and `.env.local` second; shell variables take
+precedence. Existing values are never printed or overwritten by setup.
+
+One terminal runs Gate on `http://127.0.0.1:8787`, Resolve on `http://127.0.0.1:8788`, the console
+on `http://127.0.0.1:3000`, and the storefront on `http://127.0.0.1:3001`. Ctrl+C stops all four.
+The backends share one database handle, so embedded PGlite works without installing Postgres.
+With `DATABASE_URL` set, the launcher uses Postgres and applies pending migrations instead.
+Only localhost is exposed. A port already in use is refused rather than taking over its process.
+Frontend changes reload automatically; restart the launcher after backend or environment changes.
+On Windows, the launcher and production builds use Next's supported Webpack option because
+Turbopack's CSS worker fails on the current Windows/Node setup. Linux and Render keep Turbopack.
+
+The UI can start without payment or Gemini credentials. Live agent runs need the variables below;
+the scenario launcher and demo reset also need both seed-buyer vault tokens and seeded orders.
+Setup does not call PayPal, Gemini, or seed orders automatically. Follow
+[`docs/seed-buyers.md`](docs/seed-buyers.md) to create the two sandbox buyer tokens, then stop
+the launcher and run `npm run seed:local` before starting it again. When using PGlite, stop the
+launcher before running database CLIs such as `seed`, `ledger`, or `propose`: its files have one
+owner at a time. Use Postgres when separate processes need the database concurrently.
+
+To run services separately with a shared Postgres database and environment variables already
+exported, use:
+
 | App | Command | Port |
 |---|---|---|
 | Gate | `npm run dev --workspace @countersign/gate` | 8787 (`/health`) |
@@ -93,7 +126,9 @@ Each service reads `PORT` and binds to `0.0.0.0`.
 
 ### Environment
 
-Unit tests and the decide CLI need no secrets. The integration spikes and the AI routes read sandbox credentials from `.env.local`, which git ignores. `.env.example` lists the names:
+Unit tests and the decide CLI need no secrets. The local launcher loads sandbox credentials from
+the ignored root `.env` and `.env.local` files. The other CLIs use `.env.local` or exported
+environment variables. `.env.example` lists the names:
 
 | Area | Variables |
 |---|---|

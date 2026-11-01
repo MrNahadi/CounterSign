@@ -121,8 +121,7 @@ const fakeDrafter = async (draftId: string) => {
 };
 
 // Runs messages with the fake runner and drafts with the fake drafter, on one queue.
-const sharedRunner: ModeRunner = async (id) =>
-  id.startsWith("drf_") ? fakeDrafter(id) : fakeRunner(id);
+const sharedRunner: ModeRunner = (id) => (id.startsWith("drf_") ? fakeDrafter(id) : fakeRunner(id));
 
 let tick = 0;
 const clock = () => new Date(NOW.getTime() + 1000 * tick++);
@@ -847,6 +846,21 @@ describe("POST /disputes and the draft readers", () => {
 });
 
 describe("serve", () => {
+  it("uses the supplied database and leaves it open for its owner after stopping", async () => {
+    const serving = await serve(
+      { PORT: "0" },
+      { database: handle, host: "127.0.0.1", log: () => {} },
+    );
+    try {
+      const base = `http://127.0.0.1:${serving.port}`;
+      expect((await post(base, EMAIL)).status).toBe(202);
+      expect(await listThreads(handle.db)).toHaveLength(1);
+    } finally {
+      await serving.close();
+    }
+    expect(await listThreads(handle.db)).toHaveLength(1);
+  });
+
   it("marks a draft the last process left unfinished failed, and never reruns it", async () => {
     const dir = mkdtempSync(join(tmpdir(), "resolve-serve-"));
     temps.push(dir);

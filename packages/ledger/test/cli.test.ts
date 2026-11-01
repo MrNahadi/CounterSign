@@ -331,7 +331,7 @@ describe("the ledger entry point", { timeout: SLOW }, () => {
       { cwd, encoding: "utf8", env: childEnv() },
     );
     // Node's own notice for the missing file is all that reaches stderr.
-    for (const line of child.stderr.split("\n").filter(Boolean)) {
+    for (const line of child.stderr.split(/\r?\n/).filter(Boolean)) {
       expect(line).toBe(".env.local not found. Continuing without it.");
     }
     expect(child.status).toBe(0);

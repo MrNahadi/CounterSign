@@ -1,7 +1,7 @@
 // How the product page reads the checkout routes' answers in the browser. Anything it can't read
 // is a failure, never a payment.
 
-import { CURRENCIES, formatMoney } from "@countersign/mandate";
+import { CURRENCIES, formatMoney } from "@countersign/mandate/money";
 import { z } from "zod";
 
 export type CreateOutcome =

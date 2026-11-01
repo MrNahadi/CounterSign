@@ -38,6 +38,8 @@ export function parsePort(env: Environment): number {
 }
 
 export type ServeOptions = {
+  /** A shared handle supplied by the local launcher. Its owner closes it after both services. */
+  database?: DatabaseHandle;
   /** The PGlite directory when `DATABASE_URL` is unset. Defaults to `.countersign/pglite`. */
   pgliteDir?: string;
   log?: (line: string) => void;
@@ -52,9 +54,9 @@ export async function serve(env: Environment, options: ServeOptions = {}): Promi
   const port = parsePort(env);
   const dailyCap = parseDailyCap(env);
 
-  let handle: DatabaseHandle | undefined;
+  let handle = options.database;
   try {
-    handle = await openDatabase(resolveDatabaseTarget(env, options.pgliteDir));
+    handle ??= await openDatabase(resolveDatabaseTarget(env, options.pgliteDir));
   } catch {
     log("resolve-agent started without a database; messages will answer 503.");
   }
@@ -143,7 +145,7 @@ export async function serve(env: Environment, options: ServeOptions = {}): Promi
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       await queue.idle();
-      await handle?.close().catch(() => {});
+      if (!options.database) await handle?.close().catch(() => {});
     },
   };
 }

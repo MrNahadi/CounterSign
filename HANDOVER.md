@@ -12,7 +12,7 @@ It's an entry to the PayPal AI Hackathon (Devpost). **We submit Wed 11 Nov 2026*
 
 1. `specs/brief.md`: intent, scope, non-negotiables (§8), ranked trade-offs (§10), definition of done (§12). **Only the owner edits it.**
 2. `AGENTS.md`: the rules every change follows (design system, commits, never-list).
-3. `docs/adr/`: 46 decisions so far (0001 to 0046). Check here before reopening a settled question.
+3. `docs/adr/`: decisions 0001 to 0047. Check here before reopening a settled question.
 4. `specs/roadmap.md`: the phase list, with what's ticked.
 5. `specs/tech-stack.md`, `CONTEXT.md` (domain glossary), `README.md` (how to run everything).
 6. `.ralph/human.md`: work only the owner can do (`## Open`) and decisions made on their behalf (`## Decided for you`). Read the headings and the lines for your phase; it's long.
@@ -47,7 +47,11 @@ It's an entry to the PayPal AI Hackathon (Devpost). **We submit Wed 11 Nov 2026*
 1. **Node 26.7 or later, below 27** (`package.json` `engines`; `.node-version` says `26`), and **npm 11**.
 2. Update the clone: `git checkout main`, then `git pull --ff-only origin main`.
 3. Install exactly what's locked: `npm ci`.
-4. Copy `.env.example` to `.env.local` and fill in sandbox values. Never commit it. Unit tests, typecheck, lint and build need **no** credentials. Scripts read the file with `--env-file-if-exists=.env.local`.
+4. Run `npm run local:setup` to create missing local access keys without overwriting existing
+   configuration. Fill missing sandbox variables locally using `.env.example` for their names;
+   preserve any existing `.env.local`. Never commit it. Unit tests, typecheck, lint and build
+   need **no** credentials. The local launcher loads both root env files; other CLIs use
+   `.env.local` or exported variables unless their command says otherwise.
 5. The audit log needs `DATABASE_URL` (Postgres) only for real runs; without it the CLIs fall back to a local PGlite folder, `.countersign/pglite`.
 6. Check everything is green before you change anything:
 
@@ -58,11 +62,29 @@ npm test
 npm run build
 ```
 
-Expect: typecheck clean, lint with one old warning (`apps/resolve-agent/src/queue.ts`, `noConfusingVoidType`), about 2,532 tests passing and about 21 skipped (live tests, which run only with `LIVE=1` and real credentials), and a successful build of the console and storefront.
+Expect: typecheck and lint clean, about 2,533 tests passing and 21 skipped (live tests, which run
+only with `LIVE=1` and real credentials), and a successful build of the console and storefront.
+On Windows, use `npm test -- --testTimeout=15000 --maxWorkers=4` to allow for cold embedded
+database startup and bound parallel memory use. Test assertions and live-test gates are unchanged.
 
 7. The screenshot harness needs Chromium. Locally, run `npx playwright install chromium` once (the pinned `@playwright/test` is 1.64.1). Then `npm run ui:shots` builds nothing itself: run `npm run build` first. It starts fake upstreams and both Next apps, shoots every screen in light and dark at 1440px and 390px, runs the density checks and writes `test-results/ui-shots/*.png` plus `report.json`. `npm run ui:shots -- --only decisions` shoots one screen. If you'd rather use an installed Chrome, set `UI_SHOTS_CHROMIUM` to its path. (In the cloud it pointed at `/opt/pw-browsers/...`; that path is set in `.ralph/settings.json` and won't exist on your machine, which only matters if you run the Claude loop.)
 
-Run the apps with the table in `README.md` → "Run the apps" (gate on 8787, Resolve on 8788, console on 3000, storefront on 3001).
+For local development run `npm run local:setup`, then `npm run dev` from the repo root. The
+launcher loads `.env` as a fallback and `.env.local` as overrides without displaying values.
+It runs Gate (8787) and Resolve (8788) with one shared database handle, plus console (3000)
+and storefront (3001), all on `127.0.0.1`. No separate Postgres installation is required.
+Ctrl+C stops every app. See README's "Run the apps" and ADR 0047.
+
+Local setup creates missing access keys in ignored `.env.local`; the owner signs in using
+`COUNTERSIGN_APPROVER_KEY` from that file or the existing environment. Never display it.
+Next dev and production builds use Webpack on Windows because Turbopack's CSS worker fails
+on this machine; Linux and Render keep their existing default. Frontend changes reload;
+restart the launcher for backend or environment changes.
+
+With PGlite, stop dev before any database CLI. To seed, configure the two different sandbox
+buyers' payment-token IDs as described in `docs/seed-buyers.md`, run `npm run seed:local`,
+then restart dev. `seed:local` loads both root env files. No seed, payment or AI call runs
+automatically during setup.
 
 ## 5. How work was done, and how to keep doing it
 
@@ -98,11 +120,13 @@ These are in `AGENTS.md` too.
 
 ## 7. Waiting on the owner
 
-`.ralph/human.md` → `## Open` holds 42 items. Until they're done, live checks run against fixtures. The ones that matter most now:
+`.ralph/human.md` → `## Open` holds the owner queue. Until its prerequisites are done, use
+fixtures for automated checks and leave the live checks pending. The ones that matter most now:
 
 - **Render:** create the services from `render.yaml` on paid plans, set the environment, then run phase 13's manual checks 1 to 9 (`specs/features/13-hosted-judge-path/validation.md`).
 - **Credentials:** the two seed vault tokens (`PAYPAL_SEED_VAULT_TOKEN`, `PAYPAL_SEED_VAULT_TOKEN_B`), the principal, ops and approver keys, the Gemini tier, the AG Studio licence (`AG_STUDIO_LICENSE_KEY`), and a sandbox dispute opened ahead of time.
-- **`.env.example`:** add `COUNTERSIGN_DEMO_RESET=` and `RESOLVE_BASELINE=` (phase 13 introduced them).
+- **`.env.example`:** the local setup change adds reset, baseline, service addresses, database,
+  access keys and the second buyer token to the template. The owner fills real values locally.
 - **Start page copy:** on a phone, step 4 says "Scan the code below" but the code isn't shown at that width. The owner should pick the wording.
 - **Merchant interviews (goal G7):** 5 merchants and 2 developers, logged in `docs/validation.md` (it doesn't exist yet). The demo mandate's limits are meant to come from them.
 
@@ -121,3 +145,29 @@ These are in `AGENTS.md` too.
 1. Do section 4 and confirm the four checks are green.
 2. Read `specs/brief.md` §4 (goals and honesty rules), §5 item 10, §8 and §10, then the roadmap line for phase 14.
 3. Branch `feature/14-bench-v1` from `main` and start section 5, step 1, for phase 14.
+
+## 10. Local setup handoff (1 Nov 2026)
+
+Dependencies and Playwright Chromium are installed on this machine. The local launcher has
+been checked against real Gate/Resolve health endpoints and browser sign-in, Start, Inbox,
+Approvals, Audit log, Decisions, storefront and product pages. These checks made no payment
+or AI calls. A supplied database's ownership is covered by an additional Resolve test.
+The old queue lint warning is fixed without changing its callback behavior. A ledger CLI
+test now splits both Windows and Unix line endings while keeping its exact assertions.
+Browser screenshots and check logs are under ignored `test-results/local-setup/`.
+Final verification: full workspace typecheck, lint and both production builds pass. The full
+offline suite with the Windows options above reports 2,533 passed and 21 skipped. Ctrl+C
+released all four ports. The dev server was stopped after verification so the owner can run
+it in their own terminal and stop it before seeding. No need to reinstall dependencies or
+repeat the repository-wide orientation in the next chat.
+
+The existing root `.env` supplies PayPal/Gemini configuration through the launcher; agents
+must not inspect its values. The setup check found both seed vault tokens missing. Until
+the owner supplies them and seeds the orders, the UI and sign-in work but the three seeded
+payment scenarios cannot be validated. No hosted deployment has been verified here.
+
+Phase 14 has not started. The owner wants to continue it in a new chat. Preserve their model
+preference: GPT-6.1 Sol at high for ordinary roles, and xhigh only for answerer questions.
+The legacy `.ralph/*.sh` scripts still invoke Claude; don't start them as a Codex loop.
+Keep planning lean, apply the readiness-only review for phase 14, and load focused context
+per ticket. The hold-out writer must be a fresh session with no gate or mandate context.

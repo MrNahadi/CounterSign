@@ -20,7 +20,7 @@ import { type ProtectedEnv, runProtected } from "./protected";
  * Runs one queued run to its end. Its own errors are logged by the queue, never thrown on. It may
  * return the ID of a new queued run to follow it (the fallback rerun); the queue runs that next.
  */
-export type ModeRunner = (runId: string) => Promise<string | undefined | void>;
+export type ModeRunner = (runId: string) => Promise<string | undefined> | Promise<void>;
 
 export type RunQueue = {
   /** Adds a run to the back of the queue. It starts once every run before it has ended. */

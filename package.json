@@ -11,6 +11,9 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/dev.ts",
+    "local:setup": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/local-setup.ts",
+    "seed:local": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local apps/storefront/src/seed-main.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tests/ui-shots/tsconfig.json && npm run typecheck --workspaces --if-present",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
