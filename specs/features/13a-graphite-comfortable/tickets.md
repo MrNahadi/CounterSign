@@ -117,15 +117,15 @@ Notes:
 
 ## T-008: The Audit log and Disputes
 
-Status: open
+Status: done
 Blocked by: T-007
 Tier: simple
 Slice: `/audit` and `/disputes` follow the Decisions table card, with Draft again as a small secondary button.
 Test seam: `npm run ui:shots -- --only audit,audit-check,disputes`
 Acceptance:
-- [ ] `npm run ui:shots -- --only audit,audit-check,disputes` prints `0 failures`
-- [ ] `console-setup.test.ts` passes unchanged (table wrappers, `title={hash.full}`, the disputes sign-in and empty-state lines, `draft-again.tsx` still a client file with no server imports)
-- [ ] None of the three files defines local button, table or column constants, or contains `uppercase`
+- [x] `npm run ui:shots -- --only audit,audit-check,disputes` prints `0 failures`
+- [x] `console-setup.test.ts` passes unchanged (table wrappers, `title={hash.full}`, the disputes sign-in and empty-state lines, `draft-again.tsx` still a client file with no server imports)
+- [x] None of the three files defines local button, table or column constants, or contains `uppercase`
 Notes:
 - Files: `apps/console/app/audit/page.tsx`, `apps/console/app/disputes/page.tsx`, `apps/console/app/disputes/draft-again.tsx` (design.md step 7). Blocked by T-007 only for its table-card pattern.
 
