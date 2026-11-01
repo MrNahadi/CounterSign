@@ -758,3 +758,64 @@ describe("the audit reader", { timeout: SLOW }, () => {
     expect(await verifyLog(db)).toEqual(before);
   });
 });
+
+// A demo.reset entry starts the new log (ADR 0042). Its own database, so the log above keeps its counts.
+describe("the audit reader's demo.reset line", { timeout: SLOW }, () => {
+  const HASH = `3f9a${"0".repeat(56)}c2d1`;
+  const cleared = { entries: 41, tickets: 3, attachments: 2, runs: 4, drafts: 1, documents: 1 };
+  let handle: DatabaseHandle;
+  let db: Database;
+
+  beforeAll(async () => {
+    handle = await createTestDatabase();
+    db = handle.db;
+  }, SLOW);
+
+  afterAll(async () => {
+    await handle.close();
+  });
+
+  const appendReset = async (payload: unknown) => {
+    const result = await appendEntry(db, {
+      entryType: "demo.reset",
+      refId: null,
+      at: "2026-10-20T12:00:00.000Z",
+      payload,
+    });
+    if (!result.ok) throw new Error(`append refused: ${result.rejection.detail}`);
+    return result.entry.seq;
+  };
+
+  const lineOf = async (seq: number) => {
+    const page = await readEntries(db, { limit: 50 });
+    const entry = page.entries.find((row) => row.seq === seq);
+    if (!entry) throw new Error("entry missing from the page");
+    return entry;
+  };
+
+  it("reads as its sentence with a previous head", async () => {
+    const seq = await appendReset({ previous_head: { seq: 41, hash: HASH }, cleared });
+    expect(await lineOf(seq)).toMatchObject({
+      type: "demo.reset",
+      readable: true,
+      summary: "The demo was reset. The log before it ended at entry 41 (hash 3f9a…c2d1).",
+    });
+  });
+
+  it("reads as its sentence without a previous head", async () => {
+    const seq = await appendReset({ previous_head: null, cleared: { ...cleared, entries: 0 } });
+    expect(await lineOf(seq)).toMatchObject({
+      readable: true,
+      summary: "The demo was reset. The log was empty before it.",
+    });
+  });
+
+  it("lists an unreadable payload as unreadable", async () => {
+    const seq = await appendReset({ previous_head: { seq: 0, hash: "nope" } });
+    expect(await lineOf(seq)).toMatchObject({
+      readable: false,
+      summary: "This entry can't be read.",
+      problem: expect.stringContaining(`demo.reset #${seq} can't be read`),
+    });
+  });
+});

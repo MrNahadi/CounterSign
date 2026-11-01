@@ -50,6 +50,7 @@ import {
 } from "./approval-log";
 import { CLAIM_WORDS, type ClaimPair, claimsVsRecords } from "./claims";
 import { AgentResponseSchema } from "./decide";
+import { DemoResetPayloadSchema, demoResetSummary } from "./demo-reset";
 import { DisputeReceivedPayloadSchema } from "./dispute-log";
 import {
   ExecutionRequestedPayloadSchema,
@@ -986,6 +987,10 @@ function disputeReceivedSummary(row: ChainRow): Parsed<string> {
 
 function summaryOf(row: ChainRow, orders: OrderBook, requests: Requests): Parsed<string> {
   if (row.entryType === "dispute.received") return disputeReceivedSummary(row);
+  if (row.entryType === "demo.reset") {
+    const parsed = parseEntry(row, DemoResetPayloadSchema);
+    return parsed.ok ? { ok: true, value: demoResetSummary(parsed.value) } : parsed;
+  }
   if (row.entryType === "decision") {
     const parsed = parseDecision(row);
     return parsed.ok ? { ok: true, value: decisionSummary(parsed.value, orders) } : parsed;

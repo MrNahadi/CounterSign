@@ -9,6 +9,8 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { mountApprovals } from "./approvals-api";
 import { approverLines, loadApprover } from "./approver";
 import { mountAudit } from "./audit-api";
+import { demoResetEnabled, type Reseed } from "./demo-reset";
+import { mountDemoReset } from "./demo-reset-api";
 import { mountMcp } from "./mcp";
 import type { NudgeFetch } from "./nudge";
 import { loadPrincipals, MIN_KEY_LENGTH, PRINCIPAL_LABELS, type Principals } from "./principals";
@@ -29,6 +31,8 @@ export type AppDeps = {
   log?: (line: string) => void;
   // The dispute nudge's way to Resolve, for tests. Defaults to the global fetch.
   fetch?: NudgeFetch;
+  // The demo reset's way to place replacement orders, for tests. Defaults to a seed run.
+  reseed?: Reseed;
 };
 
 // The startup lines about principal keys and the mandate: variable names only, never values.
@@ -106,6 +110,22 @@ export function createApp(deps: AppDeps = {}) {
     mandates: principals.mandates,
     clock: webhookDeps.clock,
   });
+  // Off unless COUNTERSIGN_DEMO_RESET is exactly "on"; then the path is Express's 404.
+  if (demoResetEnabled(webhookDeps.env)) {
+    mountDemoReset(app, {
+      approver,
+      ...(deps.db ? { db: deps.db } : {}),
+      rail:
+        railOnce ??
+        (() => {
+          throw new Error("no rail");
+        }),
+      env: webhookDeps.env,
+      clock: webhookDeps.clock,
+      ...(deps.reseed ? { reseed: deps.reseed } : {}),
+      ...(deps.fetch ? { nudgeFetch: deps.fetch } : {}),
+    });
+  }
 
   // The body is read raw, whatever its content type, so the signature is checked over the
   // exact bytes PayPal signed.

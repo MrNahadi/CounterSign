@@ -125,15 +125,15 @@ Notes:
 
 ## T-009: The reset's route and its line in the audit reader
 
-Status: open
+Status: done
 Blocked by: T-008
 Tier: simple
 Slice: The approver can reset over HTTP when the gate has `COUNTERSIGN_DEMO_RESET=on`, and `/audit/entries` reads a `demo.reset` as its sentence.
 Test seam: a listening `createApp` (as `test/approvals-api.test.ts`); the audit reader's `/audit/entries`
 Acceptance:
-- [ ] `POST /demo/reset` is 404 unless the flag is exactly `on`, 401 for a principal key or none, 200 with the snake_case report for the approver key, and 409 or 503 with the sentence for a refusal (validation check 5)
-- [ ] The route uses the cached rail client (`railOnce`)
-- [ ] A `demo.reset` entry reads as its sentence with and without a previous head, and an unreadable one as unreadable (validation check 7)
+- [x] `POST /demo/reset` is 404 unless the flag is exactly `on`, 401 for a principal key or none, 200 with the snake_case report for the approver key, and 409 or 503 with the sentence for a refusal (validation check 5)
+- [x] The route uses the cached rail client (`railOnce`)
+- [x] A `demo.reset` entry reads as its sentence with and without a previous head, and an unreadable one as unreadable (validation check 7)
 Notes:
 - Items 10 and 12. Files: `apps/gate/src/{demo-reset-api,app,audit-reader}.ts`, `apps/gate/test/{demo-reset-api,audit-reader}.test.ts`.
 
