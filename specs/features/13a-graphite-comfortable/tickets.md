@@ -256,14 +256,14 @@ Notes:
 
 ## T-018: The density pass
 
-Status: open
+Status: done
 Blocked by: T-006, T-008, T-009, T-010, T-011, T-012, T-013
 Tier: simple
 Slice: Every screen in both themes at both widths passes every density check.
 Test seam: `npm run ui:shots`
 Acceptance:
-- [ ] `npm run ui:shots` prints `ui-shots: 56 shots, 0 failures`
-- [ ] `grep -rnE "const (BUTTON|PRIMARY|SECONDARY|HEAD|CELL|COLUMN|FIELD) =" apps/console/app` finds nothing, and no file under `apps/console/app` contains `uppercase` or `tracking-caption-upper`
-- [ ] The final summary line is in `.ralph/progress.md`
+- [x] `npm run ui:shots` prints `ui-shots: 56 shots, 0 failures`
+- [x] `grep -rnE "const (BUTTON|PRIMARY|SECONDARY|HEAD|CELL|COLUMN|FIELD) =" apps/console/app` finds nothing, and no file under `apps/console/app` contains `uppercase` or `tracking-caption-upper`
+- [x] The final summary line is in `.ralph/progress.md`
 Notes:
 - Fix failures in the file that causes them, with the recipes (design.md step 16). Any file from T-005 to T-013 may change.
