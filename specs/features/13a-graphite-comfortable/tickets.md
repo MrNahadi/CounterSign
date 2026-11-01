@@ -131,15 +131,15 @@ Notes:
 
 ## T-009: The decision page
 
-Status: open
+Status: done
 Blocked by: T-007
 Tier: simple
 Slice: `/decisions/[seq]` reads as sections 80px apart, with claims and trace in table cards that still stack at phone width.
 Test seam: `npm run ui:shots -- --only decision,decision-unreadable`
 Acceptance:
-- [ ] `npm run ui:shots -- --only decision,decision-unreadable` prints `0 failures`
-- [ ] `console-setup.test.ts` passes unchanged (`max-md:flex max-md:flex-col`, the table wrapper, the intent page's redirect, `copy-reply.tsx` without `@countersign/mandate`)
-- [ ] The three files define no local recipe constants and contain no `uppercase`
+- [x] `npm run ui:shots -- --only decision,decision-unreadable` prints `0 failures`
+- [x] `console-setup.test.ts` passes unchanged (`max-md:flex max-md:flex-col`, the table wrapper, the intent page's redirect, `copy-reply.tsx` without `@countersign/mandate`)
+- [x] The three files define no local recipe constants and contain no `uppercase`
 Notes:
 - Files: `apps/console/app/decisions/[seq]/page.tsx`, `[seq]/copy-reply.tsx`, `decisions/intent/[id]/page.tsx` (design.md step 8).
 
