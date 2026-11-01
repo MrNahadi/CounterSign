@@ -21,20 +21,20 @@ export default async function ProductPage({ params }: Params) {
   const { product, checkout } = props;
 
   return (
-    <main className="max-w-xl">
+    <main className="max-w-2xl">
       <Link
         href="/"
-        className="-ml-1.5 inline-flex h-6 items-center gap-1 rounded-lg px-2 pl-1.5 text-body-sm font-medium text-secondary-foreground transition-colors duration-150 ease-out hover:bg-transparent-hover hover:text-primary-foreground"
+        className="-ml-2 inline-flex h-7 items-center gap-1.5 rounded-lg pr-2.5 pl-2 text-caption-lg font-medium text-secondary-foreground transition-colors duration-150 ease-out hover:bg-transparent-hover hover:text-primary-foreground"
       >
         <ArrowLeft size={14} strokeWidth={1.5} aria-hidden="true" />
         <span>Back to shop</span>
       </Link>
-      <h1 className="mt-6 text-heading-4 font-medium tracking-heading">{product.name}</h1>
+      <h1 className="mt-7 text-heading-4 font-medium tracking-heading">{product.name}</h1>
       <p className="mt-2 text-body-base text-secondary-foreground">{product.description}</p>
       <p className="mt-4 font-mono text-code-sm tabular-nums text-primary-foreground">
         {product.price}
       </p>
-      <section aria-label="Checkout" className="mt-8">
+      <section aria-label="Checkout" className="mt-14 wide:mt-20">
         {checkout.ready ? (
           <PayPalCheckout productId={product.id} clientId={checkout.clientId} />
         ) : (

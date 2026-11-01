@@ -174,15 +174,15 @@ Notes:
 
 ## T-012: The storefront
 
-Status: open
+Status: done
 Blocked by: T-003
 Tier: simple
 Slice: The shop and product pages take the comfortable page padding, 24px product cards and the section-gap checkout.
 Test seam: `npm run ui:shots -- --only shop,product`
 Acceptance:
-- [ ] `npm run ui:shots -- --only shop,product` prints `0 failures`
-- [ ] The storefront's tests (`apps/storefront/test/`) pass unchanged
-- [ ] `paypal-checkout.tsx`'s status card has 24px padding, `--radius-3xl` and a 24px badge (read by validation manual check 5, since no shot renders it)
+- [x] `npm run ui:shots -- --only shop,product` prints `0 failures`
+- [x] The storefront's tests (`apps/storefront/test/`) pass unchanged
+- [x] `paypal-checkout.tsx`'s status card has 24px padding, `--radius-3xl` and a 24px badge (read by validation manual check 5, since no shot renders it)
 Notes:
 - Files: `apps/storefront/app/layout.tsx`, `page.tsx`, `products/[productId]/page.tsx`, `products/[productId]/paypal-checkout.tsx` (design.md step 11).
 
