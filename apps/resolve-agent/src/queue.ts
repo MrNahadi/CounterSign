@@ -56,6 +56,35 @@ export function createRunQueue(runner: ModeRunner, log?: (line: string) => void)
   return queue;
 }
 
+/** A sandbox access token handed to one baseline run (from the gate's launch, ADR 0043). */
+export type SuppliedToken = { accessToken: string; expiresAt: number };
+
+/**
+ * Supplied tokens by run ID, in this process's memory only: nothing stores, logs or traces one.
+ * `take` removes the run's token and returns it.
+ */
+export type SuppliedTokens = {
+  hold: (runId: string, token: SuppliedToken) => void;
+  take: (runId: string) => SuppliedToken | undefined;
+};
+
+export function createSuppliedTokens(): SuppliedTokens {
+  const tokens = new Map<string, SuppliedToken>();
+  return {
+    hold(runId, token) {
+      tokens.set(runId, token);
+    },
+    take(runId) {
+      const token = tokens.get(runId);
+      tokens.delete(runId);
+      return token;
+    },
+  };
+}
+
+/** A supplied token with this much life left, or less, isn't used: the run fails closed. */
+export const SUPPLIED_TOKEN_MIN_LIFE_MS = 60_000;
+
 export type ModeRunnerDeps = {
   db: Database;
   /** The model call, or null when `GEMINI_API_KEY` is unset. */
@@ -68,6 +97,8 @@ export type ModeRunnerDeps = {
   fallbackModel?: string | null;
   /** Runs one queued dispute draft to its end. Without it, drafts end `failed`, `not_configured`. */
   runDraft?: DraftRunner;
+  /** Tokens handed to baseline runs; a run with one uses it in place of `issueToken`. */
+  suppliedTokens?: SuppliedTokens;
   log?: (line: string) => void;
 };
 
@@ -103,6 +134,8 @@ export function createModeRunner(deps: ModeRunnerDeps): ModeRunner {
       deps.log?.(`Draft ${runId}: failed, not_configured.`);
       return;
     }
+    // Taken first, so every way out of this run drops the token.
+    const supplied = deps.suppliedTokens?.take(runId);
     const run = await readRun(deps.db, runId);
     if (run?.status !== "queued") return;
     const { generateContent } = deps;
@@ -130,7 +163,14 @@ export function createModeRunner(deps: ModeRunnerDeps): ModeRunner {
         ? await runProtected({ ...common, env: deps.protectedEnv })
         : await runBaseline({
             ...common,
-            issueToken: deps.issueToken,
+            issueToken: supplied
+              ? async () => {
+                  // Checked when the run starts: a token near its end fails the connection.
+                  if (supplied.expiresAt - deps.clock().getTime() <= SUPPLIED_TOKEN_MIN_LIFE_MS)
+                    throw new Error("supplied token expired");
+                  return supplied;
+                }
+              : deps.issueToken,
             ...(deps.createTransport ? { createTransport: deps.createTransport } : {}),
           });
 
@@ -153,6 +193,8 @@ export function createModeRunner(deps: ModeRunnerDeps): ModeRunner {
       model: fallback,
       queuedAt: deps.clock().toISOString(),
     });
+    // Only this rerun gets the token; `fallback === run.model` stops a rerun of the rerun.
+    if (supplied) deps.suppliedTokens?.hold(rerunId, supplied);
     deps.log?.(
       `Run ${runId}: model_unavailable; rerunning once as ${rerunId} on the fallback model.`,
     );

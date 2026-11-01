@@ -27,7 +27,13 @@ import { createApp } from "../src/app";
 import type { TransportFactory } from "../src/baseline";
 import { BASELINE_REFUSALS, type BaselinePolicy } from "../src/baseline-policy";
 import { MAX_ATTACHMENT_BYTES } from "../src/messages";
-import { createModeRunner, createRunQueue, type ModeRunner, type RunQueue } from "../src/queue";
+import {
+  createModeRunner,
+  createRunQueue,
+  type ModeRunner,
+  type RunQueue,
+  type SuppliedTokens,
+} from "../src/queue";
 import { DEFAULT_PORT, parsePort, serve } from "../src/serve";
 
 // Resolve's HTTP API on 127.0.0.1 port 0, with PGlite and an injected mode runner. The people
@@ -125,6 +131,7 @@ async function listen(
   runner: ModeRunner = sharedRunner,
   dailyCap?: number,
   baseline?: BaselinePolicy,
+  suppliedTokens?: SuppliedTokens,
 ): Promise<string> {
   queue = createRunQueue(runner);
   const server = createApp({
@@ -134,6 +141,7 @@ async function listen(
     clock,
     ...(dailyCap === undefined ? {} : { dailyCap }),
     ...(baseline === undefined ? {} : { baseline }),
+    ...(suppliedTokens === undefined ? {} : { suppliedTokens }),
   }).listen(0, "127.0.0.1");
   servers.push(server);
   await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -417,6 +425,50 @@ describe("POST /messages under RESOLVE_BASELINE", () => {
       );
     });
   }
+});
+
+describe("supplied tokens in accept", () => {
+  // Only a queued run holds a token, and `POST /messages` never carries one.
+  const recording = () => {
+    const held: string[] = [];
+    const tokens: SuppliedTokens = {
+      hold: (runId) => {
+        held.push(runId);
+      },
+      take: () => undefined,
+    };
+    return { held, tokens };
+  };
+
+  it("holds nothing for a queued message from POST /messages", async () => {
+    const { held, tokens } = recording();
+    const base = await listen(async () => {}, undefined, "on", tokens);
+    const res = await post(base, { ...EMAIL, mode: "baseline" });
+    expect(res.status).toBe(202);
+    await queue.idle();
+    expect(held).toEqual([]);
+  });
+
+  it("holds nothing for a capped (not_run) message", async () => {
+    const { held, tokens } = recording();
+    const enqueued: string[] = [];
+    const base = await listen(
+      async (id) => {
+        enqueued.push(id);
+      },
+      1,
+      "on",
+      tokens,
+    );
+    expect((await post(base, { ...EMAIL, mode: "baseline" })).status).toBe(202);
+    const capped = await post(base, { ...EMAIL, mode: "baseline" });
+    expect(capped.status).toBe(202);
+    const { run_id } = (await capped.json()) as { run_id: string };
+    expect(await readRun(handle.db, run_id)).toMatchObject({ status: "not_run" });
+    await queue.idle();
+    expect(enqueued).not.toContain(run_id);
+    expect(held).toEqual([]);
+  });
 });
 
 describe("the run queue and thread readers", () => {

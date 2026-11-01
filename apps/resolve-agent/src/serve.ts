@@ -8,6 +8,7 @@ import {
   openDatabase,
   resolveDatabaseTarget,
 } from "@countersign/db";
+import { parsePayPalEnv } from "@countersign/rail-paypal";
 import { z } from "zod";
 import { createApp } from "./app";
 import { paypalTokenIssuer } from "./baseline";
@@ -16,7 +17,7 @@ import { runDisputeDraft } from "./drafter";
 import { parseDailyCap } from "./limits";
 import { createGenerateContent, DEFAULT_MODEL, parseModelEnv } from "./model";
 import { parseProtectedEnv } from "./protected";
-import { createModeRunner, createRunQueue } from "./queue";
+import { createModeRunner, createRunQueue, createSuppliedTokens } from "./queue";
 
 // Resolve's process: the database the CLIs use, the model, the gate's address and key, and the
 // PayPal variables for baseline mode, all from the environment. With none of them set it still
@@ -87,6 +88,8 @@ export async function serve(env: Environment, options: ServeOptions = {}): Promi
   const baseline = parseBaselinePolicy(env);
   if (baseline.problem !== null) log(baseline.problem);
 
+  // A baseline run's token from the gate's launch, held in memory from its queueing to its start.
+  const suppliedTokens = createSuppliedTokens();
   const db = handle?.db;
   const queue = db
     ? createRunQueue(
@@ -108,6 +111,7 @@ export async function serve(env: Environment, options: ServeOptions = {}): Promi
               log,
             });
           },
+          suppliedTokens,
           log,
         }),
         log,
@@ -121,6 +125,9 @@ export async function serve(env: Environment, options: ServeOptions = {}): Promi
     dailyCap,
     log,
     baseline: baseline.policy,
+    suppliedTokens,
+    // Without PayPal variables (as on Render), every baseline token must come from the gate.
+    canMintTokens: parsePayPalEnv(env).ok,
   });
   const server = app.listen(port, options.host ?? "0.0.0.0");
   await new Promise<void>((resolve, reject) => {

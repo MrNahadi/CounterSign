@@ -195,18 +195,19 @@ Notes:
 
 ## T-014: Supplied baseline tokens in Resolve's queue
 
-Status: open
+Status: done
 Blocked by: T-013
 Tier: standard
 Slice: A baseline run can use a token handed to it instead of minting one, holding it in memory for that run and its one fallback rerun only.
 Test seam: `createSuppliedTokens`, `createModeRunner` with a fake transport, and `createApp`'s `accept`
 Acceptance:
-- [ ] A supplied token reaches that run's baseline connection, is gone afterwards, and appears in no stored row, trace or log line
-- [ ] A non-`queued` run drops its token; a token with 60 s or less left fails `baseline_unavailable` with no model call
-- [ ] A `model_unavailable` baseline run passes its token to its one rerun, and the rerun's rerun gets none
-- [ ] A capped (`not_run`) message holds nothing; `canMintTokens` defaults to true, and `serve.ts` sets it from the PayPal variables
+- [x] A supplied token reaches that run's baseline connection, is gone afterwards, and appears in no stored row, trace or log line
+- [x] A non-`queued` run drops its token; a token with 60 s or less left fails `baseline_unavailable` with no model call
+- [x] A `model_unavailable` baseline run passes its token to its one rerun, and the rerun's rerun gets none
+- [x] A capped (`not_run`) message holds nothing; `canMintTokens` defaults to true, and `serve.ts` sets it from the PayPal variables
 Notes:
 - Item 14 (token part). Files: `apps/resolve-agent/src/{queue,serve,app}.ts`, `apps/resolve-agent/test/{queue,app}.test.ts`.
+- No route passes a token to `accept` until T-015, so the app tests cover only `POST /messages` (queued and capped) holding nothing. `canMintTokens` is declared on `AppDeps` (default true, documented) but nothing reads it yet. T-015's route must read `deps.canMintTokens ?? true` and test: a baseline scenario's token is held for its run, a capped scenario holds nothing, and `canMintTokens` true and false.
 
 ## T-015: Resolve's scenario route
 

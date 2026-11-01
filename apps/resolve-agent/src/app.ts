@@ -21,7 +21,7 @@ import { allowedIntentIds, heldCalls, readExecutions, readHeld } from "./executi
 import { newId, storeMessage } from "./intake";
 import { DEFAULT_DAILY_RUN_CAP, overDailyCap } from "./limits";
 import { checkMessage } from "./messages";
-import type { RunQueue } from "./queue";
+import type { RunQueue, SuppliedToken, SuppliedTokens } from "./queue";
 
 // Resolve's HTTP API (ADR 0030): `POST /messages` stores a customer message and queues its run;
 // the thread readers return what the console's inbox shows. `POST /disputes` queues a dispute's
@@ -43,6 +43,10 @@ export type AppDeps = {
   log?: (line: string) => void;
   /** Where baseline mode may run (`RESOLVE_BASELINE`). Defaults to `on`. */
   baseline?: BaselinePolicy;
+  /** Where a run's supplied token is held until its run starts (the queue takes it). */
+  suppliedTokens?: SuppliedTokens;
+  /** True when Resolve has PayPal variables to mint baseline tokens itself. Defaults to true. */
+  canMintTokens?: boolean;
 };
 
 const ThreadIdSchema = z.string().min(1).max(256);
@@ -158,7 +162,13 @@ export function createApp(deps: AppDeps) {
 
   // The one way a message is taken, from `POST /messages` or a demo scenario: check it, refuse
   // baseline where the policy doesn't allow it, then the cap, store and queue.
-  async function accept(res: Response, input: unknown, origin: "message" | "scenario") {
+  // A supplied token is held only for a run that's queued; a capped run holds nothing.
+  async function accept(
+    res: Response,
+    input: unknown,
+    origin: "message" | "scenario",
+    token?: SuppliedToken,
+  ) {
     const checked = await checkMessage(db(), input);
     if (!checked.ok) {
       message(res, 400, checked.problem);
@@ -205,6 +215,7 @@ export function createApp(deps: AppDeps) {
         );
       }
     } else {
+      if (token) deps.suppliedTokens?.hold(stored.runId, token);
       deps.queue.enqueue(stored.runId);
     }
     res.status(202).json({
