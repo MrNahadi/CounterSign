@@ -6,7 +6,7 @@ The owner's request of 31 Oct 2026 and their updated `Graphite Design/DESIGN.md`
 
 - Routes, server and client behaviour, polling, sign-in, approvals, exports, links, `aria-*` labels and roles, and every copy string. Case comes from the source text, which is already sentence case.
 - `Graphite Design/DESIGN.md`, `Graphite Design/graphite-tokens.css` and `packages/graphite/graphite-tokens.css` (byte-identical).
-- Every existing test, except the four edits in design.md's "Tests that change". `packages/graphite/test/design-check.test.ts` passes unchanged.
+- Every existing test, except the edits to two test files in design.md's "Tests that change". `packages/graphite/test/design-check.test.ts` passes unchanged.
 - The colour tokens each element uses, except where a rule below names a new one.
 
 ## Deliberate departures from DESIGN.md
@@ -100,7 +100,7 @@ Full-bleed `page`, at most 448px wide. Sticky header 16px padded: the shop name 
 
 ### Risk desk spike (`/spike/risk-desk`)
 
-Header 16px by 24px padded: "Risk desk" 16px semibold, the "Spike S9, sample data" label at 13px `secondary-foreground`, the theme control. The Studio panel stays inset 8px. The AG Studio theme (`packages/graphite/src/ag-theme.ts`): 14px UI and grid text; grid rows 56px; header 44px, 13px medium `secondary-foreground`; cell side padding 16px; canvas padding 24px; widgets 24px padding and 16px radius, title 16px semibold, subtitle and caption 13px. Each number comes from `packages/graphite/src/sizes.ts`, which a test checks against the tokens. A param that AG Studio's `withParams` type doesn't accept is left out and named in `.ralph/progress.md`.
+Header 16px by 24px padded: "Risk desk" 16px semibold, the "Spike S9, sample data" label at 13px `secondary-foreground`, the theme control. The Studio panel stays inset 8px. The AG Studio theme (`packages/graphite/src/ag-theme.ts`): 14px UI and grid text; grid rows 56px; header 44px, 13px medium `secondary-foreground`; cell side padding 16px; canvas padding 24px; widgets 24px padding and 16px radius, title 16px semibold, subtitle and caption 13px. Each number comes from `packages/graphite/src/sizes.ts`, which a test checks against the tokens. A param that AG Studio's `withParams` type doesn't accept under either name design.md step 12b gives is left out and named in `.ralph/progress.md`; Studio keeps its own value for it until phase 16 (accepted trade-off, `reviews/resolution.md`).
 
 ### Storefront (`/`, `/products/[id]`)
 
@@ -123,6 +123,10 @@ Full-bleed `page`; the content padded like the console's page (48/56/96, below 9
 - Spacing: `space-1` to `space-24`; card padding 24px (`--card-padding`), 16px only for small nested cards; grid gaps 24px (`--grid-gap`); dialog padding 28px; page sections 80px apart (`--section-gap`), 56px below 900px; form fields 20px apart; the container padding and `--content-max` (1120px); the 260px sidebar (`--sidebar-width`) with 36px nav items; "when unsure, add space"; the signs of a too-dense screen.
 - Controls: `control-xs` to `control-xl` are 24 to 44px; buttons default to `control-md` (32px); inputs are 36px, 32px in toolbars; the minimum hit target is 28px; touch primary actions use `control-xl` (44px).
 - Radius: cards `radius-3xl`; small nested cards `radius-2xl`; menus, popovers, toasts and the main container `radius-2xl`.
+
+### `components/*/preview.html`
+
+- Any inline style or sample text that contradicts `DESIGN.md` (old UI text sizes, 40px rows, "dense", uppercase table headers) or uses a class `bundle.css` renames (`.gr-avatar-24` becomes `.gr-avatar-28`) follows the new values. A preview's own demo-frame scaffolding stays.
 
 ### `components/README.md`
 
