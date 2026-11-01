@@ -67,7 +67,7 @@ function problemsOf(rows: ChainRow[]) {
 }
 
 describe("entry types", () => {
-  it("are mandate.version, decision, phase 6's execution types phase 9's approval and phase 11's dispute.received, in one list", () => {
+  it("are mandate.version, decision, phase 6's execution types phase 9's approval, phase 11's dispute.received and phase 13's demo.reset, in one list", () => {
     expect(ENTRY_TYPES).toEqual([
       "mandate.version",
       "decision",
@@ -76,6 +76,7 @@ describe("entry types", () => {
       "reconciliation",
       "approval",
       "dispute.received",
+      "demo.reset",
     ]);
   });
 });

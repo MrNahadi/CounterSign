@@ -35,14 +35,14 @@ Notes:
 
 ## T-003: `demo.reset` in the ledger, and the run cap counts cleared runs
 
-Status: open
+Status: done
 Blocked by: T-002
 Tier: simple
 Slice: The ledger accepts a `demo.reset` entry, and Resolve's daily cap still counts runs a reset cleared.
 Test seam: `@countersign/ledger`'s `ENTRY_TYPES` and `verifyLog`; Resolve's `overDailyCap`
 Acceptance:
-- [ ] `ENTRY_TYPES` holds `demo.reset` (the pinned list in `chain.test.ts` updated); a log whose entry 1 is `demo.reset` verifies
-- [ ] After a clear that removed today's runs, `overDailyCap` still counts them (validation check 8)
+- [x] `ENTRY_TYPES` holds `demo.reset` (the pinned list in `chain.test.ts` updated); a log whose entry 1 is `demo.reset` verifies
+- [x] After a clear that removed today's runs, `overDailyCap` still counts them (validation check 8)
 Notes:
 - Items 5 and 6. Files: `packages/ledger/src/chain.ts`, `packages/ledger/test/chain.test.ts` (or `log.test.ts`), `apps/resolve-agent/src/limits.ts`, `apps/resolve-agent/test/limits.test.ts`.
 

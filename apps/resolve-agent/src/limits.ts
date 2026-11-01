@@ -1,4 +1,5 @@
 import {
+  countClearedRunsOnDate,
   countDraftsOnDate,
   countRunsOnDate,
   type Database,
@@ -28,9 +29,14 @@ export const utcDate = (at: Date): string => at.toISOString().slice(0, 10);
 
 /**
  * True when the UTC date of `at` has used its cap: message runs and dispute drafts count alike,
- * every status included (a failed draft drafted again counts twice, ADR 0037).
+ * every status included (a failed draft drafted again counts twice, ADR 0037). Runs and drafts a
+ * demo reset cleared still count, so a reset never raises the day's cap (ADR 0042).
  */
 export async function overDailyCap(db: Database, at: Date, cap: number): Promise<boolean> {
   const date = utcDate(at);
-  return (await countRunsOnDate(db, date)) + (await countDraftsOnDate(db, date)) >= cap;
+  const used =
+    (await countRunsOnDate(db, date)) +
+    (await countDraftsOnDate(db, date)) +
+    (await countClearedRunsOnDate(db, date));
+  return used >= cap;
 }

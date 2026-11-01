@@ -4,10 +4,13 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  clearDemoTables,
+  countRunsOnDate,
   createRun,
   createTestDatabase,
   type DatabaseHandle,
   finishRun,
+  lockDemoTables,
   type NewRun,
   openDatabase,
   readRun,
@@ -26,7 +29,7 @@ import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app";
 import type { TransportFactory } from "../src/baseline";
-import { parseDailyCap } from "../src/limits";
+import { overDailyCap, parseDailyCap } from "../src/limits";
 import { createModeRunner, createRunQueue, type RunQueue } from "../src/queue";
 import { serve } from "../src/serve";
 
@@ -196,6 +199,36 @@ describe("the daily run cap", () => {
     await queue.idle();
     expect((await readRun(handle.db, nextDay.run_id))?.outcome).toBe("replied");
     expect(requests).toHaveLength(2);
+  });
+
+  it("still counts the runs a demo reset cleared", async () => {
+    const { base, requests } = await listen({
+      dailyCap: 2,
+      script: [textResponse("One."), textResponse("Two."), textResponse("Three.")],
+    });
+    await send(base);
+    await queue.idle();
+    expect(await overDailyCap(handle.db, now, 2)).toBe(false);
+
+    await handle.db.transaction(async (tx) => {
+      await lockDemoTables(tx);
+      await clearDemoTables(tx);
+    });
+    expect(await countRunsOnDate(handle.db, "2026-10-20")).toBe(0);
+    expect(await overDailyCap(handle.db, now, 2)).toBe(false);
+
+    await send(base);
+    await queue.idle();
+    expect(requests).toHaveLength(2);
+    expect(await overDailyCap(handle.db, now, 2)).toBe(true);
+
+    const capped = await send(base);
+    await queue.idle();
+    expect(requests).toHaveLength(2);
+    expect((await readRun(handle.db, capped.run_id))?.outcome).toBe("daily_cap");
+
+    now = new Date("2026-10-21T00:00:00Z");
+    expect(await overDailyCap(handle.db, now, 2)).toBe(false);
   });
 
   it("defaults to 200, and refuses a bad value naming the variable", async () => {

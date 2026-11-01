@@ -186,6 +186,29 @@ describe("appending to and verifying the audit_log table", () => {
     });
   });
 
+  it("verifies a log whose entry 1 is a demo.reset", async () => {
+    const result = await appendEntries(db, [
+      {
+        entryType: "demo.reset",
+        refId: null,
+        at: AT,
+        payload: {
+          previous_head: { seq: 41, hash: "f".repeat(64) },
+          cleared: { entries: 41, tickets: 3, attachments: 1, runs: 4, drafts: 0, documents: 0 },
+        },
+      },
+      decision(1),
+    ]);
+    expect(result.ok).toBe(true);
+    const rows = await storedRows(db);
+    expect(rows[0]).toMatchObject({ seq: 1, entryType: "demo.reset", prevHash: GENESIS_HASH });
+    expect(await verifyLog(db)).toEqual({
+      intact: true,
+      entries: 2,
+      head: { seq: 2, hash: rows[1]?.hash },
+    });
+  });
+
   describe("rejects bad input and leaves the table unchanged", () => {
     const cases: [string, EntryInput, string][] = [
       [

@@ -11,7 +11,8 @@ import {
 // Every entry type the ledger knows. Later phases add theirs here; anything else is never
 // appended, and verification reports it. Phase 6 adds the execution types (ADR 0026), whose
 // payloads the gate defines. Phase 9 adds the merchant's answer to a step-up (ADR 0032).
-// Phase 11 adds the dispute PayPal opened (ADR 0035).
+// Phase 11 adds the dispute PayPal opened (ADR 0035). Phase 13 adds the demo reset, which
+// starts the restarted log and records where the old one ended (ADR 0042).
 export const ENTRY_TYPES = [
   "mandate.version",
   "decision",
@@ -20,6 +21,7 @@ export const ENTRY_TYPES = [
   "reconciliation",
   "approval",
   "dispute.received",
+  "demo.reset",
 ] as const;
 export type EntryType = (typeof ENTRY_TYPES)[number];
 
