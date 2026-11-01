@@ -28,7 +28,7 @@ export function ConsoleNav({ openApprovals = null }: { openApprovals?: number | 
   return (
     <nav
       aria-label="Console"
-      className="flex min-w-0 flex-row gap-1 overflow-x-auto md:flex-col md:overflow-visible"
+      className="flex min-w-0 flex-row gap-1 overflow-x-auto md:flex-col md:gap-0.5 md:overflow-visible"
     >
       {items.map(({ href, label, Icon }) => {
         const current = pathname === href || pathname.startsWith(`${href}/`);
@@ -41,7 +41,7 @@ export function ConsoleNav({ openApprovals = null }: { openApprovals?: number | 
             key={href}
             href={href}
             aria-current={current ? "page" : undefined}
-            className={`flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-2 text-body-sm font-semimedium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out ${
+            className={`flex h-(--nav-item-height) shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 text-body-sm font-semimedium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out ${
               current
                 ? "bg-transparent-hover text-primary-foreground"
                 : "text-secondary-foreground hover:bg-transparent-hover hover:text-primary-foreground"
@@ -50,7 +50,7 @@ export function ConsoleNav({ openApprovals = null }: { openApprovals?: number | 
             <Icon size={16} strokeWidth={1.5} aria-hidden="true" />
             {label}
             {count !== null ? (
-              <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-component px-1.5 text-caption-lg font-medium text-secondary-foreground tabular-nums">
+              <span className="ml-auto inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-component px-2 text-caption-base font-medium text-secondary-foreground tabular-nums">
                 {count}
                 <span className="sr-only">{openCards(count)}</span>
               </span>

@@ -2,6 +2,7 @@
 
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
+import { SEGMENT_ICON, SEGMENT_OFF, SEGMENT_ON, SEGMENTED } from "../src/controls";
 
 type Theme = "system" | "light" | "dark";
 
@@ -54,7 +55,7 @@ export function ThemeControl() {
   }
 
   return (
-    <fieldset aria-label="Theme" className="inline-flex rounded-xl bg-sunken p-0.5">
+    <fieldset aria-label="Theme" className={SEGMENTED}>
       {options.map(({ value, label, Icon }) => (
         <button
           key={value}
@@ -63,11 +64,7 @@ export function ThemeControl() {
           aria-pressed={theme === value}
           title={label}
           onClick={() => choose(value)}
-          className={`flex size-6 items-center justify-center rounded-lg transition-colors duration-150 ease-out ${
-            theme === value
-              ? "bg-component-on-sunken text-primary-foreground shadow-default"
-              : "text-secondary-foreground hover:text-primary-foreground"
-          }`}
+          className={`${SEGMENT_ICON} ${theme === value ? SEGMENT_ON : SEGMENT_OFF}`}
         >
           <Icon size={14} strokeWidth={1.5} />
         </button>

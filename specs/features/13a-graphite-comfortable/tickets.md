@@ -75,15 +75,15 @@ Notes:
 
 ## T-005: The shell, nav and theme control
 
-Status: open
+Status: done
 Blocked by: T-003, T-004
 Tier: simple
 Slice: Every console page sits in the comfortable shell: a 260px sidebar with 36px nav items, a 32px theme control and the inset container panel.
 Test seam: `npm run ui:shots -- --checks shell,theme`
 Acceptance:
-- [ ] `npm run ui:shots -- --checks shell,theme` prints `0 failures`
-- [ ] `console-setup.test.ts` passes unchanged (nav item literals, `<ThemeControl />`, `<ConsoleNav openApprovals={count} />`)
-- [ ] The theme control is built from `SEGMENTED` and `SEGMENT_ICON`, and the nav's count badge is 24px
+- [x] `npm run ui:shots -- --checks shell,theme` prints `0 failures`
+- [x] `console-setup.test.ts` passes unchanged (nav item literals, `<ThemeControl />`, `<ConsoleNav openApprovals={count} />`)
+- [x] The theme control is built from `SEGMENTED` and `SEGMENT_ICON`, and the nav's count badge is 24px
 Notes:
 - Files: `apps/console/app/console-shell.tsx`, `console-nav.tsx`, `theme-control.tsx` (design.md step 4).
 
