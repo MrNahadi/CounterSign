@@ -21,24 +21,24 @@ Notes:
 
 ## T-002: The harness runner: fake upstreams, both apps and 56 shots
 
-Status: blocked-question
+Status: done
 Blocked by: T-001
 Tier: standard
 Slice: `npm run ui:shots` starts the fake gate and Resolve, both built Next apps and Chromium, and writes a full-page PNG for every screen, theme and width with a report.
 Test seam: `npm run ui:shots` (exit code, the printed summary, `test-results/ui-shots/report.json`)
 Acceptance:
-- [ ] With both apps built, `npm run ui:shots` writes 56 PNGs named `<screen>-<theme>-<width>.png` for the 14 screens in design.md step 2c, and prints `ui-shots: 56 shots, <f> failures`
-- [ ] `--only`, `--checks`, `--theme` and `--width` narrow the run; an unknown screen or check name exits 2
-- [ ] Without a build it exits 2 with `ui-shots: run npm run build first`; with no usable Chromium it exits 2 with the message in design.md step 2c
-- [ ] The `theme` check runs: `html.dark` matches the theme, and each screen's body background differs between light and dark
-- [ ] The fake upstream logs `upstream: no fixture for <method> <path>` for any unserved path, and none is logged in a full run; signed-in screens show the approvals count badge
-- [ ] Both servers and the fakes stop on every exit path (no process left on ports 3100, 3101, 4511 or 4512)
+- [x] With both apps built, `npm run ui:shots` writes 56 PNGs named `<screen>-<theme>-<width>.png` for the 14 screens in design.md step 2c, and prints `ui-shots: 56 shots, <f> failures`
+- [x] `--only`, `--checks`, `--theme` and `--width` narrow the run; an unknown screen or check name exits 2
+- [x] Without a build it exits 2 with `ui-shots: run npm run build first`; with no usable Chromium it exits 2 with the message in design.md step 2c
+- [x] The `theme` check runs: `html.dark` matches the theme, and each screen's body background differs between light and dark
+- [x] The fake upstream logs `upstream: no fixture for <method> <path>` for any unserved path, and none is logged in a full run; signed-in screens show the approvals count badge
+- [x] Both servers and the fakes stop on every exit path (no process left on ports 3100, 3101, 4511 or 4512)
 Notes:
 - Files: `tests/ui-shots/upstream.ts`, `tests/ui-shots/shoot.ts`, root `package.json` (`ui:shots` script only; `@playwright/test` is already there).
 - design.md step 2f (`npx playwright install` in `scripts/cloud-setup.sh`) is dropped: this container has Chromium preinstalled, and runs never call `npx playwright install` (conductor, 1 Nov). Don't edit `scripts/cloud-setup.sh`.
 - The density checks come in T-003. Here `densityChecks` may be a stub that returns no findings, but the `__name` init script, `scope` and `checks` plumbing go in now.
-- Parked stash: T-002 parked
-- Blocked: `npm run ui:shots` isn't in `.claude/settings.json`'s allow list, so the loop can't run the harness. See `questions/open/T-002-harness-not-on-allow-list.md`. The stash passes typecheck, lint, test and build. Not yet checked: the full run's acceptance items.
+- Unblocked by `questions/answered/T-002-harness-not-on-allow-list.md`; the parked stash was applied and dropped.
+- Checked on 1 Nov: the full run printed `ui-shots: 56 shots, 0 failures` with no `upstream:` line (`densityChecks` is still T-003's stub); `--only decisions,chat --theme dark --width phone` shot 2; the decisions shot shows the Approvals badge at 3; back-to-back runs bind 3100, 3101, 4511 and 4512 again, so nothing was left on them. `tests/ui-shots/upstream.test.ts` covers the 404 log, the 401 and the ports freeing; `shoot.test.ts` the flag exits. The no-build and no-Chromium exits were reviewed in code, not run: running them means deleting `.next` or an env prefix, which the loop's rules rule out.
 
 ## T-003: The density checks
 
