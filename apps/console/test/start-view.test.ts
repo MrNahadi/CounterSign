@@ -1,7 +1,16 @@
 import { LAUNCHER_SCENARIOS } from "@countersign/resolve-agent/src/scenarios";
 import { describe, expect, it } from "vitest";
+import { APPROVAL_ROUTE_MESSAGES } from "../src/approval-routes";
 import type { ResetReport } from "../src/demo-schemas";
-import { resetSentence, SCENARIO_CARDS, START_COPY, storefrontLink } from "../src/start-view";
+import { RESOLVE_UNREACHABLE } from "../src/resolve-routes";
+import {
+  launchScenario,
+  requestReset,
+  resetSentence,
+  SCENARIO_CARDS,
+  START_COPY,
+  storefrontLink,
+} from "../src/start-view";
 
 const NUMBERS = (count: number) =>
   Array.from({ length: count }, (_, index) => `KIK-${1013 + index}`);
@@ -259,5 +268,107 @@ describe("The reset sentences", () => {
     expect(resetSentence(report({ complete: true, cleared: null, disputes: null })).tone).toBe(
       "warning",
     );
+  });
+});
+
+const THREAD = `tkt_${"a".repeat(32)}`;
+
+type Call = { url: string; init: RequestInit | undefined };
+
+function fakeFetch(answer: Response | Error) {
+  const calls: Call[] = [];
+  const impl = (async (url: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+    if (answer instanceof Error) throw answer;
+    return answer;
+  }) as typeof fetch;
+  return { impl, calls };
+}
+
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+describe("Starting a scenario from the start page", () => {
+  it("posts the scenario and mode to the console's route and answers the thread to open", async () => {
+    const fake = fakeFetch(json(202, { ticket_id: THREAD, thread_id: THREAD, run_id: "run_1" }));
+    expect(await launchScenario("beat-3-attack-email", "baseline", fake.impl)).toEqual({
+      ok: true,
+      href: `/inbox?thread=${THREAD}`,
+    });
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.url).toBe("/api/scenarios");
+    expect(fake.calls[0]?.init?.method).toBe("POST");
+    expect(JSON.parse(String(fake.calls[0]?.init?.body))).toEqual({
+      scenario_id: "beat-3-attack-email",
+      mode: "baseline",
+    });
+  });
+
+  it("answers a refusal's own sentence, and marks a 401 as signed out", async () => {
+    const busy = fakeFetch(
+      json(409, { message: "Order KIK-1035 isn't seeded. Reset the demo first." }),
+    );
+    expect(await launchScenario("beat-4-stalled-parcel", "protected", busy.impl)).toEqual({
+      ok: false,
+      signedOut: false,
+      message: "Order KIK-1035 isn't seeded. Reset the demo first.",
+    });
+    const out = fakeFetch(json(401, { message: "Sign in again." }));
+    expect(await launchScenario("beat-5-damaged", "protected", out.impl)).toEqual({
+      ok: false,
+      signedOut: true,
+      message: "Sign in again.",
+    });
+  });
+
+  it("never treats an unreadable 202 or a failed request as started", async () => {
+    for (const answer of [
+      json(202, { thread_id: "not a thread" }),
+      new Response("<html>", { status: 500 }),
+      new TypeError("fetch failed"),
+    ]) {
+      const result = await launchScenario("beat-5-damaged", "protected", fakeFetch(answer).impl);
+      expect(result).toEqual({ ok: false, signedOut: false, message: RESOLVE_UNREACHABLE });
+    }
+  });
+});
+
+describe("Resetting from the start page", () => {
+  it("posts to the console's reset route and words the report", async () => {
+    const fake = fakeFetch(json(200, report({})));
+    expect(await requestReset(fake.impl)).toEqual({
+      signedOut: false,
+      ...resetSentence(report({})),
+    });
+    expect(fake.calls[0]?.url).toBe("/api/demo/reset");
+    expect(fake.calls[0]?.init?.method).toBe("POST");
+  });
+
+  it("shows a refusal's sentence as a warning, and marks a 401 as signed out", async () => {
+    const busy = "A reset is already running.";
+    expect(await requestReset(fakeFetch(json(409, { message: busy })).impl)).toEqual({
+      signedOut: false,
+      sentence: busy,
+      tone: "warning",
+    });
+    expect(await requestReset(fakeFetch(json(401, { message: "Sign in again." })).impl)).toEqual({
+      signedOut: true,
+      sentence: "Sign in again.",
+      tone: "warning",
+    });
+  });
+
+  it("never reads an unparsed report or a failed request as a reset", async () => {
+    for (const answer of [
+      json(200, { complete: true }),
+      new Response("<html>", { status: 502 }),
+      new TypeError("fetch failed"),
+    ]) {
+      expect(await requestReset(fakeFetch(answer).impl)).toEqual({
+        signedOut: false,
+        sentence: APPROVAL_ROUTE_MESSAGES.unreachable,
+        tone: "warning",
+      });
+    }
   });
 });

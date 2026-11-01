@@ -1,6 +1,7 @@
-import { CircleAlert, LoaderCircle } from "lucide-react";
+import { CircleAlert, CircleCheck, LoaderCircle } from "lucide-react";
 import { Fragment, type HTMLAttributes, type ReactNode, useId } from "react";
 import {
+  ALERT,
   CARD,
   CARD_DESCRIPTION,
   CARD_FILL,
@@ -94,7 +95,18 @@ export function Working({ label }: { label: string }) {
   );
 }
 
-export function Notice({ children }: { children: ReactNode }) {
+// A plain notice, or with `tone` Graphite's inline alert (the subtle fill with its text token),
+// announced as a status line.
+export function Notice({ tone, children }: { tone?: "positive" | "warning"; children: ReactNode }) {
+  if (tone !== undefined) {
+    const Icon = tone === "positive" ? CircleCheck : CircleAlert;
+    return (
+      <p role="status" className={ALERT[tone]}>
+        <Icon size={16} strokeWidth={1.5} aria-hidden="true" className="mt-0.5 shrink-0" />
+        <span>{children}</span>
+      </p>
+    );
+  }
   return (
     <p className="flex items-start gap-2 text-body-sm text-secondary-foreground">
       <CircleAlert size={16} strokeWidth={1.5} aria-hidden="true" className="mt-0.5 shrink-0" />
@@ -126,17 +138,20 @@ export function PageHeader({
   description,
   actions,
   before,
+  as: Heading = "h1",
 }: {
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
   before?: ReactNode;
+  // h2 when the header sits inside another page, such as the start page's sign-in.
+  as?: "h1" | "h2";
 }) {
   return (
     <header className="mb-7 flex flex-col gap-2">
       {before}
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className={`mr-auto ${PAGE_TITLE}`}>{title}</h1>
+        <Heading className={`mr-auto ${PAGE_TITLE}`}>{title}</Heading>
         {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
       </div>
       {description ? <p className={DESCRIPTION}>{description}</p> : null}

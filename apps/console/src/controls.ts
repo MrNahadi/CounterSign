@@ -6,7 +6,13 @@
 // (flex-1, w-full, self-start, ml-auto, md:hidden), never padding, height, radius, gap or font size.
 
 export type ButtonSize = "sm" | "md" | "lg" | "xl";
-export type ButtonVariant = "primary" | "secondary" | "tertiary" | "transparent" | "danger-subtle";
+export type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "tertiary"
+  | "transparent"
+  | "danger"
+  | "danger-subtle";
 
 const BUTTON_BASE =
   "inline-flex shrink-0 items-center justify-center whitespace-nowrap font-medium motion-safe:transition motion-safe:duration-200 motion-safe:ease-out motion-safe:active:scale-[0.97] disabled:cursor-not-allowed";
@@ -58,6 +64,8 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
     "bg-component text-secondary-foreground hover:bg-component-hover disabled:bg-disabled disabled:text-disabled-foreground",
   transparent:
     "text-secondary-foreground hover:bg-transparent-hover hover:text-primary-foreground active:bg-transparent-active disabled:text-disabled-foreground",
+  danger:
+    "bg-danger-solid text-on-danger-solid-foreground hover:bg-danger-solid-hover active:bg-danger-solid-active focus-visible:outline-offset-2 disabled:bg-disabled disabled:text-disabled-foreground",
   "danger-subtle":
     "bg-danger-subtle text-danger-foreground hover:bg-danger-subtle-hover disabled:bg-disabled disabled:text-disabled-foreground",
 };

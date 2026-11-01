@@ -15,11 +15,14 @@ export function SignIn({
   title,
   line,
   message,
+  level = 1,
 }: {
   title: string;
   line: string;
   // A sentence to show first, such as "Sign in again.", or null.
   message: string | null;
+  // 1 is a page of its own; 2 sits inside a page that has its own title (the start page).
+  level?: 1 | 2;
 }) {
   const router = useRouter();
   const id = useId();
@@ -42,9 +45,9 @@ export function SignIn({
     router.refresh();
   }
 
-  return (
-    <Page width="form">
-      <PageHeader title={title} description={line} />
+  const form = (
+    <>
+      <PageHeader as={level === 1 ? "h1" : "h2"} title={title} description={line} />
       <form noValidate onSubmit={submit} className={`${FORM} max-w-sm`}>
         <div className={FIELD}>
           <label htmlFor={`${id}-key`} className={LABEL}>
@@ -81,6 +84,7 @@ export function SignIn({
           {APPROVALS_COPY.signIn}
         </button>
       </form>
-    </Page>
+    </>
   );
+  return level === 1 ? <Page width="form">{form}</Page> : <section>{form}</section>;
 }

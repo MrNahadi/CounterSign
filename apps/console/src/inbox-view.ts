@@ -11,7 +11,7 @@ import {
   type ThreadSummary,
   type ToolStep,
 } from "./resolve-schemas";
-import { formatTime } from "./time";
+import { durationWords, formatTime } from "./time";
 
 // What the inbox shows, worked out from Resolve's parsed answers. Pure: the caller passes the
 // time, so the same answer always gives the same view.
@@ -140,14 +140,7 @@ const sender = (from: { sender_email: string | null; sender_phone: string | null
 
 const channelLabel = (channel: "email" | "chat") => (channel === "email" ? "Email" : "Chat");
 
-export { formatTime };
-
-/** A length of time in whole seconds, rounded: "14s" under a minute, else "1m 08s". */
-export function durationWords(ms: number): string {
-  const seconds = Math.round(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
-}
+export { durationWords, formatTime };
 
 /** Compact, "1m 08s" or "14s"; null until the run has started and finished. */
 export function formatDuration(startedAt: string | null, finishedAt: string | null): string | null {

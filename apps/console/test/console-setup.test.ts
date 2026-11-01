@@ -27,7 +27,7 @@ describe("console setup", () => {
     expect(read("../app/console-shell.tsx")).toContain("<ConsoleNav openApprovals={count} />");
   });
 
-  it("has Decisions and Audit log after Approvals, and / redirects to Decisions", () => {
+  it("has Decisions and Audit log after Approvals", () => {
     const nav = read("../app/console-nav.tsx");
     const approvals = nav.indexOf('href: "/approvals"');
     const decisions = nav.indexOf('{ href: "/decisions", label: "Decisions", Icon: Scale }');
@@ -36,7 +36,78 @@ describe("console setup", () => {
     expect(decisions).toBeGreaterThan(approvals);
     expect(audit).toBeGreaterThan(decisions);
     expect(nav).toMatch(/import \{[^}]*\bScale\b[^}]*\bScrollText\b[^}]*\} from "lucide-react"/);
-    expect(read("../app/page.tsx")).toContain('redirect("/decisions")');
+  });
+
+  it("starts the sidebar with Start here, current on / only", () => {
+    const nav = read("../app/console-nav.tsx");
+    const start = nav.indexOf('{ href: "/", label: "Start here", Icon: Compass }');
+    expect(start).toBeGreaterThan(-1);
+    expect(start).toBeLessThan(nav.indexOf('href: "/inbox"'));
+    expect(nav).toMatch(/import \{[^}]*\bCompass\b[^}]*\} from "lucide-react"/);
+    expect(nav).toContain('href === "/" ? pathname === "/"');
+  });
+
+  it("renders the start page at /, with no redirect", () => {
+    const page = read("../app/page.tsx");
+    expect(page).not.toContain("redirect(");
+    expect(page).toContain("title: START_COPY.title");
+    for (const key of [
+      "START_COPY.heading",
+      "START_COPY.line",
+      "START_COPY.stepsHeading",
+      "START_COPY.steps",
+      "START_COPY.real",
+      "START_COPY.simulated",
+      "START_COPY.storefront",
+      "storefrontLink(process.env)",
+      "SCENARIO_CARDS",
+    ]) {
+      expect(page).toContain(key);
+    }
+    expect(page).toContain("<ConsoleShell");
+  });
+
+  it("signs in on the start page with the shared sign-in at level 2", () => {
+    const page = read("../app/page.tsx");
+    expect(page).toMatch(
+      /<SignIn\s+level=\{2\}\s+title=\{START_COPY\.signIn\.title\}\s+line=\{START_COPY\.signIn\.line\}/,
+    );
+    expect(page).toContain("inboxAccess(key, { env: process.env })");
+    const signIn = read("../app/sign-in.tsx");
+    expect(signIn).toContain("level?: 1 | 2");
+    expect(signIn).toContain('level === 1 ? "h1" : "h2"');
+  });
+
+  it("shows the guide and the unreachable notice when the gate can't check the key", () => {
+    const page = read("../app/page.tsx");
+    const unreachable = page.indexOf('access.state === "unreachable"');
+    const notice = page.indexOf("<Notice>{access.message}</Notice>");
+    expect(unreachable).toBeGreaterThan(-1);
+    expect(notice).toBeGreaterThan(unreachable);
+    // The notice comes before the sign-in and the signed-in parts, and the guide always renders.
+    expect(notice).toBeLessThan(page.indexOf("<SignIn"));
+    expect(notice).toBeLessThan(page.indexOf("<ScenarioCard"));
+    expect(page).toMatch(/<Sections>\s*<Guide \/>\s*\{rest\}\s*<\/Sections>/);
+  });
+
+  it("shares Open on your phone between the start page and the approvals board", () => {
+    const shared = read("../app/open-on-phone.tsx");
+    expect(shared).toContain("export function OpenOnPhone");
+    expect(shared).toContain('className="hidden md:block"');
+    const board = read("../app/approvals/approvals-board.tsx");
+    expect(board).toContain('import { OpenOnPhone } from "../open-on-phone";');
+    expect(board).not.toContain("function OpenOnPhone");
+    expect(board).toContain("<OpenOnPhone qr={qr} />");
+    expect(read("../app/page.tsx")).toContain("<OpenOnPhone");
+  });
+
+  it("keeps the start page's client parts free of server code, with a dialog for the reset", () => {
+    const parts = read("../app/start-parts.tsx");
+    expect(parts.startsWith('"use client";')).toBe(true);
+    expect(parts).not.toMatch(/server-only|@countersign\/mandate|inbox-view|demo-routes/);
+    expect(parts).toContain("showModal()");
+    expect(parts).toContain('role="alert"');
+    expect(parts).toContain("<Spinner");
   });
 
   it("has Disputes after Approvals, behind the shared sign-in, with its empty-state line", () => {

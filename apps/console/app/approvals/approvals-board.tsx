@@ -29,7 +29,8 @@ import {
   STACK,
   STROKE,
 } from "../../src/controls";
-import { QR_COPY, type QrView } from "../../src/qr-view";
+import type { QrView } from "../../src/qr-view";
+import { OpenOnPhone } from "../open-on-phone";
 import { Badge, Card, Code, Notice, Page, PageHeader, Section, Sections, Spinner } from "../ui";
 
 // The approvals page (ADR 0032), phone first: the approver signs in with the key, sees each held
@@ -430,38 +431,6 @@ function Recent({ lines }: { lines: RecentLine[] }) {
 }
 
 type Answered = { card: CardView; outcome: Outcome };
-
-/** The approvals URL as a QR code, from 768px up: foreground modules on a container background. */
-function OpenOnPhone({ qr }: { qr: QrView }) {
-  return (
-    <div className="hidden md:block">
-      <Section id="open-on-phone" title={QR_COPY.heading}>
-        <div className="flex flex-col items-start gap-3">
-          <svg
-            role="img"
-            aria-label={qr.label}
-            viewBox={`0 0 ${qr.size} ${qr.size}`}
-            shapeRendering="crispEdges"
-            className="size-40 rounded-lg bg-container text-primary-foreground shadow-border"
-          >
-            <title>{qr.label}</title>
-            {qr.rects.map((rect) => (
-              <rect
-                key={`${rect.x}-${rect.y}`}
-                x={rect.x}
-                y={rect.y}
-                width={rect.width}
-                height={1}
-                className="fill-current"
-              />
-            ))}
-          </svg>
-          <p className={DESCRIPTION}>{QR_COPY.line}</p>
-        </div>
-      </Section>
-    </div>
-  );
-}
 
 /** Signed in: the open cards, newest first, and the recent answers, re-read every 3 seconds. */
 export function ApprovalsBoard({

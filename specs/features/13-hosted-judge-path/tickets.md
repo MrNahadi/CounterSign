@@ -296,16 +296,16 @@ Notes:
 
 ## T-021: The start page
 
-Status: open
+Status: done
 Blocked by: T-019, T-020
 Tier: standard
 Slice: `/` shows the guide to everyone, and to a signed-in judge the scenario cards, the phone code and the reset with its dialog.
 Test seam: `test/console-setup.test.ts` on `app/page.tsx` and the nav; the design check
 Acceptance:
-- [ ] `app/page.tsx` renders the start page (the `START_COPY` strings, no `redirect(`); the nav starts with "Start here"; the start page uses the shared sign-in at level 2
-- [ ] Signed out shows the sign-in; a gate 502 shows the guide and the unreachable `Notice`
-- [ ] `OpenOnPhone` is shared from `app/open-on-phone.tsx`, and the approvals board still uses it
-- [ ] The design check passes on every changed file; light and dark both work
+- [x] `app/page.tsx` renders the start page (the `START_COPY` strings, no `redirect(`); the nav starts with "Start here"; the start page uses the shared sign-in at level 2
+- [x] Signed out shows the sign-in; a gate 502 shows the guide and the unreachable `Notice`
+- [x] `OpenOnPhone` is shared from `app/open-on-phone.tsx`, and the approvals board still uses it
+- [x] The design check passes on every changed file; light and dark both work
 Notes:
 - Item 21, except pairing (T-022). UI: follow `Graphite Design/DESIGN.md` and each component's spec (Card, Button, Dialog, Notice, Spinner), and reuse `apps/console/app/ui.tsx` primitives. Don't copy item 21's padding, gap, size or height classes: they predate 13a's density. Lucide icons only. Files: `apps/console/app/{page,start-parts,open-on-phone,sign-in,console-nav}.tsx`, `apps/console/app/approvals/approvals-board.tsx`, `apps/console/test/console-setup.test.ts`.
 

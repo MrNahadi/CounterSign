@@ -2,6 +2,7 @@
 
 import {
   ClipboardCheck,
+  Compass,
   Inbox,
   type LucideIcon,
   Scale,
@@ -12,6 +13,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items: { href: string; label: string; Icon: LucideIcon }[] = [
+  { href: "/", label: "Start here", Icon: Compass },
   { href: "/inbox", label: "Inbox", Icon: Inbox },
   { href: "/approvals", label: "Approvals", Icon: ClipboardCheck },
   { href: "/disputes", label: "Disputes", Icon: ShieldAlert },
@@ -31,7 +33,9 @@ export function ConsoleNav({ openApprovals = null }: { openApprovals?: number | 
       className="flex min-w-0 flex-row gap-1 overflow-x-auto md:flex-col md:gap-0.5 md:overflow-visible"
     >
       {items.map(({ href, label, Icon }) => {
-        const current = pathname === href || pathname.startsWith(`${href}/`);
+        // Every path starts with "/", so Start here is current on the start page only.
+        const current =
+          href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
         const count =
           href === "/approvals" && openApprovals !== null && openApprovals > 0
             ? openApprovals

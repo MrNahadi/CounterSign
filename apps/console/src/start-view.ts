@@ -1,5 +1,8 @@
-import type { ResetReport } from "./demo-schemas";
-import { durationWords } from "./inbox-view";
+import { APPROVAL_ROUTE_MESSAGES } from "./approval-routes";
+import { GateMessageSchema } from "./approval-schemas";
+import { type ResetReport, ResetReportSchema, ScenarioAcceptedSchema } from "./demo-schemas";
+import { RESOLVE_UNREACHABLE } from "./resolve-routes";
+import { durationWords } from "./time";
 
 // What the start page says, in one place a test pins (ADR 0043). The copy follows the brand book:
 // plain, short, sentence case, no exclamation marks.
@@ -98,7 +101,7 @@ export const SCENARIO_CARDS: readonly ScenarioCard[] = [
 ];
 
 /** The storefront's URL when `STOREFRONT_URL` is an http(s) URL, else null. */
-export function storefrontLink(env: { STOREFRONT_URL?: string | undefined }): string | null {
+export function storefrontLink(env: Readonly<Record<string, string | undefined>>): string | null {
   const raw = env.STOREFRONT_URL?.trim() ?? "";
   if (raw === "") return null;
   try {
@@ -159,4 +162,77 @@ export function resetSentence(result: ResetReport | { message: string }): ResetS
           ? `${plural(disputes.problems, "dispute", "disputes")} couldn't be recorded again.`
           : "The disputes couldn't all be recorded again.";
   return { sentence: `${start} ${rest}`, tone: "warning" };
+}
+
+// --- The start page's calls, from the browser to the console's own routes --------------------
+
+async function readBody(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+/** A refusal's own sentence, or null when the answer carries none. */
+async function sentenceOf(response: Response): Promise<string | null> {
+  const parsed = GateMessageSchema.safeParse(await readBody(response));
+  return parsed.success ? parsed.data.message : null;
+}
+
+export type LaunchResult =
+  | { ok: true; href: string }
+  | { ok: false; signedOut: boolean; message: string };
+
+/** Starts a scenario through `POST /api/scenarios`; on 202, the inbox thread to open. */
+export async function launchScenario(
+  scenarioId: string,
+  mode: ScenarioButton["mode"],
+  fetchImpl: typeof fetch = fetch,
+): Promise<LaunchResult> {
+  const failed: LaunchResult = { ok: false, signedOut: false, message: RESOLVE_UNREACHABLE };
+  let response: Response;
+  try {
+    response = await fetchImpl("/api/scenarios", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ scenario_id: scenarioId, mode }),
+      cache: "no-store",
+    });
+  } catch {
+    return failed;
+  }
+  if (response.status === 202) {
+    const accepted = ScenarioAcceptedSchema.safeParse(await readBody(response));
+    return accepted.success
+      ? { ok: true, href: `/inbox?thread=${encodeURIComponent(accepted.data.thread_id)}` }
+      : failed;
+  }
+  const message = await sentenceOf(response);
+  return message === null ? failed : { ok: false, signedOut: response.status === 401, message };
+}
+
+/** Resets the demo through `POST /api/demo/reset` and words the answer for the page. */
+export async function requestReset(
+  fetchImpl: typeof fetch = fetch,
+): Promise<ResetSentence & { signedOut: boolean }> {
+  const failed = {
+    signedOut: false,
+    sentence: APPROVAL_ROUTE_MESSAGES.unreachable,
+    tone: "warning",
+  } as const;
+  let response: Response;
+  try {
+    response = await fetchImpl("/api/demo/reset", { method: "POST", cache: "no-store" });
+  } catch {
+    return failed;
+  }
+  if (response.status === 200) {
+    const report = ResetReportSchema.safeParse(await readBody(response));
+    return report.success ? { signedOut: false, ...resetSentence(report.data) } : failed;
+  }
+  const message = await sentenceOf(response);
+  return message === null
+    ? failed
+    : { signedOut: response.status === 401, ...resetSentence({ message }) };
 }
