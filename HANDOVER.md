@@ -124,7 +124,7 @@ These are in `AGENTS.md` too.
 fixtures for automated checks and leave the live checks pending. The ones that matter most now:
 
 - **Render:** create the services from `render.yaml` on paid plans, set the environment, then run phase 13's manual checks 1 to 9 (`specs/features/13-hosted-judge-path/validation.md`).
-- **Credentials:** the two seed vault tokens (`PAYPAL_SEED_VAULT_TOKEN`, `PAYPAL_SEED_VAULT_TOKEN_B`), the principal, ops and approver keys, the Gemini tier, the AG Studio licence (`AG_STUDIO_LICENSE_KEY`), and a sandbox dispute opened ahead of time.
+- **Remaining credentials and account checks:** confirm the Gemini tier, obtain the AG Studio licence (`AG_STUDIO_LICENSE_KEY`), and open a sandbox dispute ahead of time. The two seed vault tokens and the principal, ops and approver keys are configured locally; hosted services still need their own environment setup.
 - **`.env.example`:** the local setup change adds reset, baseline, service addresses, database,
   access keys and the second buyer token to the template. The owner fills real values locally.
 - **Start page copy:** on a phone, step 4 says "Scan the code below" but the code isn't shown at that width. The owner should pick the wording.
@@ -158,13 +158,28 @@ Browser screenshots and check logs are under ignored `test-results/local-setup/`
 Final verification: full workspace typecheck, lint and both production builds pass. The full
 offline suite with the Windows options above reports 2,533 passed and 21 skipped. Ctrl+C
 released all four ports. The dev server was stopped after verification so the owner can run
-it in their own terminal and stop it before seeding. No need to reinstall dependencies or
+it in their own terminal and stop it before any database CLI. No need to reinstall dependencies or
 repeat the repository-wide orientation in the next chat.
 
 The existing root `.env` supplies PayPal/Gemini configuration through the launcher; agents
-must not inspect its values. The setup check found both seed vault tokens missing. Until
-the owner supplies them and seeds the orders, the UI and sign-in work but the three seeded
-payment scenarios cannot be validated. No hosted deployment has been verified here.
+must not inspect its values. Both sandbox buyers have now approved saving their payment
+methods. Their reusable tokens are saved in ignored `.env.local` as
+`PAYPAL_SEED_VAULT_TOKEN` and `PAYPAL_SEED_VAULT_TOKEN_B`; read-only PayPal checks verified
+each belongs to the expected buyer and that the buyers differ. No secret values were displayed.
+
+With dev stopped, `npm run seed:local -- --run local20261101` seeded 30 of 30 real sandbox
+orders: 16 delivered, 6 in transit, 4 stalled and 4 lost. The first run took approximately
+60 seconds; replaying that run reused its orders. A database check confirmed 30 distinct
+order IDs and 30 distinct capture IDs. Live PayPal reads verified completed captures and
+attached trackers for KIK-1038 and KIK-1042, with different payers. This does not establish
+the separate live reset performance target. Live refund scenarios, opt-in live tests and
+the merchant-dashboard visual check remain pending in `.ralph/human.md`.
+
+The PayPal sandbox app already has Vault and the needed payment features enabled. No
+webhook is configured yet; configure it when a public HTTPS callback is available. No
+hosted deployment has been verified here. Restart with `npm run dev` to load the saved
+tokens and seeded database. The console is at `http://127.0.0.1:3000` and the storefront
+at `http://127.0.0.1:3001`. No AI or refund calls were made during this seed setup.
 
 Phase 14 has not started. The owner wants to continue it in a new chat. Preserve their model
 preference: GPT-6.1 Sol at high for ordinary roles, and xhigh only for answerer questions.
