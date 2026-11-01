@@ -183,7 +183,7 @@ function DebugId({ id }: { id: string }) {
   return (
     <>
       {" "}
-      PayPal debug ID <span className="font-mono text-code-xs">{id}</span>.
+      PayPal debug ID <span className="font-mono text-code-sm">{id}</span>.
     </>
   );
 }
@@ -196,7 +196,7 @@ function Badge({ tone, label }: { tone: "positive" | "warning" | "danger"; label
   } as const;
   return (
     <span
-      className={`inline-flex h-5 items-center rounded-md px-1.5 text-caption-lg font-medium ${tones[tone]}`}
+      className={`inline-flex h-6 items-center rounded-md px-2 text-caption-base font-medium ${tones[tone]}`}
     >
       {label}
     </span>
@@ -205,7 +205,7 @@ function Badge({ tone, label }: { tone: "positive" | "warning" | "danger"; label
 
 function Detail({ term, value }: { term: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 py-2">
+    <div className="flex items-baseline justify-between gap-4 py-3">
       <dt className="text-body-sm text-secondary-foreground">{term}</dt>
       <dd className="font-mono text-code-sm tabular-nums text-primary-foreground">{value}</dd>
     </div>
@@ -214,7 +214,11 @@ function Detail({ term, value }: { term: string; value: string }) {
 
 function Outcome({ result }: { result: PaymentResult }) {
   return (
-    <div role="status" className="rounded-2xl bg-container p-4 shadow-border">
+    <div
+      role="status"
+      data-graphite="card"
+      className="rounded-3xl bg-container p-(--card-padding) shadow-border"
+    >
       {result.kind === "paid" && (
         <>
           <Badge tone="positive" label="Paid" />
@@ -229,7 +233,7 @@ function Outcome({ result }: { result: PaymentResult }) {
         <>
           <Badge tone="warning" label="Payment not completed" />
           <p className="mt-2 text-body-sm text-secondary-foreground">
-            PayPal status <span className="font-mono text-code-xs">{result.status}</span>.
+            PayPal status <span className="font-mono text-code-sm">{result.status}</span>.
           </p>
         </>
       )}

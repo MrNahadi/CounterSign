@@ -17,9 +17,10 @@ import {
   parseStoredChat,
 } from "../../src/chat";
 import { checkPhoto, MODE_STORAGE_KEY, parseMode, sendMessage } from "../../src/composer";
+import { ALERT, CARD_TITLE, FIELD, FIELD_ERROR, FORM, HELP, LABEL } from "../../src/controls";
 
 // The customer's simulated chat, laid out for a phone (a 448px column on wider screens). Built
-// from Graphite's Input, Button and Spinner specs: 40px touch controls, a primary send button,
+// from Graphite's Input, Button and Spinner specs: 44px touch controls, a primary send button,
 // and replies as plain text. Shows messages and replies only, never what Resolve did.
 
 type Problem = { field: ChatField; problem: string } | null;
@@ -65,7 +66,7 @@ function Entry({ entry }: { entry: ChatEntry }) {
             className="max-h-48 max-w-[75%] rounded-2xl object-cover shadow-border"
           />
         ))}
-        <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-component px-3 py-2 text-body-base text-primary-foreground">
+        <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-component px-4 py-3 text-body-base text-primary-foreground">
           {entry.body}
         </p>
       </li>
@@ -75,7 +76,7 @@ function Entry({ entry }: { entry: ChatEntry }) {
     return (
       <li className="flex flex-col items-start gap-1">
         <span className="text-caption-lg font-medium text-secondary-foreground">Resolve</span>
-        <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-container px-3 py-2 text-body-base text-primary-foreground shadow-border">
+        <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-container px-4 py-3 text-body-base text-primary-foreground shadow-border">
           {entry.text}
         </p>
       </li>
@@ -239,8 +240,8 @@ export function CustomerChat() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-page text-primary-foreground">
-      <div className="mx-auto flex w-full max-w-[448px] flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex flex-col gap-1 bg-page px-4 pt-4 pb-3 shadow-[0_1px_0_0_var(--color-border-default)]">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
+        <header className="sticky top-0 z-10 flex flex-col gap-2 bg-page px-4 py-4 shadow-[0_1px_0_0_var(--color-border-default)]">
           <div className="flex items-center gap-2">
             <Store
               size={16}
@@ -248,27 +249,27 @@ export function CustomerChat() {
               aria-hidden="true"
               className="text-secondary-foreground"
             />
-            <h1 className="mr-auto text-body-base font-semibold">Kikapu Studio</h1>
+            <h1 className={`mr-auto ${CARD_TITLE}`}>Kikapu Studio</h1>
             {email !== null ? (
               <button type="button" onClick={startOver} className={CHAT_CONTROLS.startOver}>
                 Start over
               </button>
             ) : null}
           </div>
-          <p className="text-caption-lg text-secondary-foreground">{CHAT_NOTICE}</p>
+          <p className={HELP}>{CHAT_NOTICE}</p>
         </header>
 
         {email === null ? (
-          <form noValidate onSubmit={start} className="flex flex-col gap-4 px-4 pt-6 pb-8">
-            <div className="flex flex-col gap-1">
+          <form noValidate onSubmit={start} className={`${FORM} px-4 pt-8 pb-12`}>
+            <div className="flex flex-col gap-2">
               <h2 className="text-heading-6 font-semibold tracking-heading">Chat with the shop</h2>
               <p className="text-body-base text-secondary-foreground">
                 Ask about an order, a delivery or a refund. Resolve, the shop's assistant, replies
                 here.
               </p>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor={id("email")} className="text-body-sm font-medium">
+            <div className={FIELD}>
+              <label htmlFor={id("email")} className={LABEL}>
                 Your email
               </label>
               <input
@@ -283,11 +284,11 @@ export function CustomerChat() {
                 {...invalid("email")}
               />
               {problem?.field === "email" ? (
-                <p id={id("problem")} className="text-caption-lg text-danger-foreground">
+                <p id={id("problem")} className={FIELD_ERROR}>
                   {problem.problem}
                 </p>
               ) : (
-                <p className="text-caption-lg text-secondary-foreground">
+                <p className={HELP}>
                   Use the address you paid with, so the shop can find your order.
                 </p>
               )}
@@ -300,24 +301,21 @@ export function CustomerChat() {
           </form>
         ) : (
           <>
-            <div className="flex flex-1 flex-col gap-3 px-4 pt-4 pb-4">
-              <p className="text-caption-lg text-tertiary-foreground">Chatting as {email}</p>
+            <div className="flex flex-1 flex-col gap-4 px-4 pt-4 pb-4">
+              <p className={HELP}>Chatting as {email}</p>
               {view === null || view.entries.length === 0 ? (
                 <p className="text-body-sm text-secondary-foreground">
                   Write your first message below. Add a photo if something arrived damaged.
                 </p>
               ) : (
-                <ol aria-label="Messages" aria-live="polite" className="flex flex-col gap-3">
+                <ol aria-label="Messages" aria-live="polite" className="flex flex-col gap-4">
                   {view.entries.map((entry) => (
                     <Entry key={`${entry.kind}-${entry.key}`} entry={entry} />
                   ))}
                 </ol>
               )}
               {loadError !== null ? (
-                <p
-                  role="alert"
-                  className="rounded-lg bg-danger-subtle px-3 py-2 text-body-sm text-on-danger-subtle-foreground"
-                >
+                <p role="alert" className={ALERT.danger}>
                   {loadError}
                 </p>
               ) : null}
@@ -327,23 +325,20 @@ export function CustomerChat() {
             <form
               noValidate
               onSubmit={send}
-              className="sticky bottom-0 flex flex-col gap-2 bg-page px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-1px_0_0_var(--color-border-default)]"
+              className="sticky bottom-0 flex flex-col gap-3 bg-page px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-1px_0_0_var(--color-border-default)]"
             >
               {sendError !== null ? (
-                <p
-                  role="alert"
-                  className="rounded-lg bg-danger-subtle px-3 py-2 text-body-sm text-on-danger-subtle-foreground"
-                >
+                <p role="alert" className={ALERT.danger}>
                   {sendError}
                 </p>
               ) : null}
               {problem !== null && problem.field !== "email" ? (
-                <p id={id("problem")} className="text-caption-lg text-danger-foreground">
+                <p id={id("problem")} className={FIELD_ERROR}>
                   {problem.problem}
                 </p>
               ) : null}
               {photo !== null ? (
-                <div className="flex h-8 items-center gap-2 rounded-lg bg-card pr-1 pl-2.5 text-body-sm">
+                <div className="flex h-9 items-center gap-2 rounded-lg bg-card pr-1 pl-3 text-body-sm">
                   <span className="min-w-0 flex-1 truncate">{photo.name}</span>
                   <button
                     type="button"
@@ -356,7 +351,7 @@ export function CustomerChat() {
                   </button>
                 </div>
               ) : null}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <input
                   ref={fileInput}
                   type="file"

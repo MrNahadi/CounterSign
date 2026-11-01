@@ -20,18 +20,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link rel="stylesheet" href={fontsHref} />
       </head>
       <body className="bg-page">
-        <div className="mx-auto flex min-h-full max-w-3xl flex-col px-4 py-8">
+        <div className="mx-auto flex min-h-full w-full max-w-(--content-max) flex-col px-4 pt-8 pb-16 wide:px-14 wide:pt-12 wide:pb-24">
           <header>
             <Link
               href="/"
-              className="text-body-sm font-semibold text-primary-foreground transition-colors duration-150 ease-out"
+              className="inline-flex h-9 items-center text-body-sm font-semibold text-primary-foreground transition-colors duration-150 ease-out"
             >
               Kikapu Studio
             </Link>
           </header>
-          <div className="flex-1 py-8">{children}</div>
+          <div className="flex-1 py-12 wide:py-16">{children}</div>
           <footer>
-            <p className="text-body-sm text-secondary-foreground">{SHOP_NOTICE}</p>
+            <p className="text-caption-lg text-secondary-foreground">{SHOP_NOTICE}</p>
           </footer>
         </div>
       </body>

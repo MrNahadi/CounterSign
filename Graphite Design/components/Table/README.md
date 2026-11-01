@@ -1,6 +1,6 @@
 # Table
 
-A dense data table with 40px rows, an uppercase caption header and hairline dividers.
+A roomy data table with 56px rows, a sentence-case header and hairline dividers.
 
 ## What you provide
 
@@ -10,6 +10,8 @@ A dense data table with 40px rows, an uppercase caption header and hairline divi
 
 ## Rules
 
-- Header: caption-upper (11px, weight 500, 0.05em tracking) in `color-tertiary-foreground`, 32px tall, over a `color-border-default` rule.
-- Rows: 13px, 40px tall, `color-border-subtle` dividers, `color-transparent-hover` on hover.
+- Header: 13px medium in sentence case, `color-secondary-foreground`, no uppercase or letter-spacing, 44px tall (`--table-header-height`), over a `color-border-default` rule.
+- Rows: 14px, at least 56px tall (`--table-row-height`), 16px cell padding, `color-border-subtle` dividers, `color-transparent-hover` on hover.
+- A second line in a cell is 13px, 2px below the first.
+- Put a one-row toolbar above the table, inside the same card.
 - Put the identifying column first and keep it left-aligned. Truncate long text with an ellipsis and show the full value in a tooltip.

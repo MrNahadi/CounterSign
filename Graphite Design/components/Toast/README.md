@@ -10,6 +10,6 @@ A brief, non-blocking message about something that just happened, with an option
 
 ## Rules
 
-- Surface `color-modal`, `shadow-large`, `radius-2xl`, 360px wide.
+- Surface `color-modal`, `shadow-large`, `radius-2xl`, 360px wide, 16px padding, 12px between the icon and the text, 14px title and description. Toasts sit 24px from the screen edges and 12px apart when stacked.
 - Auto-dismiss after 4 seconds, pause on hover and focus. Failures stay until dismissed.
 - Write the outcome, not the process: "Deployment ready", not "Your deployment has been successfully completed!"

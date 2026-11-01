@@ -1,5 +1,6 @@
 import { type LucideIcon, Mail, MessageCircle, ShieldOff } from "lucide-react";
 import Link from "next/link";
+import { CARD_TITLE, DESCRIPTION, HELP, LINK, MONO } from "../../src/controls";
 import {
   type MessageView,
   NO_CHECKS,
@@ -9,7 +10,7 @@ import {
   type ThreadView,
   type ToolRow,
 } from "../../src/inbox-view";
-import { Badge, Code, Notice, Working } from "../ui";
+import { Badge, Card, Code, Notice, Working } from "../ui";
 
 // The inbox's pieces, built from Graphite's Badge, Card, inline code and Spinner specs.
 
@@ -27,13 +28,11 @@ const CHANNEL_ICONS: Record<ThreadListItem["channel"], LucideIcon> = {
 export function ThreadList({ items }: { items: ThreadListItem[] }) {
   if (items.length === 0) {
     return (
-      <p className="p-4 text-body-sm text-secondary-foreground">
-        No messages yet. Simulated customer messages will appear here.
-      </p>
+      <p className={DESCRIPTION}>No messages yet. Simulated customer messages will appear here.</p>
     );
   }
   return (
-    <ul className="flex flex-col gap-0.5 p-2">
+    <ul className="flex flex-col gap-0.5">
       {items.map((item) => {
         const Icon = CHANNEL_ICONS[item.channel];
         return (
@@ -41,7 +40,7 @@ export function ThreadList({ items }: { items: ThreadListItem[] }) {
             <Link
               href={item.href}
               aria-current={item.selected ? "true" : undefined}
-              className={`flex gap-3 rounded-lg px-3 py-2.5 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out ${
+              className={`flex gap-3 rounded-xl px-3 py-3 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out ${
                 item.selected ? "bg-brand-subtle" : "hover:bg-transparent-hover"
               }`}
             >
@@ -77,7 +76,7 @@ export function ThreadList({ items }: { items: ThreadListItem[] }) {
 
 function Message({ message }: { message: MessageView }) {
   return (
-    <article className="rounded-2xl bg-card p-4">
+    <Card as="article" variant="fill" gap="tight">
       <header className="flex items-baseline gap-2">
         <span className="min-w-0 flex-1 truncate text-body-sm font-medium">{message.sender}</span>
         <span className="shrink-0 text-caption-lg text-tertiary-foreground tabular-nums">
@@ -85,36 +84,35 @@ function Message({ message }: { message: MessageView }) {
         </span>
       </header>
       {message.subject ? (
-        <p className="mt-1 text-body-sm font-medium text-secondary-foreground">{message.subject}</p>
+        <p className="text-body-sm font-medium text-secondary-foreground">{message.subject}</p>
       ) : null}
-      <p className="mt-2 whitespace-pre-wrap break-words text-body-sm">{message.body}</p>
+      <p className="whitespace-pre-wrap break-words text-body-sm">{message.body}</p>
       {message.photos.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           {message.photos.map((photo) => (
             <a key={photo.src} href={photo.src} target="_blank" rel="noreferrer">
               {/* biome-ignore lint/performance/noImgElement: photos come from Resolve through our own route, at their own size */}
               <img
                 src={photo.src}
                 alt={photo.alt}
-                className="size-24 rounded-lg object-cover shadow-border"
+                className="size-24 rounded-xl object-cover shadow-border"
               />
             </a>
           ))}
         </div>
       ) : null}
-    </article>
+    </Card>
   );
 }
 
 function ToolCall({ row }: { row: ToolRow }) {
   return (
-    <li className="flex flex-col gap-1.5 py-3">
+    <li className="flex flex-col gap-1.5 py-4 first:pt-0 last:pb-0">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <Code>{row.name}</Code>
         {row.args.map((arg) => (
           <span key={arg.label} className="text-body-sm text-secondary-foreground">
-            {arg.label}{" "}
-            <span className="font-mono text-code-xs text-primary-foreground">{arg.value}</span>
+            {arg.label} <span className={`${MONO} text-primary-foreground`}>{arg.value}</span>
           </span>
         ))}
       </div>
@@ -141,10 +139,7 @@ function ToolCall({ row }: { row: ToolRow }) {
         </ul>
       ) : null}
       {row.decisionHref !== null ? (
-        <Link
-          href={row.decisionHref}
-          className="self-start text-body-sm font-medium text-brand-foreground hover:underline"
-        >
+        <Link href={row.decisionHref} className={`${LINK} self-start text-body-sm`}>
           Claims vs records
         </Link>
       ) : null}
@@ -165,25 +160,23 @@ function ToolCall({ row }: { row: ToolRow }) {
 function Run({ run }: { run: RunView }) {
   const meta = [run.modeLabel, run.model, run.duration].filter((part) => part !== null);
   return (
-    <section aria-label="Resolve's run" className="flex flex-col gap-3">
+    <section aria-label="Resolve's run" className="flex flex-col gap-6">
       {run.reply !== null ? (
-        <article className="rounded-2xl p-4 shadow-border">
+        <Card as="article">
           <header className="text-body-sm font-medium">Resolve</header>
-          <p className="mt-2 whitespace-pre-wrap break-words text-body-sm">{run.reply}</p>
-        </article>
+          <p className="whitespace-pre-wrap break-words text-body-sm">{run.reply}</p>
+        </Card>
       ) : null}
       {run.outcome !== null ? <Notice>{run.outcome}</Notice> : null}
       {run.working ? <Working label="Resolve is working on this message." /> : null}
-      <div className="rounded-2xl bg-card px-4 pt-3 pb-1">
-        <header className="flex flex-wrap items-center gap-2">
-          <h3 className="text-body-sm font-medium">What Resolve did</h3>
+      <Card variant="fill">
+        <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h3 className={CARD_TITLE}>What Resolve did</h3>
           <StatusBadgeView status={run.status} />
-          <span className="text-caption-lg text-secondary-foreground tabular-nums">
-            {meta.join(" · ")}
-          </span>
+          <span className={`${HELP} tabular-nums`}>{meta.join(" · ")}</span>
         </header>
         {run.toolRows.length === 0 ? (
-          <p className="py-3 text-body-sm text-secondary-foreground">No tool calls.</p>
+          <p className={DESCRIPTION}>No tool calls.</p>
         ) : (
           <ul className="divide-y divide-border-subtle">
             {run.toolRows.map((row) => (
@@ -191,17 +184,17 @@ function Run({ run }: { run: RunView }) {
             ))}
           </ul>
         )}
-      </div>
+      </Card>
     </section>
   );
 }
 
 export function ThreadDetail({ view }: { view: ThreadView }) {
   return (
-    <div className="flex flex-col gap-4">
-      <header>
-        <h2 className="text-body-base font-semibold">{view.title}</h2>
-        <p className="text-body-sm text-secondary-foreground">
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-1">
+        <h2 className={CARD_TITLE}>{view.title}</h2>
+        <p className={DESCRIPTION}>
           {view.sender} · {view.channelLabel} · Simulated
         </p>
       </header>

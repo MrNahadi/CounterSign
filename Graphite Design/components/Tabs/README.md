@@ -10,5 +10,6 @@ Underline tabs for switching views of one object, and a segmented control for sw
 ## Rules
 
 - Tabs change the content below them; a segmented control changes how the same content is shown (Day, Week, Month).
+- Underline tabs are 14px medium and 44px tall, 24px apart. Segments are 28px tall with 12px side padding, so the whole control is 32px.
 - Two to six tabs. Labels are one or two words in sentence case.
 - The segmented track is `color-sunken` with `radius-xl` and 2px padding, so active segments use `radius-lg`.

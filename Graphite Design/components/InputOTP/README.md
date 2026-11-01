@@ -1,6 +1,6 @@
 # InputOTP
 
-A one-time code entry made of 40 by 44px cells in the mono font, grouped in threes.
+A one-time code entry made of 44 by 52px cells, 8px apart, in the mono font, grouped in threes.
 
 ## What you provide
 

@@ -5,11 +5,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { APPROVAL_ROUTE_MESSAGES, approverKeyFromHeader } from "../../../../src/approval-routes";
 import { AUDIT_ROUTE_MESSAGES, loadIntentDecision } from "../../../../src/audit-routes";
+import { LINK } from "../../../../src/controls";
 import { intentPageOf } from "../../../../src/decision-view";
 import { DECISIONS_COPY } from "../../../../src/decisions-view";
 import { ConsoleShell } from "../../../console-shell";
 import { SignIn } from "../../../sign-in";
-import { Notice } from "../../../ui";
+import { Notice, Page } from "../../../ui";
 
 // An intent's decision (ADR 0034): the inbox links here, and this redirects to the intent's
 // newest decision entry.
@@ -36,21 +37,18 @@ export default async function IntentDecisionPage({ params }: PageProps<"/decisio
   if (outcome.kind === "sign_in") return signIn(APPROVAL_ROUTE_MESSAGES.signInAgain);
   return (
     <ConsoleShell>
-      <div className="flex w-full flex-col gap-2 px-4 pt-5 pb-8 md:px-6">
+      <Page>
         {outcome.kind === "not_found" ? (
-          <>
+          <div className="flex flex-col gap-2">
             <p className="text-body-sm text-primary-foreground">{outcome.view.message}</p>
-            <Link
-              href={outcome.view.link.href}
-              className="self-start text-body-sm font-medium text-brand-foreground hover:underline"
-            >
+            <Link href={outcome.view.link.href} className={`self-start text-body-sm ${LINK}`}>
               {outcome.view.link.label}
             </Link>
-          </>
+          </div>
         ) : (
           <Notice>{outcome.message}</Notice>
         )}
-      </div>
+      </Page>
     </ConsoleShell>
   );
 }

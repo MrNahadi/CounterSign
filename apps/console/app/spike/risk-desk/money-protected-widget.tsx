@@ -45,7 +45,7 @@ export function MoneyProtectedWidget({ dataMapping, widgetApi }: AgWidgetParams)
           ? ""
           : total.toLocaleString("en-US", { style: "currency", currency: "USD" })}
       </div>
-      <div className="text-caption-lg text-tertiary-foreground">
+      <div className="text-caption-lg text-secondary-foreground">
         Denied money actions, sample data
       </div>
     </div>

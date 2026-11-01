@@ -39,7 +39,11 @@ The autopilot builds everything it can and lists here what only you can do, or w
 - **Phase 13, live reset check:** with the two seed vault tokens set, run `LIVE=1 npm test -- apps/gate/test/reset-live.test.ts` and note each `took_ms` (the full 30-order seed should be under 60 seconds).
 - **Phase 13, `.env.example`:** add `COUNTERSIGN_DEMO_RESET=` (set it to `on` only for a demo database), `RESOLVE_BASELINE=` (`on`, `scenarios` or `off`; default `on`) and `STOREFRONT_URL=` (optional, the console's link to the shop). Agents can't edit `.env.*`.
 - **Phase 13, Devpost testing instructions:** put the hosted console URL, the generated approver key and the sandbox buyer login there; `docs/judge-guide.md` points judges to them.
+- **Phase 13a, the comfortable density on your own devices:** open the console and the storefront on your desktop browser and your phone, in light and dark. Say whether the density reads as you intended, and put anything you'd change here as a follow-up (validation.md owner check 1). The validator opened 22 of the 56 harness shots, and every check passed (validation notes in `specs/features/13a-graphite-comfortable/validation.md`).
+- **Phase 13a, approvals card before the video:** at phone width, Approve and Deny are now 44px and the card is roomier, so less of a long card fits on one screen (owner check 2).
+- **Phase 13a, phone nav row (looks unchanged from `main`):** on a phone, the console's sidebar is one row that scrolls sideways. Disputes, Decisions and Audit log sit past the screen edge, and Approvals' count badge is cut off by the theme control. Say if you want the hidden links shown another way, such as wrapping the row or adding a fade at the edge (DESIGN.md's scroll-area fade).
 - **Stale branches:** `origin/feature/04-tamper-evident-audit-log` and `origin/feature/05-storefront-and-seed` share no history with main (main was rewritten after they were made), and `origin/feature/06-refund-executes-once` is also already on main; the work of all three is on main. Delete them when convenient; the autopilot never deletes branches.
+- **Phase 19, hosting:** the owner has Cloudflare and asked on 1 Nov 2026 about deploying as we build. Their call: not now; keep Render as the brief plans and revisit Cloudflare (preview deploys, frontends only, or everything) at phase 19.
 
 ## Decided for you
 

@@ -8,6 +8,7 @@ import {
   type RecentSummary,
 } from "./approval-schemas";
 import type { ClaimPair } from "./audit-schemas";
+import { button, INPUT_HEIGHT, INPUT_MONO } from "./controls";
 import { payoutStatusInline } from "./payout-words";
 import { formatTime } from "./time";
 
@@ -506,22 +507,14 @@ function refusalText(error: NonNullable<AnswerResult["execution"]>["error"]): st
 
 // --- Controls (Graphite Button and Input specs) ---------------------------------------------
 
-const BUTTON =
-  "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg font-medium text-body-sm motion-safe:transition motion-safe:duration-150 motion-safe:ease-out motion-safe:active:scale-[0.97] disabled:cursor-not-allowed";
-const PRIMARY =
-  "bg-inverted-solid text-on-inverted-foreground hover:bg-inverted-solid-hover disabled:bg-disabled disabled:text-disabled-foreground";
-const SECONDARY =
-  "bg-component-on-container-strong text-primary-foreground shadow-default hover:bg-component-on-container-strong-hover disabled:bg-disabled disabled:text-disabled-foreground disabled:shadow-none";
-
-/** Approve and Deny are 40px (brief §11); every other control is at least 24px. */
+/** Approve, Deny and Sign in are 44px (ADR 0045, brief §11); every other control is at least 28px. */
 export const CONTROL_CLASSES = {
-  approve: `${BUTTON} ${PRIMARY} h-10 flex-1 gap-2 px-3.5`,
-  deny: `${BUTTON} ${SECONDARY} h-10 flex-1 gap-2 px-3.5`,
-  signIn: `${BUTTON} ${PRIMARY} h-10 w-full gap-2 px-3.5`,
-  signOut: `${BUTTON} h-8 gap-1.5 px-2.5 text-secondary-foreground hover:bg-transparent-hover hover:text-primary-foreground`,
-  download: `${BUTTON} ${SECONDARY} h-8 gap-1.5 px-2.5`,
-  keyInput:
-    "h-10 w-full rounded-lg bg-component-on-container-strong px-2.5 font-mono text-code-sm text-primary-foreground shadow-default placeholder:text-tertiary-foreground aria-invalid:inset-ring aria-invalid:inset-ring-danger-border-default",
+  approve: `${button("primary", "xl", { icon: "leading" })} flex-1`,
+  deny: `${button("secondary", "xl", { icon: "leading" })} flex-1`,
+  signIn: `${button("primary", "xl", { icon: "leading" })} w-full`,
+  signOut: button("transparent", "md", { icon: "leading" }),
+  download: button("secondary", "md", { icon: "leading" }),
+  keyInput: `${INPUT_MONO} ${INPUT_HEIGHT.default}`,
 } as const;
 
 // --- Calls from the page (through the console's own routes) ----------------------------------

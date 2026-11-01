@@ -568,6 +568,7 @@ describe("keys stay secret", () => {
         "next/navigation",
         "react",
         "../src/approvals-view",
+        "../src/controls",
         "./ui",
       ],
     };

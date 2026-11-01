@@ -65,7 +65,7 @@ packages/
   carrier-mock/         Carrier adapter interface, and the mock over carrier_shipments (stored status, never derived from the clock; ADR 0023)
 bench/                  cases/, runner, results/ (committed, dated)
 docs/                   adr/, spikes.md, validation.md, threat model, architecture, judge guide
-Graphite Design/        The design system source (DESIGN.md, graphite-tokens.css). Don't edit it from app work
+Graphite Design/        The design system source (DESIGN.md, graphite-tokens.css). App work never edits DESIGN.md or graphite-tokens.css (the owner's); it may align the other files with DESIGN.md (ADR 0045)
 specs/                  Brief, constitution, feature specs
 .countersign/           Local data, git-ignored: the PGlite audit log the CLIs use when DATABASE_URL isn't set
 ```

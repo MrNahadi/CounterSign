@@ -1,4 +1,5 @@
 {
   "extends": "./tsconfig.base.json",
-  "include": ["tests", "spikes", "vitest.config.ts"]
+  "include": ["tests", "spikes", "vitest.config.ts"],
+  "exclude": ["tests/ui-shots"]
 }

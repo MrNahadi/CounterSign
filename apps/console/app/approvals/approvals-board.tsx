@@ -18,14 +18,23 @@ import {
   type RecentLine,
   signOut,
 } from "../../src/approvals-view";
+import {
+  ALERT,
+  CARD_TITLE,
+  DESCRIPTION,
+  FIELD_ERROR,
+  ICON,
+  MONO,
+  MONO_BREAK,
+  STACK,
+  STROKE,
+} from "../../src/controls";
 import { QR_COPY, type QrView } from "../../src/qr-view";
-import { Badge, Code, Notice, Spinner } from "../ui";
+import { Badge, Card, Code, Notice, Page, PageHeader, Section, Sections, Spinner } from "../ui";
 
 // The approvals page (ADR 0032), phone first: the approver signs in with the key, sees each held
 // call as an itemized card, and answers it with one tap. Card views are built on the server and
 // arrive as plain props; this file only renders them and talks to the console's own routes.
-
-const COLUMN = "mx-auto flex w-full max-w-xl md:max-w-3xl flex-col gap-6 px-4 pt-5 pb-8 md:px-6";
 
 function Header({ signedIn }: { signedIn: boolean }) {
   const router = useRouter();
@@ -38,47 +47,53 @@ function Header({ signedIn }: { signedIn: boolean }) {
     router.refresh();
   }
   return (
-    <header className="flex items-center gap-3">
-      <h1 className="mr-auto text-heading-6 font-semibold tracking-heading">Approvals</h1>
-      {signedIn ? (
-        <button
-          type="button"
-          onClick={leave}
-          disabled={pending}
-          aria-busy={pending ? true : undefined}
-          className={`${CONTROL_CLASSES.signOut} pl-2`}
-        >
-          {pending ? <Spinner /> : <LogOut size={16} strokeWidth={1.5} aria-hidden="true" />}
-          {APPROVALS_COPY.signOut}
-        </button>
-      ) : null}
-    </header>
+    <PageHeader
+      title="Approvals"
+      actions={
+        signedIn ? (
+          <button
+            type="button"
+            onClick={leave}
+            disabled={pending}
+            aria-busy={pending ? true : undefined}
+            className={CONTROL_CLASSES.signOut}
+          >
+            {pending ? (
+              <Spinner />
+            ) : (
+              <LogOut size={ICON.md} strokeWidth={STROKE(ICON.md)} aria-hidden="true" />
+            )}
+            {APPROVALS_COPY.signOut}
+          </button>
+        ) : null
+      }
+    />
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+// A part of a card: a 14px medium heading, 8px above its content.
+function Part({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-1.5">
+    <section className="flex flex-col gap-2">
       <h3 className="text-body-sm font-medium text-primary-foreground">{title}</h3>
       {children}
     </section>
   );
 }
 
-const COLUMN_LABEL =
-  "text-caption-base font-medium tracking-caption-upper text-tertiary-foreground uppercase";
+const COLUMN_LABEL = "text-caption-lg font-medium text-secondary-foreground";
 
 /** Two columns from 768px up, stacked pairs below; each pair ends with its verdict badge. */
 function ClaimPairs({ pairs }: { pairs: ClaimPairView[] }) {
   return (
-    <section aria-label={APPROVALS_COPY.claimsHeading} className="flex flex-col gap-1.5">
+    <section aria-label={APPROVALS_COPY.claimsHeading} className="flex flex-col gap-2">
       <div className="hidden grid-cols-2 gap-4 md:grid">
         <h3 className={COLUMN_LABEL}>{APPROVALS_COPY.claimsColumn}</h3>
         <h3 className={COLUMN_LABEL}>{APPROVALS_COPY.recordsColumn}</h3>
       </div>
       <ul className="flex flex-col divide-y divide-border-subtle">
         {pairs.map((pair) => (
-          <li key={pair.check} className="grid gap-2 py-2 text-body-sm md:grid-cols-2 md:gap-4">
+          <li key={pair.check} className="grid gap-2 py-3 text-body-sm md:grid-cols-2 md:gap-4">
             <div className="flex flex-col gap-1">
               <h3 className={`${COLUMN_LABEL} md:hidden`}>{APPROVALS_COPY.claimsColumn}</h3>
               {pair.claim === null ? (
@@ -125,7 +140,7 @@ function ClaimPairs({ pairs }: { pairs: ClaimPairView[] }) {
 /** A short hash with its full value as the tooltip, and in full for screen readers. */
 function Hash({ hash }: { hash: DocumentView["sha"] }) {
   return (
-    <span title={hash.full} className="font-mono text-code-xs text-secondary-foreground">
+    <span title={hash.full} className={`${MONO} text-secondary-foreground`}>
       <span aria-hidden="true">{`SHA-256 ${hash.short}`}</span>
       <span className="sr-only">{`SHA-256 ${hash.full}`}</span>
     </span>
@@ -145,28 +160,26 @@ function Mono({ values }: { values: string[] }) {
 /** What approving sends: the parameters as rows, then each evidence item and document. */
 function Approving({ view }: { view: ApprovingView }) {
   return (
-    <Section title={APPROVALS_COPY.approvingHeading}>
-      {view.line !== null ? (
-        <p className="text-body-sm text-secondary-foreground">{view.line}</p>
-      ) : null}
+    <Part title={APPROVALS_COPY.approvingHeading}>
+      {view.line !== null ? <p className={DESCRIPTION}>{view.line}</p> : null}
       {view.rows.length > 0 ? (
         <dl className="flex flex-col divide-y divide-border-subtle">
           {view.rows.map((row) => (
             <div
               key={row.label}
-              className="flex flex-col gap-0.5 py-2 text-body-sm sm:flex-row sm:gap-4"
+              className="flex flex-col gap-0.5 py-3 text-body-sm sm:flex-row sm:gap-4"
             >
-              <dt className="shrink-0 text-secondary-foreground sm:w-28">{row.label}</dt>
+              <dt className="shrink-0 text-secondary-foreground sm:w-32">{row.label}</dt>
               <dd
                 className={
                   row.mono
-                    ? "font-mono text-code-sm break-all text-primary-foreground"
+                    ? `${MONO_BREAK} text-primary-foreground`
                     : "whitespace-pre-wrap break-words text-primary-foreground"
                 }
               >
                 {row.text}
                 {row.code !== undefined ? (
-                  <span className="block font-mono text-code-xs break-all text-secondary-foreground">
+                  <span className={`block ${MONO_BREAK} text-secondary-foreground`}>
                     {row.code}
                   </span>
                 ) : null}
@@ -181,7 +194,7 @@ function Approving({ view }: { view: ApprovingView }) {
           className="flex flex-col divide-y divide-border-subtle"
         >
           {view.items.map((item) => (
-            <li key={item.id} className="flex flex-col gap-1 py-2 text-body-sm">
+            <li key={item.id} className="flex flex-col gap-1 py-3 text-body-sm">
               <p className="font-medium text-primary-foreground">{item.type}</p>
               <p className="whitespace-pre-wrap break-words text-primary-foreground">
                 {item.notes}
@@ -210,11 +223,11 @@ function Approving({ view }: { view: ApprovingView }) {
           {view.documents.map((file) => (
             <li
               key={file.id}
-              className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-body-sm"
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 text-body-sm"
             >
               <FileText
-                size={16}
-                strokeWidth={1.5}
+                size={ICON.md}
+                strokeWidth={STROKE(ICON.md)}
                 aria-hidden="true"
                 className="shrink-0 text-secondary-foreground"
               />
@@ -230,9 +243,9 @@ function Approving({ view }: { view: ApprovingView }) {
                   href={file.href}
                   download
                   aria-label={`${APPROVALS_COPY.download} ${file.name}`}
-                  className={`${CONTROL_CLASSES.download} ml-auto pl-2`}
+                  className={`${CONTROL_CLASSES.download} ml-auto`}
                 >
-                  <Download size={16} strokeWidth={1.5} aria-hidden="true" />
+                  <Download size={ICON.md} strokeWidth={STROKE(ICON.md)} aria-hidden="true" />
                   {APPROVALS_COPY.download}
                 </a>
               ) : (
@@ -244,16 +257,9 @@ function Approving({ view }: { view: ApprovingView }) {
           ))}
         </ul>
       ) : null}
-    </Section>
+    </Part>
   );
 }
-
-const OUTCOME_TONES: Record<Outcome["tone"], string> = {
-  neutral: "bg-card text-primary-foreground",
-  positive: "bg-positive-subtle text-on-positive-subtle-foreground",
-  warning: "bg-warning-subtle text-on-warning-subtle-foreground",
-  danger: "bg-danger-subtle text-on-danger-subtle-foreground",
-};
 
 function ApprovalCard({
   card,
@@ -270,16 +276,10 @@ function ApprovalCard({
 }) {
   const meta = [card.order, card.sender].filter((part) => part !== null);
   return (
-    <article
-      aria-labelledby={`card-${card.id}`}
-      className="flex flex-col gap-4 rounded-2xl bg-container p-4 shadow-border"
-    >
+    <Card as="article" variant="ring" aria-labelledby={`card-${card.id}`}>
       <header className="flex flex-col gap-1">
         <div className="flex items-start gap-3">
-          <h2
-            id={`card-${card.id}`}
-            className="mr-auto text-body-base font-semibold text-primary-foreground tabular-nums"
-          >
+          <h2 id={`card-${card.id}`} className={`mr-auto ${CARD_TITLE} tabular-nums`}>
             {card.title}
           </h2>
           {outcome === null ? (
@@ -290,7 +290,7 @@ function ApprovalCard({
           ) : null}
         </div>
         {meta.length > 0 || card.simulated ? (
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body-sm text-secondary-foreground">
+          <p className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${DESCRIPTION}`}>
             {meta.join(" · ")}
             {card.simulated ? <Badge tone="neutral">Simulated</Badge> : null}
           </p>
@@ -298,7 +298,7 @@ function ApprovalCard({
       </header>
 
       {card.claim !== null || card.excerpt !== null || card.photos.length > 0 ? (
-        <div className="flex flex-col gap-2 rounded-lg bg-card p-3">
+        <Card variant="nested" gap="tight">
           {card.claim !== null ? <p className="text-body-sm font-medium">{card.claim}</p> : null}
           {card.subject !== null ? (
             <p className="text-body-sm text-secondary-foreground">{card.subject}</p>
@@ -314,17 +314,17 @@ function ApprovalCard({
                   <img
                     src={photo.src}
                     alt={photo.alt}
-                    className="size-16 rounded-md object-cover shadow-border"
+                    className="size-20 rounded-xl object-cover shadow-border"
                   />
                 </a>
               ))}
             </div>
           ) : null}
-        </div>
+        </Card>
       ) : null}
 
       {card.reasons.length > 0 ? (
-        <Section title="Why it's waiting">
+        <Part title="Why it's waiting">
           <ul className="flex flex-col gap-1">
             {card.reasons.map((reason) => (
               <li key={reason.code} className="text-body-sm text-secondary-foreground">
@@ -332,7 +332,7 @@ function ApprovalCard({
               </li>
             ))}
           </ul>
-        </Section>
+        </Part>
       ) : null}
 
       {card.claims.length > 0 ? <ClaimPairs pairs={card.claims} /> : null}
@@ -344,10 +344,7 @@ function ApprovalCard({
       ) : null}
 
       {outcome !== null ? (
-        <p
-          role="status"
-          className={`rounded-lg px-3 py-2 text-body-sm font-medium ${OUTCOME_TONES[outcome.tone]}`}
-        >
+        <p role="status" className={`${ALERT[outcome.tone]} font-medium`}>
           {outcome.sentence}
         </p>
       ) : card.actions.length === 0 ? (
@@ -355,7 +352,7 @@ function ApprovalCard({
       ) : (
         <footer className="flex flex-col gap-2">
           {error !== null ? (
-            <p role="alert" className="text-caption-lg text-danger-foreground">
+            <p role="alert" className={FIELD_ERROR}>
               {error}
             </p>
           ) : null}
@@ -366,12 +363,12 @@ function ApprovalCard({
                 onClick={() => onAnswer("deny")}
                 disabled={pending !== null}
                 aria-busy={pending === "deny" ? true : undefined}
-                className={`${CONTROL_CLASSES.deny} pl-3`}
+                className={CONTROL_CLASSES.deny}
               >
                 {pending === "deny" ? (
-                  <Spinner size={20} />
+                  <Spinner size={ICON.xl} />
                 ) : (
-                  <X size={20} strokeWidth={1.75} aria-hidden="true" />
+                  <X size={ICON.xl} strokeWidth={STROKE(ICON.xl)} aria-hidden="true" />
                 )}
                 Deny
               </button>
@@ -382,12 +379,12 @@ function ApprovalCard({
                 onClick={() => onAnswer("approve")}
                 disabled={pending !== null}
                 aria-busy={pending === "approve" ? true : undefined}
-                className={`${CONTROL_CLASSES.approve} pl-3`}
+                className={CONTROL_CLASSES.approve}
               >
                 {pending === "approve" ? (
-                  <Spinner size={20} />
+                  <Spinner size={ICON.xl} />
                 ) : (
-                  <Check size={20} strokeWidth={1.75} aria-hidden="true" />
+                  <Check size={ICON.xl} strokeWidth={STROKE(ICON.xl)} aria-hidden="true" />
                 )}
                 Approve
               </button>
@@ -395,24 +392,21 @@ function ApprovalCard({
           </div>
         </footer>
       )}
-    </article>
+    </Card>
   );
 }
 
 function Recent({ lines }: { lines: RecentLine[] }) {
   return (
-    <section aria-labelledby="recent" className="flex flex-col gap-2">
-      <h2 id="recent" className="text-body-sm font-medium text-primary-foreground">
-        Recent
-      </h2>
+    <Section id="recent" title="Recent">
       {lines.length === 0 ? (
-        <p className="text-body-sm text-secondary-foreground">{APPROVALS_COPY.noRecent}</p>
+        <p className={DESCRIPTION}>{APPROVALS_COPY.noRecent}</p>
       ) : (
         <ul className="flex flex-col divide-y divide-border-subtle">
           {lines.map((line) => (
             <li
               key={line.id}
-              className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 text-body-sm"
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 py-4 text-body-sm"
             >
               <span className="font-semimedium text-primary-foreground tabular-nums">
                 {line.title}
@@ -431,7 +425,7 @@ function Recent({ lines }: { lines: RecentLine[] }) {
           ))}
         </ul>
       )}
-    </section>
+    </Section>
   );
 }
 
@@ -440,29 +434,32 @@ type Answered = { card: CardView; outcome: Outcome };
 /** The approvals URL as a QR code, from 768px up: foreground modules on a container background. */
 function OpenOnPhone({ qr }: { qr: QrView }) {
   return (
-    <section className="hidden flex-col items-start gap-3 md:flex" aria-label={QR_COPY.heading}>
-      <h2 className="text-body-sm font-medium">{QR_COPY.heading}</h2>
-      <svg
-        role="img"
-        aria-label={qr.label}
-        viewBox={`0 0 ${qr.size} ${qr.size}`}
-        shapeRendering="crispEdges"
-        className="size-40 rounded-lg bg-container text-primary-foreground shadow-border"
-      >
-        <title>{qr.label}</title>
-        {qr.rects.map((rect) => (
-          <rect
-            key={`${rect.x}-${rect.y}`}
-            x={rect.x}
-            y={rect.y}
-            width={rect.width}
-            height={1}
-            className="fill-current"
-          />
-        ))}
-      </svg>
-      <p className="text-body-sm text-secondary-foreground">{QR_COPY.line}</p>
-    </section>
+    <div className="hidden md:block">
+      <Section id="open-on-phone" title={QR_COPY.heading}>
+        <div className="flex flex-col items-start gap-3">
+          <svg
+            role="img"
+            aria-label={qr.label}
+            viewBox={`0 0 ${qr.size} ${qr.size}`}
+            shapeRendering="crispEdges"
+            className="size-40 rounded-lg bg-container text-primary-foreground shadow-border"
+          >
+            <title>{qr.label}</title>
+            {qr.rects.map((rect) => (
+              <rect
+                key={`${rect.x}-${rect.y}`}
+                x={rect.x}
+                y={rect.y}
+                width={rect.width}
+                height={1}
+                className="fill-current"
+              />
+            ))}
+          </svg>
+          <p className={DESCRIPTION}>{QR_COPY.line}</p>
+        </div>
+      </Section>
+    </div>
   );
 }
 
@@ -512,16 +509,17 @@ export function ApprovalsBoard({
   ].sort((a, b) => Number(b.id) - Number(a.id));
 
   return (
-    <div className={COLUMN}>
+    <Page width="narrow">
       <Header signedIn={true} />
-      {problem !== null ? <Notice>{problem}</Notice> : null}
-      {view !== null ? (
-        <>
-          {shown.length === 0 ? (
-            <p className="text-body-sm text-secondary-foreground">{APPROVALS_COPY.noOpen}</p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {shown.map((card) => (
+      <Sections>
+        {problem !== null || view !== null ? (
+          <Section>
+            <div className={STACK}>
+              {problem !== null ? <Notice>{problem}</Notice> : null}
+              {view !== null && shown.length === 0 ? (
+                <p className={DESCRIPTION}>{APPROVALS_COPY.noOpen}</p>
+              ) : null}
+              {(view !== null ? shown : []).map((card) => (
                 <ApprovalCard
                   key={card.id}
                   card={card}
@@ -532,11 +530,11 @@ export function ApprovalsBoard({
                 />
               ))}
             </div>
-          )}
-          <Recent lines={view.recent} />
-        </>
-      ) : null}
-      {qr !== null ? <OpenOnPhone qr={qr} /> : null}
-    </div>
+          </Section>
+        ) : null}
+        {view !== null ? <Recent lines={view.recent} /> : null}
+        {qr !== null ? <OpenOnPhone qr={qr} /> : null}
+      </Sections>
+    </Page>
   );
 }

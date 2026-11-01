@@ -1,6 +1,6 @@
 # Checkbox
 
-Checkboxes and radio groups: 16px native inputs restyled, unchecked with a `color-border-control` outline and checked in `color-brand-solid`.
+Checkboxes and radio groups: 18px native inputs restyled, unchecked with a `color-border-control` outline and checked in `color-brand-solid`.
 
 ## What you provide
 
@@ -12,4 +12,5 @@ Checkboxes and radio groups: 16px native inputs restyled, unchecked with a `colo
 
 - Use checkboxes for independent on/off choices that apply after a save. For instant settings, use the switch.
 - Use radios for one choice out of two to five. Stack them vertically with 8px gaps.
+- Option rows are at least 28px tall, with 10px between the control and its label.
 - The unchecked outline is 3.3:1 or better in both themes, so the control stays findable.

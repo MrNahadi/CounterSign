@@ -705,13 +705,13 @@ describe("controls", () => {
     return match === null ? 0 : Number(match[1]) * 4;
   };
 
-  it("makes Approve and Deny 40px and every other control at least 24px", () => {
-    expect(height(CONTROL_CLASSES.approve)).toBe(40);
-    expect(height(CONTROL_CLASSES.deny)).toBe(40);
+  it("makes Approve and Deny 44px and every other control at least 28px", () => {
+    expect(height(CONTROL_CLASSES.approve)).toBe(44);
+    expect(height(CONTROL_CLASSES.deny)).toBe(44);
     expect(CONTROL_CLASSES.approve).toContain("bg-inverted-solid");
     expect(CONTROL_CLASSES.deny).toContain("bg-component-on-container-strong");
     for (const classes of Object.values(CONTROL_CLASSES)) {
-      expect(height(classes)).toBeGreaterThanOrEqual(24);
+      expect(height(classes)).toBeGreaterThanOrEqual(28);
     }
   });
 
@@ -719,7 +719,13 @@ describe("controls", () => {
     const source = readFileSync(new URL("../src/approvals-view.ts", import.meta.url), "utf8");
     const imports = [...source.matchAll(/from "([^"]+)"/g)].map((match) => match[1]);
     for (const name of imports)
-      expect(["./approval-schemas", "./audit-schemas", "./payout-words", "./time"]).toContain(name);
+      expect([
+        "./approval-schemas",
+        "./audit-schemas",
+        "./controls",
+        "./payout-words",
+        "./time",
+      ]).toContain(name);
     const words = readFileSync(new URL("../src/payout-words.ts", import.meta.url), "utf8");
     expect(words).not.toMatch(/\bimport\b/);
   });

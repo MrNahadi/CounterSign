@@ -1,11 +1,11 @@
-Graphite is for dense, calm product UI. It's monochrome first with one blue accent, hairline edges instead of borders, and 13px interface text. Light is the default theme and dark is fully supported through the same token names.
+Graphite is for calm, roomy product UI. It's monochrome first with one blue accent, hairline edges instead of borders, generous spacing, and 14px interface text. Light is the default theme and dark is fully supported through the same token names.
 
 ## Content fundamentals
 
 Write like a calm colleague. Short, plain, specific.
 
 - Talk to the user as "you". The product doesn't say "I". Use "we" only when owning a failure: "We couldn't reach GitHub. Try again in a minute."
-- Sentence case everywhere: buttons, titles, menu items, tabs, table headers before they're uppercased. Proper nouns keep their capitals.
+- Sentence case everywhere: buttons, titles, menu items, tabs and table headers. Proper nouns keep their capitals.
 - Buttons are a verb and an object: "Create project", "Invite people". A confirm button repeats the verb in the dialog title: "Delete this project?" → "Delete project".
 - Errors say what happened and what to do: "Build failed. Fix the type error in src/app.ts on line 42."
 - Toasts state the outcome: "Deployment ready", not "Your deployment was completed successfully!"
@@ -20,18 +20,20 @@ Write like a calm colleague. Short, plain, specific.
 - Style components with `color-*` tokens only. The gray, blue, green, orange and tomato scales sit underneath; reach for a scale step directly only for avatar and label hues.
 - Lay apps out as `color-shell` (the frame and sidebar) holding one `color-container` panel inset 8px, with `radius-2xl` and `shadow-border`. Full-bleed screens use `color-page`. Floating layers use `color-modal`.
 - Keep the interface monochrome. The primary button is `color-inverted-solid`: black in light, white in dark. Blue (`color-brand-solid`, `color-brand-foreground`) is for links, focus, selection and at most one brand button per screen.
-- Set body text in `color-primary-foreground` and labels in `color-secondary-foreground`. Use `color-tertiary-foreground` only for meta text such as timestamps, placeholders and table headers. It measures 3.3:1 in light, below AA for body copy.
+- Set body text in `color-primary-foreground` and labels in `color-secondary-foreground`. Use `color-tertiary-foreground` only for meta text such as timestamps, placeholders and hints. It measures 3.3:1 in light, below AA for body copy.
 - Pair every fill with its text token. `color-x-solid` takes `color-on-x-solid-foreground`, and `color-x-subtle` takes `color-on-x-subtle-foreground`.
 - Show status with a subtle fill, its text token and a word or icon. Never rely on color alone.
-- White on `color-brand-solid` and `color-danger-solid` measures 3.3 to 3.9:1. That passes for icons and large text but not small body text, so keep those button labels short, and use the primary button for anything the user must read carefully.
+- White on `color-brand-solid`, `color-danger-solid` and `color-positive-solid` measures 3.1 to 3.9:1. That passes for icons and large text but not small body text, so keep those button labels short, and use the primary button for anything the user must read carefully.
 - Treat `color-card` as transparent. It's a 2 to 4% tint, so text on it gets its contrast from the surface underneath.
 
 ### Type
 
-- Set all UI in `font-sans` (Inter) at `body-sm`: 13px on 20px. Labels, buttons and tabs take weight 500.
-- Use `body-base` (15px on 24px) for reading: docs, descriptions and long help text, at 60 to 75 characters a line.
+- Set all UI in `font-sans` (Inter) at `body-sm`: 14px on 20px. Labels, buttons and tabs take weight 500.
+- Use `body-base` (16px on 24px) for reading: docs, descriptions and long help text, at 60 to 75 characters a line.
+- Helper text, metadata and table sub-lines use `caption-lg` (13px). `caption-sm` and `caption-xs` are only for avatar initials and tiny counters, never for sentences.
 - Headings track at -0.01em. App pages top out at `heading-4`; `heading-1` to `heading-3` are for marketing and docs.
-- Uppercase group headings in menus, sidebars and table headers use `caption-upper` with `text-transform: uppercase`.
+- Uppercase captions use `caption-upper` with `text-transform: uppercase`. Keep them for eyebrows and group headings in menus and sidebars.
+- Column headers in tables are sentence case, in `caption-lg` medium.
 - Numbers in tables and timers use `font-variant-numeric: tabular-nums`. IDs and hashes use `code-xs` in `font-mono`.
 - `font-serif` (Newsreader) is for `display-serif` moments only: hero headlines and pull quotes. Never in controls.
 - `font-pixel` (Departure Mono) is for `pixel-accent` readouts such as a live timer. Never a sentence.
@@ -39,13 +41,17 @@ Write like a calm colleague. Short, plain, specific.
 
 ### Spacing and layout
 
-- Space on the 4px grid with `space-1` to `space-16`. Gaps between buttons are `space-2`, card padding is `space-4`, dialog padding is `space-5`, page sections sit `space-8` to `space-12` apart.
-- Control heights come from `control-xs` to `control-xl` (20 to 40px). The default is `control-lg`, 32px. Use `control-xl` for primary actions on touch layouts.
+- Space on the 4px grid with `space-1` to `space-24`. Gaps between buttons are `space-2`, form fields sit 20px apart, and grid gaps are 24px (`--grid-gap`).
+- Card padding is 24px (`--card-padding`). Use 16px only for small cards nested inside another card. Dialog padding is 28px.
+- Page sections sit 80px apart (`--section-gap`), or 56px below 900px. The container pads 48px top, 56px sides and 96px bottom, and content stops at `--content-max` (1120px).
+- The sidebar is 260px wide (`--sidebar-width`) with 36px nav items (`--nav-item-height`).
+- When unsure, add space. Remove an element before you shrink the spacing. A screen is too crowded when a toolbar needs more than one row, a button carries two competing badges or hints, table text drops under 14px, cards sit closer than 24px, or one section runs straight into the next.
+- Control heights come from `control-xs` to `control-xl` (24 to 44px). Buttons default to `control-md`, 32px. Inputs are 36px, or 32px in toolbars. The minimum hit target is 28px. Use `control-xl` (44px) for primary actions on touch layouts.
 - Cap forms and settings at 672px wide, dialogs at 448 or 512px.
 
 ### Radius
 
-- Buttons, inputs, menu items and tooltips use `radius-lg`. Cards, menus, popovers and toasts use `radius-2xl`. Dialogs and drawers use `radius-3xl`. Pills, avatars and switches use `radius-full`.
+- Buttons, inputs, menu items and tooltips use `radius-lg`. Cards use `radius-3xl`, and small cards nested inside another card use `radius-2xl`. Menus, popovers, toasts and the main container use `radius-2xl`. Dialogs and drawers use `radius-3xl`. Pills, avatars and switches use `radius-full`.
 - When one rounded shape sits inside another, the inner radius is the outer radius minus the padding between them. A 12px menu with 4px padding gets 8px items.
 
 ### Edges and elevation

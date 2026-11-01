@@ -10,28 +10,31 @@ export default function ShopPage() {
       <p className="mt-2 text-body-base text-secondary-foreground">
         Handwoven baskets and bags from Kisumu.
       </p>
-      <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+      <ul className="mt-7 grid gap-(--grid-gap) sm:grid-cols-2 lg:grid-cols-3">
         {products.map((product) => (
           <li key={product.id}>
             <Link
               href={product.href}
-              className="group flex h-full flex-col rounded-2xl bg-container p-4 shadow-border"
+              data-graphite="card"
+              className="group flex h-full flex-col gap-5 rounded-3xl bg-container p-(--card-padding) shadow-border"
             >
-              <span className="flex items-start justify-between gap-2">
-                <span className="text-body-sm font-medium text-primary-foreground">
-                  {product.name}
+              <span className="flex flex-col gap-1">
+                <span className="flex items-start justify-between gap-2">
+                  <span className="text-body-base font-semibold tracking-heading text-primary-foreground">
+                    {product.name}
+                  </span>
+                  <ArrowRight
+                    size={16}
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                    className="shrink-0 text-secondary-foreground transition-colors duration-150 ease-out group-hover:text-primary-foreground"
+                  />
                 </span>
-                <ArrowRight
-                  size={16}
-                  strokeWidth={1.5}
-                  aria-hidden="true"
-                  className="shrink-0 text-secondary-foreground transition-colors duration-150 ease-out group-hover:text-primary-foreground"
-                />
+                <span className="text-caption-lg text-secondary-foreground">
+                  {product.description}
+                </span>
               </span>
-              <span className="mt-1 text-body-sm text-secondary-foreground">
-                {product.description}
-              </span>
-              <span className="mt-3 font-mono text-code-sm tabular-nums text-primary-foreground">
+              <span className="font-mono text-code-sm tabular-nums text-primary-foreground">
                 {product.price}
               </span>
             </Link>

@@ -1,6 +1,6 @@
 # 0018. Console panels open one at a time and never collapse to strips; the sidebar collapses to an icon rail; the Risk desk opens as a dashboard
 
-Status: accepted
+Status: accepted; the sidebar width (240px) is superseded by ADR 0045 (260px)
 Decided-by: owner, in the design session on 16 Oct 2026 (recorded by Claude)
 Question: Design pass 1 on the "Countersign screens" canvas. How do the console's side panels, the sidebar and the Risk desk behave, given that AG Studio's own editing UI isn't Graphite (spike S9), and how do decisions, reason codes and the analyst's work read on screen?
 Decision:

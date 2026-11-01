@@ -31,8 +31,8 @@ export async function ConsoleShell({
   const count = openApprovals === undefined ? await openApprovalCount() : openApprovals;
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="flex shrink-0 flex-row items-center gap-2 px-4 pt-3 pb-1 md:w-60 md:flex-col md:items-stretch md:gap-4 md:p-4">
-        <div className="flex h-8 items-center gap-2 px-2 text-body-sm font-semibold">
+      <aside className="flex shrink-0 flex-row items-center gap-2 px-4 pt-3 pb-1 md:w-(--sidebar-width) md:flex-col md:items-stretch md:gap-4 md:p-4">
+        <div className="flex h-(--nav-item-height) items-center gap-2 px-3 text-body-sm font-semibold">
           <ShieldCheck
             size={16}
             strokeWidth={1.5}

@@ -11,12 +11,13 @@
     "packages/*"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --workspaces --if-present",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tests/ui-shots/tsconfig.json && npm run typecheck --workspaces --if-present",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome check --write .",
     "test": "vitest run",
     "build": "npm run build --workspaces --if-present",
+    "ui:shots": "tsx tests/ui-shots/shoot.ts",
     "decide": "tsx apps/gate/src/decide-main.ts",
     "db:generate": "npm run db:generate --workspace @countersign/db",
     "db:migrate": "tsx --env-file-if-exists=.env.local packages/db/src/migrate-main.ts",
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.64.1",
     "@types/node": "26.6.5",
     "typescript": "5.9.3",
     "vitest": "4.1.12"

@@ -12,26 +12,35 @@ import {
   auditView,
   type EntryRow,
 } from "../../src/audit-view";
+import {
+  button,
+  DESCRIPTION,
+  ICON,
+  LINK,
+  MONO,
+  NUMBER,
+  STACK,
+  STROKE,
+  TABLE,
+  TABLE_BODY,
+  TABLE_CARD,
+  TABLE_HEAD_ROW,
+  TD,
+  TH,
+  TOOLBAR,
+  TR,
+} from "../../src/controls";
 import { ConsoleShell } from "../console-shell";
 import { SignIn } from "../sign-in";
-import { Badge, Notice } from "../ui";
+import { Badge, Card, Notice, Page, PageHeader } from "../ui";
 
 // Every audit-log entry, newest first (ADR 0034), read on the server with the approver's cookie
 // through the read-only audit API. The chain check runs when asked for, as a link to this page
-// with `check=1`, so the page stays a server component. Built from Graphite's Table, Badge and
-// Button specs.
+// with `check=1`, so the page stays a server component. Built from Graphite's Table, Badge, Card
+// and Button specs, through the shared recipes in `src/controls.ts`.
 
 export const metadata: Metadata = { title: "Audit log · Countersign console" };
 export const dynamic = "force-dynamic";
-
-const LINK = "font-medium text-brand-foreground hover:underline";
-const BUTTON =
-  "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-body-sm font-medium motion-safe:transition motion-safe:duration-150 motion-safe:ease-out motion-safe:active:scale-[0.97]";
-const SECONDARY = `${BUTTON} bg-component-on-container-strong text-primary-foreground shadow-default hover:bg-component-on-container-strong-hover`;
-const HEAD =
-  "h-8 px-3 text-left align-middle text-caption-base font-medium tracking-caption-upper whitespace-nowrap text-tertiary-foreground uppercase";
-const CELL = "h-10 px-3 py-2 align-top";
-const MONO = "font-mono text-code-xs";
 
 function Hash({ hash }: { hash: EntryRow["hash"] }) {
   return (
@@ -44,17 +53,17 @@ function Hash({ hash }: { hash: EntryRow["hash"] }) {
 
 function Row({ row }: { row: EntryRow }) {
   return (
-    <tr className="hover:bg-transparent-hover">
-      <td className={`${CELL} tabular-nums whitespace-nowrap`}>{row.seq}</td>
-      <td className={`${CELL} whitespace-nowrap`}>
+    <tr className={TR}>
+      <td className={`${TD} ${NUMBER}`}>{row.seq}</td>
+      <td className={`${TD} whitespace-nowrap`}>
         <time dateTime={row.at} title={row.at}>
           {row.when}
         </time>
       </td>
-      <td className={`${CELL} whitespace-nowrap`}>
+      <td className={`${TD} whitespace-nowrap`}>
         <span className={MONO}>{row.type}</span>
       </td>
-      <td className={`${CELL} min-w-64`}>
+      <td className={`${TD} min-w-72`}>
         {row.href !== null ? (
           <Link href={row.href} className={LINK}>
             {row.summary}
@@ -63,8 +72,10 @@ function Row({ row }: { row: EntryRow }) {
           row.summary
         )}
       </td>
-      <td className={`${CELL} ${MONO} whitespace-nowrap`}>{row.ref}</td>
-      <td className={`${CELL} whitespace-nowrap`}>
+      <td className={`${TD} whitespace-nowrap`}>
+        <span className={MONO}>{row.ref}</span>
+      </td>
+      <td className={`${TD} whitespace-nowrap`}>
         <Hash hash={row.hash} />
       </td>
     </tr>
@@ -73,12 +84,8 @@ function Row({ row }: { row: EntryRow }) {
 
 function Verdict({ view }: { view: NonNullable<AuditView["verdict"]> }) {
   return (
-    <section
-      aria-label="Chain check"
-      role="status"
-      className="flex flex-col gap-2 rounded-2xl p-4 shadow-border"
-    >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <Card as="section" aria-label="Chain check" role="status" gap="tight">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Badge tone={view.tone}>
           {view.tone === "positive" ? "Intact" : view.tone === "danger" ? "Broken" : "Not checked"}
         </Badge>
@@ -94,58 +101,69 @@ function Verdict({ view }: { view: NonNullable<AuditView["verdict"]> }) {
           ))}
         </ul>
       ) : null}
-    </section>
+    </Card>
   );
 }
 
 function EntryTable({ view }: { view: AuditView }) {
-  if (view.empty !== null) {
-    return <p className="text-body-sm text-secondary-foreground">{view.empty}</p>;
-  }
   return (
-    <div className="flex flex-col gap-3">
-      <div className="overflow-x-auto rounded-2xl shadow-border">
-        <table className="w-full border-collapse text-body-sm">
-          <thead>
-            <tr className="border-b border-border-default">
-              <th scope="col" className={HEAD}>
-                Seq
-              </th>
-              <th scope="col" className={HEAD}>
-                When
-              </th>
-              <th scope="col" className={HEAD}>
-                Type
-              </th>
-              <th scope="col" className={HEAD}>
-                Summary
-              </th>
-              <th scope="col" className={HEAD}>
-                Ref
-              </th>
-              <th scope="col" className={HEAD}>
-                Hash
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-subtle">
-            {view.rows.map((row) => (
-              <Row key={row.seq} row={row} />
-            ))}
-          </tbody>
-        </table>
+    <>
+      <div data-graphite="table" className={TABLE_CARD}>
+        <div data-graphite="toolbar" className={TOOLBAR}>
+          <Link href={view.checkHref} className={button("secondary", "md", { icon: "leading" })}>
+            <ShieldCheck size={ICON.md} strokeWidth={STROKE(ICON.md)} aria-hidden="true" />
+            {AUDIT_COPY.check}
+          </Link>
+          <p className={`${DESCRIPTION} flex h-8 items-center`}>{view.total}</p>
+        </div>
+        {view.empty !== null ? (
+          <p className={`${DESCRIPTION} px-5 py-6`}>{view.empty}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className={TABLE}>
+              <thead>
+                <tr className={TABLE_HEAD_ROW}>
+                  <th scope="col" className={`${TH} text-right`}>
+                    Seq
+                  </th>
+                  <th scope="col" className={TH}>
+                    When
+                  </th>
+                  <th scope="col" className={TH}>
+                    Type
+                  </th>
+                  <th scope="col" className={TH}>
+                    Summary
+                  </th>
+                  <th scope="col" className={TH}>
+                    Ref
+                  </th>
+                  <th scope="col" className={TH}>
+                    Hash
+                  </th>
+                </tr>
+              </thead>
+              <tbody className={TABLE_BODY}>
+                {view.rows.map((row) => (
+                  <Row key={row.seq} row={row} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
       {view.olderHref !== null ? (
-        <Link href={view.olderHref} className={`${SECONDARY} self-start pl-2`}>
-          <ChevronLeft size={16} strokeWidth={1.5} aria-hidden="true" />
+        <Link
+          href={view.olderHref}
+          className={`${button("secondary", "md", { icon: "leading" })} self-start`}
+        >
+          <ChevronLeft size={ICON.md} strokeWidth={STROKE(ICON.md)} aria-hidden="true" />
           {AUDIT_COPY.older}
         </Link>
       ) : null}
-    </div>
+    </>
   );
 }
-
-const COLUMN = "flex w-full flex-col gap-6 px-4 pt-5 pb-8 md:px-6";
 
 export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
   const key = approverKeyFromHeader((await headers()).get("cookie"));
@@ -171,27 +189,19 @@ export default async function AuditPage({ searchParams }: PageProps<"/audit">) {
   const view = entries.ok ? auditView(entries.value, verify, new Date()) : null;
   return (
     <ConsoleShell>
-      <div className={COLUMN}>
-        <header className="flex flex-col gap-1">
-          <h1 className="text-heading-6 font-semibold tracking-heading">{AUDIT_COPY.title}</h1>
-          <p className="text-body-sm text-secondary-foreground">{AUDIT_COPY.subtitle}</p>
-        </header>
-        {view !== null ? (
-          <>
-            <div className="flex flex-wrap items-center gap-3">
-              <Link href={view.checkHref} className={SECONDARY}>
-                <ShieldCheck size={16} strokeWidth={1.5} aria-hidden="true" />
-                {AUDIT_COPY.check}
-              </Link>
-              <p className="text-body-sm text-secondary-foreground">{view.total}</p>
-            </div>
-            {view.verdict !== null ? <Verdict view={view.verdict} /> : null}
-            <EntryTable view={view} />
-          </>
-        ) : (
-          <Notice>{entries.ok ? null : entries.message}</Notice>
-        )}
-      </div>
+      <Page>
+        <PageHeader title={AUDIT_COPY.title} description={AUDIT_COPY.subtitle} />
+        <div className={STACK}>
+          {view !== null ? (
+            <>
+              {view.verdict !== null ? <Verdict view={view.verdict} /> : null}
+              <EntryTable view={view} />
+            </>
+          ) : (
+            <Notice>{entries.ok ? null : entries.message}</Notice>
+          )}
+        </div>
+      </Page>
     </ConsoleShell>
   );
 }

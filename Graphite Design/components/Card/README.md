@@ -4,12 +4,12 @@ A container for one object or group, edged with a hairline ring on `color-contai
 
 ## What you provide
 
-- A `gr-card` element. Inside, a `gr-card-title` (13px medium), an optional `gr-card-desc`, and any content.
+- A `gr-card` element. Inside, a `gr-card-title` (16px semibold with heading tracking), an optional `gr-card-desc` (13px, on its own line 4px below the title), and any content.
 - `gr-card-tinted` for a grouped block inside a container instead of a ringed card.
 - For a selectable card, a button or link as the card, with `box-shadow: 0 0 0 1px var(--color-brand-border-default)` when selected.
 
 ## Rules
 
-- `radius-2xl` and 16px padding (20px for roomy cards). Inner elements follow the nesting rule.
+- `radius-3xl` and 24px padding (`--card-padding`), with 20px between the blocks inside. Small nested cards use `radius-2xl` and 16px padding. Inner elements follow the nesting rule.
 - Cards sit on `color-shell` or `color-container`. Never put a ringed card inside another ringed card; use the tinted variant.
 - No colored left borders, no drop shadows heavier than `shadow-border`.

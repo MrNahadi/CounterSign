@@ -11,7 +11,7 @@ Modal dialogs for focused decisions, and the drawer, which is the same surface a
 
 ## Rules
 
-- Dialog: `color-modal`, `shadow-xl`, `radius-3xl`, 20px padding, 448 or 512px wide.
+- Dialog: `color-modal`, `shadow-xl`, `radius-3xl`, 28px padding, 448 or 512px wide. The description sits 8px below the title on a 22px line height, and the footer sits 24px below the content.
 - Footer buttons are large, right-aligned, Cancel first and the primary or danger action last.
 - Titles ask the question or name the task: "Delete this project?", "Invite people".
 - Don't stack dialogs. Use a drawer on screens narrower than 640px.

@@ -1,6 +1,6 @@
 # Tooltip
 
-A small inverted label that names an icon button or shows its shortcut, set in 12px on `color-standout`.
+A small inverted label that names an icon button or shows its shortcut, set in 13px with 6px by 10px padding on `color-standout`.
 
 ## What you provide
 
