@@ -12,6 +12,8 @@ export type Approver = {
   authenticate(header: string | undefined): boolean;
   // True when the variable is missing, too short or a principal key's value.
   unset: boolean;
+  // The key's value, for the phone pairing exchange only (ADR 0044); null when unset. Never logged.
+  value(): string | null;
 };
 
 const KeySchema = z.string().min(MIN_KEY_LENGTH);
@@ -31,8 +33,10 @@ export function loadApprover(env: Environment): Approver {
     }
   }
   const key = clashes ? null : hash;
+  const value = key !== null && parsed.success ? parsed.data : null;
   return {
     unset: key === null,
+    value: () => value,
     authenticate(header) {
       const presented = bearerKey(header);
       if (presented === null || key === null) return false;

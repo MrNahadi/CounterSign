@@ -14,6 +14,7 @@ import { demoResetEnabled, type Reseed } from "./demo-reset";
 import { mountDemoReset } from "./demo-reset-api";
 import { mountMcp } from "./mcp";
 import type { NudgeFetch } from "./nudge";
+import { mountPairing } from "./pairing";
 import { loadPrincipals, MIN_KEY_LENGTH, PRINCIPAL_LABELS, type Principals } from "./principals";
 import { ANSWERS, handlePayPalWebhook, WEBHOOK_BODY_LIMIT, type WebhookAnswer } from "./webhook";
 
@@ -61,7 +62,7 @@ function send(res: Response, answer: WebhookAnswer): void {
   res.status(answer.status).json({ message: answer.message });
 }
 
-// The gate's HTTP surface: health, /mcp, the approval and audit APIs and the PayPal webhook. Later phases
+// The gate's HTTP surface: health, /mcp, phone pairing, the approval and audit APIs and the PayPal webhook. Later phases
 // add Daraja callbacks.
 // Every dependency is optional, so /health works with none.
 export function createApp(deps: AppDeps = {}) {
@@ -101,6 +102,9 @@ export function createApp(deps: AppDeps = {}) {
 
   const approver = loadApprover(webhookDeps.env);
   for (const line of approverLines(approver)) deps.log?.(line);
+  // Before the approval API: Express matches in registration order, and its `/approvals/:id`
+  // routes would otherwise take `/approvals/pair` (a key check) and `/approvals/pairing-codes`.
+  mountPairing(app, { approver, clock: webhookDeps.clock });
   mountApprovals(app, {
     approver,
     ...(deps.db ? { db: deps.db } : {}),

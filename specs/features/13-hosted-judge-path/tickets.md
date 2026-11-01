@@ -153,16 +153,16 @@ Notes:
 
 ## T-011: Phone pairing codes on the gate
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: An approver-key holder can mint a single-use code that trades once, without a key, for the approver key.
 Test seam: `POST /approvals/pairing-codes` and `POST /approvals/pair` through `createApp`, with a fixed clock
 Acceptance:
-- [ ] Minting needs the approver key and answers 201 with a 22-character base64url code and its expiry
-- [ ] With no key, a valid code trades once for 200 `{ approver_key }`; a used, expired, unknown or malformed code is 401 with the sentence
-- [ ] Through `createApp`, `GET` and `POST /approvals/<id>` behave exactly as before (the mount order holds)
-- [ ] At most 50 live codes; no code or key in any log line
+- [x] Minting needs the approver key and answers 201 with a 22-character base64url code and its expiry
+- [x] With no key, a valid code trades once for 200 `{ approver_key }`; a used, expired, unknown or malformed code is 401 with the sentence
+- [x] Through `createApp`, `GET` and `POST /approvals/<id>` behave exactly as before (the mount order holds)
+- [x] At most 50 live codes; no code or key in any log line
 Notes:
 - Item 12b. `mountPairing` must be mounted before `mountApprovals`. Files: `apps/gate/src/{pairing,app}.ts`, `apps/gate/test/pairing.test.ts`.
 
