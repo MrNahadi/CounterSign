@@ -39,6 +39,7 @@ The autopilot builds everything it can and lists here what only you can do, or w
 - **Phase 13a, approvals card before the video:** at phone width, Approve and Deny are now 44px and the card is roomier, so less of a long card fits on one screen (owner check 2).
 - **Phase 13a, phone nav row (looks unchanged from `main`):** on a phone, the console's sidebar is one row that scrolls sideways. Disputes, Decisions and Audit log sit past the screen edge, and Approvals' count badge is cut off by the theme control. Say if you want the hidden links shown another way, such as wrapping the row or adding a fade at the edge (DESIGN.md's scroll-area fade).
 - **Stale branches:** `origin/feature/04-tamper-evident-audit-log` and `origin/feature/05-storefront-and-seed` share no history with main (main was rewritten after they were made), and `origin/feature/06-refund-executes-once` is also already on main; the work of all three is on main. Delete them when convenient; the autopilot never deletes branches.
+- **Phase 19, hosting:** the owner has Cloudflare and asked on 1 Nov 2026 about deploying as we build. Their call: not now; keep Render as the brief plans and revisit Cloudflare (preview deploys, frontends only, or everything) at phase 19.
 
 ## Decided for you
 
