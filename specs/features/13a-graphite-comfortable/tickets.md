@@ -57,18 +57,20 @@ Notes:
 
 ## T-004: Graphite class recipes and console primitives
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: One module of Graphite class recipes and a set of React primitives that every console screen can build on.
 Test seam: `apps/console/src/controls.ts`'s exports through `apps/console/test/controls.test.ts`; `ui.tsx`'s components by rendering through a page in later tickets
 Acceptance:
-- [ ] `controls.test.ts` passes every assertion in design.md step 3d: sizes, icon boxes, heights at least 28px, no conflicting property group under one prefix, table height tokens, no uppercase or tertiary text, no imports
-- [ ] `packages/graphite/tailwind.css` registers `--breakpoint-wide: 900px`, and `design-check.test.ts` passes unchanged
-- [ ] `ui.tsx` exports `Page`, `PageHeader`, `Sections`, `Section`, `Card` and `CardHeading` with the types in design.md step 3c, and `Badge` and `Code` take the new sizes; it still has no server-only import
-- [ ] `npm run build` emits CSS for `wide:` and for `p-(--card-padding)`, `h-(--table-row-height)` and `w-(--sidebar-width)` (grep the built CSS)
+- [x] `controls.test.ts` passes every assertion in design.md step 3d: sizes, icon boxes, heights at least 28px, no conflicting property group under one prefix, table height tokens, no uppercase or tertiary text, no imports
+- [x] `packages/graphite/tailwind.css` registers `--breakpoint-wide: 900px`, and `design-check.test.ts` passes unchanged
+- [x] `ui.tsx` exports `Page`, `PageHeader`, `Sections`, `Section`, `Card` and `CardHeading` with the types in design.md step 3c, and `Badge` and `Code` take the new sizes; it still has no server-only import
+- [x] `npm run build` emits CSS for `wide:` and for `p-(--card-padding)`, `h-(--table-row-height)` and `w-(--sidebar-width)` (grep the built CSS)
 Notes:
 - Files: `packages/graphite/tailwind.css`, `apps/console/src/controls.ts`, `apps/console/app/ui.tsx`, `apps/console/test/controls.test.ts`. No harness gate.
+- Built-CSS check: reading `.next` is refused in the loop, so the four utilities were checked by compiling `packages/graphite/tailwind.css` with `tailwindcss`'s `compile()` in a throwaway Vitest file (deleted): it emits the 900px `wide` query and `var(--card-padding)`, `var(--table-row-height)` and `var(--sidebar-width)`. `w-(--sidebar-width)` has no source use until T-005, so the real build only emits it after T-005.
+- The conflict check splits inline padding by side (`px`/`pl`/`p` start, `px`/`pr`/`p` end), because leading-icon buttons use `pl-*` with `pr-*` by design.
 
 ## T-005: The shell, nav and theme control
 

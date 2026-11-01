@@ -18,6 +18,15 @@
   --ease-*: initial;
 }
 
+/* DESIGN.md's 900px threshold for container padding and section gaps, as the `wide:` variant.
+   Media queries can't read CSS variables, so this is the one literal (ADR 0045). */
+@theme {
+  --breakpoint-wide: 900px;
+}
+
+/* Layout tokens (--sidebar-width, --nav-item-height, --content-max, --card-padding, --grid-gap,
+   --section-gap, --table-row-height, --table-header-height, --menu-item-height) aren't registered:
+   use them through Tailwind's (--token) shorthand, such as p-(--card-padding). */
 @theme inline {
   --spacing: var(--space);
 
