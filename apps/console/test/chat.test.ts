@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { APPROVER_COOKIE } from "../src/approval-routes";
 import {
   CHAT_CONTROLS,
   CHAT_NOTICE,
@@ -22,7 +23,15 @@ const id = (prefix: string, c: string) => `${prefix}_${c.repeat(32)}`;
 const THREAD = id("tkt", "a");
 const SECOND = id("tkt", "b");
 const ATT = id("att", "c");
-const env = { RESOLVE_AGENT_URL: "http://resolve.test:8788" };
+const env = { RESOLVE_AGENT_URL: "http://resolve.test:8788", GATE_URL: "http://gate.test" };
+// The console's routes to Resolve open with the sign-in: a cookie, and a gate that takes the key.
+const SIGNED_IN = `${APPROVER_COOKIE}=${encodeURIComponent("approver-key-0123456789abcdefghijklmnop")}`;
+const withGate =
+  (resolve: typeof fetch): typeof fetch =>
+  async (input, init) =>
+    new URL(String(input)).host === "gate.test"
+      ? Response.json({ open: [], recent: [] })
+      : resolve(input, init);
 
 const form: ChatForm = {
   email: " payer@example.com ",
@@ -170,9 +179,10 @@ describe("chatRequest", () => {
     const answer = await messagesRoute(
       new Request("http://console.test/api/resolve/messages", {
         method: "POST",
+        headers: { cookie: SIGNED_IN },
         body: JSON.stringify(result.request),
       }),
-      { env, fetch: resolve },
+      { env, fetch: withGate(resolve) },
     );
     expect(answer.status).toBe(202);
     expect(sent).toEqual([result.request]);
@@ -296,7 +306,11 @@ describe("loadChat", () => {
       const url = String(input);
       urls.push(url);
       const threadId = decodeURIComponent(url.split("/").at(-1) ?? "");
-      return threadRoute(threadId, { env, fetch: resolve });
+      return threadRoute(
+        new Request(`http://console.test${url}`, { headers: { cookie: SIGNED_IN } }),
+        threadId,
+        { env, fetch: withGate(resolve) },
+      );
     }) as typeof fetch;
     return { urls, fetch: browser };
   };

@@ -1,5 +1,12 @@
 import type { z } from "zod";
 import {
+  type Answer,
+  type ApprovalDeps,
+  refusalResponse,
+  refuse,
+  withSignIn,
+} from "./approval-routes";
+import {
   AttachmentIdSchema,
   type MessageAccepted,
   MessageAcceptedSchema,
@@ -36,11 +43,11 @@ export type ResolveDeps = {
   timeoutMs?: number;
 };
 
-export type Answer<T> =
-  | { ok: true; value: T }
-  | { ok: false; status: 400 | 404 | 502; message: string };
+// A route to Resolve opens with the approvals sign-in, checked with the gate (ADR 0043), so its
+// deps carry what both calls need. The key goes to the gate only.
+export type RouteDeps = ResolveDeps & ApprovalDeps;
 
-const unreachable = { ok: false, status: 502, message: RESOLVE_UNREACHABLE } as const;
+const unreachable = refuse(502, RESOLVE_UNREACHABLE);
 
 /** Resolve's base URL, or null when `RESOLVE_AGENT_URL` isn't an http(s) URL. */
 export function resolveAgentUrl(env: ResolveEnv): URL | null {
@@ -110,50 +117,62 @@ export async function loadThread(id: unknown, deps: ResolveDeps): Promise<Answer
 const json = (status: number, body: unknown): Response =>
   Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
-function respond<T>(answer: Answer<T>): Response {
-  return answer.ok ? json(200, answer.value) : json(answer.status, { message: answer.message });
-}
-
 /** `GET /api/resolve/threads`. */
-export async function threadsRoute(deps: ResolveDeps): Promise<Response> {
-  return respond(await loadThreads(deps));
+export function threadsRoute(request: Request, deps: RouteDeps): Promise<Response> | Response {
+  return withSignIn(request, deps, () => loadThreads(deps));
 }
 
 /** `GET /api/resolve/threads/[id]`. */
-export async function threadRoute(id: unknown, deps: ResolveDeps): Promise<Response> {
-  return respond(await loadThread(id, deps));
+export function threadRoute(
+  request: Request,
+  id: unknown,
+  deps: RouteDeps,
+): Promise<Response> | Response {
+  return withSignIn(request, deps, () => loadThread(id, deps));
 }
 
-/** `GET /api/resolve/attachments/[id]`: the photo's bytes, only when they're a photo we accept. */
-export async function attachmentRoute(id: unknown, deps: ResolveDeps): Promise<Response> {
+async function loadAttachment(id: unknown, deps: ResolveDeps): Promise<Answer<Response>> {
   const attachmentId = AttachmentIdSchema.safeParse(id);
-  if (!attachmentId.success) return json(404, { message: NO_PHOTO });
+  if (!attachmentId.success) return refuse(404, NO_PHOTO);
   const response = await callResolve(deps, `/attachments/${attachmentId.data}`);
   if (response?.status === 404 && (await readJson(response, ResolveMessageSchema)) !== null) {
-    return json(404, { message: NO_PHOTO });
+    return refuse(404, NO_PHOTO);
   }
-  if (response?.status !== 200) return json(502, { message: RESOLVE_UNREACHABLE });
+  if (response?.status !== 200) return unreachable;
   const type = (response.headers.get("content-type") ?? "").split(";")[0]?.trim() ?? "";
-  if (!(PHOTO_TYPES as readonly string[]).includes(type)) {
-    return json(502, { message: RESOLVE_UNREACHABLE });
-  }
+  if (!(PHOTO_TYPES as readonly string[]).includes(type)) return unreachable;
   let bytes: ArrayBuffer;
   try {
     bytes = await response.arrayBuffer();
   } catch {
-    return json(502, { message: RESOLVE_UNREACHABLE });
+    return unreachable;
   }
-  if (bytes.byteLength === 0 || bytes.byteLength > MAX_PHOTO_BYTES) {
-    return json(502, { message: RESOLVE_UNREACHABLE });
-  }
-  return new Response(bytes, {
-    status: 200,
-    headers: {
-      "Content-Type": type,
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "private, max-age=31536000, immutable",
-    },
-  });
+  if (bytes.byteLength === 0 || bytes.byteLength > MAX_PHOTO_BYTES) return unreachable;
+  return {
+    ok: true,
+    value: new Response(bytes, {
+      status: 200,
+      headers: {
+        "Content-Type": type,
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private, max-age=31536000, immutable",
+      },
+    }),
+  };
+}
+
+/** `GET /api/resolve/attachments/[id]`: the photo's bytes, only when they're a photo we accept. */
+export function attachmentRoute(
+  request: Request,
+  id: unknown,
+  deps: RouteDeps,
+): Promise<Response> | Response {
+  return withSignIn(
+    request,
+    deps,
+    () => loadAttachment(id, deps),
+    (req, answer) => (answer.ok ? answer.value : refusalResponse(req, answer)),
+  );
 }
 
 /** Reads at most `limit` bytes of a request body as text; null when it's longer. */
@@ -200,20 +219,26 @@ export async function sendToResolve(
 }
 
 /** `POST /api/resolve/messages`: one simulated customer message, checked, then sent to Resolve. */
-export async function messagesRoute(request: Request, deps: ResolveDeps): Promise<Response> {
-  let text: string | null;
-  try {
-    text = await readLimited(request, MAX_MESSAGE_BYTES);
-  } catch {
-    return json(400, { message: BAD_MESSAGE });
-  }
-  if (text === null) return json(400, { message: MESSAGE_TOO_LARGE });
-  let input: unknown;
-  try {
-    input = JSON.parse(text);
-  } catch {
-    return json(400, { message: BAD_MESSAGE });
-  }
-  const answer = await sendToResolve(input, deps);
-  return answer.ok ? json(202, answer.value) : json(answer.status, { message: answer.message });
+export function messagesRoute(request: Request, deps: RouteDeps): Promise<Response> | Response {
+  return withSignIn(
+    request,
+    deps,
+    async () => {
+      let text: string | null;
+      try {
+        text = await readLimited(request, MAX_MESSAGE_BYTES);
+      } catch {
+        return refuse(400, BAD_MESSAGE);
+      }
+      if (text === null) return refuse(400, MESSAGE_TOO_LARGE);
+      let input: unknown;
+      try {
+        input = JSON.parse(text);
+      } catch {
+        return refuse(400, BAD_MESSAGE);
+      }
+      return sendToResolve(input, deps);
+    },
+    (req, answer) => (answer.ok ? json(202, answer.value) : refusalResponse(req, answer)),
+  );
 }

@@ -49,7 +49,11 @@ export type ApprovalDeps = {
   timeoutMs?: number;
 };
 
-export type Refusal = { ok: false; status: 400 | 401 | 404 | 502 | 503; message: string };
+export type Refusal = {
+  ok: false;
+  status: 400 | 401 | 404 | 409 | 429 | 502 | 503;
+  message: string;
+};
 export type Answer<T> = { ok: true; value: T } | Refusal;
 
 export const refuse = (status: Refusal["status"], message: string): Refusal => ({
@@ -187,6 +191,16 @@ export async function checkKey(key: string, deps: ApprovalDeps): Promise<Answer<
   return accepted ? { ok: true, value: null } : unreachable;
 }
 
+/** `run(key)` once the gate has taken the key, else the sign-in refusal (ADR 0043). */
+export async function signedIn<T>(
+  key: string,
+  deps: ApprovalDeps,
+  run: (key: string) => Promise<Answer<T>>,
+): Promise<Answer<T>> {
+  const checked = await checkKey(key, deps);
+  return checked.ok ? run(key) : checked;
+}
+
 export async function loadApprovals(
   key: string,
   deps: ApprovalDeps,
@@ -300,6 +314,19 @@ export function withKey<T>(
     },
     hasCookie ? clearCookie(request) : undefined,
   );
+}
+
+/**
+ * `withKey`, then the gate's check of the key, then `run(key)`: the one way a console route to
+ * Resolve opens (ADR 0043). The key goes to the gate only, never to Resolve.
+ */
+export function withSignIn<T>(
+  request: Request,
+  deps: ApprovalDeps,
+  run: (key: string) => Promise<Answer<T>>,
+  render?: (request: Request, answer: Answer<T>) => Response,
+): Promise<Response> | Response {
+  return withKey(request, (key) => signedIn(key, deps, run), render);
 }
 
 /** Reads at most `limit` bytes of a request body as text; null when it's longer. */

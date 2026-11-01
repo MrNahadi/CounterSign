@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { APPROVAL_ROUTE_MESSAGES, APPROVER_COOKIE } from "../src/approval-routes";
 import {
   BAD_MESSAGE,
   MAX_MESSAGE_BYTES,
@@ -8,7 +9,7 @@ import {
 
 // `POST /api/resolve/messages`, with Resolve played by an injected fetch.
 
-const env = { RESOLVE_AGENT_URL: "http://resolve.test:9000" };
+const env = { RESOLVE_AGENT_URL: "http://resolve.test:9000", GATE_URL: "http://gate.test" };
 const JPEG_BASE64 = Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString("base64");
 
 const message = {
@@ -26,25 +27,88 @@ const accepted = {
   run_id: `run_${"b".repeat(32)}`,
 };
 
-function resolveAt(answer: () => Response | Promise<Response>) {
+// Resolve is played by `answer`; the gate answers `gate` to the sign-in check. `calls` holds only
+// what reached Resolve.
+function resolveAt(
+  answer: () => Response | Promise<Response>,
+  gate: () => Response = () => Response.json({ open: [], recent: [] }),
+) {
   const calls: { url: string; init: RequestInit | undefined }[] = [];
+  const gateCalls: { url: string; init: RequestInit | undefined }[] = [];
   const fetchFake = (async (input: string | URL | Request, init?: RequestInit) => {
+    if (new URL(String(input)).host === "gate.test") {
+      gateCalls.push({ url: String(input), init });
+      return gate();
+    }
     calls.push({ url: String(input), init });
     return answer();
   }) as typeof fetch;
-  return { calls, fetch: fetchFake };
+  return { calls, gateCalls, fetch: fetchFake };
 }
 
-const post = (body: string, headers: Record<string, string> = {}) =>
+const KEY = "approver-key-0123456789abcdefghijklmnop";
+const SIGNED_IN = `${APPROVER_COOKIE}=${encodeURIComponent(KEY)}`;
+
+const post = (body: string, cookie: string | null = SIGNED_IN) =>
   new Request("http://console.test/api/resolve/messages", {
     method: "POST",
-    headers: { "content-type": "application/json", ...headers },
+    headers: {
+      "content-type": "application/json",
+      ...(cookie === null ? {} : { cookie }),
+    },
     body,
   });
 
 async function bodyOf(response: Response) {
   return { status: response.status, body: await response.json() };
 }
+
+describe("POST /api/resolve/messages: the sign-in", () => {
+  const body = JSON.stringify(message);
+
+  it("with no cookie answers 401 without calling the gate or Resolve", async () => {
+    const resolve = resolveAt(() => Response.json(accepted, { status: 202 }));
+    expect(
+      await bodyOf(await messagesRoute(post(body, null), { env, fetch: resolve.fetch })),
+    ).toEqual({
+      status: 401,
+      body: { message: APPROVAL_ROUTE_MESSAGES.signedOut },
+    });
+    expect(resolve.calls).toEqual([]);
+    expect(resolve.gateCalls).toEqual([]);
+  });
+
+  it("answers 401 and clears the cookie when the gate refuses the key", async () => {
+    const resolve = resolveAt(
+      () => Response.json(accepted, { status: 202 }),
+      () => Response.json({ message: "A valid approver key is required." }, { status: 401 }),
+    );
+    const answer = await messagesRoute(post(body), { env, fetch: resolve.fetch });
+    expect(await bodyOf(answer)).toEqual({
+      status: 401,
+      body: { message: APPROVAL_ROUTE_MESSAGES.signInAgain },
+    });
+    expect(answer.headers.get("set-cookie")).toMatch(/^countersign_approver=; .*Max-Age=0/);
+    expect(resolve.calls).toEqual([]);
+  });
+
+  it("answers 502 when the gate fails, and never sends the key to Resolve", async () => {
+    const failing = resolveAt(
+      () => Response.json(accepted, { status: 202 }),
+      () => Response.json({ message: "oops" }, { status: 500 }),
+    );
+    expect((await messagesRoute(post(body), { env, fetch: failing.fetch })).status).toBe(502);
+    expect(failing.calls).toEqual([]);
+
+    const resolve = resolveAt(() => Response.json(accepted, { status: 202 }));
+    await messagesRoute(post(body), { env, fetch: resolve.fetch });
+    expect(new Headers(resolve.gateCalls[0]?.init?.headers).get("authorization")).toBe(
+      `Bearer ${KEY}`,
+    );
+    expect(resolve.calls).toHaveLength(1);
+    expect(JSON.stringify(resolve.calls)).not.toContain(KEY);
+  });
+});
 
 describe("POST /api/resolve/messages", () => {
   it("passes the checked message to Resolve and answers 202 with the new thread", async () => {
@@ -126,7 +190,7 @@ describe("POST /api/resolve/messages", () => {
     expect(
       (
         await messagesRoute(post(JSON.stringify(message)), {
-          env: { RESOLVE_AGENT_URL: "file:///x" },
+          env: { RESOLVE_AGENT_URL: "file:///x", GATE_URL: "http://gate.test" },
           fetch: nowhere.fetch,
         })
       ).status,

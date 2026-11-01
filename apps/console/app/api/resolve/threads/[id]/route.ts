@@ -7,9 +7,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: RouteContext<"/api/resolve/threads/[id]">,
 ): Promise<Response> {
   const { id } = await context.params;
-  return threadRoute(id, { env: process.env });
+  return threadRoute(request, id, { env: process.env });
 }

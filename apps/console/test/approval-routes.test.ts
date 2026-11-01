@@ -12,6 +12,7 @@ import {
   MAX_DOCUMENT_BYTES,
   signInRoute,
   signOutRoute,
+  withSignIn,
 } from "../src/approval-routes";
 
 // The console's approval routes and the approver login, with the gate played by an injected fetch.
@@ -158,6 +159,57 @@ const bearer = (call: Call) => new Headers(call.init.headers).get("authorization
 async function everything(response: Response): Promise<string> {
   return `${JSON.stringify([...response.headers])} ${await response.text()}`;
 }
+
+describe("withSignIn", () => {
+  const cookie = `${APPROVER_COOKIE}=${encodeURIComponent(KEY)}`;
+  const gateAnswering = (answer: () => Response) => {
+    const seen: string[] = [];
+    const fetchFake = (async (_url: string | URL | Request, init?: RequestInit) => {
+      seen.push(new Headers(init?.headers).get("authorization") ?? "");
+      return answer();
+    }) as typeof fetch;
+    return { seen, fetch: fetchFake };
+  };
+  const request = (cookies: string | null) =>
+    new Request(`${ORIGIN}/api/x`, { headers: cookies === null ? {} : { cookie: cookies } });
+
+  it("runs with the key once the gate takes it, and renders what run answers", async () => {
+    const gate = gateAnswering(() => Response.json({ open: [], recent: [] }));
+    const run = async (key: string) => ({ ok: true, value: { key } }) as const;
+    const answer = await withSignIn(request(cookie), { env, fetch: gate.fetch }, run);
+    expect(answer.status).toBe(200);
+    expect(await answer.json()).toEqual({ key: KEY });
+    expect(gate.seen).toEqual([`Bearer ${KEY}`]);
+  });
+
+  it("does not run without a cookie, on a gate 401 or when the gate is down", async () => {
+    let ran = 0;
+    const run = async () => {
+      ran += 1;
+      return { ok: true, value: null } as const;
+    };
+    const idle = gateAnswering(() => Response.json({ open: [], recent: [] }));
+    expect((await withSignIn(request(null), { env, fetch: idle.fetch }, run)).status).toBe(401);
+    expect(idle.seen).toEqual([]);
+    const refused = gateAnswering(() => Response.json({ message: "no" }, { status: 401 }));
+    const answer = await withSignIn(request(cookie), { env, fetch: refused.fetch }, run);
+    expect(answer.status).toBe(401);
+    expect(answer.headers.get("set-cookie")).toContain("Max-Age=0");
+    const down = gateAnswering(() => Response.json({ message: "no" }, { status: 500 }));
+    expect((await withSignIn(request(cookie), { env, fetch: down.fetch }, run)).status).toBe(502);
+    expect(ran).toBe(0);
+  });
+
+  it("lets run refuse with 409 or 429", async () => {
+    const gate = gateAnswering(() => Response.json({ open: [], recent: [] }));
+    for (const status of [409, 429] as const) {
+      const run = async () => ({ ok: false, status, message: "Not now." }) as const;
+      const answer = await withSignIn(request(cookie), { env, fetch: gate.fetch }, run);
+      expect(answer.status).toBe(status);
+      expect(await answer.json()).toEqual({ message: "Not now." });
+    }
+  });
+});
 
 describe("signing in", () => {
   it("checks the key with GET /approvals on the gate, then sets the cookie", async () => {

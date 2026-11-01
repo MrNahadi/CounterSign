@@ -225,15 +225,15 @@ Notes:
 
 ## T-016: Every console route to Resolve needs the sign-in
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: The console checks the approver key with the gate before any call to Resolve, through one helper the dispute routes share too.
 Test seam: `withSignIn`; the route functions in `resolve-routes.ts` and `dispute-routes.ts`
 Acceptance:
-- [ ] With no cookie, each route to Resolve answers 401 without calling Resolve; a gate 401 answers 401 and clears the cookie; a gate failure answers 502 (validation check 10)
-- [ ] The key never appears in a request to Resolve
-- [ ] The dispute routes answer as before through `withSignIn` (`test/dispute-routes.test.ts` unchanged); `Refusal["status"]` includes 409 and 429
+- [x] With no cookie, each route to Resolve answers 401 without calling Resolve; a gate 401 answers 401 and clears the cookie; a gate failure answers 502 (validation check 10)
+- [x] The key never appears in a request to Resolve
+- [x] The dispute routes answer as before through `withSignIn` (`test/dispute-routes.test.ts` unchanged); `Refusal["status"]` includes 409 and 429
 Notes:
 - Items 16 and 17. Files: `apps/console/src/{approval-routes,resolve-routes,dispute-routes}.ts`, `apps/console/app/api/resolve/**/route.ts`, `apps/console/test/{resolve-routes,messages-route}.test.ts`.
 

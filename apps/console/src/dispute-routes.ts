@@ -1,11 +1,11 @@
 import {
   type Answer,
   type ApprovalDeps,
-  checkKey,
   readBody,
   refusalResponse,
   refuse,
-  withKey,
+  signedIn,
+  withSignIn,
 } from "./approval-routes";
 import { callResolve, RESOLVE_UNREACHABLE, readJson } from "./resolve-routes";
 import {
@@ -34,24 +34,20 @@ export type Drafted = { status: 200 | 202; draft: DisputeDraft };
 
 const resolveUnreachable = refuse(502, RESOLVE_UNREACHABLE);
 
-/** Each dispute's latest draft, newest first, once the gate has taken the key. */
-export async function loadDisputes(key: string, deps: DisputeDeps): Promise<Answer<DisputeList>> {
-  const checked = await checkKey(key, deps);
-  if (!checked.ok) return checked;
+async function listDisputes(deps: DisputeDeps): Promise<Answer<DisputeList>> {
   const response = await callResolve(deps, "/disputes");
   if (response?.status !== 200) return resolveUnreachable;
   const list = await readJson(response, DisputeListSchema);
   return list === null ? resolveUnreachable : { ok: true, value: list };
 }
 
+/** Each dispute's latest draft, newest first, once the gate has taken the key. */
+export function loadDisputes(key: string, deps: DisputeDeps): Promise<Answer<DisputeList>> {
+  return signedIn(key, deps, () => listDisputes(deps));
+}
+
 /** Asks Resolve to draft a dispute again; Resolve answers the live draft if there is one. */
-export async function draftAgain(
-  key: string,
-  input: unknown,
-  deps: DisputeDeps,
-): Promise<Answer<Drafted>> {
-  const checked = await checkKey(key, deps);
-  if (!checked.ok) return checked;
+async function draftOnResolve(input: unknown, deps: DisputeDeps): Promise<Answer<Drafted>> {
   const request = DraftRequestSchema.safeParse(input);
   if (!request.success) return refuse(400, DISPUTE_ROUTE_MESSAGES.badRequest);
   const response = await callResolve(deps, "/disputes", { json: JSON.stringify(request.data) });
@@ -70,14 +66,15 @@ const json = (status: number, body: unknown): Response =>
 
 /** `GET /api/disputes`. */
 export function disputesRoute(request: Request, deps: DisputeDeps): Promise<Response> | Response {
-  return withKey(request, (key) => loadDisputes(key, deps));
+  return withSignIn(request, deps, () => listDisputes(deps));
 }
 
 /** `POST /api/disputes` with `{ dispute_id }`: "Draft again". */
 export function draftAgainRoute(request: Request, deps: DisputeDeps): Promise<Response> | Response {
-  return withKey(
+  return withSignIn(
     request,
-    async (key) => draftAgain(key, await readBody(request), deps),
+    deps,
+    async () => draftOnResolve(await readBody(request), deps),
     (req, answer) =>
       answer.ok ? json(answer.value.status, answer.value.draft) : refusalResponse(req, answer),
   );

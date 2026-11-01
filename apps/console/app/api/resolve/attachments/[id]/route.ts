@@ -7,9 +7,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: RouteContext<"/api/resolve/attachments/[id]">,
 ): Promise<Response> {
   const { id } = await context.params;
-  return attachmentRoute(id, { env: process.env });
+  return attachmentRoute(request, id, { env: process.env });
 }
