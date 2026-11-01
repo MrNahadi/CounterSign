@@ -181,15 +181,15 @@ Notes:
 
 ## T-013: Resolve's baseline policy
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: `RESOLVE_BASELINE` decides where baseline mode may run, and `POST /messages` refuses baseline outside it.
 Test seam: `parseBaselinePolicy(env)`; `POST /messages` on `createApp`
 Acceptance:
-- [ ] Unset or blank is `on`; `on`, `scenarios` and `off` parse exactly; anything else is `off` with the startup sentence (validation check 9)
-- [ ] `POST /messages` in baseline is accepted under `on` and refused 400 with each sentence under `scenarios` and `off`; protected messages are unchanged
-- [ ] The accept path is shared (`accept(res, input, origin)`), and every existing `test/app.test.ts` case passes
+- [x] Unset or blank is `on`; `on`, `scenarios` and `off` parse exactly; anything else is `off` with the startup sentence (validation check 9)
+- [x] `POST /messages` in baseline is accepted under `on` and refused 400 with each sentence under `scenarios` and `off`; protected messages are unchanged
+- [x] The accept path is shared (`accept(res, input, origin)`), and every existing `test/app.test.ts` case passes
 Notes:
 - Item 14 (policy part). Files: `apps/resolve-agent/src/{baseline-policy,serve,app}.ts`, `apps/resolve-agent/test/{baseline-policy,app}.test.ts`.
 

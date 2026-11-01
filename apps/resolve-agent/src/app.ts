@@ -16,6 +16,7 @@ import {
 } from "@countersign/db";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
+import { BASELINE_REFUSALS, type BaselinePolicy } from "./baseline-policy";
 import { allowedIntentIds, heldCalls, readExecutions, readHeld } from "./executions";
 import { newId, storeMessage } from "./intake";
 import { DEFAULT_DAILY_RUN_CAP, overDailyCap } from "./limits";
@@ -40,6 +41,8 @@ export type AppDeps = {
   /** The edge's clock: each ticket's received time and its run's queued time. */
   clock?: () => Date;
   log?: (line: string) => void;
+  /** Where baseline mode may run (`RESOLVE_BASELINE`). Defaults to `on`. */
+  baseline?: BaselinePolicy;
 };
 
 const ThreadIdSchema = z.string().min(1).max(256);
@@ -151,11 +154,25 @@ export function createApp(deps: AppDeps) {
   });
   const db = () => deps.db as Database;
 
-  app.post("/messages", express.json({ limit: BODY_LIMIT }), async (req, res) => {
-    const checked = await checkMessage(db(), req.body);
+  const baseline = deps.baseline ?? "on";
+
+  // The one way a message is taken, from `POST /messages` or a demo scenario: check it, refuse
+  // baseline where the policy doesn't allow it, then the cap, store and queue.
+  async function accept(res: Response, input: unknown, origin: "message" | "scenario") {
+    const checked = await checkMessage(db(), input);
     if (!checked.ok) {
       message(res, 400, checked.problem);
       return;
+    }
+    if (checked.value.mode === "baseline") {
+      if (baseline === "off") {
+        message(res, 400, BASELINE_REFUSALS.off);
+        return;
+      }
+      if (baseline === "scenarios" && origin === "message") {
+        message(res, 400, BASELINE_REFUSALS.scenariosOnly);
+        return;
+      }
     }
     // A message past the day's cap is still stored; its run ends `not_run` with no model call.
     const arrivedAt = clock();
@@ -195,6 +212,10 @@ export function createApp(deps: AppDeps) {
       thread_id: stored.threadId,
       run_id: stored.runId,
     });
+  }
+
+  app.post("/messages", express.json({ limit: BODY_LIMIT }), async (req, res) => {
+    await accept(res, req.body, "message");
   });
 
   app.post("/disputes", express.json({ limit: BODY_LIMIT }), async (req, res) => {

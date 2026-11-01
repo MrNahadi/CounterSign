@@ -25,6 +25,7 @@ import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app";
 import type { TransportFactory } from "../src/baseline";
+import { BASELINE_REFUSALS, type BaselinePolicy } from "../src/baseline-policy";
 import { MAX_ATTACHMENT_BYTES } from "../src/messages";
 import { createModeRunner, createRunQueue, type ModeRunner, type RunQueue } from "../src/queue";
 import { DEFAULT_PORT, parsePort, serve } from "../src/serve";
@@ -120,7 +121,11 @@ const sharedRunner: ModeRunner = async (id) =>
 let tick = 0;
 const clock = () => new Date(NOW.getTime() + 1000 * tick++);
 
-async function listen(runner: ModeRunner = sharedRunner, dailyCap?: number): Promise<string> {
+async function listen(
+  runner: ModeRunner = sharedRunner,
+  dailyCap?: number,
+  baseline?: BaselinePolicy,
+): Promise<string> {
   queue = createRunQueue(runner);
   const server = createApp({
     db: handle.db,
@@ -128,6 +133,7 @@ async function listen(runner: ModeRunner = sharedRunner, dailyCap?: number): Pro
     queue,
     clock,
     ...(dailyCap === undefined ? {} : { dailyCap }),
+    ...(baseline === undefined ? {} : { baseline }),
   }).listen(0, "127.0.0.1");
   servers.push(server);
   await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -348,6 +354,69 @@ describe("POST /messages", () => {
       "Any news?",
     ]);
   });
+});
+
+describe("POST /messages under RESOLVE_BASELINE", () => {
+  it("accepts a baseline message under on, as by default", async () => {
+    const enqueued: string[] = [];
+    const base = await listen(
+      async (id) => {
+        enqueued.push(id);
+      },
+      undefined,
+      "on",
+    );
+    const res = await post(base, { ...EMAIL, mode: "baseline" });
+    expect(res.status).toBe(202);
+    const { run_id } = (await res.json()) as { run_id: string };
+    expect(await readRun(handle.db, run_id)).toMatchObject({ mode: "baseline" });
+    await queue.idle();
+    expect(enqueued).toEqual([run_id]);
+  });
+
+  for (const [policy, sentence] of [
+    ["scenarios", BASELINE_REFUSALS.scenariosOnly],
+    ["off", BASELINE_REFUSALS.off],
+  ] as const) {
+    it(`refuses a baseline message under ${policy}, storing and queuing nothing`, async () => {
+      const enqueued: string[] = [];
+      const base = await listen(
+        async (id) => {
+          enqueued.push(id);
+        },
+        undefined,
+        policy,
+      );
+      const res = await post(base, { ...EMAIL, mode: "baseline" });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ message: sentence });
+      expect(await listThreads(handle.db)).toEqual([]);
+      await queue.idle();
+      expect(enqueued).toEqual([]);
+    });
+
+    it(`takes protected messages unchanged under ${policy}`, async () => {
+      const base = await listen(async () => {}, undefined, policy);
+      for (const body of [EMAIL, { ...EMAIL, mode: "protected" }]) {
+        const res = await post(base, body);
+        expect(res.status).toBe(202);
+        const { run_id } = (await res.json()) as { run_id: string };
+        expect(await readRun(handle.db, run_id)).toMatchObject({
+          mode: "protected",
+          status: "queued",
+        });
+      }
+    });
+
+    it(`still answers a malformed baseline message with its own problem under ${policy}`, async () => {
+      const base = await listen(async () => {}, undefined, policy);
+      const res = await post(base, { ...EMAIL, mode: "baseline", priority: "high" });
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { message: string }).message).toMatch(
+        /field Resolve doesn't take/,
+      );
+    });
+  }
 });
 
 describe("the run queue and thread readers", () => {
@@ -784,6 +853,27 @@ describe("serve", () => {
     }
     expect(lines.join("\n")).toMatch(/GEMINI_API_KEY/);
     expect(lines.join("\n")).toMatch(/COUNTERSIGN_SUPPORT_AGENT_KEY/);
+  });
+
+  it("logs a RESOLVE_BASELINE it can't read and refuses baseline messages", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "resolve-serve-"));
+    temps.push(dir);
+    const lines: string[] = [];
+    const serving = await serve(
+      { PORT: "0", RESOLVE_BASELINE: "maybe" },
+      { pgliteDir: join(dir, "pglite"), host: "127.0.0.1", log: (line) => lines.push(line) },
+    );
+    try {
+      const base = `http://127.0.0.1:${serving.port}`;
+      const res = await post(base, { ...EMAIL, mode: "baseline" });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ message: BASELINE_REFUSALS.off });
+      expect((await post(base, EMAIL)).status).toBe(202);
+    } finally {
+      await serving.close();
+    }
+    expect(lines).toContain("RESOLVE_BASELINE must be on, scenarios or off. Baseline mode is off.");
+    expect(lines.join("\n")).not.toMatch(/maybe/);
   });
 
   it("still answers /health when the database can't open", async () => {

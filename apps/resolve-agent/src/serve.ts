@@ -11,6 +11,7 @@ import {
 import { z } from "zod";
 import { createApp } from "./app";
 import { paypalTokenIssuer } from "./baseline";
+import { parseBaselinePolicy } from "./baseline-policy";
 import { runDisputeDraft } from "./drafter";
 import { parseDailyCap } from "./limits";
 import { createGenerateContent, DEFAULT_MODEL, parseModelEnv } from "./model";
@@ -83,6 +84,9 @@ export async function serve(env: Environment, options: ServeOptions = {}): Promi
       "COUNTERSIGN_SUPPORT_AGENT_KEY is unset (needs 32 or more characters). Protected runs end gate_unavailable.",
     );
 
+  const baseline = parseBaselinePolicy(env);
+  if (baseline.problem !== null) log(baseline.problem);
+
   const db = handle?.db;
   const queue = db
     ? createRunQueue(
@@ -110,7 +114,14 @@ export async function serve(env: Environment, options: ServeOptions = {}): Promi
       )
     : createRunQueue(async () => {}, log);
 
-  const app = createApp({ ...(handle ? { db: handle.db } : {}), model, queue, dailyCap, log });
+  const app = createApp({
+    ...(handle ? { db: handle.db } : {}),
+    model,
+    queue,
+    dailyCap,
+    log,
+    baseline: baseline.policy,
+  });
   const server = app.listen(port, options.host ?? "0.0.0.0");
   await new Promise<void>((resolve, reject) => {
     server.once("listening", resolve);
