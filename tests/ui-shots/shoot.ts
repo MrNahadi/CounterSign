@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { type Browser, chromium } from "@playwright/test";
 import { CHECK_NAMES, type DensityInput, densityChecks, type Finding } from "./checks";
 import { FIXTURE_IDS, fixtures } from "./fixtures";
-import { HARNESS_KEY, startUpstream } from "./upstream";
+import { HARNESS_KEY, HARNESS_PAIRING_CODE, startUpstream } from "./upstream";
 
 // `npm run ui:shots`: starts the fake gate and Resolve, both built Next apps and Chromium, then
 // shoots every screen in light and dark at desktop and phone widths, runs the density checks in
@@ -35,6 +35,25 @@ type Screen = {
 };
 
 const SCREENS: readonly Screen[] = [
+  // The start page: scenarios, the phone code (from 768px) and the reset once signed in.
+  { name: "start", app: "console", path: "/", signedIn: true, shell: true, scope: null },
+  {
+    name: "start-signed-out",
+    app: "console",
+    path: "/",
+    signedIn: false,
+    shell: true,
+    scope: null,
+  },
+  {
+    // The phone opens the QR link after its code was used: the gate's sentence above the sign-in.
+    name: "approvals-code-used",
+    app: "console",
+    path: `/approvals#pair=${HARNESS_PAIRING_CODE}`,
+    signedIn: false,
+    shell: true,
+    scope: null,
+  },
   { name: "inbox", app: "console", path: "/inbox", signedIn: true, shell: true, scope: null },
   {
     name: "inbox-thread",
@@ -124,7 +143,7 @@ const WIDTHS = {
 type Width = keyof typeof WIDTHS;
 
 const PHONE_PRIMARY = ["Approve", "Deny", "Sign in"];
-const PHONE_PRIMARY_SCREENS = new Set(["approvals", "approvals-signed-out"]);
+const PHONE_PRIMARY_SCREENS = new Set(["approvals", "approvals-signed-out", "approvals-code-used"]);
 
 /** A reason the run can't go ahead: printed as is, exit 2. */
 class CantRun extends Error {}

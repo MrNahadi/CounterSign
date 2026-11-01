@@ -2,7 +2,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { Fixtures } from "./fixtures";
 
 // The fake gate (:4511) and fake Resolve (:4512) the console talks to while the harness shoots.
-// Each GET path the console calls answers its fixture; anything else answers 404 and is logged,
+// Each GET path the console calls answers its fixture, and the gate's two pairing POSTs answer
+// a fresh code and a refused trade; anything else answers 404 and is logged,
 // so a screen that asks for something the fixtures don't hold shows up in the run's output.
 
 export const GATE_PORT = 4511;
@@ -41,6 +42,22 @@ function gateReply(fx: Fixtures, path: string): Reply | null {
   return null;
 }
 
+/** A pairing code the start page's QR link carries: 22 URL-safe characters, as the gate mints. */
+export const HARNESS_PAIRING_CODE = "uishots-pairing-code-1";
+
+/** The gate's sentence for a used or expired pairing code (apps/gate/src/pairing.ts). */
+export const PAIRING_REFUSED = "That code has expired or was used. Sign in with the approver key.";
+
+/** The gate's pairing answers: a fresh code for the key, and every trade refused as used. */
+function gatePost(path: string): Reply | null {
+  if (path === "/approvals/pairing-codes") return json(201, { code: HARNESS_PAIRING_CODE });
+  if (path === "/approvals/pair") return json(401, { message: PAIRING_REFUSED });
+  return null;
+}
+
+/** The one gate path that takes no key: the phone trades its code before it has one. */
+const OPEN_GATE_PATHS = new Set(["/approvals/pair"]);
+
 /** Resolve's answer for a GET path, or null when the fixtures don't hold one. */
 function resolveReply(fx: Fixtures, path: string): Reply | null {
   const parts = segments(path);
@@ -66,18 +83,19 @@ function send(response: ServerResponse, reply: Reply): void {
 
 function handler(
   answer: (path: string) => Reply | null,
-  authorized: (request: IncomingMessage) => boolean,
+  authorized: (request: IncomingMessage, path: string) => boolean,
+  post: (path: string) => Reply | null = () => null,
 ) {
   return (request: IncomingMessage, response: ServerResponse) => {
     const method = request.method ?? "GET";
     // Query strings are ignored: `before` answers the same page, and filters show the fixtures.
     const path = new URL(request.url ?? "/", `http://${HOST}`).pathname;
     request.resume();
-    if (!authorized(request)) {
+    if (!authorized(request, path)) {
       send(response, json(401, { message: "Sign in again." }));
       return;
     }
-    const reply = method === "GET" ? answer(path) : null;
+    const reply = method === "GET" ? answer(path) : method === "POST" ? post(path) : null;
     if (reply === null) {
       process.stderr.write(`upstream: no fixture for ${method} ${path}\n`);
       send(response, json(404, NOT_IN_FIXTURES));
@@ -115,7 +133,9 @@ export async function startUpstream(
   const gate = createServer(
     handler(
       (path) => gateReply(fx, path),
-      (request) => request.headers.authorization === `Bearer ${HARNESS_KEY}`,
+      (request, path) =>
+        OPEN_GATE_PATHS.has(path) || request.headers.authorization === `Bearer ${HARNESS_KEY}`,
+      gatePost,
     ),
   );
   const resolve = createServer(

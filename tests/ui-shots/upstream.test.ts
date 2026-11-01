@@ -1,7 +1,8 @@
 import { request } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PAIRING_MESSAGES } from "../../apps/gate/src/pairing";
 import { fixtures } from "./fixtures";
-import { HARNESS_KEY, startUpstream } from "./upstream";
+import { HARNESS_KEY, HARNESS_PAIRING_CODE, PAIRING_REFUSED, startUpstream } from "./upstream";
 
 // The fake gate and Resolve the harness serves its fixtures from, through `startUpstream`.
 
@@ -47,6 +48,31 @@ describe("ui-shots upstream", () => {
 
       const anonymous = await call(`${upstream.gateUrl}/approvals`);
       expect(anonymous.status).toBe(401);
+    } finally {
+      await upstream.close();
+    }
+  });
+
+  it("mints a pairing code for the harness key and refuses every trade with the gate's sentence", async () => {
+    const upstream = await startUpstream(fixtures(NOW));
+    try {
+      const minted = await call(`${upstream.gateUrl}/approvals/pairing-codes`, {
+        method: "POST",
+        headers: SIGNED_IN,
+      });
+      expect(minted.status).toBe(201);
+      expect(JSON.parse(minted.body)).toEqual({ code: HARNESS_PAIRING_CODE });
+      expect(HARNESS_PAIRING_CODE).toMatch(/^[A-Za-z0-9_-]{22}$/);
+
+      const anonymousMint = await call(`${upstream.gateUrl}/approvals/pairing-codes`, {
+        method: "POST",
+      });
+      expect(anonymousMint.status).toBe(401);
+
+      const traded = await call(`${upstream.gateUrl}/approvals/pair`, { method: "POST" });
+      expect(traded.status).toBe(401);
+      expect(JSON.parse(traded.body)).toEqual({ message: PAIRING_REFUSED });
+      expect(PAIRING_REFUSED).toBe(PAIRING_MESSAGES.refused);
     } finally {
       await upstream.close();
     }
