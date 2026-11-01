@@ -30,7 +30,9 @@ export function ConsoleNav({ openApprovals = null }: { openApprovals?: number | 
   return (
     <nav
       aria-label="Console"
-      className="flex min-w-0 flex-row gap-1 overflow-x-auto md:flex-col md:gap-0.5 md:overflow-visible"
+      // `relative` keeps the count's screen-reader text (absolutely placed) inside the row's
+      // scroll on a phone, so it can't widen the page.
+      className="relative flex min-w-0 flex-row gap-1 overflow-x-auto md:flex-col md:gap-0.5 md:overflow-visible"
     >
       {items.map(({ href, label, Icon }) => {
         // Every path starts with "/", so Start here is current on the start page only.
