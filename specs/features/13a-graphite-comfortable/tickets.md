@@ -42,18 +42,19 @@ Notes:
 
 ## T-003: The density checks
 
-Status: open
+Status: done
 Blocked by: T-002
 Tier: standard
 Slice: Each shot is measured against DESIGN.md's density rules in the browser, and failures print as `FAIL <shot> <check>: <detail>`.
 Test seam: `densityChecks(input)` from `tests/ui-shots/checks.ts`, run through `npm run ui:shots`
 Acceptance:
-- [ ] Every check in design.md step 2b runs under its name (`table-header`, `table-rows`, `hit-target`, `small-text`, `cards`, `toolbar`, `shell`, `page`, `overflow`, `emoji`, `uppercase`), respecting `scope` and `--checks`
-- [ ] On today's unstyled screens a full run exits 1 and reports at least the known failures: `table-header` and `uppercase` on `decisions`, `hit-target` under 28px somewhere on the console, and `shell` (240px sidebar)
-- [ ] `risk-desk`'s element checks look only inside `[data-graphite="spike-header"]` (none until T-013 adds it), while `overflow` and `theme` run page-wide
-- [ ] `report.json` lists every finding per shot; the summary counts failures and not `note` lines
+- [x] Every check in design.md step 2b runs under its name (`table-header`, `table-rows`, `hit-target`, `small-text`, `cards`, `toolbar`, `shell`, `page`, `overflow`, `emoji`, `uppercase`), respecting `scope` and `--checks`
+- [x] On today's unstyled screens a full run exits 1 and reports at least the known failures: `table-header` and `uppercase` on `decisions`, `hit-target` under 28px somewhere on the console, and `shell` (240px sidebar)
+- [x] `risk-desk`'s element checks look only inside `[data-graphite="spike-header"]` (none until T-013 adds it), while `overflow` and `theme` run page-wide
+- [x] `report.json` lists every finding per shot; the summary counts failures and not `note` lines
 Notes:
-- File: `tests/ui-shots/checks.ts` (and its call in `shoot.ts`).
+- File: `tests/ui-shots/checks.ts` (and its call in `shoot.ts`, already wired in T-002, so `shoot.ts` is unchanged).
+- Checked on 1 Nov: the full run printed `ui-shots: 56 shots, 766 failures` (table-header, table-rows, hit-target, shell, uppercase on the console; hit-target on `product`'s "Back to shop"); `risk-desk`, `chat` and `shop` have none. `--only decisions --theme light --width desktop --checks table-header,uppercase,shell` exited 1 with only those three checks. `cards`, `toolbar`, `page`, `small-text`, `emoji`, `overflow`, `scope` and `--checks` were each shown to fire on synthetic HTML in a throwaway Chromium Vitest file, deleted afterwards (no committed test needs a browser in `npm test`).
 
 ## T-004: Graphite class recipes and console primitives
 
