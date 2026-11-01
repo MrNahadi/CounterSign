@@ -4,17 +4,17 @@ Build from [design.md](design.md)'s Detailed Implementation Plan (it's binding o
 
 ## T-001: Harness fixtures the console can read
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: Canned gate and Resolve answers for every screen the harness shoots, typed and parsed with the console's own schemas.
 Test seam: `fixtures(now)` and `FIXTURE_IDS` from `tests/ui-shots/fixtures.ts`, through `tests/ui-shots/fixtures.test.ts`
 Acceptance:
-- [ ] Every answer in design.md step 1a parses with the schema it names, for `fixtures(new Date())`
-- [ ] Every approval card expires in the future, and no thread is working
-- [ ] `FIXTURE_IDS` is `readableSeq` "41", `unreadableSeq` "7", a valid `tkt_` thread ID and `productId` "market-basket"
-- [ ] The photo decodes as a 160 by 120 PNG (signature, IHDR size); every sample email ends `@example.com`, and every shop, supplier or person name shown on its own carries "(illustrative)"
-- [ ] `npm test` runs the fixture test in the root `repo` project
+- [x] Every answer in design.md step 1a parses with the schema it names, for `fixtures(new Date())`
+- [x] Every approval card expires in the future, and no thread is working
+- [x] `FIXTURE_IDS` is `readableSeq` "41", `unreadableSeq` "7", a valid `tkt_` thread ID and `productId` "market-basket"
+- [x] The photo decodes as a 160 by 120 PNG (signature, IHDR size); every sample email ends `@example.com`, and every shop, supplier or person name shown on its own carries "(illustrative)"
+- [x] `npm test` runs the fixture test in the root `repo` project
 Notes:
 - Files: `tests/ui-shots/fixtures.ts`, `tests/ui-shots/fixtures.test.ts`, and `tests/ui-shots/tsconfig.json` plus the root `tsconfig.json` exclude (design.md step 2e, brought forward so this ticket typechecks). Add `tsc --noEmit -p tests/ui-shots/tsconfig.json` to the root `typecheck` script here.
 - The view tests in `apps/console/test/` show valid shapes for every field.
