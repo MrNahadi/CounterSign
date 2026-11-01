@@ -1,5 +1,5 @@
-// The demo reset's core (T-007): the checks that refuse it, the order check, the replacement
-// orders and the clear that starts the new log with `demo.reset`.
+// The demo reset (T-007, T-008): the checks that refuse it, the order check, the replacement
+// orders, the locked clear that starts the new log with `demo.reset`, dispute sync and the report.
 
 import {
   agentRuns,
@@ -24,6 +24,7 @@ import {
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   checkSeedOrders,
+  demoResetSummary,
   EXECUTION_WINDOW_MS,
   RESET_COOLDOWN_MS,
   RESET_MESSAGES,
@@ -31,9 +32,10 @@ import {
   type ResetDeps,
   resetDemo,
 } from "../src/demo-reset";
+import { disputeReceivedEntry } from "../src/dispute-log";
 import { executionRequestedEntry, executionResultEntry } from "../src/execution-log";
 import { MAX_RAIL_CALLS_PER_EXECUTION } from "../src/executors";
-import { createFakeSandbox, type FakeSandbox } from "./fake-sandbox";
+import { createFakeSandbox, type FakeSandbox, httpError } from "./fake-sandbox";
 
 // Each PGlite start takes a couple of seconds.
 const SLOW = 60_000;
@@ -197,6 +199,7 @@ describe("resetDemo", () => {
     clock: () => now,
     reseed: recordingReseed,
     randomSuffix: () => SUFFIX,
+    nudgeFetch: async () => ({ ok: true }),
     ...extra,
   });
 
@@ -276,6 +279,8 @@ describe("resetDemo", () => {
       expect(report.orders.replaced).toHaveLength(30);
       expect(report.orders.runId).toBe(NEW_RUN);
       expect(report.orders.failed).toEqual([]);
+      expect(report.complete).toBe(true);
+      expect(report.disputes).toEqual({ recorded: 0, alreadyRecorded: 0, problems: 0 });
       expect(reseeds).toEqual([
         {
           orders: DEMO_ORDERS.map((o) => o.orderNumber),
@@ -625,8 +630,286 @@ describe("resetDemo", () => {
     });
   });
 
+  describe("inside the lock", () => {
+    // Every order seeded, the first one's capture gone, so the reset replaces it; `during` runs
+    // inside the reseed, after the busy check and the order check.
+    async function resetWith(during: () => Promise<unknown>, extra: Partial<ResetDeps> = {}) {
+      await seedAll();
+      await insertTicket();
+      await insertRun("run_done", "replied", "2026-10-20T10:00:00.000Z");
+      await append(db, decision(1));
+      const [first] = DEMO_ORDERS;
+      if (!first) throw new Error("the catalog is empty");
+      rail.captures.delete(capOf(first.orderNumber));
+      const logBefore = await logRows();
+      const result = await resetDemo(
+        deps({
+          reseed: async (input) => {
+            const report = await recordingReseed(input);
+            await during();
+            return report;
+          },
+          ...extra,
+        }),
+      );
+      return { result, logBefore, replaced: first };
+    }
+
+    async function expectNothingCleared(
+      { result, logBefore, replaced }: Awaited<ReturnType<typeof resetWith>>,
+      status: number,
+      message: string,
+    ) {
+      expect(result).toEqual({ ok: false, status, message });
+      // Nothing cleared: the log, Resolve's tables and the cap counts are as they were, plus
+      // whatever ran during the reset.
+      const rows = await logRows();
+      expect(rows.slice(0, logBefore.length)).toEqual(logBefore);
+      expect(rows.some((row) => row.entryType === "demo.reset")).toBe(false);
+      expect(await db.select().from(tickets)).toHaveLength(1);
+      expect((await db.select().from(agentRuns)).length).toBeGreaterThanOrEqual(1);
+      // The replacement row stays.
+      const seeded = await seedRows();
+      expect(seeded.find((row) => row.orderNumber === replaced.orderNumber)?.runId).toBe(NEW_RUN);
+      expect(rail.calls.filter((c) => c.call === "listMerchantDisputes")).toEqual([]);
+    }
+
+    it("refuses a run queued during the replacements that has already finished", async () => {
+      const outcome = await resetWith(() =>
+        insertRun("run_during", "replied", new Date(START.getTime() + 2000).toISOString()),
+      );
+      await expectNothingCleared(outcome, 409, RESET_MESSAGES.changed);
+      expect(RESET_MESSAGES.changed).toBe("A scenario ran during the reset. Reset again.");
+    });
+
+    it("refuses a run queued up to 5 seconds before the reset by a clock running behind", async () => {
+      const outcome = await resetWith(() =>
+        insertRun("run_behind", "stopped", new Date(START.getTime() - 5000).toISOString()),
+      );
+      await expectNothingCleared(outcome, 409, RESET_MESSAGES.changed);
+    });
+
+    it("doesn't count a finished run queued more than 5 seconds before the reset", async () => {
+      const { result } = await resetWith(() =>
+        insertRun("run_before", "replied", new Date(START.getTime() - 6000).toISOString()),
+      );
+      expect(result.ok).toBe(true);
+    });
+
+    it("refuses an execution requested and answered on a kept capture during the replacements", async () => {
+      const kept = DEMO_ORDERS[1];
+      if (!kept) throw new Error("the catalog is short");
+      const outcome = await resetWith(async () => {
+        const [request] = await append(
+          db,
+          refundRequest(5, capOf(kept.orderNumber), START.toISOString()),
+        );
+        await append(db, executedResult(5, request?.seq ?? 0));
+      });
+      await expectNothingCleared(outcome, 409, RESET_MESSAGES.changed);
+    });
+
+    it("doesn't count an execution on a capture that's no longer seeded", async () => {
+      const replaced = DEMO_ORDERS[0];
+      if (!replaced) throw new Error("the catalog is empty");
+      const { result } = await resetWith(async () => {
+        const [request] = await append(
+          db,
+          refundRequest(5, capOf(replaced.orderNumber), START.toISOString()),
+        );
+        await append(db, executedResult(5, request?.seq ?? 0));
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it("runs the busy check again: a run still queued", async () => {
+      const outcome = await resetWith(() => insertRun("run_queued", "queued", START.toISOString()));
+      await expectNothingCleared(outcome, 409, RESET_MESSAGES.resolveBusy);
+    });
+
+    it("runs the busy check again: an execution request with no result", async () => {
+      const kept = DEMO_ORDERS[1];
+      if (!kept) throw new Error("the catalog is short");
+      const outcome = await resetWith(async () => {
+        await append(db, refundRequest(5, capOf(kept.orderNumber), START.toISOString()));
+      });
+      await expectNothingCleared(outcome, 409, RESET_MESSAGES.executing);
+    });
+
+    // A database whose transactions fail with `error`; reads outside a transaction work.
+    const failingTransactions = (error: unknown): Database =>
+      new Proxy(db, {
+        get(target, prop, receiver) {
+          if (prop === "transaction") return async () => Promise.reject(error);
+          const value = Reflect.get(target, prop, receiver);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+
+    it("answers 409 locksBusy when a lock isn't granted in 5 seconds", async () => {
+      const lockTimeout = Object.assign(new Error("canceling statement due to lock timeout"), {
+        code: "55P03",
+      });
+      const outcome = await resetWith(async () => {}, { db: failingTransactions(lockTimeout) });
+      await expectNothingCleared(outcome, 409, RESET_MESSAGES.locksBusy);
+    });
+
+    it("reads the lock timeout's code from the error's cause too", async () => {
+      const wrapped = new Error("Failed query", { cause: { code: "55P03" } });
+      const outcome = await resetWith(async () => {}, { db: failingTransactions(wrapped) });
+      await expectNothingCleared(outcome, 409, RESET_MESSAGES.locksBusy);
+    });
+
+    it("answers 503 notCleared on another transaction error", async () => {
+      const outcome = await resetWith(async () => {}, {
+        db: failingTransactions(Object.assign(new Error("disk full"), { code: "53100" })),
+      });
+      await expectNothingCleared(outcome, 503, RESET_MESSAGES.notCleared);
+    });
+  });
+
+  describe("dispute sync after the clear", () => {
+    const dispute = {
+      id: "PP-D-1032",
+      status: "WAITING_FOR_SELLER_RESPONSE" as const,
+      amount: usd(24000),
+      captureIds: ["CAP-dispute"],
+      reason: "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+      lifeCycleStage: "INQUIRY",
+      sellerResponseDueDate: "2026-10-30T23:59:59.000Z",
+      links: [],
+      linkNames: [],
+    };
+
+    const openDispute = () => {
+      rail.disputeDetails.set(dispute.id, dispute);
+      rail.merchantDisputes.push({ id: dispute.id, status: dispute.status });
+    };
+
+    beforeEach(async () => {
+      await seedAll();
+      // The dispute was recorded in the old log; the reset clears it and records it again.
+      openDispute();
+      await append(
+        db,
+        disputeReceivedEntry({ at: "2026-10-20T09:00:00.000Z", source: "poll", dispute }),
+      );
+    });
+
+    it("records an open dispute again as dispute.received and nudges Resolve", async () => {
+      const nudges: string[] = [];
+      const result = await resetDemo(
+        deps({
+          nudgeFetch: async (url, init) => {
+            nudges.push(`${url} ${init.body}`);
+            return { ok: true };
+          },
+        }),
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.report.complete).toBe(true);
+      expect(result.report.disputes).toEqual({ recorded: 1, alreadyRecorded: 0, problems: 0 });
+      const rows = await logRows();
+      expect(rows.map((row) => row.entryType)).toEqual(["demo.reset", "dispute.received"]);
+      expect(rows[1]?.refId).toBe(dispute.id);
+      expect(nudges).toHaveLength(1);
+      expect(nudges[0]).toContain("http://resolve.test:8788");
+      expect(nudges[0]).toContain(dispute.id);
+      expect((await verifyLog(db)).intact).toBe(true);
+    });
+
+    it("reports a dispute-sync error after the clear with complete false", async () => {
+      rail.failures.listMerchantDisputes = httpError("list-disputes", 503);
+      const result = await resetDemo(deps());
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.report.complete).toBe(false);
+      expect(result.report.cleared).not.toBeNull();
+      expect(result.report.disputes).toEqual({
+        error: expect.stringMatching(/^Couldn't list the merchant's disputes: /),
+      });
+      expect((await logRows()).map((row) => row.entryType)).toEqual(["demo.reset"]);
+    });
+
+    it("reports a dispute that couldn't be recorded again with complete false", async () => {
+      rail.failures.getDispute = httpError("get-dispute", 500);
+      const result = await resetDemo(deps());
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.report.complete).toBe(false);
+      expect(result.report.disputes).toEqual({ recorded: 0, alreadyRecorded: 0, problems: 1 });
+    });
+
+    it("reports a throw from the dispute sync as the gate couldn't read its records", async () => {
+      // Reads fail once the clearing transaction has committed, so the sync's first read throws.
+      let committed = false;
+      const flaky = new Proxy(db, {
+        get(target, prop, receiver) {
+          const value = Reflect.get(target, prop, receiver);
+          if (prop === "transaction") {
+            return async (...args: Parameters<Database["transaction"]>) => {
+              const out = await target.transaction(...args);
+              committed = true;
+              return out;
+            };
+          }
+          if (prop === "select" && committed) {
+            return () => {
+              throw new Error("connection lost");
+            };
+          }
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      });
+      const result = await resetDemo(deps({ db: flaky }));
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.report.complete).toBe(false);
+      expect(result.report.cleared).not.toBeNull();
+      expect(result.report.disputes).toEqual({ error: "the gate couldn't read its records" });
+      expect(RESET_MESSAGES.disputesUnread).toBe("the gate couldn't read its records");
+    });
+  });
+
+  describe("the report's times", () => {
+    it("takes resetAt and tookMs from the clock", async () => {
+      // The clock moves while the replacement orders are created.
+      const result = await resetDemo(
+        deps({
+          reseed: async (input) => {
+            const report = await recordingReseed(input);
+            now = new Date(START.getTime() + 14_250);
+            return report;
+          },
+        }),
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.report.resetAt).toBe(START.toISOString());
+      expect(result.report.tookMs).toBe(14_250);
+    });
+  });
+
   it("the execution window outlasts the longest execution", () => {
     expect(EXECUTION_WINDOW_MS).toBeGreaterThan(MAX_RAIL_CALLS_PER_EXECUTION * RAIL_WORST_CALL_MS);
+  });
+});
+
+describe("demoResetSummary", () => {
+  const cleared = { entries: 41, tickets: 3, attachments: 1, runs: 4, drafts: 1, documents: 0 };
+
+  it("names where the old log ended, shortening the hash", () => {
+    const hash = `3f9a${"0".repeat(56)}c2d1`;
+    expect(demoResetSummary({ previous_head: { seq: 41, hash }, cleared })).toBe(
+      "The demo was reset. The log before it ended at entry 41 (hash 3f9a…c2d1).",
+    );
+  });
+
+  it("says when the log was empty", () => {
+    expect(demoResetSummary({ previous_head: null, cleared })).toBe(
+      "The demo was reset. The log was empty before it.",
+    );
   });
 });
 

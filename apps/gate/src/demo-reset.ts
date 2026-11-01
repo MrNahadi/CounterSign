@@ -9,6 +9,7 @@ import {
   type Database,
   eq,
   lockDemoTables,
+  runsQueuedSince,
   seedOrders,
 } from "@countersign/db";
 import { withAuditLog } from "@countersign/ledger";
@@ -25,6 +26,7 @@ import {
   StoredRowSchema,
 } from "@countersign/seed";
 import { z } from "zod";
+import { syncDisputes } from "./dispute-sync";
 import {
   countUnansweredRequests,
   type Reader,
@@ -54,9 +56,11 @@ export const RESET_MESSAGES = {
   noVault: (missing: readonly string[]) =>
     `Set ${missing.join(" and ")} on the gate to reset the demo.`,
   notCleared: "The demo couldn't be reset. Nothing was cleared.",
+  // The report's dispute error when the sync throws after the clear; not a refusal.
+  disputesUnread: "the gate couldn't read its records",
 } as const;
 
-type Refusal = Exclude<keyof typeof RESET_MESSAGES, "noVault">;
+type Refusal = Exclude<keyof typeof RESET_MESSAGES, "noVault" | "disputesUnread">;
 
 const SEED_THREW = "the seed run failed unexpectedly";
 
@@ -75,6 +79,15 @@ export const DemoResetPayloadSchema = z.strictObject({
     documents: Count,
   }),
 });
+export type DemoResetPayload = z.infer<typeof DemoResetPayloadSchema>;
+
+/** The audit reader's line for a `demo.reset` entry: where the old log ended, or that it was empty. */
+export function demoResetSummary(payload: DemoResetPayload): string {
+  const head = payload.previous_head;
+  if (head === null) return "The demo was reset. The log was empty before it.";
+  const short = `${head.hash.slice(0, 4)}…${head.hash.slice(-4)}`;
+  return `The demo was reset. The log before it ended at entry ${head.seq} (hash ${short}).`;
+}
 
 export type Reseed = (input: {
   orders: readonly DemoOrder[];
@@ -209,6 +222,15 @@ export async function checkSeedOrders(input: {
   };
 }
 
+// True when a capture now in `seed_orders` is named by an execution request, or the requests
+// can't be read. Run inside the lock, after the replacements.
+async function seededCaptureTouched(reader: Reader): Promise<boolean> {
+  const requested = await requestedCaptureIds(reader);
+  if (!requested.known) return true;
+  const rows = await reader.select({ captureId: seedOrders.paypalCaptureId }).from(seedOrders);
+  return rows.some((row) => requested.captureIds.has(row.captureId));
+}
+
 // The Postgres code for a lock not granted within `lock_timeout`.
 const LOCK_NOT_AVAILABLE = "55P03";
 
@@ -321,6 +343,10 @@ async function reset(deps: ResetDeps, start: Date, resetAt: string): Promise<Res
       await lockDemoTables(log.tx);
       const refusal = await busyRefusal(log.tx, deps.clock());
       if (refusal) throw new ResetRefused(refusal);
+      // A scenario that ran during the replacements: any run queued since the reset began
+      // (a baseline run leaves no log entry, ADR 0031), or a request naming a seeded capture.
+      if ((await runsQueuedSince(log.tx, resetAt)) > 0 || (await seededCaptureTouched(log.tx)))
+        throw new ResetRefused("changed");
       const tables = await clearDemoTables(log.tx);
       const { head, ...counts } = tables;
       const payload = DemoResetPayloadSchema.parse({ previous_head: head, cleared: counts });
@@ -333,12 +359,31 @@ async function reset(deps: ResetDeps, start: Date, resetAt: string): Promise<Res
     return refused(503, "notCleared");
   }
 
-  // Dispute sync follows the clear (T-008); until it runs, the reset isn't complete.
-  const disputes: ResetReport["disputes"] = null;
+  // 5. Record the waiting disputes again and nudge Resolve. The log is already cleared, so
+  // anything the sync throws is reported, never raised.
+  let disputes: NonNullable<ResetReport["disputes"]>;
+  try {
+    const synced = await syncDisputes(db, rail, {
+      now: deps.clock,
+      env,
+      ...(deps.nudgeFetch ? { nudgeFetch: deps.nudgeFetch } : {}),
+    });
+    disputes = synced.ok
+      ? {
+          recorded: synced.recorded,
+          alreadyRecorded: synced.alreadyRecorded,
+          problems: synced.problems,
+        }
+      : { error: synced.error };
+  } catch {
+    disputes = { error: RESET_MESSAGES.disputesUnread };
+  }
+
+  // 6. The report.
   return {
     ok: true,
     report: {
-      complete: disputes !== null,
+      complete: !("error" in disputes) && disputes.problems === 0,
       resetAt,
       tookMs: deps.clock().getTime() - start.getTime(),
       orders,

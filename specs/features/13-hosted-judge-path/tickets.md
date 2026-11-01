@@ -109,18 +109,19 @@ Notes:
 
 ## T-008: The reset inside the lock, dispute sync and the report
 
-Status: open
+Status: done
 Blocked by: T-007
 Tier: standard
 Slice: A reset catches a scenario that ran during the replacements, records waiting disputes again, and reports whether it's complete.
 Test seam: `resetDemo(deps)` as in T-007
 Acceptance:
-- [ ] A run queued during the replacements (even one already finished, and one queued up to 5 s before the reset by a clock running behind), or an execution requested on a kept capture, is refused 409 "A scenario ran during the reset. Reset again." inside the lock; nothing is cleared and the replacement rows stay
-- [ ] The busy checks run again inside the lock; a lock not granted in 5 s is 409 `locksBusy`; another transaction error is 503 `notCleared`
-- [ ] An open dispute is recorded again as `dispute.received` and Resolve is nudged; a dispute-sync error, or a throw from `syncDisputes`, gives 200 with `complete: false` and the error after the clear
-- [ ] `demoResetSummary` gives both sentences in requirements.md; `tookMs` and `resetAt` come from the clock
+- [x] A run queued during the replacements (even one already finished, and one queued up to 5 s before the reset by a clock running behind), or an execution requested on a kept capture, is refused 409 "A scenario ran during the reset. Reset again." inside the lock; nothing is cleared and the replacement rows stay
+- [x] The busy checks run again inside the lock; a lock not granted in 5 s is 409 `locksBusy`; another transaction error is 503 `notCleared`
+- [x] An open dispute is recorded again as `dispute.received` and Resolve is nudged; a dispute-sync error, or a throw from `syncDisputes`, gives 200 with `complete: false` and the error after the clear
+- [x] `demoResetSummary` gives both sentences in requirements.md; `tookMs` and `resetAt` come from the clock
 Notes:
 - Item 9, step 7's in-lock checks, steps 8 and 9, and `demoResetSummary`. Files: `apps/gate/src/demo-reset.ts`, `apps/gate/test/demo-reset.test.ts`.
+- PGlite has one connection, so the lock-timeout and other-transaction-error cases inject a `db` Proxy whose `transaction` rejects; the sync-throw case uses a Proxy whose `select` throws after the clearing transaction commits.
 
 ## T-009: The reset's route and its line in the audit reader
 
