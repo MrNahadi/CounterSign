@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { type ComposerPhoto, messageRequest } from "./composer";
+import { button, INPUT, INPUT_HEIGHT } from "./controls";
 import { RESOLVE_UNREACHABLE } from "./resolve-routes";
 import {
   type MessageRequest,
@@ -24,18 +25,18 @@ export const CHAT_STORAGE_KEY = "countersign-resolve-chat";
 const THREADS_PATH = "/api/resolve/threads";
 const ATTACHMENTS_PATH = "/api/resolve/attachments";
 
-// The chat's touch controls (DESIGN.md: hit targets of 24px or more, 40px for the primary action
-// on touch layouts). Sizes live here so a test can hold them to that.
+// The chat's touch controls (DESIGN.md: hit targets of 28px or more, 44px for the primary action
+// on touch layouts), built from the shared recipes. A test holds the sizes to that.
 const FOCUS =
   "focus-visible:outline focus-visible:outline-1 focus-visible:outline-brand-border-focus";
 export const CHAT_CONTROLS = {
-  send: `flex size-10 shrink-0 items-center justify-center rounded-xl bg-inverted-solid text-on-inverted-foreground hover:bg-inverted-solid-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-disabled-foreground motion-safe:transition motion-safe:duration-200 motion-safe:ease-out motion-safe:active:scale-[0.97] focus-visible:outline-offset-2 ${FOCUS}`,
-  attach: `flex size-10 shrink-0 items-center justify-center rounded-xl text-secondary-foreground hover:bg-transparent-hover hover:text-primary-foreground disabled:cursor-not-allowed disabled:text-disabled-foreground ${FOCUS}`,
-  message: `h-10 min-w-0 flex-1 rounded-lg bg-component-on-container-strong px-2.5 text-body-sm text-primary-foreground shadow-default placeholder:text-tertiary-foreground focus-visible:outline-offset-[-1px] aria-invalid:inset-ring aria-invalid:inset-ring-danger-border-default ${FOCUS}`,
-  email: `h-10 w-full rounded-lg bg-component-on-container-strong px-2.5 text-body-sm text-primary-foreground shadow-default placeholder:text-tertiary-foreground focus-visible:outline-offset-[-1px] aria-invalid:inset-ring aria-invalid:inset-ring-danger-border-default ${FOCUS}`,
-  start: `inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-inverted-solid px-3.5 text-body-sm font-medium text-on-inverted-foreground hover:bg-inverted-solid-hover motion-safe:transition motion-safe:duration-200 motion-safe:ease-out motion-safe:active:scale-[0.97] focus-visible:outline-offset-2 ${FOCUS}`,
-  removePhoto: `flex size-6 shrink-0 items-center justify-center rounded-md text-secondary-foreground hover:bg-transparent-hover hover:text-primary-foreground ${FOCUS}`,
-  startOver: `inline-flex h-6 shrink-0 items-center rounded-md px-1.5 text-caption-lg font-medium text-secondary-foreground hover:bg-transparent-hover hover:text-primary-foreground ${FOCUS}`,
+  send: `${button("primary", "xl", { icon: "only" })} ${FOCUS}`,
+  attach: `${button("transparent", "xl", { icon: "only" })} ${FOCUS}`,
+  message: `${INPUT} ${INPUT_HEIGHT.touch} flex-1 ${FOCUS}`,
+  email: `${INPUT} ${INPUT_HEIGHT.touch} ${FOCUS}`,
+  start: `${button("primary", "xl")} ${FOCUS}`,
+  removePhoto: `${button("transparent", "sm", { icon: "only" })} ${FOCUS}`,
+  startOver: `${button("transparent", "sm")} ${FOCUS}`,
 } as const;
 
 export type ChatForm = {

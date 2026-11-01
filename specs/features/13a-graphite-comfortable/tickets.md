@@ -160,15 +160,15 @@ Notes:
 
 ## T-011: The customer chat
 
-Status: open
+Status: done
 Blocked by: T-004, T-003
 Tier: simple
 Slice: `/chat` uses the 44px touch controls from the recipes on a full-bleed page.
 Test seam: `CHAT_CONTROLS` through `chat.test.ts`; `npm run ui:shots -- --only chat`
 Acceptance:
-- [ ] `chat.test.ts` expects every control at least 28px and send at 44px (`size-11`); it passes, and no other assertion in it changed
-- [ ] `npm run ui:shots -- --only chat` prints `0 failures`
-- [ ] The simulation notice uses `secondary-foreground`, not tertiary
+- [x] `chat.test.ts` expects every control at least 28px and send at 44px (`size-11`); it passes, and no other assertion in it changed
+- [x] `npm run ui:shots -- --only chat` prints `0 failures`
+- [x] The simulation notice uses `secondary-foreground`, not tertiary
 Notes:
 - Files: `apps/console/src/chat.ts`, `apps/console/test/chat.test.ts`, `apps/console/app/chat/customer-chat.tsx` (design.md step 10).
 

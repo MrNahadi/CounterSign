@@ -85,7 +85,7 @@ describe("the chat's copy and controls", () => {
     expect(CHAT_UNANSWERED).toBe("Resolve couldn't answer this one. The shop will reply soon.");
   });
 
-  it("gives every control a hit target of at least 24px and the send button 40px", () => {
+  it("gives every control a hit target of at least 28px and the send button 44px", () => {
     const px = (classes: string) => {
       const sizes = [...classes.matchAll(/(?:^|\s)(?:size|h|min-h)-(\d+)(?=\s|$)/g)].map(
         (match) => Number(match[1]) * 4,
@@ -93,10 +93,10 @@ describe("the chat's copy and controls", () => {
       return Math.max(0, ...sizes);
     };
     for (const [name, classes] of Object.entries(CHAT_CONTROLS)) {
-      expect(px(classes), name).toBeGreaterThanOrEqual(24);
+      expect(px(classes), name).toBeGreaterThanOrEqual(28);
     }
-    expect(px(CHAT_CONTROLS.send)).toBe(40);
-    expect(CHAT_CONTROLS.send).toMatch(/(?:^|\s)size-10(?:\s|$)/);
+    expect(px(CHAT_CONTROLS.send)).toBe(44);
+    expect(CHAT_CONTROLS.send).toMatch(/(?:^|\s)size-11(?:\s|$)/);
   });
 });
 
