@@ -1,4 +1,5 @@
 import { studioTheme } from "ag-studio";
+import { GRAPHITE_SIZES } from "./sizes";
 
 // AG Studio themed with Graphite (ADR 0006). Every value reads a Graphite CSS variable, so Studio
 // follows the page's light or dark theme with no switching of its own.
@@ -17,7 +18,7 @@ const palette = Object.fromEntries(
 
 export const graphiteStudioTheme = studioTheme.withParams({
   fontFamily: token("font-sans"),
-  fontSize: 13,
+  fontSize: GRAPHITE_SIZES.uiText,
   textColor: token("color-primary-foreground"),
   foregroundColor: token("color-primary-foreground"),
   subtleTextColor: token("color-secondary-foreground"),
@@ -37,22 +38,22 @@ export const graphiteStudioTheme = studioTheme.withParams({
   studioCanvasBorderRadius: 0,
   studioCanvasShadow: false,
   studioCanvasBackgroundColor: token("color-container"),
-  studioCanvasPadding: 16,
+  studioCanvasPadding: GRAPHITE_SIZES.cardPadding,
   studioCanvasFontFamily: token("font-sans"),
 
   studioWidgetBackgroundColor: token("color-container"),
   studioWidgetBorder: line("color-border-default"),
-  studioWidgetBorderRadius: 12,
-  studioWidgetPadding: 12,
+  studioWidgetBorderRadius: GRAPHITE_SIZES.cardRadius,
+  studioWidgetPadding: GRAPHITE_SIZES.cardPadding,
   studioWidgetTitleFontFamily: token("font-sans"),
-  studioWidgetTitleFontSize: 13,
-  studioWidgetTitleFontWeight: 500,
+  studioWidgetTitleFontSize: GRAPHITE_SIZES.cardTitle,
+  studioWidgetTitleFontWeight: 600,
   studioWidgetTitleTextColor: token("color-primary-foreground"),
   studioWidgetSubtitleFontFamily: token("font-sans"),
-  studioWidgetSubtitleFontSize: 13,
+  studioWidgetSubtitleFontSize: GRAPHITE_SIZES.captionText,
   studioWidgetSubtitleTextColor: token("color-secondary-foreground"),
   studioWidgetCaptionFontFamily: token("font-sans"),
-  studioWidgetCaptionFontSize: 12,
+  studioWidgetCaptionFontSize: GRAPHITE_SIZES.captionText,
   studioWidgetCaptionTextColor: token("color-tertiary-foreground"),
   studioWidgetResizeBorderColor: token("color-brand-border-focus"),
 
@@ -65,13 +66,15 @@ export const graphiteStudioTheme = studioTheme.withParams({
   studioPanelHeaderFontWeight: 500,
 
   gridFontFamily: token("font-sans"),
-  gridFontSize: 13,
+  gridFontSize: GRAPHITE_SIZES.uiText,
   gridCellTextColor: token("color-primary-foreground"),
   gridHeaderBackgroundColor: token("color-container"),
-  gridHeaderTextColor: token("color-tertiary-foreground"),
+  gridHeaderTextColor: token("color-secondary-foreground"),
   gridHeaderFontWeight: 500,
-  gridHeaderFontSize: 11,
-  gridRowHeight: 40,
+  gridHeaderFontSize: GRAPHITE_SIZES.captionText,
+  gridHeaderHeight: GRAPHITE_SIZES.tableHeader,
+  gridCellHorizontalPadding: GRAPHITE_SIZES.cellPadding,
+  gridRowHeight: GRAPHITE_SIZES.tableRow,
   gridRowBorder: line("color-border-subtle"),
   gridHeaderRowBorder: line("color-border-default"),
   gridRowHoverColor: token("color-transparent-hover"),

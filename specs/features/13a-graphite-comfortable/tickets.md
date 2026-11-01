@@ -188,15 +188,15 @@ Notes:
 
 ## T-013: The AG Studio theme and the spike page
 
-Status: open
+Status: done
 Blocked by: T-004, T-003
 Tier: simple
 Slice: AG Studio's grid and widgets take the comfortable sizes from token-checked numbers, and the spike page's header follows the type rules.
 Test seam: `GRAPHITE_SIZES` through `packages/graphite/test/sizes.test.ts`; `npm run ui:shots -- --only risk-desk`
 Acceptance:
-- [ ] `sizes.test.ts` checks every key against the token table in design.md step 12c and passes
-- [ ] `ag-theme.ts` reads its sizes from `GRAPHITE_SIZES`, and `npm run typecheck` passes; any param dropped under step 12b's rule is named in `.ralph/progress.md`
-- [ ] `npm run ui:shots -- --only risk-desk` prints `0 failures`, with the header marked `data-graphite="spike-header"`
+- [x] `sizes.test.ts` checks every key against the token table in design.md step 12c and passes
+- [x] `ag-theme.ts` reads its sizes from `GRAPHITE_SIZES`, and `npm run typecheck` passes; any param dropped under step 12b's rule is named in `.ralph/progress.md`
+- [x] `npm run ui:shots -- --only risk-desk` prints `0 failures`, with the header marked `data-graphite="spike-header"`
 Notes:
 - Files: `packages/graphite/src/sizes.ts`, `packages/graphite/src/ag-theme.ts`, `packages/graphite/test/sizes.test.ts`, `apps/console/app/spike/risk-desk/page.tsx`, `money-protected-widget.tsx` (design.md step 12).
 

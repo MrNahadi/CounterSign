@@ -1,3 +1,4 @@
+import { CARD_TITLE, HELP } from "../../../src/controls";
 import { ThemeControl } from "../../theme-control";
 import { RiskDeskSpike } from "./risk-desk-spike";
 
@@ -8,10 +9,10 @@ export const dynamic = "force-dynamic";
 export default function RiskDeskSpikePage() {
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex items-center justify-between px-4 py-3">
+      <header data-graphite="spike-header" className="flex items-center justify-between px-6 py-4">
         <div className="flex items-baseline gap-2">
-          <h1 className="text-body-sm font-semibold">Risk desk</h1>
-          <span className="text-caption-lg text-tertiary-foreground">Spike S9, sample data</span>
+          <h1 className={CARD_TITLE}>Risk desk</h1>
+          <span className={HELP}>Spike S9, sample data</span>
         </div>
         <ThemeControl />
       </header>
