@@ -242,15 +242,15 @@ Notes:
 
 ## T-017: `tokens.json`
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: `tokens.json` matches `graphite-tokens.css` again and carries the layout tokens.
 Test seam: `JSON.parse` of the file and the comparison in validation.md check 8
 Acceptance:
-- [ ] The file parses as JSON, keeps its one-space indent, and has a top-level `layout` group with the nine layout tokens
-- [ ] Every type style, `space`, `space-*` and `control-*` value equals `graphite-tokens.css`'s light block
-- [ ] No colour, radius, shadow, weight, tracking, duration or easing entry changes, and no usage string says "dense" or puts table headers in uppercase
+- [x] The file parses as JSON, keeps its one-space indent, and has a top-level `layout` group with the nine layout tokens
+- [x] Every type style, `space`, `space-*` and `control-*` value equals `graphite-tokens.css`'s light block
+- [x] No colour, radius, shadow, weight, tracking, duration or easing entry changes, and no usage string says "dense" or puts table headers in uppercase
 Notes:
 - File: `Graphite Design/tokens.json` (design.md step 15).
 
