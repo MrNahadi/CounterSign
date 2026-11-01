@@ -282,15 +282,15 @@ Notes:
 
 ## T-020: The start page's view model
 
-Status: open
+Status: done
 Blocked by: T-015
 Tier: simple
 Slice: The start page's copy, scenario cards and reset sentences come from one view model that a test pins.
 Test seam: `START_COPY`, `SCENARIO_CARDS`, `storefrontLink` and `resetSentence` in `apps/console/src/start-view.ts`; `durationWords` in `inbox-view.ts`
 Acceptance:
-- [ ] `durationWords` gives "0s", "15s" and "1m 08s" for 0, 14,600 and 68,000 ms, and `formatDuration`'s tests pass unchanged
-- [ ] Every start-page string and every reset sentence and tone in requirements.md is pinned, with plurals
-- [ ] The cards' IDs and modes match Resolve's `LAUNCHER_SCENARIOS` (a test-only cross-check)
+- [x] `durationWords` gives "0s", "15s" and "1m 08s" for 0, 14,600 and 68,000 ms, and `formatDuration`'s tests pass unchanged
+- [x] Every start-page string and every reset sentence and tone in requirements.md is pinned, with plurals
+- [x] The cards' IDs and modes match Resolve's `LAUNCHER_SCENARIOS` (a test-only cross-check)
 Notes:
 - Items 11 and 20. T-015 is a blocker only for the cross-check's import of `LAUNCHER_SCENARIOS`. Files: `apps/console/src/{start-view,inbox-view}.ts`, `apps/console/package.json`, `apps/console/test/{start-view,inbox-view}.test.ts`.
 

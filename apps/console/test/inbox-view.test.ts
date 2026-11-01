@@ -1,6 +1,7 @@
 import { REASONS } from "@countersign/mandate";
 import { describe, expect, it } from "vitest";
 import {
+  durationWords,
   formatDuration,
   formatTime,
   listIsWorking,
@@ -260,6 +261,14 @@ describe("times", () => {
     expect(formatDuration("2026-10-20T08:00:01.000Z", "2026-10-20T08:00:15.000Z")).toBe("14s");
     expect(formatDuration("2026-10-20T08:00:01.000Z", null)).toBeNull();
     expect(formatDuration(null, null)).toBeNull();
+  });
+
+  it("says a duration in whole seconds, rounded", () => {
+    expect(durationWords(0)).toBe("0s");
+    expect(durationWords(499)).toBe("0s");
+    expect(durationWords(14_600)).toBe("15s");
+    expect(durationWords(68_000)).toBe("1m 08s");
+    expect(durationWords(60_000)).toBe("1m 00s");
   });
 });
 
