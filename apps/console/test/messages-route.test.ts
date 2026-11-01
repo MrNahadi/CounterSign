@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { APPROVAL_ROUTE_MESSAGES, APPROVER_COOKIE } from "../src/approval-routes";
 import {
   BAD_MESSAGE,
@@ -6,6 +6,7 @@ import {
   messagesRoute,
   RESOLVE_UNREACHABLE,
 } from "../src/resolve-routes";
+import { resetSessionLimits } from "../src/session-limits";
 
 // `POST /api/resolve/messages`, with Resolve played by an injected fetch.
 
@@ -47,7 +48,11 @@ function resolveAt(
 }
 
 const KEY = "approver-key-0123456789abcdefghijklmnop";
-const SIGNED_IN = `${APPROVER_COOKIE}=${encodeURIComponent(KEY)}`;
+const SIGNED_IN = `${APPROVER_COOKIE}=${encodeURIComponent(KEY)}; countersign_session=${"s".repeat(22)}`;
+
+beforeEach(() => {
+  resetSessionLimits();
+});
 
 const post = (body: string, cookie: string | null = SIGNED_IN) =>
   new Request("http://console.test/api/resolve/messages", {

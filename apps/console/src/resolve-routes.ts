@@ -20,6 +20,7 @@ import {
   type ThreadList,
   ThreadListSchema,
 } from "./resolve-schemas";
+import { limitSession } from "./session-limits";
 
 // The console's way to Resolve (ADR 0030): server code only, at `RESOLVE_AGENT_URL`. Every
 // request is checked before it leaves and every answer is parsed before it's passed on. When
@@ -200,7 +201,7 @@ export function attachmentRoute(
 }
 
 /** Reads at most `limit` bytes of a request body as text; null when it's longer. */
-async function readLimited(request: Request, limit: number): Promise<string | null> {
+export async function readLimited(request: Request, limit: number): Promise<string | null> {
   const declared = Number(request.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > limit) return null;
   if (request.body === null) return "";
@@ -248,6 +249,9 @@ export function messagesRoute(request: Request, deps: RouteDeps): Promise<Respon
     request,
     deps,
     async () => {
+      // A run is counted against the session after the key is checked, before the body is read.
+      const limited = limitSession(request, "run");
+      if (limited !== null) return limited;
       let text: string | null;
       try {
         text = await readLimited(request, MAX_MESSAGE_BYTES);

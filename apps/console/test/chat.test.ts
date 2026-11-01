@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { APPROVER_COOKIE } from "../src/approval-routes";
 import {
   CHAT_CONTROLS,
@@ -16,6 +16,7 @@ import {
 import { toBase64 } from "../src/composer";
 import { messagesRoute, RESOLVE_UNREACHABLE, threadRoute } from "../src/resolve-routes";
 import type { Run, ThreadDetail, ThreadMessage } from "../src/resolve-schemas";
+import { resetSessionLimits } from "../src/session-limits";
 
 // The customer's simulated chat: what the form becomes, what the thread shows, and how it's
 // read, through the console's existing Resolve routes with Resolve played by an injected fetch.
@@ -27,7 +28,11 @@ const SECOND = id("tkt", "b");
 const ATT = id("att", "c");
 const env = { RESOLVE_AGENT_URL: "http://resolve.test:8788", GATE_URL: "http://gate.test" };
 // The console's routes to Resolve open with the sign-in: a cookie, and a gate that takes the key.
-const SIGNED_IN = `${APPROVER_COOKIE}=${encodeURIComponent("approver-key-0123456789abcdefghijklmnop")}`;
+const SIGNED_IN = `${APPROVER_COOKIE}=${encodeURIComponent("approver-key-0123456789abcdefghijklmnop")}; countersign_session=${"s".repeat(22)}`;
+
+beforeEach(() => {
+  resetSessionLimits();
+});
 const withGate =
   (resolve: typeof fetch): typeof fetch =>
   async (input, init) =>

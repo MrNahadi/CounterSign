@@ -268,15 +268,15 @@ Notes:
 
 ## T-019: The console's scenario and reset routes
 
-Status: open
+Status: done
 Blocked by: T-016, T-018
 Tier: simple
 Slice: The console launches a scenario (protected to Resolve, baseline through the gate) and resets the demo, passing answers through and counting each against the session.
 Test seam: `scenarioRoute` and `resetRoute` in `apps/console/src/demo-routes.ts`; `messagesRoute`
 Acceptance:
-- [ ] A bad body is 400 "Send JSON with scenario_id and mode."; protected goes to Resolve and baseline to the gate's `/baseline/launch`; 202 and the 400, 404, 409, 502 and 503 sentences pass through as specified (validation check 10)
-- [ ] The reset passes the report through (`cleared: null` included); the gate's 404 becomes "The demo reset is off on this gate."
-- [ ] The checks run in order (key cookie, gate check, session, limit), so a signed-out or wrong-key request spends no slot; `messagesRoute` counts against the session too
+- [x] A bad body is 400 "Send JSON with scenario_id and mode."; protected goes to Resolve and baseline to the gate's `/baseline/launch`; 202 and the 400, 404, 409, 502 and 503 sentences pass through as specified (validation check 10)
+- [x] The reset passes the report through (`cleared: null` included); the gate's 404 becomes "The demo reset is off on this gate."
+- [x] The checks run in order (key cookie, gate check, session, limit), so a signed-out or wrong-key request spends no slot; `messagesRoute` counts against the session too
 Notes:
 - Item 19. Files: `apps/console/src/{demo-schemas,demo-routes,resolve-routes}.ts`, `apps/console/app/api/{scenarios,demo/reset}/route.ts`, `apps/console/test/demo-routes.test.ts`.
 
