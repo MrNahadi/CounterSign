@@ -4,7 +4,7 @@ Built from `design.md`'s Detailed Implementation Plan ("item N" below). Copy, st
 
 ## T-001: The shared `@countersign/seed` package
 
-Status: open
+Status: blocked-question
 Blocked by:
 Tier: simple
 Slice: The seed catalog and seed run live in `@countersign/seed`, the storefront and gate depend on it, and `npm run seed` behaves exactly as before.
@@ -15,6 +15,7 @@ Acceptance:
 - [ ] `StoredRowSchema` is exported; `seed-cli.ts` still exports `newRunId` and `VAULT_ENV_NAMES`
 - [ ] The no-AI test lists `seed`; `npm run build` builds the storefront with the package transpiled
 Notes:
+- Parked stash: T-001 parked (question: `questions/open/T-001-npm-install-not-allowed.md`).
 - Items 1, 2 and 3. Files: `packages/seed/` (new: `package.json`, `tsconfig.json`, `src/index.ts`, `src/run-id.ts`, and `products.ts`, `seed-catalog.ts` and `seed-run.ts` moved with `git mv`), `apps/storefront/src/{seed-cli,shop-props,checkout}.ts`, `apps/storefront/test/*`, `apps/storefront/{package.json,next.config.ts}`, `apps/gate/package.json`, `tests/no-ai-in-decision-path.test.ts`, `package-lock.json`.
 
 ## T-002: Clearing the demo tables in `@countersign/db`
