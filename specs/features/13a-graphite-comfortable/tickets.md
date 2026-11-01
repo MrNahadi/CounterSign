@@ -200,14 +200,14 @@ Notes:
 
 ## T-014: The brand book and the components index
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: `brand-book.md` and `components/README.md` describe the comfortable system and DESIGN.md's authority.
 Test seam: text searches in validation.md check 7
 Acceptance:
-- [ ] Every item under requirements.md's `brand-book.md` and `components/README.md` headings is applied
-- [ ] Neither file contains `dense`, `13px interface`, `15px on`, `space-16` as the top step, `20 to 40px` or "table headers" next to uppercase
+- [x] Every item under requirements.md's `brand-book.md` and `components/README.md` headings is applied
+- [x] Neither file contains `dense`, `13px interface`, `15px on`, `space-16` as the top step, `20 to 40px` or "table headers" next to uppercase
 Notes:
 - Files: `Graphite Design/brand-book.md`, `Graphite Design/components/README.md` (design.md step 13). Don't edit `DESIGN.md` or `graphite-tokens.css`.
 
