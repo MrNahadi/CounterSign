@@ -61,15 +61,15 @@ Notes:
 
 ## T-005: The reset's reads of the execution log
 
-Status: open
+Status: done
 Blocked by:
 Tier: standard
 Slice: The gate can tell which execution requests still have no result, and which captures any request has named.
 Test seam: `countUnansweredRequests(reader, since)` and `requestedCaptureIds(reader)` in `apps/gate/src/execution-log.ts`
 Acceptance:
-- [ ] A request with a result isn't counted, one without is (a replay request on its own), one before `since` isn't, and an unreadable request or result makes the answer unknown
-- [ ] Captures come from refund requests only, failed ones included; a dispute or payout request names none; an unreadable request makes it unknown
-- [ ] `Reader` and `MAX_RAIL_CALLS_PER_EXECUTION` (2) are exported; `execute()` doesn't change
+- [x] A request with a result isn't counted, one without is (a replay request on its own), one before `since` isn't, and an unreadable request or result makes the answer unknown
+- [x] Captures come from refund requests only, failed ones included; a dispute or payout request names none; an unreadable request makes it unknown
+- [x] `Reader` and `MAX_RAIL_CALLS_PER_EXECUTION` (2) are exported; `execute()` doesn't change
 Notes:
 - Item 8 (gate part). Files: `apps/gate/src/{execution-log,executors}.ts`, `apps/gate/test/reset-reads.test.ts` (or `execution-log.test.ts`).
 

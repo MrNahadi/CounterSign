@@ -319,7 +319,13 @@ async function executePayout(rail: PayPalClient, job: ExecutionJob): Promise<Att
   return { outcome: "unknown", payout };
 }
 
-// Exactly the actions in EXECUTABLE_ACTIONS; the type keeps the two lists equal.
+// The most rail calls one execution makes: a dispute action reads the dispute after acting, and a
+// payout reads the batch after creating it; a refund and an invoice send make one. The demo
+// reset's execution window rests on it, so raise it if an executor gains a call.
+export const MAX_RAIL_CALLS_PER_EXECUTION = 2;
+
+// Exactly the actions in EXECUTABLE_ACTIONS; the type keeps the two lists equal. Each makes at
+// most MAX_RAIL_CALLS_PER_EXECUTION rail calls.
 export const EXECUTORS: Record<ExecutableAction, Executor> = {
   "paypal.refund": executeRefund,
   "paypal.invoice.send": executeInvoiceSend,

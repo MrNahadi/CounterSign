@@ -338,7 +338,7 @@ export type ExecutionHistory =
   // An entry of these types couldn't be read, so nothing about the history is known.
   | { known: false; seq: number; detail: string };
 
-type Reader = Database | Transaction;
+export type Reader = Database | Transaction;
 
 class Unreadable extends Error {
   readonly seq: number;
@@ -457,6 +457,91 @@ export async function readExecutionHistory(reader: Reader): Promise<ExecutionHis
     .orderBy(asc(auditLog.seq));
   try {
     return { known: true, executions: buildHistory(rows) };
+  } catch (error) {
+    if (error instanceof Unreadable) return { known: false, seq: error.seq, detail: error.message };
+    throw error;
+  }
+}
+
+// --- What the demo reset needs (ADR 0042) --------------------------------------------------
+
+export type UnansweredRequestsRead =
+  | { known: true; count: number }
+  | { known: false; seq: number; detail: string };
+
+// Counts the `execution.requested` entries at or after `since` that no `execution.result` names,
+// so the reset never clears the log while a rail call may still be running. A replay request
+// counts on its own. An entry of either type that can't be read, from any time, makes the count
+// unknown, never skipped, so the reset refuses.
+export async function countUnansweredRequests(
+  reader: Reader,
+  since: string,
+): Promise<UnansweredRequestsRead> {
+  const rows: ChainRow[] = await reader
+    .select()
+    .from(auditLog)
+    .where(sql`${auditLog.entryType} IN ('execution.requested', 'execution.result')`)
+    .orderBy(asc(auditLog.seq));
+  try {
+    // Every request's intent by seq, and the time of each that no result has named yet.
+    const seen = new Map<number, string>();
+    const open = new Map<number, string>();
+    for (const row of rows) {
+      if (row.entryType === "execution.requested") {
+        const payload = parsePayload(row, ExecutionRequestedPayloadSchema);
+        if (row.refId !== payload.intentId) {
+          throw new Unreadable(
+            row.seq,
+            `execution.requested #${row.seq} has a ref that isn't its intent`,
+          );
+        }
+        seen.set(row.seq, payload.intentId);
+        open.set(row.seq, row.at);
+      } else {
+        const payload = parsePayload(row, ExecutionResultPayloadSchema);
+        if (row.refId === null || seen.get(payload.requestSeq) !== row.refId) {
+          throw new Unreadable(
+            row.seq,
+            `execution.result #${row.seq} names request #${payload.requestSeq}, which isn't a request for its intent`,
+          );
+        }
+        open.delete(payload.requestSeq);
+      }
+    }
+    // A time that doesn't parse leaves the request counted, failing closed.
+    const sinceMs = Date.parse(since);
+    let count = 0;
+    for (const at of open.values()) {
+      if (!(Date.parse(at) < sinceMs)) count += 1;
+    }
+    return { known: true, count };
+  } catch (error) {
+    if (error instanceof Unreadable) return { known: false, seq: error.seq, detail: error.message };
+    throw error;
+  }
+}
+
+export type RequestedCapturesRead =
+  | { known: true; captureIds: Set<string> }
+  | { known: false; seq: number; detail: string };
+
+// The capture of every `execution.requested` entry that names one, whatever its outcome, so the
+// reset never keeps a seeded order whose capture has execution history. Only refunds name a
+// capture; a dispute action, invoice send or payout names none. A request that can't be read
+// makes it unknown, never skipped.
+export async function requestedCaptureIds(reader: Reader): Promise<RequestedCapturesRead> {
+  const rows: ChainRow[] = await reader
+    .select()
+    .from(auditLog)
+    .where(sql`${auditLog.entryType} = 'execution.requested'`)
+    .orderBy(asc(auditLog.seq));
+  try {
+    const captureIds = new Set<string>();
+    for (const row of rows) {
+      const payload = parsePayload(row, ExecutionRequestedPayloadSchema);
+      if (payload.captureId !== null) captureIds.add(payload.captureId);
+    }
+    return { known: true, captureIds };
   } catch (error) {
     if (error instanceof Unreadable) return { known: false, seq: error.seq, detail: error.message };
     throw error;
