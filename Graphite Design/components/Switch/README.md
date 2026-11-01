@@ -1,6 +1,6 @@
 # Switch
 
-A 32 by 18px toggle for settings that take effect immediately, `color-component-active` when off and `color-brand-solid` when on.
+A 36 by 20px toggle with a 16px thumb, for settings that take effect immediately, `color-component-active` when off and `color-brand-solid` when on.
 
 ## What you provide
 

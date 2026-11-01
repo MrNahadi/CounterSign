@@ -1,6 +1,6 @@
 # Badge
 
-A 20px label for status, category or count, using a subtle fill with its matching text token.
+A 24px label for status, category or count, with 8px side padding, using a subtle fill with its matching text token.
 
 ## What you provide
 
@@ -11,5 +11,5 @@ A 20px label for status, category or count, using a subtle fill with its matchin
 
 - Neutral badges use `color-component` and `color-secondary-foreground`.
 - Status badges always carry a word, never color alone: "Live", "Degraded", "Failed".
-- One or two words in sentence case, caption-lg at weight 500.
+- One or two words in sentence case, caption-base (12px) at weight 500.
 - Subtle text measures 4.0 to 4.8:1 in light mode and above 7:1 in dark.

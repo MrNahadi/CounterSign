@@ -215,14 +215,14 @@ Notes:
 
 ## T-015: The component READMEs
 
-Status: open
+Status: done
 Blocked by:
 Tier: simple
 Slice: Each component's README gives the sizes DESIGN.md now specifies.
 Test seam: text searches in validation.md check 7
 Acceptance:
-- [ ] Every item under requirements.md's "Component READMEs" is applied, in the 19 READMEs design.md step 13 lists
-- [ ] No component README contains `dense`, `40px rows`, `uppercase caption header`, `13px medium` for buttons or labels, or the old heights `xs 20` and `xl 40`
+- [x] Every item under requirements.md's "Component READMEs" is applied, in the 19 READMEs design.md step 13 lists
+- [x] No component README contains `dense`, `40px rows`, `uppercase caption header`, `13px medium` for buttons or labels, or the old heights `xs 20` and `xl 40`
 Notes:
 - Files: `Graphite Design/components/{Accordion,Avatar,Badge,Breadcrumb,Button,Card,Checkbox,CodeCard,Command,Dialog,Input,InputOTP,Kbd,Menu,Switch,Table,Tabs,Toast,Tooltip}/README.md`. Many files, but each edit is a line or two.
 

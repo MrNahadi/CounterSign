@@ -9,6 +9,6 @@ Stacked sections that expand in place, which also covers a single collapsible.
 
 ## Rules
 
-- Triggers are 44px tall, 13px medium. The chevron rotates 180 degrees over `duration-base`.
-- Panels use `color-secondary-foreground` with 12px bottom padding.
+- Triggers are 52px tall, 14px medium. The chevron rotates 180 degrees over `duration-base`.
+- Panels use `color-secondary-foreground` at 14px on a 22px line height, with 16px bottom padding.
 - Use for FAQs and optional settings. Don't hide anything a user needs to finish the task.

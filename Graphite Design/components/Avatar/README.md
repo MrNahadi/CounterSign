@@ -1,6 +1,6 @@
 # Avatar
 
-A round picture or initials for a person or workspace, in 20, 24, 32 or 40px, and stacked groups that overlap with a mask cutout.
+A round picture or initials for a person or workspace, in 20, 28, 32 or 40px (28px by default in tables and lists), and stacked groups that overlap with a mask cutout.
 
 ## What you provide
 
