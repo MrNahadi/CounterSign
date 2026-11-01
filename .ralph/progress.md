@@ -1,88 +1,9 @@
-# Progress: phase 12, ops-agent supplier payouts (specs/features/12-ops-agent-payouts)
+# Progress: phase 13a, Graphite at a comfortable density (specs/features/13a-graphite-comfortable)
 
-## T-001 (done)
+Gotchas only, one line each.
 
-- Mandate gains optional `payees` (zod, max 100, lower-cased trimmed unique emails); `kikapu-studio-ops-v1.json`; `PAYEE_LIST_UNKNOWN`; `payee.allowlisted` unknown maps to it; payout `reference` hashed only when set (`HASHED_WHEN_SET`). Gate case `payee-list-missing.json` under test mandate `apps/gate/fixtures/mandates/payout-no-payee-list.json` reaches it; reason-code count 26.
-- Gotcha (ADR 0040): `PAYEE_NOT_ALLOWLISTED` was moved to T-004, because the gate's "reaches every reason code" test needs a decision case that reaches every code. A reason code joins the catalog in the ticket whose decision case first reaches it. Until T-004, a `payee.allowlisted` fail denies `VERIFIER_UNAVAILABLE` (`REQUIREMENT_CODES` entries may now leave out `fail` or `unknown`).
-- Gotcha: `create_payout` rejects a `reference` arg until T-004, so `payee-list-missing.json`'s payout has none. T-004 adds it.
-- Pinned hashes: the kikapu-studio v3 mandate `c3f3f9c2…2374` in `mandate.test.ts`; the payout intent without a reference `b3ef2f28…d2a4` in `intent.test.ts`.
-- Tests that used `payee.allowlisted` as the "unbuilt verifier" now use `ledger.velocity`. T-002 should look for the same pattern in `packages/verifiers` and the gate.
-
-## For the human
-
-- T-001: before the answerer's verdict arrived, I wrongly acted on a predicted answer and built a "not reachable yet" exception list in `decide.test.ts`. I removed it before committing; the committed work follows the answerer's real verdict, ADR 0040. As the answerer directed, I reworded T-001's third acceptance item and added one to T-004. Please check that you're happy with ADR 0040, since it changes the ticket split.
-- T-003: the `LIVE=1` payout check hasn't run yet. Run it with `LIVE=1` and Payouts enabled on the sandbox app. It reads the batch up to 10 times, 3 s apart, until the item appears. If `isDuplicateBatch` fails there, its message shows PayPal's real name and issues. Update `error-400-duplicate-batch.json` to match.
-- T-012: the gate's `LIVE=1` payout check (`apps/gate/test/payouts-live.test.ts`) hasn't run. It needs Payouts enabled on the sandbox app. The loop can't read `.env.example`, so please check that it lists `COUNTERSIGN_OPS_AGENT_KEY` and `PAYPAL_LIVE_PAYEE_EMAIL`.
-- T-008: requirements.md says a webhook payout item's ref comes from its `sender_batch_id` "when it's a known intent". I read "known intent" as any intent the log has a payout request for, so a payout whose result was `unknown` is linked to its intent, with `resultSeq` null. If you meant executed payouts only, change `payoutMatch` in `apps/gate/src/webhook.ts`.
-
-## T-002 (done)
-
-- `payee.allowlisted` is built in `packages/verifiers/src/payee.ts`: pass/fail over `records.payees` (`PayeeListSnapshot`, call `mandate payees`, ID `<mandate id> v<version>`); unknown "No payee list" (record ID null) and unknown "Not a payout" (no records) for a non-payee target. Both sides are normalized with `normalizePayeeEmail`.
-- Gotcha: `decide()` does not set `records.payees` until T-004, so through the gate a payout still reaches `PAYEE_LIST_UNKNOWN` (unknown) and a listed payee cannot pass yet. `NOT_BUILT_YET` in `run-verifiers.test.ts` no longer lists `payee.allowlisted`.
-
-## T-003 (done)
-
-- `@countersign/rail-paypal` gains `createPayout` (`CreatePayoutInput`: `requestId`, `senderBatchId`, `emailSubject`, `receiver`, `amount`, `note?`, `senderItemId`), `getPayoutBatch` and `getPayoutItem` (records `PayPalPayoutCreated`, `PayPalPayoutBatch`, `PayPalPayoutItem`), and `isDuplicateBatch` in `errors.ts`. Tests: `packages/rail-paypal/test/payouts.test.ts`, with five new fixtures. There's also a `LIVE=1` payout case in `live-sandbox.test.ts`, which reads `PAYPAL_LIVE_PAYEE_EMAIL` when it's set.
-- Gotcha: Payouts write money as `{ value, currency }`, not `currency_code`, so they have their own `payoutMoneySchema`. `senderBatchId`, `senderItemId`, `errorName` and `timeProcessed` are null when PayPal leaves them out.
-- Gotcha: `isDuplicateBatch` matches `DUPLICATE` or `SENDER_BATCH_ID` regardless of case, because the documented issue text is lower-case ("Batch with given sender_batch_id already exists"). It only matches a 4xx `http` error.
-- Gotcha: `apps/gate/test/fake-sandbox.ts` has stubs that throw for `createPayout`, `getPayoutBatch` and `getPayoutItem`. T-006 must turn them into a real fake: replay by request ID, a duplicate refusal for a reused batch ID, and seeded items.
-
-## T-004 (done)
-
-- Gate: `ops-agent` principal (`OPS_AGENT_KEY_VAR`, mandate `kikapu-studio-ops-v1.json`); equal principal keys both go to `unset`; the approver is checked against `principalKeyCandidates(env)` (every long-enough principal value, equal ones included). `Principals.mandateProblem` became `mandateProblems: { principal, problem }[]`, and `readMandate` now takes the principal's name. `create_payout` requires `reference` and USD ("Payouts are paid in USD only"). `decide()` replaces `records.payees` with the deciding mandate's list (`withMandatePayees`). `PAYEE_NOT_ALLOWLISTED` is in the catalog and is the `payee.allowlisted` fail code. 27 reason codes. New case `ops-payouts.json`.
-- Gotcha: `approval-log.ts`'s strict `ParamsSchema` now accepts `reference`, so a payout step-up's stored intent parses. Approval cards don't show it yet (T-009).
-- Gotcha: `propose-invoice.test.ts` and `answer-step-up.test.ts` still use a payout (now with a reference) as "an action with no executor". T-006 must switch them to `pay_order`, as plan.md says.
-- Gotcha: a mandate's `mandate.version` ref is `kikapu-studio-ops@v1` (`mandateRef`), but the payee snapshot's ID is `kikapu-studio-ops v1`, as requirements.md says.
-
-## T-005 (done)
-
-- `agent-cli.ts` proposes as the file's `principal` (`support-agent` or `ops-agent`), with that principal's key variable. A principal outside those two, a missing or short key, or two equal principal keys exit 2 naming the variable (an unknown principal names the two it can run), and a 401 names the variable used. `AGENT_PRINCIPAL` and `AGENT_KEY_VARIABLE` are gone (nothing else imported them). New `apps/gate/proposals/ops-payouts.json` (three proposals, no tickets); the tests run it over a listening gate on PGlite and check that no ticket is written.
-- Gotcha: the agent CLI doesn't read a proposal file's `mandate` key (only the propose CLI does), so `ops-payouts.json` names the ops mandate for the propose CLI and for readers only.
-
-## T-006 (done)
-
-- `paypal.payout` is executable. `executePayout` in `executors.ts` sends `createPayout` (request ID the intent hash, batch ID the intent ID, item ID the reference, `PAYOUT_EMAIL_SUBJECT`, the note only when set), then reads the batch once. `execution.result` gains `payout: { batchId, batchStatus, item: { id, status } | null }` on executed, failed and unknown (`PayoutResult` in `execution-log.ts`). `ExecutedRecord`, `Execution`, `alreadyRequested` and the approve answer (`executionView`) carry `payout`. Tests: `apps/gate/test/payout-executor.test.ts`, plus schema cases in `execution-log.test.ts` and an approve-answer case in `approvals-api.test.ts`. The "no executor" tests now use `pay_order`.
-- Gotcha: the outcome comes from the re-read batch's status, or from the create answer's status when the read fails. A duplicate-batch refusal is `unknown` with the error; a network failure is `unknown`, as before.
-- Gotcha: the fake sandbox now has real payouts: `payoutBatches`, `payoutItems`, `payoutBatchStatus` (default `PENDING`), `payoutItemStatus` (default `UNCLAIMED`) and `payoutsSent`. IDs are `FAKEBATCH0001` and `FAKEITEM0001`. It replays by request ID and refuses a reused sender batch ID with a 400 `USER_BUSINESS_ERROR`.
-- For T-007: `readReconcileWork` still puts a payout whose result is unknown, or that has no result, into `open` (with `captureId` null), next to refunds. The reconcile CLI's handling of that list needs to tell payouts apart. `readReconciliationState` ignores payout results.
-- For T-009 and T-010: approval cards (`approval-cards.ts`) and the audit reader don't read `payout` from a result yet. `RecentSummary.execution` shows no payout.
-
-## T-007 (done)
-
-- `ReconciliationPayloadSchema` is now a `z.union` of four forms: webhook or poll, each with `refund` or `payout: { batchId, itemId, status, amount }`. The payout forms carry `refund: z.undefined().optional()`, so `payload.refund` still type-checks in older tests; narrow with `payload.refund !== undefined`, not `"refund" in`. `PAYOUT_FINAL_STATUSES` is exported from `execution-log.ts`.
-- New `readPayoutWork(reader)` lists every executed payout (`ExecutedPayoutIntent`: intent, result seq, batch, payee, latest item from the intent's latest payout reconciliation else the result). `readReconcileWork`'s shape is unchanged because tests pin older logs reading exactly as phase 8 read them; `OpenRequest` only gains an optional `payee`, set for payouts.
-- The reconcile CLI re-reads each payout whose item isn't final: by item ID, or through its batch when the result named no item. It logs a poll reconciliation (ref the intent, `resultSeq` the executed result) only when the status changed, and checks again under the lock. A read failure, or an item from another batch or `sender_batch_id`, goes under "Needs attention" and exits 1. A payout that's still open doesn't change the exit code. Output: a `Re-read N payouts.` block with "Payout int_… to <email>: <STATUS>[, waiting for the payee to claim it]." "Nothing to reconcile." appears only when the log has no executed refunds and no executed payouts. Open payout requests show `payee <email>`, plus a payout hint line.
-- For T-010: `audit-reader.ts` reports a payout reconciliation as not readable ("which the reader doesn't show yet", marked `TODO(T-010)`), because `TrailParts`' reconciliation needs a non-null `refund` and the console schema requires it. T-010 should add the payout shape there and in `audit-cli.ts`'s `trailWords`.
-- For T-008: the webhook can reuse `reconciliationEntry` with `source: "webhook"` and `payout`. `readReconciliationState` ignores payout reconciliations, apart from adding their event IDs.
-
-## T-008 (done)
-
-- `webhook.ts` handles any event starting `PAYMENT.PAYOUTS-ITEM.` (`PAYOUT_ITEM_EVENTS`): zod-reads `resource.payout_item_id`, dedupes by event ID (before and under the lock), re-reads with `getPayoutItem`, and logs a webhook payout reconciliation ("Reconciled." / "Already reconciled."). `PAYMENT.PAYOUTSBATCH.*` falls through to "Event type not handled.". New signed fixture `apps/gate/webhooks/payout-item-succeeded.json` (event `WH-1RX43126GA4459612-8KW07451BL2186347`, item `8AELMXH8UB2P8`, batch `5UXD2E8A7EBQJ`, sender batch `int_3f9a1c7e5b2d4a6c8e0f1a2b`). Tests are in `webhook.test.ts`'s "PAYMENT.PAYOUTS-ITEM.*" block.
-- Gotcha: `readPayoutWork` now also returns `requested`, the set of intent IDs the log has a payout request for, whatever their result. The webhook's `payoutMatch` uses it: the ref is the item's `sender_batch_id` when that intent was requested and no executed result of it names another batch; `resultSeq` is the executed result naming the item's batch, else null. So a payout whose result is `unknown` gets a webhook reconciliation with ref set and `resultSeq` null. An item whose sender batch is missing, unknown, or whose batch differs from the executed result's is logged with a null ref.
-
-## T-009 (done)
-
-- A payout card's `params` is `{ kind: "payout", reference, note, payee_name }` (`CardParams` in `approval-cards.ts`). `paramsOf` now takes the deciding mandate as a third argument; `cardView` finds it with the new `mandateByHash` in `claims.ts` (which `decidingVerifiers` also uses). `payee_name` is null when that mandate isn't loaded or doesn't list the payee. `can_execute` was already true since T-006. Tests: the payout cases in `approvals-api.test.ts` (listening gate, `cardView` unit cases, ops key 401).
-- Gotcha: `reference` is `string | null` on the card: a stored payout intent with no reference shows null rather than an invented value (the gate can't make one, and the executor throws on it). T-011's console schema must accept null there.
-- For T-011: `apps/console/src/approval-schemas.ts` has `params` as a union of `kind` literals with no `payout`, so the console can't parse a payout card until T-011 adds it.
-
-## T-010 (done)
-
-- The audit reader describes payouts. `RowExecution` gains `payout: { batch_id, batch_status, item } | null` (executed only; a denied batch or refused payout is `failed` with `payout: null`). `TrailParts` `execution.result` gains `payout` (with `payee` and `amount` from the request, null if it cannot be read); `reconciliation` now has `refund: ... | null` and `payout: { batch_id, item_id, status, amount, payee } | null`. Row search also matches a payout's batch and item ID. `audit-cli.ts` `trailWords` covers payouts. Tests: `apps/gate/test/audit-reader-payouts.test.ts`; two exact-shape assertions in `audit-reader.test.ts` gained `payout: null`.
-- Gotcha: `requestsFor` (was `requestActionsFor`) now reads the request for every failed, dispute or payout result on a page, and the first request of each payout reconciliation's intent, to get the action, payee and amount.
-- For T-011: the reader gives rows `status.kind` and `execution.payout`, not words. The console must turn an executed payout into "Payout sent" and the item status into the words in requirements.md (`UNCLAIMED` "Waiting for the payee to claim it", and so on). `audit-schemas.ts` needs `payout` on the row execution and the result trail part, `payout` on the reconciliation part, and `refund` nullable there.
-- For the human: the `audit` CLI's new payout lines in `trailWords` have no test of their own (the existing CLI tests do not cover payout trails).
-
-## T-011 (done)
-
-- Console reads payouts. `approval-schemas.ts` gains the `payout` card params and `execution.payout` (camelCase `{ batchId, batchStatus, item }`, default null) on the approve answer and recent summaries. `audit-schemas.ts` gains `payout` on the row execution and the result trail part, `payout` on the reconciliation part, and `refund` there is now nullable. New client-safe `src/payout-words.ts` (`payoutStatusWords`, `payoutStatusInline`). The approval card shows Payee (name, with the email as a mono `code` line on `ParamRow`), Amount, Bill reference, Note and the payout line. The decisions list and decision page say "Payout sent" / "The payout was sent.", and have request, result and reconciliation lines. The gate's `CardExecution` (recent summaries) now carries `payout`. Tests: `apps/console/test/payouts-view.test.ts`, plus a recent-summary assertion in `apps/gate/test/approvals-api.test.ts`.
-- Gotcha: `approvingView` now takes the card's amount as a third argument. `ParamRow.code` is optional, so existing exact-row tests still match. The console's word for `payee.allowlisted` is now "Payee is on your list", the same as the gate's.
-
-## T-012 (done)
-
-- New `apps/gate/test/payouts-live.test.ts`: one scenario (`payASupplier`) runs the agent CLI on `ops-payouts.json` over a listening gate (test ops and approver keys), approves the one open card through `POST /approvals/:id`, closes the gate, then runs `runReconcile --pglite` on the same directory and checks the chain. Under `npm test` it runs on the fake sandbox and reconciles to `SUCCESS`. Under `LIVE=1` it sends one $1.00 payout with a fresh reference (`KDW-LIVE-<hex>`) and reconciles up to 10 times, 3 s apart, until the item is `UNCLAIMED` or `SUCCESS`. With `PAYPAL_LIVE_PAYEE_EMAIL` set, it adds that address to an in-memory copy of the ops mandate (`readMandate`). README gains "Pay a supplier", marks phase 12 done and drops the stale "payouts can't run yet" and "one principal" lines. CONTEXT.md's Payout, Bill reference, Execution outcome and Reconciliation entries now match what was built.
-- Gotcha: one PGlite directory can't be opened twice, so close the gate's handle before `runReconcile` opens the directory.
-
-## Validation
-
-- Live payout check (2026-10-25): PayPal's reused-batch refusal is HTTP 400 `USER_BUSINESS_ERROR` with the issue "Batch with given sender_batch_id already exists" (field `SENDER_BATCH_ID`), matching `error-400-duplicate-batch.json`. The sandbox does not replay a payout by `PayPal-Request-Id`: the same request again answers that same refusal, not the first batch. The live check now accepts either. In the gate a client retry after a lost 201 is therefore `unknown` (duplicate batch), never a second payout.
+- Chromium is preinstalled: run the harness as `UI_SHOTS_CHROMIUM=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npm run ui:shots ...` (the binary; `/opt/pw-browsers/chromium` doesn't exist). Never run `npx playwright install`.
+- `@playwright/test` 1.64.1 is already an exact root devDependency (f5a3569). Don't install or bump it.
+- Run `npm run build` before `npm run ui:shots`; it starts both apps with `next start`.
+- Tailwind v4 doesn't let a later class beat an earlier one: append layout classes only to a recipe, never padding, height, radius, gap or font size.
+- Keep the literal `className="overflow-x-auto..."` element directly around every `<table` (console-setup test).
