@@ -22,6 +22,8 @@ import { newId, storeMessage } from "./intake";
 import { DEFAULT_DAILY_RUN_CAP, overDailyCap } from "./limits";
 import { checkMessage } from "./messages";
 import type { RunQueue, SuppliedToken, SuppliedTokens } from "./queue";
+import { type SenderResult, senderEmail } from "./scenario-file";
+import { findScenario, loadScenario } from "./scenarios";
 
 // Resolve's HTTP API (ADR 0030): `POST /messages` stores a customer message and queues its run;
 // the thread readers return what the console's inbox shows. `POST /disputes` queues a dispute's
@@ -56,6 +58,26 @@ const DisputeIdSchema = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
 const DisputeRequestSchema = z.strictObject({ dispute_id: DisputeIdSchema });
 
 const NO_DATABASE = "Resolve has no database, so it can't take or show messages.";
+const STORE_FAILED = "Resolve couldn't store the message. Try again.";
+
+export const SCENARIO_BODY_LIMIT = "1kb";
+
+export const SCENARIO_MESSAGES = {
+  unknown: "There's no scenario with that ID.",
+  badBody: "Send JSON with mode, protected or baseline.",
+  protectedOnly: "This scenario runs in protected mode only.",
+} as const;
+
+// A token comes only from the gate's baseline launch (ADR 0044); it's held in memory, never stored.
+const ScenarioRequestSchema = z.strictObject({
+  mode: z.enum(["protected", "baseline"]),
+  paypal_token: z
+    .strictObject({
+      access_token: z.string().min(1).max(4096),
+      expires_at: z.int().positive(),
+    })
+    .optional(),
+});
 
 const message = (res: Response, status: number, text: string) => {
   res.status(status).json({ message: text });
@@ -196,7 +218,7 @@ export function createApp(deps: AppDeps) {
       });
     } catch (error) {
       deps.log?.(`A message couldn't be stored: ${error instanceof Error ? error.name : "error"}.`);
-      message(res, 500, "Resolve couldn't store the message. Try again.");
+      message(res, 500, STORE_FAILED);
       return;
     }
     if (capped) {
@@ -228,6 +250,82 @@ export function createApp(deps: AppDeps) {
   app.post("/messages", express.json({ limit: BODY_LIMIT }), async (req, res) => {
     await accept(res, req.body, "message");
   });
+
+  // A demo scenario (ADR 0043): its one message, sender from `seed_orders`, through `accept`.
+  // Unknown IDs are refused before the body is read; any body Resolve can't read, over 1 KB
+  // included, gets the one sentence.
+  const scenarioJson = express.json({ limit: SCENARIO_BODY_LIMIT });
+  app.post(
+    "/scenarios/:id",
+    (req, res, next) => {
+      if (findScenario(req.params.id) === null) message(res, 404, SCENARIO_MESSAGES.unknown);
+      else next();
+    },
+    (req, res, next) => {
+      scenarioJson(req, res, (error?: unknown) => {
+        if (error) message(res, 400, SCENARIO_MESSAGES.badBody);
+        else next();
+      });
+    },
+    async (req, res) => {
+      const scenario = findScenario(req.params.id);
+      if (scenario === null) {
+        message(res, 404, SCENARIO_MESSAGES.unknown);
+        return;
+      }
+      const body = ScenarioRequestSchema.safeParse(req.body);
+      if (!body.success || (body.data.mode === "protected" && body.data.paypal_token)) {
+        message(res, 400, SCENARIO_MESSAGES.badBody);
+        return;
+      }
+      const { mode, paypal_token } = body.data;
+      if (!scenario.modes.includes(mode)) {
+        message(res, 400, SCENARIO_MESSAGES.protectedOnly);
+        return;
+      }
+      if (mode === "baseline" && paypal_token === undefined && deps.canMintTokens === false) {
+        message(res, 400, BASELINE_REFUSALS.noToken);
+        return;
+      }
+      let loaded: ReturnType<typeof loadScenario>;
+      let sender: SenderResult;
+      try {
+        loaded = loadScenario(scenario.id);
+        if (loaded === null) throw new Error("a launcher scenario has no file");
+        sender = await senderEmail(db(), loaded.message.sender);
+      } catch (error) {
+        deps.log?.(
+          `A scenario couldn't be read: ${error instanceof Error ? error.name : "error"}.`,
+        );
+        message(res, 500, STORE_FAILED);
+        return;
+      }
+      if (!sender.ok) {
+        if (sender.unseeded === null) message(res, 500, STORE_FAILED);
+        else message(res, 409, `${sender.unseeded} isn't seeded. Reset the demo first.`);
+        return;
+      }
+      const { channel, subject, body: text } = loaded.message;
+      await accept(
+        res,
+        {
+          channel,
+          sender_email: sender.email,
+          ...(subject === undefined ? {} : { subject }),
+          body: text,
+          attachments: loaded.photos.map(({ contentType, data }) => ({
+            content_type: contentType,
+            data,
+          })),
+          mode,
+        },
+        "scenario",
+        paypal_token === undefined
+          ? undefined
+          : { accessToken: paypal_token.access_token, expiresAt: paypal_token.expires_at },
+      );
+    },
+  );
 
   app.post("/disputes", express.json({ limit: BODY_LIMIT }), async (req, res) => {
     const checked = DisputeRequestSchema.safeParse(req.body);

@@ -211,15 +211,15 @@ Notes:
 
 ## T-015: Resolve's scenario route
 
-Status: open
+Status: done
 Blocked by: T-012, T-014
 Tier: standard
 Slice: `POST /scenarios/:id` stores and queues one of the three demo scenarios, with its sender from `seed_orders` and its photo, in an allowed mode.
 Test seam: `POST /scenarios/:id` on `createApp`, with `seed_orders` rows inserted and a queue fake recording run IDs
 Acceptance:
-- [ ] Each scenario is stored and queued with the right sender and photos; all three scenario files load (a packaging test)
-- [ ] 404 unknown ID; 400 bad body, a token with protected mode, baseline for beats 4 and 5, and baseline without a token when `canMintTokens` is false; 409 for an unseeded order or buyer; 503 without a database (validation check 9)
-- [ ] Baseline under `scenarios` is accepted from this route; a supplied token is held for the new run; a capped run is stored `not_run`
+- [x] Each scenario is stored and queued with the right sender and photos; all three scenario files load (a packaging test)
+- [x] 404 unknown ID; 400 bad body, a token with protected mode, baseline for beats 4 and 5, and baseline without a token when `canMintTokens` is false; 409 for an unseeded order or buyer; 503 without a database (validation check 9)
+- [x] Baseline under `scenarios` is accepted from this route; a supplied token is held for the new run; a capped run is stored `not_run`
 Notes:
 - Item 15. Files: `apps/resolve-agent/src/{scenarios,app}.ts`, `apps/resolve-agent/test/scenarios.test.ts`.
 
