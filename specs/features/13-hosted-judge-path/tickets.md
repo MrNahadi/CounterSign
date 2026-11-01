@@ -90,20 +90,22 @@ Notes:
 
 ## T-007: The demo reset's core: checks, order check, replacement and clear
 
-Status: open
+Status: done
 Blocked by: T-001, T-002, T-003, T-004, T-005, T-006
 Tier: standard
 Slice: `resetDemo` refuses when it must, replaces the seeded orders that were touched, and only then clears the log and Resolve's tables, starting the new log with `demo.reset`.
 Test seam: `resetDemo(deps)` in `apps/gate/src/demo-reset.ts`, with PGlite, `test/fake-sandbox.ts`, an injected `reseed` and a test-moved clock
 Acceptance:
-- [ ] An empty database replaces all 30 and writes entry 1 `demo.reset` with `previous_head: null`; a seeded database with `COMPLETED`, untouched captures keeps all 30; `verifyLog` passes after
-- [ ] A refunded capture, a failed capture read, a missing row, the wrong buyer, and a capture named by an execution request (executed or failed) are each replaced in one run with a new run ID; an unreadable request replaces all 30; a dispute's evidence submission doesn't replace its order
-- [ ] A queued run, a running draft, an unanswered execution request from the last 10 minutes, an unreadable result, a reset under a minute ago, or a second reset in the process is refused 409 before any PayPal call; an older unanswered request doesn't block
-- [ ] A missing database, PayPal variable or vault token is refused 503, naming only variables
-- [ ] A seed failure, a seed `problem` or a reseed throw gives `complete: false`, `cleared: null` and `disputes: null`, with the log, tickets and runs untouched
-- [ ] `EXECUTION_WINDOW_MS > MAX_RAIL_CALLS_PER_EXECUTION × RAIL_WORST_CALL_MS`
+- [x] An empty database replaces all 30 and writes entry 1 `demo.reset` with `previous_head: null`; a seeded database with `COMPLETED`, untouched captures keeps all 30; `verifyLog` passes after
+- [x] A refunded capture, a failed capture read, a missing row, the wrong buyer, and a capture named by an execution request (executed or failed) are each replaced in one run with a new run ID; an unreadable request replaces all 30 (per ADR 0046: through `resetDemo` it's refused 409 `executing` by the busy check; the replace-all branch is tested on the exported `checkSeedOrders`); a dispute's evidence submission doesn't replace its order
+- [x] A queued run, a running draft, an unanswered execution request from the last 10 minutes, an unreadable result, a reset under a minute ago, or a second reset in the process is refused 409 before any PayPal call; an older unanswered request doesn't block
+- [x] A missing database, PayPal variable or vault token is refused 503, naming only variables
+- [x] A seed failure, a seed `problem` or a reseed throw gives `complete: false`, `cleared: null` and `disputes: null`, with the log, tickets and runs untouched
+- [x] `EXECUTION_WINDOW_MS > MAX_RAIL_CALLS_PER_EXECUTION × RAIL_WORST_CALL_MS`
 Notes:
 - Item 9, steps 1 to 7 without the in-lock "changed" check (T-008). Files: `apps/gate/src/demo-reset.ts`, `apps/gate/test/demo-reset.test.ts`.
+- ADR 0046 (answerer): an unreadable request can't reach the order check through the seam; see the acceptance note above.
+- Built ahead of T-008 because it was cheap: the in-lock busy check, `ResetRefused`, the `55P03` → `locksBusy` and other-error → `notCleared` mapping, and `RESET_MESSAGES.changed`. T-008 still owns their tests, the "changed" check, dispute sync, `RESET_MESSAGES.disputesUnread` and `demoResetSummary`.
 
 ## T-008: The reset inside the lock, dispute sync and the report
 
