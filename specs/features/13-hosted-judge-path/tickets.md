@@ -353,13 +353,13 @@ Notes:
 
 ## T-025: The live reset check
 
-Status: open
+Status: done
 Blocked by: T-008
 Tier: simple
 Slice: Under `LIVE=1`, three resets against the sandbox seed, keep and replace orders as specified and report their times.
 Test seam: `apps/gate/test/reset-live.test.ts` (skipped unless `LIVE=1` with the PayPal variables and both vault tokens)
 Acceptance:
-- [ ] Skipped without `LIVE=1`, so `npm test` stays offline
-- [ ] With the clock moved past the cooldown, the first reset replaces 30 and is complete, the second keeps 30, and after a $1.00 refund on `KIK-1013` the third replaces exactly it; each `took_ms` is logged with no secret (live check 1)
+- [x] Skipped without `LIVE=1`, so `npm test` stays offline
+- [x] With the clock moved past the cooldown, the first reset replaces 30 and is complete, the second keeps 30, and after a $1.00 refund on `KIK-1013` the third replaces exactly it; each `took_ms` is logged with no secret (live check 1)
 Notes:
 - Item 25. The live run itself is the human's. Files: `apps/gate/test/reset-live.test.ts`.
