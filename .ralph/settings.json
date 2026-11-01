@@ -39,7 +39,9 @@
       "Bash(npm run format)",
       "Bash(npm run db:generate)",
       "Bash(npx vitest run:*)",
-      "Bash(npx biome check:*)"
+      "Bash(npx biome check:*)",
+      "Bash(npm run ui:shots)",
+      "Bash(npm run ui:shots:*)"
     ],
     "deny": [
       "Bash(git reset:*)",
@@ -64,5 +66,8 @@
       "Read(./node_modules/**)",
       "Read(./apps/*/.next/**)"
     ]
+  },
+  "env": {
+    "UI_SHOTS_CHROMIUM": "/opt/pw-browsers/chromium-1243/chrome-linux64/chrome"
   }
 }
