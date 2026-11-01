@@ -329,7 +329,7 @@ Acceptance:
 - [ ] The test checks every invariant in item 23: types, paid plans, `autoDeployTrigger: off`, references, hostports, the URL each start-command prefix sets, each service's variables (no `PAYPAL_*` on Resolve), the disk, and no secret-looking value (validation check 11)
 - [ ] Changing a start-command prefix to the wrong variable, or adding a `free` plan, makes the test fail
 Notes:
-- Items 22 and 23. Run `npm install --save-exact --save-dev yaml@2.9.1` at the root (the planner couldn't install it). Files: `render.yaml`, `tests/render-blueprint.test.ts`, `package.json`, `package-lock.json`.
+- Items 22 and 23. `yaml` 2.9.1 is already installed by the conductor. Files: `render.yaml`, `tests/render-blueprint.test.ts`, `package.json`, `package-lock.json`.
 
 ## T-024: Hosting docs, the judge guide and the glossary
 
