@@ -5,6 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Countersign console",
+  icons: { icon: { url: "/icon.svg", type: "image/svg+xml" } },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

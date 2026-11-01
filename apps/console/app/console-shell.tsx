@@ -1,9 +1,9 @@
 import "server-only";
-import { ShieldCheck } from "lucide-react";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { approverKeyFromHeader, loadApprovals } from "../src/approval-routes";
 import { ConsoleNav } from "./console-nav";
+import { Logo } from "./logo";
 import { ThemeControl } from "./theme-control";
 
 // The app frame (DESIGN.md's layout model): the sidebar sits on the shell, and the page is one
@@ -33,12 +33,7 @@ export async function ConsoleShell({
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="flex shrink-0 flex-row items-center gap-2 px-4 pt-3 pb-1 md:w-(--sidebar-width) md:flex-col md:items-stretch md:gap-4 md:p-4">
         <div className="flex h-(--nav-item-height) items-center gap-2 px-3 text-body-sm font-semibold">
-          <ShieldCheck
-            size={16}
-            strokeWidth={1.5}
-            className="text-secondary-foreground"
-            aria-hidden="true"
-          />
+          <Logo height={16} className="shrink-0 text-primary-foreground" />
           {/* On a phone the sidebar is one row, so the name gives way to the links. */}
           <span className="sr-only md:not-sr-only">Countersign</span>
         </div>

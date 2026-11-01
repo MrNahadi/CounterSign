@@ -9,5 +9,6 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Approvals",
     start_url: "/approvals",
     display: "standalone",
+    icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }],
   };
 }
