@@ -326,6 +326,19 @@ export const ChainVerdictSchema = z.object({
 });
 export type ChainVerdict = z.infer<typeof ChainVerdictSchema>;
 
+// Money moved by "Attack it yourself" visitors: a total per currency, or unknown with why.
+export const VisitorMoneySchema = z.discriminatedUnion("known", [
+  z.object({
+    known: z.literal(true),
+    moved: z
+      .array(z.object({ currency: MoneySchema.shape.currency, count: Count, total: MoneySchema }))
+      .min(1)
+      .max(10),
+  }),
+  z.object({ known: z.literal(false), problem: Text }),
+]);
+export type VisitorMoney = z.infer<typeof VisitorMoneySchema>;
+
 // --- Requests ------------------------------------------------------------------------------
 
 export const EVIDENCE_FORMAT = "countersign-evidence-v1";

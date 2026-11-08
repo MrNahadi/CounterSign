@@ -28,6 +28,8 @@ import {
   type IntentDecision,
   IntentDecisionSchema,
   IntentIdSchema,
+  type VisitorMoney,
+  VisitorMoneySchema,
 } from "./audit-schemas";
 
 // The console's way to the gate's read-only audit API (ADR 0034), from server code only. Each
@@ -139,6 +141,14 @@ export async function loadEntries(
   const page = EntryQuerySchema.safeParse(query);
   if (!page.success) return badQuery;
   return getJson(deps, key, withQuery("/audit/entries", page.data), EntryPageSchema);
+}
+
+/** Money moved by "Attack it yourself" visitors, as the gate reads it from the audit log. */
+export async function loadVisitorMoney(
+  key: string,
+  deps: AuditDeps,
+): Promise<Answer<VisitorMoney>> {
+  return getJson(deps, key, "/audit/visitors", VisitorMoneySchema);
 }
 
 /** A fresh chain verdict. */

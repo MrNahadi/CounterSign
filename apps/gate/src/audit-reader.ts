@@ -13,6 +13,7 @@ import {
   desc,
   eq,
   readTicket,
+  readTicketOrigins,
   seedOrders,
   sql,
   type Ticket,
@@ -537,6 +538,94 @@ export async function readDecisionRows(
   const rows = older.slice(0, limit);
   const next = older.length > limit ? (rows.at(-1)?.seq ?? null) : null;
   return { rows, counts, next_before: next };
+}
+
+// --- Money moved by visitors ----------------------------------------------------------------
+
+/** The shop's currency, always listed so the counter reads $0.00 rather than nothing. */
+const COUNTER_CURRENCY: Money["currency"] = "USD";
+
+export const VISITOR_MONEY_PROBLEMS = {
+  unreadable: "An audit-log decision can't be read, so it can't be ruled out.",
+  noTicket: "A decision's ticket can't be found, so it can't be ruled out.",
+  unknownAnswer: "An answer to a visitor's step-up can't be read.",
+} as const;
+
+export type VisitorMoney =
+  | {
+      known: true;
+      // The USD total first, then any other currency with money in it.
+      moved: { currency: Money["currency"]; count: number; total: ShownMoney }[];
+    }
+  | { known: false; problem: string };
+
+// Whether a decision let money move, or may have: an allow, or an approved step-up, unless
+// carrying it out failed. An allow never yet requested counts too: the gate let it through.
+// Null when that can't be told (an answer to the step-up can't be read).
+function letMoneyMove(status: RowStatus | null): boolean | null {
+  if (status === null) return false;
+  switch (status.kind) {
+    case "executed":
+    case "pending":
+    case "not_executable":
+      return true;
+    case "unknown":
+      // An allow whose outcome is unknown may have moved money; a step-up whose answer can't be
+      // read has no execution, and can't be told either way.
+      return status.execution === null ? null : true;
+    case "failed":
+    case "open":
+    case "denied":
+    case "expired":
+      return false;
+    case "approved":
+      return status.execution.outcome !== "failed";
+  }
+}
+
+/**
+ * Money moved by visitors (brief §5 item 9), read from the audit log: the amount of every intent
+ * from an "Attack it yourself" ticket that the gate allowed, or that an approver approved, unless
+ * carrying it out failed. Each intent counts once. Fails closed: a decision that can't be read,
+ * or one that may have moved money and whose ticket can't be found, makes the total unknown
+ * rather than lower. A database that can't be read throws.
+ */
+export async function readVisitorMoney(db: Database, now: Date): Promise<VisitorMoney> {
+  const log = await loadLog(db, now);
+  if (log.decisions.some(({ parsed }) => !parsed.ok)) {
+    return { known: false, problem: VISITOR_MONEY_PROBLEMS.unreadable };
+  }
+  const origins = await readTicketOrigins(db, [...log.tickets.keys()]);
+  const totals = new Map<Money["currency"], { count: number; minor: number }>([
+    [COUNTER_CURRENCY, { count: 0, minor: 0 }],
+  ]);
+  const counted = new Set<string>();
+  for (const { row, parsed } of log.decisions) {
+    if (!parsed.ok) continue;
+    const { intent, intentId } = parsed.value.record;
+    if (intent === null || intentId === null || !intent.ticketId) continue;
+    const origin = origins.get(intent.ticketId);
+    if (origin === "console") continue;
+    const moved = letMoneyMove(statusOf(log, row.seq, parsed.value));
+    if (moved === false) continue;
+    if (origin === undefined) return { known: false, problem: VISITOR_MONEY_PROBLEMS.noTicket };
+    if (moved === null) return { known: false, problem: VISITOR_MONEY_PROBLEMS.unknownAnswer };
+    if (counted.has(intentId)) continue;
+    counted.add(intentId);
+    const total = totals.get(intent.amount.currency) ?? { count: 0, minor: 0 };
+    totals.set(intent.amount.currency, {
+      count: total.count + 1,
+      minor: total.minor + intent.amount.minor,
+    });
+  }
+  return {
+    known: true,
+    moved: [...totals].map(([currency, { count, minor }]) => ({
+      currency,
+      count,
+      total: shown({ minor, currency }),
+    })),
+  };
 }
 
 // --- One decision --------------------------------------------------------------------------

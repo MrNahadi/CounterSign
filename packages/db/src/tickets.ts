@@ -3,12 +3,14 @@
 // never overwritten.
 
 import { TimestampSchema } from "@countersign/mandate";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Database } from "./client";
 import {
   TICKET_CHANNELS,
+  TICKET_ORIGINS,
   type TicketChannel,
+  type TicketOrigin,
   type TicketRow,
   ticketAttachments,
   tickets,
@@ -30,6 +32,7 @@ export const TicketSchema = z.strictObject({
   receivedAt: TimestampSchema,
   simulated: z.boolean(),
   threadId: z.string().min(1).max(256).optional(),
+  origin: z.enum(TICKET_ORIGINS).optional(),
 });
 
 /** One message a customer sent, as the ticket store keeps it. */
@@ -45,6 +48,11 @@ export type Ticket = {
   simulated: boolean;
   /** The thread it belongs to (ADR 0030). Written as the ticket's own ID when left out. */
   threadId?: string;
+  /**
+   * Who sent it in: `visitor` for an "Attack it yourself" message, written as `console` when
+   * left out. Only `readTicketOrigins` reads it back.
+   */
+  origin?: TicketOrigin;
 };
 
 /** A stored ticket with its thread, as the thread readers return it. */
@@ -133,16 +141,39 @@ export const writeTicket = async (
   const parsed = TicketSchema.safeParse(input);
   if (!parsed.success)
     throw new InvalidTicketError(`Invalid ticket: ${describeIssue(parsed.error)}`);
-  const ticket: ThreadTicket = { ...parsed.data, threadId: parsed.data.threadId ?? parsed.data.id };
+  const { origin = "console", ...rest } = parsed.data;
+  const ticket: ThreadTicket = { ...rest, threadId: rest.threadId ?? rest.id };
   const inserted = await db
     .insert(tickets)
-    .values(ticket)
+    .values({ ...ticket, origin })
     .onConflictDoNothing({ target: tickets.id })
     .returning({ id: tickets.id });
   if (inserted.length > 0) return "written";
   const stored = await readStored(db, ticket.id);
-  if (stored && sameContents(stored, ticket)) return "unchanged";
+  const storedOrigin = (await readTicketOrigins(db, [ticket.id])).get(ticket.id);
+  if (stored && sameContents(stored, ticket) && storedOrigin === origin) return "unchanged";
   throw new TicketConflictError(ticket.id);
+};
+
+/**
+ * Each stored ticket's origin, by ID, for the IDs given. An ID with no ticket, or a stored origin
+ * that isn't one of `TICKET_ORIGINS`, is left out, so a caller can't mistake it for either.
+ */
+export const readTicketOrigins = async (
+  db: Database,
+  ids: readonly string[],
+): Promise<Map<string, TicketOrigin>> => {
+  const origins = new Map<string, TicketOrigin>();
+  if (ids.length === 0) return origins;
+  const rows = await db
+    .select({ id: tickets.id, origin: tickets.origin })
+    .from(tickets)
+    .where(inArray(tickets.id, [...new Set(ids)]));
+  for (const row of rows) {
+    const origin = z.enum(TICKET_ORIGINS).safeParse(row.origin);
+    if (origin.success) origins.set(row.id, origin.data);
+  }
+  return origins;
 };
 
 // Received times are ISO 8601 text with any offset, so they're ordered as instants, not as text.

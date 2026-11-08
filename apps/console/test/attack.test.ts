@@ -8,12 +8,20 @@ import {
   attackView,
   maskEmails,
   sendAttack,
+  visitorCounter,
 } from "../src/attack";
 import { attackRoute, loadAttack, MAX_ATTACK_BYTES } from "../src/attack-routes";
+import { loadVisitorMoney } from "../src/audit-routes";
 import { type DecisionDetail, DecisionDetailSchema } from "../src/audit-schemas";
 import { BAD_MESSAGE, MESSAGE_TOO_LARGE, RESOLVE_UNREACHABLE } from "../src/resolve-routes";
 import { type ThreadDetail, ThreadDetailSchema } from "../src/resolve-schemas";
-import { resetSessionLimits, SESSION_LIMITS } from "../src/session-limits";
+import {
+  limitSession,
+  resetSessionLimits,
+  SESSION_LIMIT_MESSAGES,
+  SESSION_LIMITS,
+  SESSION_WINDOW_MS,
+} from "../src/session-limits";
 
 // "Attack it yourself": the visitor's form, the masked view of what Resolve proposed and what the
 // gate read, `POST /api/attack` and `loadAttack`, with Resolve and the gate played by a fake fetch.
@@ -295,6 +303,21 @@ describe("attackView", () => {
     });
   });
 
+  it("says a run the daily run cap stopped didn't run, with the cap as its reason", () => {
+    // Past Resolve's cap the message is stored and its run is `not_run` with `daily_cap`.
+    const capped = attackView(
+      threadWith({ status: "not_run", outcome: "daily_cap", reply: null, finished_at: null }),
+      new Map(),
+    );
+    expect(capped).toMatchObject({
+      working: false,
+      proposals: [],
+      noProposal: ATTACK_COPY.notRun,
+      outcome: "Resolve didn't run: today's run limit is reached.",
+      reply: null,
+    });
+  });
+
   it("shows at most a fixed number of proposals", () => {
     const steps = Array.from({ length: ATTACK_MAX_PROPOSALS + 3 }, (_, i) => refundStep(i, null));
     const view = attackView(threadWith({ trace: { mode: "protected", steps } }), new Map());
@@ -350,7 +373,7 @@ describe("POST /api/attack", () => {
     expect(f.resolveCalls).toEqual([]);
   });
 
-  it("sends the message to Resolve in protected mode, with no key, and answers 202", async () => {
+  it("sends the message to Resolve in protected mode as a visitor's, with no key, and answers 202", async () => {
     const f = fakes({ resolve: ok });
     expect(
       await bodyOf(await attackRoute(post(JSON.stringify(attack)), { env, fetch: f.fetch })),
@@ -362,6 +385,7 @@ describe("POST /api/attack", () => {
       ...attack,
       attachments: [],
       mode: "protected",
+      origin: "visitor",
     });
     expect(JSON.stringify(call?.init?.headers)).not.toContain(KEY);
   });
@@ -372,11 +396,14 @@ describe("POST /api/attack", () => {
       JSON.stringify({ ...attack, mode: "baseline" }),
       JSON.stringify({ ...attack, thread_id: THREAD }),
       JSON.stringify({ ...attack, attachments: [] }),
+      JSON.stringify({ ...attack, origin: "console" }),
       JSON.stringify({ ...attack, sender_email: "nope" }),
       JSON.stringify({ ...attack, body: " " }),
       "not json",
     ];
     for (const body of bodies) {
+      // A slot is spent before the body is read, so each body gets a fresh session count.
+      resetSessionLimits();
       expect(await bodyOf(await attackRoute(post(body), { env, fetch: f.fetch }))).toEqual({
         status: 400,
         body: { message: BAD_MESSAGE },
@@ -390,17 +417,24 @@ describe("POST /api/attack", () => {
     expect(f.resolveCalls).toEqual([]);
   });
 
-  it("counts each attack against the session's run limit", async () => {
+  it("counts each attack against the session's own attack limit, apart from its runs", async () => {
     const f = fakes({ resolve: ok });
-    for (let i = 0; i < SESSION_LIMITS.run; i++) {
-      expect(
-        (await attackRoute(post(JSON.stringify(attack)), { env, fetch: f.fetch })).status,
-      ).toBe(202);
+    const deps = { env, fetch: f.fetch };
+    for (let i = 0; i < SESSION_LIMITS.attack; i++) {
+      expect((await attackRoute(post(JSON.stringify(attack)), deps)).status).toBe(202);
     }
-    expect((await attackRoute(post(JSON.stringify(attack)), { env, fetch: f.fetch })).status).toBe(
-      429,
-    );
-    expect(f.resolveCalls).toHaveLength(SESSION_LIMITS.run);
+    expect(await bodyOf(await attackRoute(post(JSON.stringify(attack)), deps))).toEqual({
+      status: 429,
+      body: { message: SESSION_LIMIT_MESSAGES.attack },
+    });
+    expect(f.resolveCalls).toHaveLength(SESSION_LIMITS.attack);
+    // The session's runs from the launcher and inbox are still all there.
+    expect(limitSession(post("{}"), "run")).toBeNull();
+    // Another session has its own attacks.
+    const other = `${APPROVER_COOKIE}=${encodeURIComponent(KEY)}; countersign_session=${"t".repeat(22)}`;
+    expect((await attackRoute(post(JSON.stringify(attack), other), deps)).status).toBe(202);
+    // The window passes, and the session may attack again.
+    expect(limitSession(post("{}"), "attack", Date.now() + SESSION_WINDOW_MS + 1)).toBeNull();
   });
 
   it("answers 502 when Resolve can't be reached", async () => {
@@ -512,5 +546,102 @@ describe("sendAttack", () => {
     expect(
       await sendAttack(request, { fetch: answering(new Response("junk", { status: 500 })) }),
     ).toEqual({ ok: false, message: RESOLVE_UNREACHABLE });
+  });
+});
+
+const usd = (minor: number, display: string) => ({
+  currency: "USD",
+  count: minor === 0 ? 0 : 1,
+  total: { minor, currency: "USD", display },
+});
+
+describe("visitorCounter", () => {
+  it("reads $0.00 in green when no visitor moved money", () => {
+    const view = visitorCounter({ ok: true, value: { known: true, moved: [usd(0, "$0.00")] } });
+    expect(view).toEqual({
+      value: "$0.00",
+      badge: { tone: "positive", label: ATTACK_COPY.counterHeldBadge },
+      line: ATTACK_COPY.counterLine,
+    });
+  });
+
+  it("shows money that moved, in each currency it moved in, in red", () => {
+    const moved = [
+      { ...usd(4100, "$41.00"), count: 2 },
+      {
+        currency: "KES",
+        count: 1,
+        total: { minor: 50000, currency: "KES", display: "KSh 500.00" },
+      },
+    ];
+    expect(visitorCounter({ ok: true, value: { known: true, moved } })).toEqual({
+      value: "$41.00 + KSh 500.00",
+      badge: { tone: "danger", label: ATTACK_COPY.counterMovedBadge },
+      line: ATTACK_COPY.counterMoved(3),
+    });
+    expect(ATTACK_COPY.counterMoved(1)).toBe("1 money action from an attack went through.");
+  });
+
+  it("never shows $0.00 when the total is unknown or can't be read", () => {
+    const unknown = visitorCounter({
+      ok: true,
+      value: { known: false, problem: "A decision can't be read." },
+    });
+    const unread = visitorCounter({ ok: false, message: "The gate can't be reached." });
+    expect(unknown).toEqual({
+      value: ATTACK_COPY.counterUnknown,
+      badge: { tone: "warning", label: ATTACK_COPY.counterUnsureBadge },
+      line: "A decision can't be read.",
+    });
+    expect(unread).toMatchObject({ value: ATTACK_COPY.counterUnread, badge: { tone: "warning" } });
+    expect(JSON.stringify([unknown, unread])).not.toContain("$0.00");
+  });
+
+  it("states the session's attack limit and the daily run cap", () => {
+    expect(ATTACK_COPY.limits).toBe(
+      `Each session can send ${SESSION_LIMITS.attack} attacks in any 10 minutes, and Resolve stops for the day at its daily run cap.`,
+    );
+  });
+});
+
+describe("loadVisitorMoney", () => {
+  it("reads the gate's total with the approver's key", async () => {
+    const answer = { known: true, moved: [usd(0, "$0.00")] };
+    const f = fakes({
+      resolve: () => new Response("no", { status: 500 }),
+      audit: (path) => (path === "/audit/visitors" ? Response.json(answer) : new Response("no")),
+    });
+    expect(await loadVisitorMoney(KEY, { env, fetch: f.fetch })).toEqual({
+      ok: true,
+      value: answer,
+    });
+    expect(new Headers(f.gateCalls[0]?.init?.headers).get("authorization")).toBe(`Bearer ${KEY}`);
+    expect(f.resolveCalls).toEqual([]);
+  });
+
+  it("passes on unknown, and treats junk or an empty total as unreachable", async () => {
+    const reading = async (body: unknown) =>
+      loadVisitorMoney(KEY, {
+        env,
+        fetch: fakes({ resolve: () => new Response(), audit: () => Response.json(body) }).fetch,
+      });
+    expect(await reading({ known: false, problem: "Can't tell." })).toEqual({
+      ok: true,
+      value: { known: false, problem: "Can't tell." },
+    });
+    for (const junk of [{ known: true, moved: [] }, { known: true }, { moved: 0 }, "$0.00"]) {
+      expect(await reading(junk)).toMatchObject({ ok: false, status: 502 });
+    }
+  });
+
+  it("answers 401 when the gate refuses the key", async () => {
+    const f = fakes({
+      resolve: () => new Response(),
+      audit: () => Response.json({ message: "No." }, { status: 401 }),
+    });
+    expect(await loadVisitorMoney(KEY, { env, fetch: f.fetch })).toMatchObject({
+      ok: false,
+      status: 401,
+    });
   });
 });

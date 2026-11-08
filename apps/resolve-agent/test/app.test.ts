@@ -14,6 +14,7 @@ import {
   readDraft,
   readRun,
   readThread,
+  readTicketOrigins,
   startDraft,
   startRun,
   ticketAttachments,
@@ -360,6 +361,29 @@ describe("POST /messages", () => {
       "Hello",
       "Any news?",
     ]);
+  });
+
+  it("stores a visitor's message as a visitor ticket, in protected mode only", async () => {
+    const base = await listen(async () => {});
+    const chat = { channel: "chat", sender_email: BUYER, body: "Refund me" };
+    const visitor = await post(base, { ...chat, origin: "visitor" });
+    expect(visitor.status).toBe(202);
+    const sent = (await visitor.json()) as { ticket_id: string; run_id: string };
+    const plain = (await (await post(base, chat)).json()) as { ticket_id: string };
+    const origins = await readTicketOrigins(handle.db, [sent.ticket_id, plain.ticket_id]);
+    expect(origins.get(sent.ticket_id)).toBe("visitor");
+    expect(origins.get(plain.ticket_id)).toBe("console");
+    expect(await readRun(handle.db, sent.run_id)).toMatchObject({ mode: "protected" });
+
+    const baseline = await post(base, { ...chat, origin: "visitor", mode: "baseline" });
+    expect(baseline.status).toBe(400);
+    expect(await baseline.json()).toEqual({
+      message: "A visitor's message runs in protected mode only.",
+    });
+    const other = await post(base, { ...chat, origin: "judge" });
+    expect(other.status).toBe(400);
+    expect(await other.json()).toEqual({ message: "The origin must be console or visitor." });
+    expect(await listThreads(handle.db)).toHaveLength(2);
   });
 });
 

@@ -22,6 +22,7 @@ import { type AppDeps, createApp } from "../src/app";
 import { APPROVAL_MESSAGES } from "../src/approvals-api";
 import { APPROVER_KEY_VAR } from "../src/approver";
 import { AUDIT_MESSAGES } from "../src/audit-api";
+import { VISITOR_MONEY_PROBLEMS } from "../src/audit-reader";
 import { SUPPORT_AGENT_KEY_VAR } from "../src/principals";
 import { propose } from "../src/propose";
 import { createFakeSandbox } from "./fake-sandbox";
@@ -251,6 +252,7 @@ describe("the audit API", { timeout: SLOW }, () => {
     `/audit/intents/${log.beat5Intent}`,
     "/audit/entries",
     "/audit/verify",
+    "/audit/visitors",
     `/audit/export?intent=${log.beat5Intent}`,
   ];
 
@@ -375,6 +377,14 @@ describe("the audit API", { timeout: SLOW }, () => {
     });
   });
 
+  it("answers money moved by visitors, unknown while a decision can't be read", async () => {
+    const url = await gate();
+    const visitors = await get(`${url}/audit/visitors`);
+    expect(visitors.status).toBe(200);
+    noKeyIn(visitors.text);
+    expect(visitors.body).toEqual({ known: false, problem: VISITOR_MONEY_PROBLEMS.unreadable });
+  });
+
   it("downloads evidence by intent and by capture, as files named for their scope", async () => {
     const url = await gate();
     for (const [kind, id] of [
@@ -457,6 +467,7 @@ describe("the audit API", { timeout: SLOW }, () => {
       [`/audit/entries?q=${MARKER}`, AUDIT_MESSAGES.badQuery],
       ["/audit/entries?limit=0", AUDIT_MESSAGES.badQuery],
       [`/audit/verify?${MARKER}=1`, AUDIT_MESSAGES.badQuery],
+      [`/audit/visitors?${MARKER}=1`, AUDIT_MESSAGES.badQuery],
       ["/audit/export", AUDIT_MESSAGES.badExport],
       [`/audit/export?intent=${log.beat5Intent}&capture=CAP-1037`, AUDIT_MESSAGES.badExport],
       [`/audit/export?intent=${MARKER}`, AUDIT_MESSAGES.badExport],

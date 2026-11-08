@@ -8,13 +8,15 @@ import {
 } from "./approval-routes";
 
 // Per-session limits (brief §8, ADR 0044). Signing in, by key or by pairing, also sets a random
-// session cookie; each session may start a few runs and resets in any ten minutes. The counts live
+// session cookie; each session may start a few runs, attacks and resets in any ten minutes, and
+// Resolve's daily run cap (ADR 0030) still bounds every run behind them. The counts live
 // in this process's memory, on the console's one instance. `approval-routes.ts` imports this file
 // and this file imports it back, so imported values are only read inside functions. Web Crypto
 // only, as `approval-routes.ts` stays plain Web APIs.
 
 export const SESSION_COOKIE = "countersign_session";
-export const SESSION_LIMITS = { run: 12, reset: 3 } as const;
+// `attack` is "Attack it yourself"'s own count, kept apart from the launcher's and inbox's runs.
+export const SESSION_LIMITS = { run: 12, reset: 3, attack: 6 } as const;
 export const SESSION_WINDOW_MS = 600_000;
 export const MAX_SESSIONS = 5_000;
 
@@ -23,6 +25,7 @@ export type SessionLimitKind = keyof typeof SESSION_LIMITS;
 export const SESSION_LIMIT_MESSAGES = {
   run: "This session has started a lot of runs. Try again in a few minutes.",
   reset: "This session has reset the demo a lot. Try again in a few minutes.",
+  attack: "This session has sent a lot of attacks. Try again in a few minutes.",
 } as const satisfies Record<SessionLimitKind, string>;
 
 const SessionIdSchema = z.string().regex(/^[A-Za-z0-9_-]{22}$/);
@@ -75,7 +78,7 @@ function prune(now: number): void {
     for (const kind of Object.keys(SESSION_LIMITS) as SessionLimitKind[]) {
       times[kind] = times[kind].filter((at) => now - at < SESSION_WINDOW_MS);
     }
-    if (times.run.length === 0 && times.reset.length === 0) sessions.delete(id);
+    if (Object.values(times).every((list) => list.length === 0)) sessions.delete(id);
   }
 }
 
@@ -92,7 +95,7 @@ export function limitSession(
   const id = sessionIdFrom(request);
   if (id === null) return refuse(401, APPROVAL_ROUTE_MESSAGES.signInAgain);
   prune(now);
-  const times = sessions.get(id) ?? { run: [], reset: [] };
+  const times = sessions.get(id) ?? { run: [], reset: [], attack: [] };
   if (times[kind].length >= SESSION_LIMITS[kind]) {
     return refuse(429, SESSION_LIMIT_MESSAGES[kind]);
   }

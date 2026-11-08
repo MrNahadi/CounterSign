@@ -227,13 +227,20 @@ export async function readLimited(request: Request, limit: number): Promise<stri
   return new TextDecoder().decode(bytes);
 }
 
+/**
+ * Sends one checked message to Resolve's `POST /messages`. `origin: "visitor"` marks an "Attack
+ * it yourself" message so the visitor counter can find it; only the attack route sets it, never
+ * the request body.
+ */
 export async function sendToResolve(
   input: unknown,
   deps: ResolveDeps,
+  origin?: "visitor",
 ): Promise<Answer<MessageAccepted>> {
   const message = MessageRequestSchema.safeParse(input);
   if (!message.success) return { ok: false, status: 400, message: BAD_MESSAGE };
-  const response = await callResolve(deps, "/messages", { json: JSON.stringify(message.data) });
+  const body = origin === undefined ? message.data : { ...message.data, origin };
+  const response = await callResolve(deps, "/messages", { json: JSON.stringify(body) });
   if (response?.status === 400) {
     const refusal = await readJson(response, ResolveMessageSchema);
     return refusal === null ? unreachable : { ok: false, status: 400, message: refusal.message };

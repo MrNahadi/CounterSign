@@ -113,6 +113,16 @@ const SCREENS: readonly Screen[] = [
     shell: true,
     scope: null,
   },
+  // "Attack it yourself": the form under the visitor counter, then a finished attack's thread.
+  { name: "attack", app: "console", path: "/attack", signedIn: true, shell: true, scope: null },
+  {
+    name: "attack-thread",
+    app: "console",
+    path: `/attack?thread=${FIXTURE_IDS.threadId}`,
+    signedIn: true,
+    shell: true,
+    scope: null,
+  },
   { name: "chat", app: "console", path: "/chat", signedIn: false, shell: false, scope: null },
   {
     name: "risk-desk",

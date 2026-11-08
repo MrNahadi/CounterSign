@@ -35,8 +35,9 @@ const json = (status: number, body: unknown): Response =>
 /** `POST /api/attack`: one visitor message, checked, then sent to Resolve in protected mode. */
 export function attackRoute(request: Request, deps: RouteDeps): Promise<Response> | Response {
   return withAttackSignIn(request, deps, async () => {
-    // Counted after the key is checked, before the body is read, as `POST /api/resolve/messages`.
-    const limited = limitSession(request, "run");
+    // Counted after the key is checked, before the body is read, as `POST /api/resolve/messages`,
+    // against the session's own attack count. Resolve's daily run cap still applies behind it.
+    const limited = limitSession(request, "attack");
     if (limited !== null) return limited;
     let text: string | null;
     try {
@@ -60,6 +61,7 @@ export function attackRoute(request: Request, deps: RouteDeps): Promise<Response
         body: attack.data.body,
       }),
       deps,
+      "visitor",
     );
   });
 }

@@ -6,6 +6,7 @@ import {
   DecisionRowsPageSchema,
   EntryPageSchema,
   IntentDecisionSchema,
+  VisitorMoneySchema,
 } from "../../apps/console/src/audit-schemas";
 import {
   DisputeListSchema,
@@ -29,6 +30,7 @@ describe("harness fixtures", () => {
     expect(IntentDecisionSchema.safeParse(fx.intent).success).toBe(true);
     expect(EntryPageSchema.safeParse(fx.entries).success).toBe(true);
     expect(ChainVerdictSchema.safeParse(fx.verify).success).toBe(true);
+    expect(VisitorMoneySchema.safeParse(fx.visitors).success).toBe(true);
     expect(ThreadListSchema.safeParse(fx.threads).success).toBe(true);
     expect(ThreadDetailSchema.safeParse(fx.thread[FIXTURE_IDS.threadId]).success).toBe(true);
     expect(DisputeListSchema.safeParse(fx.disputes).success).toBe(true);

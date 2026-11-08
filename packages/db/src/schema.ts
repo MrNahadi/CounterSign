@@ -83,13 +83,18 @@ export type NewSeedOrderRow = typeof seedOrders.$inferInsert;
 export const TICKET_CHANNELS = ["email", "chat"] as const;
 export type TicketChannel = (typeof TICKET_CHANNELS)[number];
 
+/** Who sent a ticket in: anyone using Resolve, or a visitor on "Attack it yourself". */
+export const TICKET_ORIGINS = ["console", "visitor"] as const;
+export type TicketOrigin = (typeof TICKET_ORIGINS)[number];
+
 /** One file a customer attached to a ticket. */
 export type TicketAttachment = { id: string; contentType: string };
 
 // The ticket store (ADR 0029): one row per message a customer sent. Written once through
 // `writeTicket`, never updated; the gate reads it by ID. `receivedAt` is ISO 8601 text that
 // passes the shared timestamp rule. `threadId` groups a conversation (ADR 0030): a thread's ID
-// is its first ticket's ID. Not hashed, not append-only, and no trigger.
+// is its first ticket's ID. `origin` marks a visitor's attack, so the visitor counter can find
+// it from the audit log. Not hashed, not append-only, and no trigger.
 export const tickets = pgTable(
   "tickets",
   {
@@ -103,9 +108,11 @@ export const tickets = pgTable(
     receivedAt: text("received_at").notNull(),
     simulated: boolean("simulated").notNull(),
     threadId: text("thread_id").notNull(),
+    origin: text("origin").notNull().default("console"),
   },
   (table) => [
     check("tickets_channel_check", sql`${table.channel} IN ('email', 'chat')`),
+    check("tickets_origin_check", sql`${table.origin} IN ('console', 'visitor')`),
     index("tickets_thread_id_idx").on(table.threadId),
   ],
 );

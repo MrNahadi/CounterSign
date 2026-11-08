@@ -112,7 +112,22 @@ describe("limitSession", () => {
     expect(SESSION_LIMIT_MESSAGES).toEqual({
       run: "This session has started a lot of runs. Try again in a few minutes.",
       reset: "This session has reset the demo a lot. Try again in a few minutes.",
+      attack: "This session has sent a lot of attacks. Try again in a few minutes.",
     });
+  });
+
+  it("allows 6 attacks in ten minutes, counted apart from runs and resets", () => {
+    for (let i = 0; i < 6; i += 1) {
+      expect(limitSession(signedIn(SESSION_A), "attack", NOW + i * 1000)).toBeNull();
+    }
+    expect(limitSession(signedIn(SESSION_A), "attack", NOW + 6_000)).toEqual({
+      ok: false,
+      status: 429,
+      message: SESSION_LIMIT_MESSAGES.attack,
+    });
+    expect(limitSession(signedIn(SESSION_A), "run", NOW + 6_000)).toBeNull();
+    expect(limitSession(signedIn(SESSION_A), "reset", NOW + 6_000)).toBeNull();
+    expect(limitSession(signedIn(SESSION_A), "attack", NOW + SESSION_WINDOW_MS)).toBeNull();
   });
 });
 

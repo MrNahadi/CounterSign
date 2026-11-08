@@ -30,6 +30,8 @@ const MessageSchema = z.strictObject({
     .max(MAX_ATTACHMENTS)
     .default([]),
   mode: z.enum(["protected", "baseline"]).default("protected"),
+  // `visitor` marks an "Attack it yourself" message, so the visitor counter can find it.
+  origin: z.enum(["console", "visitor"]).default("console"),
 });
 
 // One sentence per field, so a refusal names the problem and never echoes what was sent.
@@ -42,6 +44,7 @@ const FIELD_PROBLEMS: Record<string, string> = {
   body: `The message must be 1 to ${MAX_BODY_CHARS.toLocaleString("en-US")} characters.`,
   attachments: `A message can have up to ${MAX_ATTACHMENTS} photos, each with a content type and data.`,
   mode: "The mode must be protected or baseline.",
+  origin: "The origin must be console or visitor.",
 };
 
 export type ParsedMessage = { message: IncomingMessage; mode: RunMode };
@@ -112,6 +115,9 @@ export async function checkMessage(db: Database, input: unknown): Promise<Messag
     return refuse(FIELD_PROBLEMS[field] ?? "The message isn't valid.");
   }
   const data = parsed.data;
+  // A visitor only ever reaches the protected agent (ADR 0043).
+  if (data.origin === "visitor" && data.mode !== "protected")
+    return refuse("A visitor's message runs in protected mode only.");
 
   if (data.channel === "email") {
     if (data.sender_email === undefined)
@@ -156,6 +162,7 @@ export async function checkMessage(db: Database, input: unknown): Promise<Messag
         subject: data.subject ?? null,
         body: data.body,
         attachments,
+        ...(data.origin === "visitor" ? { origin: "visitor" as const } : {}),
       },
     },
   };

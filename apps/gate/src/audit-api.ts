@@ -1,6 +1,6 @@
 // The gate's read-only audit API (ADR 0034): decision rows, one decision with its claims vs
-// records and trail, raw entries, the chain verdict and the evidence file. Only the approver key
-// opens it, checked before anything is read. Query parameters and IDs are read with zod (strict),
+// records and trail, raw entries, the chain verdict, money moved by visitors and the evidence
+// file. Only the approver key opens it, checked before anything is read. Query parameters and IDs are read with zod (strict),
 // nothing is written, and no answer echoes the request or holds a key. No AI.
 
 import { auditLog, type Database, desc } from "@countersign/db";
@@ -17,6 +17,7 @@ import {
   readDecisionRows,
   readDecisionSeqByIntent,
   readEntries,
+  readVisitorMoney,
 } from "./audit-reader";
 import { exportEvidence } from "./evidence-export";
 
@@ -170,6 +171,16 @@ export function mountAudit(app: Express, deps: AuditDeps): void {
     read(async (db, req, res) => {
       if (!NoQuery.safeParse(req.query).success) return message(res, 400, AUDIT_MESSAGES.badQuery);
       res.json(await verifyView(db));
+    }),
+  );
+
+  // Money moved by "Attack it yourself" visitors, for the attack page's counter.
+  app.get(
+    `${AUDIT_PATH}/visitors`,
+    authenticate,
+    read(async (db, req, res) => {
+      if (!NoQuery.safeParse(req.query).success) return message(res, 400, AUDIT_MESSAGES.badQuery);
+      res.json(await readVisitorMoney(db, clock()));
     }),
   );
 

@@ -32,6 +32,7 @@ function gateReply(fx: Fixtures, path: string): Reply | null {
   if (path === "/audit/decisions") return json(200, fx.decisions);
   if (path === "/audit/entries") return json(200, fx.entries);
   if (path === "/audit/verify") return json(200, fx.verify);
+  if (path === "/audit/visitors") return json(200, fx.visitors);
   if (parts.length === 3 && parts[0] === "audit" && parts[1] === "decisions") {
     const detail = fx.decision[parts[2] ?? ""];
     return detail === undefined ? null : json(200, detail);

@@ -4,8 +4,15 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { APPROVAL_ROUTE_MESSAGES, approverKeyFromHeader } from "../../src/approval-routes";
-import { ATTACK_COPY, type AttackProposalView, type AttackView } from "../../src/attack";
+import {
+  ATTACK_COPY,
+  type AttackProposalView,
+  type AttackView,
+  type VisitorCounterView,
+  visitorCounter,
+} from "../../src/attack";
 import { loadAttack } from "../../src/attack-routes";
+import { loadVisitorMoney } from "../../src/audit-routes";
 import { button, CARD_TITLE, ICON, MONO, STROKE, SUB_LINE } from "../../src/controls";
 import { POLL_INTERVAL_MS } from "../../src/inbox-view";
 import { inboxAccess } from "../../src/resolve-routes";
@@ -18,11 +25,31 @@ import { AttackForm } from "./attack-form";
 
 // "Attack it yourself" (brief §6; ADR 0043): write any message from any sender, Resolve answers
 // it in protected mode, and the page shows what Resolve proposed, Countersign's decision, and the
-// message's claims beside the records, with the shared claims-vs-records tables. Read on the
-// server at each render; a working run re-renders it every 2 seconds. Emails are masked.
+// message's claims beside the records, with the shared claims-vs-records tables, under a counter
+// of money moved by visitors read from the audit log. Read on the server at each render; a
+// working run re-renders it every 2 seconds. Emails are masked.
 
 export const metadata: Metadata = { title: "Attack it yourself · Countersign console" };
 export const dynamic = "force-dynamic";
+
+// The counter of money moved by visitors, read from the audit log at each render.
+function VisitorCounter({ view }: { view: VisitorCounterView }) {
+  return (
+    <Card aria-labelledby="visitor-counter-title" aria-live="polite" gap="tight">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="visitor-counter-title" className={CARD_TITLE}>
+          {ATTACK_COPY.counterTitle}
+        </h2>
+        <Badge tone={view.badge.tone}>{view.badge.label}</Badge>
+      </div>
+      <p className="text-heading-5 font-semibold tracking-heading tabular-nums text-primary-foreground">
+        {view.value}
+      </p>
+      <p className={SUB_LINE}>{view.line}</p>
+      <p className={SUB_LINE}>{ATTACK_COPY.limits}</p>
+    </Card>
+  );
+}
 
 function Message({ view }: { view: AttackView }) {
   return (
@@ -129,9 +156,15 @@ export default async function AttackPage({ searchParams }: PageProps<"/attack">)
   if (access.state === "signed-out" || key === null) {
     return signIn(access.state === "signed-out" ? access.message : null);
   }
-  const loaded =
-    access.state === "open" && threadId !== null ? await loadAttack(key, threadId, deps) : null;
-  if (loaded !== null && !loaded.ok && loaded.status === 401) {
+  const open = access.state === "open";
+  const [loaded, moved] = await Promise.all([
+    open && threadId !== null ? loadAttack(key, threadId, deps) : null,
+    open ? loadVisitorMoney(key, deps) : null,
+  ]);
+  if (
+    (loaded !== null && !loaded.ok && loaded.status === 401) ||
+    (moved !== null && !moved.ok && moved.status === 401)
+  ) {
     return signIn(APPROVAL_ROUTE_MESSAGES.signInAgain);
   }
 
@@ -154,8 +187,9 @@ export default async function AttackPage({ searchParams }: PageProps<"/attack">)
             ) : null
           }
         />
-        <div className="mb-7">
+        <div className="mb-7 flex flex-col gap-5">
           <Notice>{ATTACK_COPY.simulated}</Notice>
+          {moved !== null ? <VisitorCounter view={visitorCounter(moved)} /> : null}
         </div>
         {access.state === "unreachable" ? (
           <Notice>{access.message}</Notice>

@@ -24,6 +24,8 @@ export type IncomingMessage = {
   subject: string | null;
   body: string;
   attachments: { contentType: string; bytes: Uint8Array }[];
+  /** `visitor` for an "Attack it yourself" message; left out, the ticket is `console`. */
+  origin?: "visitor";
 };
 
 export type StoredMessage = { ticketId: string; threadId: string; runId: string };
@@ -61,6 +63,7 @@ export async function storeMessage(
     receivedAt: at,
     simulated: true,
     threadId,
+    ...(message.origin === undefined ? {} : { origin: message.origin }),
   });
   const runId = newId("run");
   await createRun(db, {

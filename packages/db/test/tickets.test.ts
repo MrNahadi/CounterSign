@@ -12,6 +12,7 @@ import {
   migrationsFolder,
   openPgliteDirectory,
   readTicket,
+  readTicketOrigins,
   seedOrders,
   sql,
   type Ticket,
@@ -131,6 +132,36 @@ describe("the ticket store on a fresh in-memory PGlite", () => {
   it("never puts the refused input in the error message", async () => {
     const write = writeTicket(handle.db, ticket({ senderEmail: "secret-value-123" }));
     await expect(write).rejects.not.toThrow(/secret-value-123/);
+  });
+
+  it("writes a ticket as console unless it says visitor, and reads origins back by ID", async () => {
+    await writeTicket(handle.db, ticket());
+    await writeTicket(handle.db, ticket({ id: "tkt_visit", origin: "visitor" }));
+    const origins = await readTicketOrigins(handle.db, ["tkt_1013", "tkt_visit", "tkt_none"]);
+    expect([...origins.entries()].sort()).toEqual([
+      ["tkt_1013", "console"],
+      ["tkt_visit", "visitor"],
+    ]);
+    expect(await readTicketOrigins(handle.db, [])).toEqual(new Map());
+    // The ticket readers return the ticket as before; only the origin reader shows it.
+    expect(await readTicket(handle.db, "tkt_visit")).toEqual(ticket({ id: "tkt_visit" }));
+  });
+
+  it("refuses the same ID written again with another origin, and a rewrite with the same one", async () => {
+    await writeTicket(handle.db, ticket({ origin: "visitor" }));
+    expect(await writeTicket(handle.db, ticket({ origin: "visitor" }))).toBe("unchanged");
+    await expect(writeTicket(handle.db, ticket())).rejects.toBeInstanceOf(TicketConflictError);
+    await expect(
+      writeTicket(handle.db, ticket({ origin: "staff" as Ticket["origin"] })),
+    ).rejects.toBeInstanceOf(InvalidTicketError);
+  });
+
+  it("refuses an origin the database doesn't know", async () => {
+    const insert = handle.db.execute(
+      sql`INSERT INTO tickets (id, channel, body, attachments, received_at, simulated, thread_id, origin)
+          VALUES ('tkt_x', 'chat', 'hi', '[]', '2026-10-17T09:00:00.000Z', true, 'tkt_x', 'staff')`,
+    );
+    await expect(insert).rejects.toThrow();
   });
 });
 

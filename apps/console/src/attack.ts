@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { APPROVAL_ROUTE_MESSAGES } from "./approval-routes";
-import type { DecisionDetail } from "./audit-schemas";
+import type { DecisionDetail, VisitorMoney } from "./audit-schemas";
 import { CHANNEL_OPTIONS } from "./composer";
 import { type ClaimRowView, claimRow, type TraceRowView, traceRow } from "./decision-view";
 import {
@@ -24,6 +24,7 @@ import {
   type ThreadDetail,
   type ToolStep,
 } from "./resolve-schemas";
+import { SESSION_LIMITS, SESSION_WINDOW_MS } from "./session-limits";
 
 // "Attack it yourself" (brief §6, "a judge tries to break it"; ADR 0043): a visitor writes any
 // message from any sender address, Resolve answers it in protected mode, and the page shows what
@@ -52,6 +53,20 @@ export const ATTACK_COPY = {
   proposed: "What Resolve proposed",
   working: "Resolve is reading the message and checking the records",
   noProposal: "Resolve proposed no money action, so nothing reached Countersign. No money moved.",
+  notRun: "Resolve didn't run this message, so nothing reached Countersign. No money moved.",
+  counterTitle: "Money moved by visitors",
+  counterLine:
+    "Read from the audit log: every money action from an attack that Countersign allowed, or that an approver approved, unless PayPal refused it.",
+  counterMoved: (count: number) =>
+    count === 1
+      ? "1 money action from an attack went through."
+      : `${count} money actions from attacks went through.`,
+  counterUnknown: "Unknown",
+  counterUnread: "Can't be read",
+  counterHeldBadge: "Nothing moved",
+  counterMovedBadge: "Money moved",
+  counterUnsureBadge: "Not confirmed",
+  limits: `Each session can send ${SESSION_LIMITS.attack} attacks in any ${SESSION_WINDOW_MS / 60_000} minutes, and Resolve stops for the day at its daily run cap.`,
   recordsUnread: "The records for this decision couldn't be read.",
   noIntent: "Countersign denied it before it became an intent, so there are no records to show.",
   reply: "Resolve's reply",
@@ -302,7 +317,46 @@ export function attackView(
     status: statusBadge(run?.status ?? "queued"),
     outcome: run === undefined ? null : outcomeSentence(run.status, run.outcome),
     proposals,
-    noProposal: !working && proposals.length === 0 ? ATTACK_COPY.noProposal : null,
+    noProposal:
+      working || proposals.length > 0
+        ? null
+        : run?.status === "not_run"
+          ? ATTACK_COPY.notRun
+          : ATTACK_COPY.noProposal,
     reply: run?.status === "replied" && run.reply !== null ? maskEmails(run.reply) : null,
+  };
+}
+
+export type VisitorCounterView = {
+  value: string;
+  badge: { tone: "positive" | "danger" | "warning"; label: string };
+  line: string;
+};
+
+/**
+ * The counter of money moved by visitors, from the gate's audit-log read: the USD total always,
+ * then any other currency with money in it; green at zero. Unknown or unread says why, and never
+ * shows $0.00.
+ */
+export function visitorCounter(
+  answer: { ok: true; value: VisitorMoney } | { ok: false; message: string },
+): VisitorCounterView {
+  const unsure = { tone: "warning", label: ATTACK_COPY.counterUnsureBadge } as const;
+  if (!answer.ok) {
+    return { value: ATTACK_COPY.counterUnread, badge: unsure, line: answer.message };
+  }
+  if (!answer.value.known) {
+    return { value: ATTACK_COPY.counterUnknown, badge: unsure, line: answer.value.problem };
+  }
+  const moved = answer.value.moved;
+  const count = moved.reduce((sum, each) => sum + each.count, 0);
+  const shown = moved.filter((each, index) => index === 0 || each.count > 0);
+  return {
+    value: shown.map((each) => each.total.display).join(" + "),
+    badge:
+      count === 0
+        ? { tone: "positive", label: ATTACK_COPY.counterHeldBadge }
+        : { tone: "danger", label: ATTACK_COPY.counterMovedBadge },
+    line: count === 0 ? ATTACK_COPY.counterLine : ATTACK_COPY.counterMoved(count),
   };
 }

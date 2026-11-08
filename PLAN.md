@@ -23,7 +23,7 @@ Where requirements come from: `specs/brief.md` (§4 goals and honesty rules, §5
 ## C. Attack it yourself
 
 - [x] **C1. The page.** Console route `/attack`: sender, channel and message fields. A console server route posts to Resolve's `POST /messages`, and the page shows the proposal, verifier trace and decision with the existing claims-vs-records components. Graphite primitives from `apps/console/app/ui.tsx` only.
-- [ ] **C2. Limits and counter.** Visitor runs are rate-limited per session and capped per day, reusing phase 13's session limits and ADR 0030's daily run cap. A counter shows money moved by visitors, read from the audit log, and it should stay at $0.00. Add `/attack` to the screenshot harness.
+- [x] **C2. Limits and counter.** Visitor runs are rate-limited per session and capped per day, reusing phase 13's session limits and ADR 0030's daily run cap. A counter shows money moved by visitors, read from the audit log, and it should stay at $0.00. Add `/attack` to the screenshot harness.
 
 ## D. Risk desk (AG Grid sponsor prize)
 

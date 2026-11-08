@@ -8,6 +8,7 @@ import type {
   DecisionRowsPageSchema,
   EntryPageSchema,
   IntentDecisionSchema,
+  VisitorMoneySchema,
 } from "../../apps/console/src/audit-schemas";
 import type {
   DisputeListSchema,
@@ -27,6 +28,7 @@ export type Fixtures = {
   intent: z.input<typeof IntentDecisionSchema>;
   entries: z.input<typeof EntryPageSchema>;
   verify: z.input<typeof ChainVerdictSchema>;
+  visitors: z.input<typeof VisitorMoneySchema>;
   threads: z.input<typeof ThreadListSchema>;
   thread: Record<string, z.input<typeof ThreadDetailSchema>>;
   disputes: z.input<typeof DisputeListSchema>;
@@ -902,6 +904,8 @@ export function fixtures(now: Date): Fixtures {
     intent: { decision_seq: Number(FIXTURE_IDS.readableSeq) },
     entries,
     verify,
+    // The attack page's counter: no visitor's money action went through.
+    visitors: { known: true, moved: [{ currency: "USD", count: 0, total: usd(0) }] },
     threads,
     thread,
     disputes,
