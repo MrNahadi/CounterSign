@@ -110,6 +110,7 @@ export default async function StartPage() {
       <Page width="form">
         <PageHeader title={START_COPY.heading} description={START_COPY.line} />
         <Sections>
+          <Notice>{START_COPY.hosting}</Notice>
           <Guide />
           {rest}
         </Sections>

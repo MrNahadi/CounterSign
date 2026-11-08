@@ -77,6 +77,15 @@ describe("The start page's copy", () => {
     expect(START_COPY.phoneHeading).toBe("Open on your phone");
   });
 
+  it("says the demo runs on free hosting, wakes in about a minute, and what to do if unreachable", () => {
+    expect(START_COPY.hosting).toBe(
+      "This demo runs on free hosting, so its services sleep when nobody is using them. The first load after a quiet spell can take about a minute. If a page says a service isn't reachable, wait a minute and try again.",
+    );
+    // The note's advice matches the words the unreachable messages use.
+    expect(RESOLVE_UNREACHABLE).toContain("isn't reachable");
+    expect(APPROVAL_ROUTE_MESSAGES.unreachable).toContain("isn't reachable");
+  });
+
   it("pins the reset section and its dialog", () => {
     expect(START_COPY.reset).toEqual({
       heading: "Reset the demo",

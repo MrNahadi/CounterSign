@@ -11,6 +11,10 @@ export const START_COPY = {
   title: "Start here · Countersign console",
   heading: "Start here",
   line: "Countersign checks every money action an AI agent proposes against PayPal's records and your rules. The agent's words never approve a payment.",
+  // Render's free plan puts idle services to sleep (DECISIONS.md, 8 Nov). The console's calls to
+  // a sleeping gate or Resolve can time out before it wakes, so the note says what to do then.
+  hosting:
+    "This demo runs on free hosting, so its services sleep when nobody is using them. The first load after a quiet spell can take about a minute. If a page says a service isn't reachable, wait a minute and try again.",
   stepsHeading: "In about a minute",
   steps: [
     "Sign in with the approver key from the testing instructions.",

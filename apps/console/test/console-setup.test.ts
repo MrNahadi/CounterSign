@@ -84,10 +84,13 @@ describe("console setup", () => {
     const notice = page.indexOf("<Notice>{access.message}</Notice>");
     expect(unreachable).toBeGreaterThan(-1);
     expect(notice).toBeGreaterThan(unreachable);
-    // The notice comes before the sign-in and the signed-in parts, and the guide always renders.
+    // The notice comes before the sign-in and the signed-in parts. The free-hosting note and the
+    // guide always render, the note first, whether or not the gate is awake (F4).
     expect(notice).toBeLessThan(page.indexOf("<SignIn"));
     expect(notice).toBeLessThan(page.indexOf("<ScenarioCard"));
-    expect(page).toMatch(/<Sections>\s*<Guide \/>\s*\{rest\}\s*<\/Sections>/);
+    expect(page).toMatch(
+      /<Sections>\s*<Notice>\{START_COPY\.hosting\}<\/Notice>\s*<Guide \/>\s*\{rest\}\s*<\/Sections>/,
+    );
   });
 
   it("shares Open on your phone between the start page and the approvals board", () => {
