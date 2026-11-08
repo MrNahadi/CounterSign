@@ -4,9 +4,9 @@
 
 **Agents can draft any payment. Only your rules can sign it.**
 
-A money firewall for AI agents that hold PayPal and M-Pesa powers.
+A money firewall for AI agents that hold PayPal powers.
 
-[How it works](#how-it-works) · [Quick start](#quick-start) · [Try a decision](#try-a-decision) · [Project status](#project-status) · [Repository layout](#repository-layout)
+[How it works](#how-it-works) · [For judges](#for-judges) · [Quick start](#quick-start) · [Try a decision](#try-a-decision) · [Project status](#project-status) · [Repository layout](#repository-layout)
 
 </div>
 
@@ -16,7 +16,7 @@ A money firewall for AI agents that hold PayPal and M-Pesa powers.
 
 Small merchants want an AI agent to handle support, refunds included. They also say, reasonably, *"I can't let a bot touch my money."*
 
-Countersign sits between the agent and the payment rails. The agent can propose any money action: a refund, a payout, accepting a dispute, an M-Pesa transfer. Before anything moves, Countersign checks the proposal against two things:
+Countersign sits between the agent and the payment rails. The agent can propose any money action: a refund, a payout, accepting a dispute, sending an invoice. Before anything moves, Countersign checks the proposal against two things:
 
 1. **The rails' own records.** PayPal captures and orders, carrier tracking, disputes, and Countersign's own audit log.
 2. **A mandate the merchant has signed.** A short, versioned set of rules, such as "refund lost parcels up to $80 on their own, and ask me first above that".
@@ -25,13 +25,13 @@ Every proposal comes back as **allow**, **step-up** (the merchant approves exact
 
 The agent's words never authorize money. A convincing message can't, and neither can an instruction hidden in an email. Only the records can.
 
-Countersign is being built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). It runs on sandbox credentials only.
+Countersign is an entry to the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). It runs on sandbox credentials only.
 
 ### Who it's for
 
 | Who | What they get |
 |---|---|
-| Small online merchants (1 to 10 people) on PayPal, and in Kenya also M-Pesa | An agent that resolves support without risking money, one-tap phone approval for exceptions, and rules written in plain English |
+| Small online merchants (1 to 10 people) on PayPal | An agent that resolves support without risking money, one-tap phone approval for exceptions, and rules written in plain English |
 | Developers on PayPal's MCP server or Agent Toolkit | A drop-in gate that keeps PayPal's tool names, so switching is one URL change |
 
 ## How it works
@@ -56,10 +56,73 @@ flowchart LR
 
 ### What it holds to
 
-- **No AI in the decision path.** Verifiers, rule evaluation, limits, idempotency, approvals and the audit log are plain code. A test fails if `@countersign/mandate`, `@countersign/verifiers` or `@countersign/ledger` imports an AI SDK.
+- **No AI in the decision path.** Verifiers, rule evaluation, limits, idempotency, approvals and the audit log are plain code. A test fails if `@countersign/mandate`, `verifiers`, `ledger`, `db`, `rail-paypal`, `carrier-mock` or `seed` depends on or imports an AI SDK.
 - **Fail closed.** Only a matched allow rule whose requirements all passed can produce an allow. `unknown` counts as a failure.
 - **What you approve is what executes.** Approvals are single-use, bound to the intent hash, and expire as a deny.
 - **The agent never holds rail credentials.** Only Countersign does.
+
+## For judges
+
+[`docs/judge-guide.md`](docs/judge-guide.md) is the one-minute path: sign in to the console's start page with the approver key, run the attack email in baseline and then protected mode, run the stalled parcel and the damaged basket, and approve the held refund on your phone. The console URL, the approver key and the sandbox buyer login go in the Devpost testing instructions, never in this repo.
+
+Every console page needs the approver sign-in. These are the pages to look at:
+
+| Page | What it shows |
+|---|---|
+| `/` | The start page: the demo scenarios, a QR code that opens Approvals on your phone, and Reset |
+| `/inbox` and `/chat` | Resolve's support inbox and the customer's simulated chat, in protected or baseline mode |
+| `/approvals` | Held intents, one card each, approved or denied with one tap |
+| `/decisions` and `/audit` | Every decision with its claims against the records, and the hash-chained audit log |
+| `/attack` | Attack it yourself: write your own message to the support agent (see below) |
+| `/risk` | The Risk desk on audit-log data, with a refund-spike alert and an analyst (see below) |
+| `/mandate` | The mandate in force, and new rules written in plain English, replayed and signed (see below) |
+| `/disputes` | Dispute evidence drafts |
+
+### Attack it yourself
+
+`/attack` takes a sender, a channel (email or chat) and a message, and sends it to Resolve's agent in protected mode only: a visitor can never reach baseline. The page then shows the agent's proposal, the gate's decision and its reasons, and the same claims-vs-records and verifier-trace tables as a decision's page, with every email address masked.
+
+- Each session may send 6 attacks in any 10 minutes, and Resolve's daily run cap applies behind that.
+- A counter shows the money visitors have moved, added up from the audit log by the gate's `GET /audit/visitors`. It should read $0.00. When the log can't be read, it reads "Unknown" rather than zero.
+- Visitor tickets are marked in the ticket store (`tickets.origin`), and Resolve refuses a visitor's message outside protected mode.
+
+### Risk desk
+
+`/risk` reads up to 1,000 decisions from the audit log, page by page, and runs a fresh chain check. It shows money protected (the amounts denied, per currency), decisions by reason code, the chain status and a decisions grid. With `AG_STUDIO_LICENSE_KEY` set it renders an AG Studio report in the Graphite theme. Without the key it falls back to Graphite cards and AG Grid Community grids.
+
+- **Refund-spike alert.** Refund decisions in the last 24 hours against the 7 days before. It flags a spike at 5 or more refunds and 3 times the daily average, and reads "Not checked" unless all 8 days could be read.
+- **The analyst.** Ask a question in plain English. One Gemini structured-output call, with no tools, answers with a widget spec from a fixed allowlist: six fields, each one of a few fixed values (bars, a table or a total; grouped by reason, decision, action, day or agent; a count or an amount; a decision, action and period filter). The spec has no free text, numbers or IDs. The page builds the widget from its own audit-log rows and writes the title itself, so the model never supplies a number. It can't move money. Each session may ask 10 times, up to 200 a day.
+
+### Write rules in plain English
+
+`/mandate` shows the mandate in force in plain words. Below it, the merchant writes rules in plain English and Countersign takes them through four steps:
+
+1. **Compile.** One Gemini structured-output call, with no tools, writes only the limits and rules, plus a list of anything it couldn't express. Code fills in everything else (ID, principal, time zone, payees, version N+1 and the deny fallback) and checks the result with the gate's own mandate schema. A draft that fails the schema is refused.
+2. **Read back.** Code, not the model, writes the draft back in plain English, so the merchant can check that it says what they meant.
+3. **Diff and replay.** The page lists what changed against the version in force, then replays every logged decision through the gate's rule step under the draft, offline and with no AI, and lists the decisions it would flip, the looser ones first.
+4. **Sign.** Signing appends version N+1 and its hash to the audit log. It's idempotent, and refuses a draft made from an older version.
+
+The compiler runs only when a merchant writes rules. It never runs when a decision is made. A signed version doesn't go into force on the gate yet; that's the owner's call (`DECISIONS.md`, E2). Each session may compile 6 times, up to 100 a day.
+
+### The bench
+
+`bench/` holds the cases that score Countersign against the brief's goals: 60 attack cases in families A1 to A7, A11 and A12, 45 genuine cases in the brief's fixed mix, and a 35-case hold-out slice written blind. Every case was labelled with its expected decision before any run. The set is frozen at the `bench-v1` tag, and any later edit to a case or the mandate makes `bench-v2`.
+
+```bash
+npm run bench -- --mode protected --runs 3       # or --mode baseline; --only "holdout/**" for the hold-out
+npm run bench:score                              # goals G1 to G4, written into each results file and bench/README.md
+```
+
+The bench hasn't been run yet: it needs sandbox credentials and a Gemini tier that can carry it. Until it runs, `bench/README.md` says "No results yet", and this README quotes no bench numbers. A8 to A10 and the genuine M-Pesa slice were cut with the M-Pesa rail and are reported as not run. See [`bench/README.md`](bench/README.md) for how each goal is scored.
+
+### Smoke test
+
+```bash
+npm run smoke                                                               # against npm run dev
+npm run smoke -- --gate <url> --resolve <url> --console <url> --storefront <url>
+```
+
+It checks the gate's and Resolve's `/health`, the console's start page and the storefront's home, prints one line per check, and exits 0 when all pass, 1 if any fails and 2 on bad arguments.
 
 ## Quick start
 
@@ -135,8 +198,8 @@ environment variables. `.env.example` lists the names:
 | PayPal sandbox | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BASE_URL` |
 | Seed buyers | `PAYPAL_SEED_VAULT_TOKEN` (buyer A) and `PAYPAL_SEED_VAULT_TOKEN_B` (buyer B), vault tokens for two different sandbox buyer accounts. Only `npm run seed` needs them |
 | Gemini | `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.5-flash-lite`) |
-| Daraja sandbox | `DARAJA_CONSUMER_KEY`, `DARAJA_CONSUMER_SECRET`, `DARAJA_BASE_URL` and the shortcode settings |
-| AG Studio | `AG_STUDIO_LICENSE_KEY` |
+| Daraja sandbox | `DARAJA_CONSUMER_KEY`, `DARAJA_CONSUMER_SECRET`, `DARAJA_BASE_URL` and the shortcode settings. Spike S6 only: the M-Pesa rail was cut |
+| AG Studio | `AG_STUDIO_LICENSE_KEY`. Optional: without it, `/risk` uses AG Grid Community |
 | Audit log | `DATABASE_URL`, a Postgres connection string. Optional: without it the CLIs use a local folder, `.countersign/pglite` |
 
 Copy `.env.example` to `.env.local` and fill in your own sandbox values. Never commit real ones.
@@ -188,7 +251,7 @@ Names only; set the values in `.env.local`.
 
 Every message is simulated and every person in it is illustrative, as is Kikapu Studio. Carrier tracking comes from a mock. In baseline mode the PayPal calls are real sandbox calls: a refund there moves sandbox money, and nothing checks it first.
 
-The only AI role in this phase is Resolve's agent. The gate, the mandate evaluator, the verifiers and the audit log use no AI.
+Gemini plays four roles in Countersign, all outside the decision path: Resolve's agent, the dispute notes, the Risk desk analyst and the mandate compiler. The gate, the mandate evaluator, the verifiers, the limits, approvals and the audit log use no AI, and `tests/no-ai-in-decision-path.test.ts` fails if a package that decides or records imports an AI SDK.
 
 ## Try a decision
 
@@ -451,7 +514,7 @@ npm run agent -- apps/gate/proposals/guarded-actions.json --json
 npm run agent -- apps/gate/proposals/guarded-actions.json --url http://127.0.0.1:8787/mcp
 ```
 
-`npm run agent` is a stand-in agent until Resolve exists. It writes each proposal's simulated ticket to the store, connects with the principal key, calls each proposal's tool and prints the agent response. It proposes as the file's `principal`, so it needs only that principal's key: `COUNTERSIGN_SUPPORT_AGENT_KEY` or `COUNTERSIGN_OPS_AGENT_KEY`. It exits 0 when every decision matched `expect`, 1 when one differed, and 2 when it can't run (a missing variable, an unreadable file, the gate unreachable or answering 401).
+`npm run agent` is a stand-in agent that runs a file, with no AI. It writes each proposal's simulated ticket to the store, connects with the principal key, calls each proposal's tool and prints the agent response. It proposes as the file's `principal`, so it needs only that principal's key: `COUNTERSIGN_SUPPORT_AGENT_KEY` or `COUNTERSIGN_OPS_AGENT_KEY`. It exits 0 when every decision matched `expect`, 1 when one differed, and 2 when it can't run (a missing variable, an unreadable file, the gate unreachable or answering 401).
 
 ### Tools
 
@@ -488,7 +551,7 @@ The tickets in `guarded-actions.json` and the proposal files are simulated, and 
 
 ## Project status
 
-Countersign is mid-build. The roadmap runs from 16 October to submission on 11 November 2026. Each phase is one user-visible feature on its own branch.
+The build is complete for submission on 11 November 2026. On 8 November, `npm run typecheck`, `npm run lint`, `npm test` (2,742 tests passed, 21 skipped: the skipped ones are `LIVE=1` sandbox checks), `npm run build` and `npm run ui:shots` (80 screenshots, 0 failures) all passed. What's left is live runs that need credentials or a deployment, the video and the Devpost submission; the owner does those.
 
 | Phase | Feature | Status |
 |---|---|---|
@@ -496,17 +559,22 @@ Countersign is mid-build. The roadmap runs from 16 October to submission on 11 N
 | 2 | Integration spikes S1 to S9 | Mostly done; see below |
 | 3 | Decide a refund from records: mandate schema, evaluator, PayPal verifiers, decide CLI | Done |
 | 4 | Tamper-evident audit log and `ledger verify` | Done |
-| 5 | Kikapu storefront and seed | Next |
+| 5 | Kikapu storefront and seed | Done; the 30-order seed has run on the sandbox. A storefront checkout in a browser hasn't been checked yet |
 | 6 | Live refund execution: `npm run propose` and `npm run reconcile` | Done |
 | 7 | The gate over MCP: principal keys, guarded and read-only tools, `npm run agent` | Done |
 | 8 | Resolve in protected and baseline modes: the inbox, the simulated chat and `npm run resolve` | Done; live Gemini and PayPal checks (`LIVE=1`) have not been run |
-| 9 | Phone step-up approvals: the approval API, the `/approvals` page with a QR code, `npm run approvals` | Done; live checks (`LIVE=1`) have not been run |
+| 9 | Phone step-up approvals: the approval API, the `/approvals` page with a QR code, `npm run approvals` | Done; live invoice checks passed, the rest (`LIVE=1`) have not been run |
 | 10 | Claims vs records and the audit console: `/decisions`, `/audit`, evidence export, `npm run audit` | Done; checks against real sandbox data are manual |
-| 11 | Dispute evidence: the dispute webhook, `npm run disputes`, the evidence PDF, the drafter, `/disputes` | Done; live checks (`LIVE=1`) have not been run |
-| 12 | Supplier payouts: the ops agent, the payee list, payout cards, payout reconciliation | Done; live checks (`LIVE=1`) have not been run |
-| 13 | The hosted judge path | Planned |
-| 14 to 18 | Bench, "Attack it yourself", the AG Studio Risk desk, the mandate compiler, the M-Pesa rail | Planned |
-| 19 to 20 | Smoke tests, monitoring and submission | Planned |
+| 11 | Dispute evidence: the dispute webhook, `npm run disputes`, the evidence PDF, the drafter, `/disputes` | Done; the full submission check (`LIVE=1`) has not been run |
+| 12 | Supplier payouts: the ops agent, the payee list, payout cards, payout reconciliation | Done; both `LIVE=1` payout checks passed on the sandbox |
+| 13 | The hosted judge path: start page, demo reset, session limits, Render Blueprint (`render.yaml`, [`docs/hosting.md`](docs/hosting.md)) | Built and tested as config; not deployed yet |
+| 13a | Graphite at comfortable density on every screen | Done |
+| A | Smoke test, `npm run smoke` | Done; not yet run against live servers |
+| B | Bench v1: 60 attack, 45 genuine and 35 hold-out cases, runner and scorer, frozen at `bench-v1` | Done; not run yet (needs credentials and a Gemini tier that can carry it) |
+| C | Attack it yourself, `/attack`, with per-session limits and the visitor money counter | Done; tested with a fake Resolve and gate |
+| D | Risk desk, `/risk`: money protected, reasons, chain status, the spike alert and the analyst | Done; the AG Studio view and the analyst haven't run with a real key or real Gemini |
+| E | Mandate compiler, `/mandate`: compile, read back, diff, replay and sign | Done; tested with a fake Gemini. A signed version doesn't go into force on the gate yet |
+| Cut | The M-Pesa rail, with bench families A8 to A10 and the genuine M-Pesa slice | Cut on 8 November; reported as not run |
 
 ### Integration spikes
 
@@ -518,11 +586,11 @@ These were run by hand against live sandboxes on 16 October 2026. Findings are i
 | S2 Tracking | Passes. A tracker added through Orders v2 reads back from the order |
 | S4 Baseline agent | Passes. Gemini, wired straight to PayPal's MCP server, called `create_refund` at once with no checks |
 | S5 Gate skeleton | Passes. Agent to Countersign MCP to PayPal REST works for one tool |
-| S6 Daraja | Partly done. OAuth, B2C and Transaction Status work; the rest moves to phase 18 |
+| S6 Daraja | Partly done. OAuth, B2C and Transaction Status work. The M-Pesa rail was then cut |
 | S8 Gemini API | Passes. The tool loop, structured output and fail-closed response check work |
-| S9 AG Studio | Mostly passes. The Graphite theme and a custom widget render, and the analyst built a widget through a server route |
-| S3 Disputes | Built as `npm run disputes` and a `LIVE=1` check; not yet run against the sandbox |
-| S7 Hosting | Not started |
+| S9 AG Studio | Mostly passes. The Graphite theme and a custom widget render, and the analyst built a widget through a server route. It became the Risk desk, `/risk` |
+| S3 Disputes | Built as `npm run disputes` and a `LIVE=1` check. Reading disputes passed on the sandbox; the full submission hasn't run |
+| S7 Hosting | Built as a Render Blueprint (`render.yaml`); not deployed yet |
 
 ### Real and simulated
 
@@ -534,14 +602,18 @@ These were run by hand against live sandboxes on 16 October 2026. Findings are i
 | Disputes | Real sandbox disputes through `npm run disputes`. The tests' beat 7 webhook is a fixture with a made-up signature |
 | Payouts | Real sandbox payouts once a card is approved. The suppliers are illustrative, so their payouts stay unclaimed |
 | Kikapu Studio, Achieng, and every person and order in the fixtures | Illustrative |
-| M-Pesa | Partly real in spike S6; the rail itself is secondary and built last |
+| Bench cases | Every message is simulated and every person illustrative. The orders are the seeded sandbox orders. No bench numbers exist until the owner runs it |
+| `/attack` messages | Written by the visitor, sent to Resolve in protected mode, decided on the seeded sandbox records |
+| Risk desk | Real audit-log data. Its numbers come from code over that data, never from the analyst's model |
+| Mandate compiler | Gemini writes a draft. The schema check, the read-back, the diff, the replay and the signing are code |
+| M-Pesa | Cut. Only spike S6 touched the Daraja sandbox |
 
 ## Repository layout
 
 ```text
 apps/
   gate/                 The gate: MCP server, decisions, approvals, webhooks, dispute evidence and their CLIs
-  console/              Next.js merchant console and the AG Studio Risk desk spike
+  console/              Next.js merchant console: start page, inbox, approvals, decisions, audit, attack, Risk desk, mandate
   resolve-agent/        Gemini support-agent harness (protected and baseline modes)
   baseline-paypal-mcp/  PayPal's own MCP server, isolated, for baseline comparison only
   storefront/           Next.js Kikapu Studio shop
@@ -553,10 +625,13 @@ packages/
   db/                   The audit log, seed, ticket, run, evidence and draft tables, their migrations and the database clients
   rail-paypal/          The PayPal REST client: orders, refunds, disputes, invoices and webhooks
   carrier-mock/         The simulated carrier's shipment status
-  rail-mpesa/           Stub for an upcoming phase
+  rail-mpesa/           Stub; the M-Pesa rail was cut
+bench/                  Bench cases (attack, genuine, hold-out), the runner and the scorer
+tests/                  Repo-wide tests: no AI in the decision path, the Render Blueprint, the smoke test, the screenshot harness
 spikes/                 Integration spike scripts (S1, S4, S5, S6, S8, S9)
 specs/                  Brief, mission, tech stack, roadmap and feature specs
-docs/adr/               Architecture decision records 0001 to 0038
+docs/                   Judge guide, hosting, seed buyers, spike findings
+docs/adr/               Architecture decision records 0001 to 0047
 Graphite Design/        The design system every screen follows
 ```
 
@@ -568,15 +643,18 @@ Graphite Design/        The design system every screen follows
 | Gate | Express 5 and the MCP TypeScript SDK (stateless Streamable HTTP) |
 | Schemas | zod 4 |
 | Web apps | Next.js 16 and React 19, with Tailwind v4 restricted to Graphite tokens |
-| Dashboards | AG Studio for the Risk desk |
+| Dashboards | AG Studio for the Risk desk, with AG Grid Community when there's no Studio key |
 | Product AI | Google Gemini through `@google/genai`, model set by `GEMINI_MODEL`. It drafts and investigates; it never decides |
 | Tests and lint | Vitest 4 and Biome |
 
 ## Further reading
 
 - [`specs/brief.md`](specs/brief.md): the project brief, the source of truth for intent
+- [`docs/judge-guide.md`](docs/judge-guide.md): the one-minute judge path
+- [`docs/hosting.md`](docs/hosting.md): hosting on Render
+- [`bench/README.md`](bench/README.md): the bench cases, the freeze and how each goal is scored
 - [`CONTEXT.md`](CONTEXT.md): the domain glossary (intent, mandate, verifier, step-up and the rest)
-- [`PLAN.md`](PLAN.md): the remaining build tasks
+- [`PLAN.md`](PLAN.md): the build's task list
 - [`docs/adr/`](docs/adr/): why each technical choice was made
 - [`Graphite Design/DESIGN.md`](Graphite%20Design/DESIGN.md): the design system
 

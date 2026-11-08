@@ -37,4 +37,4 @@ Where requirements come from: `specs/brief.md` (§4 goals and honesty rules, §5
 
 ## Z. Before submission
 
-- [ ] **Z1. Full check and README.** Run all four checks and `npm run ui:shots`. Update README "Project status" and the judge-facing sections for what was built. Leave video and Devpost to the owner.
+- [x] **Z1. Full check and README.** Run all four checks and `npm run ui:shots`. Update README "Project status" and the judge-facing sections for what was built. Leave video and Devpost to the owner.
