@@ -74,6 +74,16 @@ export async function inboxAccess(key: string | null, deps: ApprovalDeps): Promi
     : { state: "unreachable", message: checked.message };
 }
 
+// Resolve answers 401 to any call without its shared secret (PLAN.md F2). The console sends its
+// own `RESOLVE_SHARED_SECRET` on every call; without one it sends no header and Resolve refuses.
+export const RESOLVE_SECRET_HEADER = "x-countersign-resolve-secret";
+
+/** The shared-secret header for a call to Resolve, or none when `RESOLVE_SHARED_SECRET` is unset. */
+export function resolveSecretHeaders(env: ResolveEnv): Record<string, string> {
+  const secret = env.RESOLVE_SHARED_SECRET?.trim();
+  return secret ? { [RESOLVE_SECRET_HEADER]: secret } : {};
+}
+
 /** Resolve's base URL, or null when `RESOLVE_AGENT_URL` isn't an http(s) URL. */
 export function resolveAgentUrl(env: ResolveEnv): URL | null {
   const raw = env.RESOLVE_AGENT_URL?.trim() || DEFAULT_RESOLVE_AGENT_URL;
@@ -96,10 +106,11 @@ export async function callResolve(
   try {
     return await (deps.fetch ?? fetch)(url, {
       method: post === undefined ? "GET" : "POST",
-      headers:
-        post === undefined
-          ? { accept: "application/json" }
-          : { accept: "application/json", "content-type": "application/json" },
+      headers: {
+        accept: "application/json",
+        ...(post === undefined ? {} : { "content-type": "application/json" }),
+        ...resolveSecretHeaders(deps.env),
+      },
       ...(post === undefined ? {} : { body: post.json }),
       cache: "no-store",
       redirect: "error",

@@ -8,7 +8,9 @@ import { parse } from "yaml";
 // wrong start-command prefix or a paid plan is caught. Since the owner's decision of 8 Nov
 // (DECISIONS.md), the demo is hosted for free: every service on Render's free plan, no Render
 // database (Neon's connection string is typed in as DATABASE_URL), and no cron service (GitHub
-// Actions runs the scheduled jobs).
+// Actions runs the scheduled jobs). Free services can't take private-network traffic, so they
+// reach each other at typed-in public URLs, and Resolve takes calls only with a shared secret
+// generated on it and typed in on the gate and the console (PLAN.md F2).
 
 type EnvVar = {
   key: string;
@@ -56,7 +58,8 @@ const EXPECTED: Record<string, { type: string; keys: string[] }> = {
       "COUNTERSIGN_OPS_AGENT_KEY",
       "COUNTERSIGN_APPROVER_KEY",
       "COUNTERSIGN_DEMO_RESET",
-      "RESOLVE_AGENT_HOSTPORT",
+      "RESOLVE_AGENT_URL",
+      "RESOLVE_SHARED_SECRET",
     ],
   },
   [RESOLVE]: {
@@ -69,7 +72,8 @@ const EXPECTED: Record<string, { type: string; keys: string[] }> = {
       "RESOLVE_DAILY_RUN_CAP",
       "RESOLVE_BASELINE",
       "COUNTERSIGN_SUPPORT_AGENT_KEY",
-      "GATE_HOSTPORT",
+      "RESOLVE_SHARED_SECRET",
+      "GATE_URL",
     ],
   },
   [CONSOLE]: {
@@ -78,8 +82,9 @@ const EXPECTED: Record<string, { type: string; keys: string[] }> = {
       "NODE_VERSION",
       "STOREFRONT_URL",
       "CONSOLE_PUBLIC_URL",
-      "GATE_HOSTPORT",
-      "RESOLVE_AGENT_HOSTPORT",
+      "GATE_URL",
+      "RESOLVE_AGENT_URL",
+      "RESOLVE_SHARED_SECRET",
     ],
   },
   [STOREFRONT]: {
@@ -96,20 +101,25 @@ const HEALTH_CHECKS: Record<string, string> = {
   [STOREFRONT]: "/",
 };
 
-// The URL variables each start command sets, and the service whose hostport each one uses.
-const HOSTPORT_OWNER: Record<string, string> = {
-  GATE_HOSTPORT: GATE,
-  RESOLVE_AGENT_HOSTPORT: RESOLVE,
+// Free services can't reach each other privately (PLAN.md F2), so each one is given the others'
+// public URLs, typed in. These are the URL variables each service needs, all `sync: false`.
+const TYPED_URLS: Record<string, string[]> = {
+  [GATE]: ["RESOLVE_AGENT_URL"],
+  [RESOLVE]: ["GATE_URL"],
+  [CONSOLE]: ["GATE_URL", "RESOLVE_AGENT_URL"],
+  [STOREFRONT]: [],
 };
-const EXPECTED_PREFIXES: Record<string, Record<string, { hostport: string; suffix: string }>> = {
-  [GATE]: { RESOLVE_AGENT_URL: { hostport: "RESOLVE_AGENT_HOSTPORT", suffix: "" } },
-  [RESOLVE]: { GATE_MCP_URL: { hostport: "GATE_HOSTPORT", suffix: "/mcp" } },
-  [CONSOLE]: {
-    GATE_URL: { hostport: "GATE_HOSTPORT", suffix: "" },
-    RESOLVE_AGENT_URL: { hostport: "RESOLVE_AGENT_HOSTPORT", suffix: "" },
-  },
-  [STOREFRONT]: {},
+// The variables each start command sets. Only Resolve's: its MCP URL from the typed-in gate URL,
+// without a doubled slash when the owner types one at the end.
+const EXPECTED_PREFIXES: Record<string, string[]> = {
+  [GATE]: [],
+  [RESOLVE]: [`GATE_MCP_URL=\${GATE_URL%/}/mcp`],
+  [CONSOLE]: [],
+  [STOREFRONT]: [],
 };
+// Resolve's shared secret: generated on Resolve, copied by hand to the two services that call it.
+const SHARED_SECRET = "RESOLVE_SHARED_SECRET";
+const SECRET_CALLERS = [GATE, CONSOLE];
 
 const SECRET_PATTERN = /(sk|pk|AIza|EC|A21AA)[A-Za-z0-9_-]{10,}/;
 
@@ -188,30 +198,24 @@ function problems(blueprint: Blueprint): string[] {
       }
     }
 
-    // Hostports: each one a start command uses is declared here and points at the right service.
-    const used = [...service.startCommand.matchAll(/\$([A-Z_]+_HOSTPORT)\b/g)].map((m) => m[1]);
-    for (const name of used) {
-      const declared = service.envVars?.find((envVar) => envVar.key === name);
-      const owner = HOSTPORT_OWNER[name ?? ""];
-      if (declared?.fromService?.property !== "hostport" || declared.fromService.name !== owner) {
-        note(`${who} uses $${name} without declaring it from ${owner}`);
+    // No private-network addresses: a free service can't receive that traffic.
+    if (/HOSTPORT/.test(service.startCommand)) note(`${who} start command uses a hostport`);
+    for (const envVar of service.envVars ?? []) {
+      if (envVar.fromService?.property !== undefined) {
+        note(`${who} ${envVar.key} takes a ${envVar.fromService.property} from a service`);
+      }
+    }
+    // The other services' public URLs are typed in.
+    for (const key of TYPED_URLS[who] ?? []) {
+      const envVar = service.envVars?.find((candidate) => candidate.key === key);
+      if (envVar?.sync !== false || envVar.value !== undefined || envVar.fromService) {
+        note(`${who} ${key} is not typed in (sync: false)`);
       }
     }
 
-    // The URL each prefix sets is the one the code reads, from the service that serves it.
-    const prefixes = [
-      ...service.startCommand.matchAll(
-        /\b([A-Z][A-Z_]*)=http:\/\/\$([A-Z_]+_HOSTPORT)(\/mcp)?(?=\s)/g,
-      ),
-    ];
-    const wanted = EXPECTED_PREFIXES[service.name] ?? {};
-    const set = Object.fromEntries(prefixes.map((m) => [m[1], `${m[2]}${m[3] ?? ""}`]));
-    const want = Object.fromEntries(
-      Object.entries(wanted).map(([variable, { hostport, suffix }]) => [
-        variable,
-        `${hostport}${suffix}`,
-      ]),
-    );
+    // The assignments the start command makes before `npm`, exactly.
+    const set = (service.startCommand.split(/\bnpm\b/)[0] ?? "").split(/\s+/).filter(Boolean);
+    const want = EXPECTED_PREFIXES[who] ?? [];
     if (JSON.stringify(set) !== JSON.stringify(want)) {
       note(`${who} start command sets ${JSON.stringify(set)}, expected ${JSON.stringify(want)}`);
     }
@@ -265,9 +269,21 @@ function problems(blueprint: Blueprint): string[] {
     `${GATE}:COUNTERSIGN_SUPPORT_AGENT_KEY`,
     `${GATE}:COUNTERSIGN_OPS_AGENT_KEY`,
     `${GATE}:COUNTERSIGN_APPROVER_KEY`,
+    `${RESOLVE}:${SHARED_SECRET}`,
   ];
   if (JSON.stringify(generated.sort()) !== JSON.stringify(generatedWanted.sort())) {
-    note("the three Countersign keys are not generated on the gate alone");
+    note("the three keys are not generated on the gate, or the shared secret on Resolve");
+  }
+  // The shared secret: generated on Resolve, typed in on its two callers, and nowhere else.
+  const secretHolders = holders((key) => key === SHARED_SECRET).sort();
+  if (JSON.stringify(secretHolders) !== JSON.stringify([RESOLVE, ...SECRET_CALLERS].sort())) {
+    note(`${SHARED_SECRET} is on ${secretHolders.join(", ")}`);
+  }
+  for (const name of SECRET_CALLERS) {
+    const envVar = byName.get(name)?.envVars?.find((v) => v.key === SHARED_SECRET);
+    if (envVar?.sync !== false || envVar.generateValue === true || envVar.fromService) {
+      note(`${name} ${SHARED_SECRET} is not typed in (sync: false)`);
+    }
   }
 
   return found;
@@ -312,25 +328,29 @@ describe("render.yaml", () => {
   describe("fails when", () => {
     it("a start-command prefix sets the wrong variable", () => {
       const blueprint = clone();
-      const gate = service(blueprint, GATE);
-      gate.startCommand = gate.startCommand.replace("RESOLVE_AGENT_URL=", "RESOLVE_URL=");
-      expect(problems(blueprint)).not.toEqual([]);
-    });
-
-    it("the console's prefix uses the other service's hostport", () => {
-      const blueprint = clone();
-      const console_ = service(blueprint, CONSOLE);
-      console_.startCommand = console_.startCommand.replace(
-        "GATE_URL=http://$GATE_HOSTPORT",
-        "GATE_URL=http://$RESOLVE_AGENT_HOSTPORT",
-      );
+      const resolve = service(blueprint, RESOLVE);
+      resolve.startCommand = resolve.startCommand.replace("GATE_MCP_URL=", "GATE_URL_MCP=");
       expect(problems(blueprint)).not.toEqual([]);
     });
 
     it("Resolve's MCP URL loses its /mcp path", () => {
       const blueprint = clone();
       const resolve = service(blueprint, RESOLVE);
-      resolve.startCommand = resolve.startCommand.replace("$GATE_HOSTPORT/mcp", "$GATE_HOSTPORT");
+      resolve.startCommand = resolve.startCommand.replace("%/}/mcp", "%/}");
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("Resolve's MCP URL is built from Resolve's own address", () => {
+      const blueprint = clone();
+      const resolve = service(blueprint, RESOLVE);
+      resolve.startCommand = resolve.startCommand.replace("GATE_URL%", "RESOLVE_AGENT_URL%");
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("the console goes back to a private-network prefix", () => {
+      const blueprint = clone();
+      const console_ = service(blueprint, CONSOLE);
+      console_.startCommand = `GATE_URL=http://$GATE_HOSTPORT ${console_.startCommand}`;
       expect(problems(blueprint)).not.toEqual([]);
     });
 
@@ -379,18 +399,73 @@ describe("render.yaml", () => {
       expect(problems(blueprint)).not.toEqual([]);
     });
 
-    it("a hostport is used but not declared", () => {
+    it("a typed-in URL is missing", () => {
       const blueprint = clone();
       const console_ = service(blueprint, CONSOLE);
-      console_.envVars = console_.envVars.filter((envVar) => envVar.key !== "GATE_HOSTPORT");
+      console_.envVars = console_.envVars.filter((envVar) => envVar.key !== "GATE_URL");
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("a service URL comes from a private hostport", () => {
+      const blueprint = clone();
+      const envVar = service(blueprint, GATE).envVars.find((v) => v.key === "RESOLVE_AGENT_URL");
+      if (envVar) {
+        delete envVar.sync;
+        envVar.fromService = { type: "web", name: RESOLVE, property: "hostport" };
+      }
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("a service URL is written into the file", () => {
+      const blueprint = clone();
+      const envVar = service(blueprint, RESOLVE).envVars.find((v) => v.key === "GATE_URL");
+      if (envVar) {
+        delete envVar.sync;
+        envVar.value = "https://countersign-gate.onrender.com";
+      }
       expect(problems(blueprint)).not.toEqual([]);
     });
 
     it("a reference names a service that isn't declared", () => {
       const blueprint = clone();
-      const gate = service(blueprint, GATE);
-      const reference = gate.envVars.find((envVar) => envVar.key === "RESOLVE_AGENT_HOSTPORT");
+      const resolve = service(blueprint, RESOLVE);
+      const reference = resolve.envVars.find((v) => v.key === "COUNTERSIGN_SUPPORT_AGENT_KEY");
       if (reference?.fromService) reference.fromService.name = "countersign-missing";
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("Resolve's shared secret isn't generated", () => {
+      const blueprint = clone();
+      const resolve = service(blueprint, RESOLVE);
+      const envVar = resolve.envVars.find((v) => v.key === "RESOLVE_SHARED_SECRET");
+      if (envVar) {
+        delete envVar.generateValue;
+        envVar.sync = false;
+      }
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("a caller loses the shared secret", () => {
+      const blueprint = clone();
+      const gate = service(blueprint, GATE);
+      gate.envVars = gate.envVars.filter((envVar) => envVar.key !== "RESOLVE_SHARED_SECRET");
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("a caller generates its own shared secret", () => {
+      const blueprint = clone();
+      const console_ = service(blueprint, CONSOLE);
+      const envVar = console_.envVars.find((v) => v.key === "RESOLVE_SHARED_SECRET");
+      if (envVar) {
+        delete envVar.sync;
+        envVar.generateValue = true;
+      }
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("the shared secret reaches the storefront", () => {
+      const blueprint = clone();
+      service(blueprint, STOREFRONT).envVars.push({ key: "RESOLVE_SHARED_SECRET", sync: false });
       expect(problems(blueprint)).not.toEqual([]);
     });
 

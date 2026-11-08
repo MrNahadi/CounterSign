@@ -244,6 +244,7 @@ Names only; set the values in `.env.local`.
 | `COUNTERSIGN_SUPPORT_AGENT_KEY` | The agent's key to the gate (at least 32 characters). Protected mode only |
 | `GATE_MCP_URL` | Where the gate listens (default `http://127.0.0.1:8787/mcp`) |
 | `RESOLVE_AGENT_URL` | Where the console finds Resolve, read in server code only. The gate reads it too, for disputes |
+| `RESOLVE_SHARED_SECRET` | The secret every call to Resolve carries (at least 32 characters). Resolve answers 401 to anything but `/health` without it, and to everything when it's unset. Set the same value on Resolve, the gate and the console; `npm run dev` makes one per session if it's unset |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_BASE_URL` | Sandbox access; baseline mode mints a fresh token for each run |
 | `DATABASE_URL` | Postgres for tickets, runs and the audit log. Without it, a local PGlite folder |
 

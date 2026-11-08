@@ -1,4 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { createServer as createHttpServer } from "node:http";
 import { createRequire } from "node:module";
 import { createServer, type Server } from "node:net";
@@ -17,6 +18,9 @@ const env = {
   GATE_URL: `http://${host}:${ports.gate}`,
   GATE_MCP_URL: `http://${host}:${ports.gate}/mcp`,
   RESOLVE_AGENT_URL: `http://${host}:${ports.resolve}`,
+  // Resolve takes calls only with this secret (PLAN.md F2); one per dev session unless set.
+  RESOLVE_SHARED_SECRET:
+    process.env.RESOLVE_SHARED_SECRET?.trim() || randomBytes(32).toString("hex"),
   CONSOLE_PUBLIC_URL: `http://${host}:${ports.console}`,
   STOREFRONT_URL: `http://${host}:${ports.storefront}`,
 };

@@ -24,17 +24,22 @@ import { checkMessage } from "./messages";
 import type { RunQueue, SuppliedToken, SuppliedTokens } from "./queue";
 import { type SenderResult, senderEmail } from "./scenario-file";
 import { findScenario, loadScenario } from "./scenarios";
+import { requireSharedSecret } from "./shared-secret";
 
 // Resolve's HTTP API (ADR 0030): `POST /messages` stores a customer message and queues its run;
 // the thread readers return what the console's inbox shows. `POST /disputes` queues a dispute's
 // evidence draft on the same queue, and the dispute readers return its latest draft (ADR 0035,
-// 0037). Only the console's server routes, the gate's nudge and the CLI call it. Answers never
-// hold a key or token: runs' traces hold none (ADR 0014), and drafts hold none either.
+// 0037). Only the console's server routes and the gate (its nudge and baseline launch) call it,
+// each with the shared secret: every route but `/health` answers 401 without it, before any body
+// is read or anything stored (PLAN.md F2). Answers never hold a key or token: runs' traces hold
+// none (ADR 0014), and drafts hold none either.
 
 export const BODY_LIMIT = "10mb";
 
 export type AppDeps = {
   db?: Database;
+  /** `RESOLVE_SHARED_SECRET`. Null takes no caller: every route but `/health` answers 401. */
+  sharedSecret: string | null;
   /** The model each new run asks for (`GEMINI_MODEL`). */
   model: string;
   queue: RunQueue;
@@ -173,6 +178,8 @@ export function createApp(deps: AppDeps) {
   app.get("/health", (_req, res) => {
     res.json({ ok: true });
   });
+
+  app.use(requireSharedSecret(deps.sharedSecret));
 
   app.use((_req, res, next) => {
     if (deps.db === undefined) message(res, 503, NO_DATABASE);

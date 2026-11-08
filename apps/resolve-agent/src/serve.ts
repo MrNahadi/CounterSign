@@ -18,6 +18,7 @@ import { parseDailyCap } from "./limits";
 import { createGenerateContent, DEFAULT_MODEL, parseModelEnv } from "./model";
 import { parseProtectedEnv } from "./protected";
 import { createModeRunner, createRunQueue, createSuppliedTokens } from "./queue";
+import { parseSharedSecret } from "./shared-secret";
 
 // Resolve's process: the database the CLIs use, the model, the gate's address and key, and the
 // PayPal variables for baseline mode, all from the environment. With none of them set it still
@@ -87,6 +88,12 @@ export async function serve(env: Environment, options: ServeOptions = {}): Promi
       "COUNTERSIGN_SUPPORT_AGENT_KEY is unset (needs 32 or more characters). Protected runs end gate_unavailable.",
     );
 
+  const sharedSecret = parseSharedSecret(env);
+  if (sharedSecret === null)
+    log(
+      "RESOLVE_SHARED_SECRET is unset (needs 32 or more characters). Every route but /health answers 401.",
+    );
+
   const baseline = parseBaselinePolicy(env);
   if (baseline.problem !== null) log(baseline.problem);
 
@@ -122,6 +129,7 @@ export async function serve(env: Environment, options: ServeOptions = {}): Promi
 
   const app = createApp({
     ...(handle ? { db: handle.db } : {}),
+    sharedSecret,
     model,
     queue,
     dailyCap,

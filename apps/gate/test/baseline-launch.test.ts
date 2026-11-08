@@ -84,12 +84,16 @@ async function fakeResolve(): Promise<FakeResolve> {
   return fake;
 }
 
-const env = (resolveUrl: string | undefined) => ({
+const env = (resolveUrl: string | undefined, sharedSecret?: string) => ({
   [APPROVER_KEY_VAR]: APPROVER_KEY,
   [SUPPORT_AGENT_KEY_VAR]: SUPPORT_KEY,
   [OPS_AGENT_KEY_VAR]: OPS_KEY,
   ...(resolveUrl === undefined ? {} : { RESOLVE_AGENT_URL: resolveUrl }),
+  ...(sharedSecret === undefined ? {} : { RESOLVE_SHARED_SECRET: sharedSecret }),
 });
+
+// Resolve's shared secret (PLAN.md F2). Illustrative only.
+const SHARED_SECRET = "illustrative-resolve-shared-secret-0123456789";
 
 let tokensIssued = 0;
 const tokenRail = () => {
@@ -101,10 +105,12 @@ const tokenRail = () => {
   return sandbox;
 };
 
-async function gate(deps: Partial<AppDeps> & { resolveUrl?: string }): Promise<string> {
-  const { resolveUrl, ...rest } = deps;
+async function gate(
+  deps: Partial<AppDeps> & { resolveUrl?: string; sharedSecret?: string },
+): Promise<string> {
+  const { resolveUrl, sharedSecret, ...rest } = deps;
   const app = createApp({
-    env: env(resolveUrl),
+    env: env(resolveUrl, sharedSecret),
     rail: tokenRail,
     log: (line) => logLines.push(line),
     ...rest,
@@ -186,6 +192,7 @@ describe("POST /baseline/launch", () => {
     expect(received?.url).toBe("/scenarios/beat-3-attack-email");
     expect(received?.headers["content-type"]).toContain("application/json");
     expect(received?.headers.authorization).toBeUndefined();
+    expect(received?.headers["x-countersign-resolve-secret"]).toBeUndefined();
     expect(received?.body).toEqual({
       mode: "baseline",
       paypal_token: { access_token: TOKEN, expires_at: EXPIRES_AT },
@@ -193,6 +200,28 @@ describe("POST /baseline/launch", () => {
     expect(answer.text).not.toContain(TOKEN);
     expect(allLogged()).not.toContain(TOKEN);
     expect(allLogged()).not.toContain(APPROVER_KEY);
+  });
+
+  it("sends Resolve's shared secret from RESOLVE_SHARED_SECRET, and never logs or answers it", async () => {
+    const resolve = await fakeResolve();
+    const base = await gate({ resolveUrl: resolve.url, sharedSecret: ` ${SHARED_SECRET} ` });
+    const answer = await launch(base, { scenario_id: "beat-3-attack-email" });
+    expect(answer.status).toBe(202);
+    expect(resolve.received[0]?.headers["x-countersign-resolve-secret"]).toBe(SHARED_SECRET);
+    expect(answer.text).not.toContain(SHARED_SECRET);
+    expect(allLogged()).not.toContain(SHARED_SECRET);
+  });
+
+  it("is 502 'Resolve couldn't be reached' when Resolve refuses the secret with 401", async () => {
+    const resolve = await fakeResolve();
+    resolve.answer = {
+      status: 401,
+      body: JSON.stringify({ message: "Resolve takes calls from the gate and the console only." }),
+    };
+    const base = await gate({ resolveUrl: resolve.url, sharedSecret: "wrong-illustrative-secret" });
+    const answer = await launch(base, { scenario_id: "beat-3-attack-email" });
+    expect(answer.status).toBe(502);
+    expect(answer.body).toEqual({ message: BASELINE_LAUNCH_MESSAGES.resolveUnreachable });
   });
 
   it("passes Resolve's 400, 404, 409, 500 and 503 sentences through", async () => {

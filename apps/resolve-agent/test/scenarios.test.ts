@@ -15,6 +15,7 @@ import { createApp } from "../src/app";
 import { BASELINE_REFUSALS, type BaselinePolicy } from "../src/baseline-policy";
 import { createSuppliedTokens, type RunQueue, type SuppliedTokens } from "../src/queue";
 import { LAUNCHER_SCENARIOS, loadScenario, SCENARIOS_DIR } from "../src/scenarios";
+import { authed, TEST_SECRET } from "./secret";
 
 // Resolve's `POST /scenarios/:id` on 127.0.0.1 port 0, with PGlite, `seed_orders` rows for buyer A
 // and the beat orders, and a queue fake that records run IDs. The people are illustrative and
@@ -51,6 +52,7 @@ type Options = {
 async function listen(options: Options = {}): Promise<string> {
   const server = createApp({
     ...(options.db === false ? {} : { db: handle.db }),
+    sharedSecret: TEST_SECRET,
     model: MODEL,
     queue,
     clock: () => NOW,
@@ -65,7 +67,7 @@ async function listen(options: Options = {}): Promise<string> {
 }
 
 const launch = (base: string, id: string, body: unknown) =>
-  fetch(`${base}/scenarios/${id}`, {
+  authed(`${base}/scenarios/${id}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: typeof body === "string" ? body : JSON.stringify(body),

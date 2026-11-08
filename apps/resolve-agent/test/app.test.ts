@@ -36,6 +36,7 @@ import {
   type SuppliedTokens,
 } from "../src/queue";
 import { DEFAULT_PORT, parsePort, serve } from "../src/serve";
+import { authed, TEST_SECRET } from "./secret";
 
 // Resolve's HTTP API on 127.0.0.1 port 0, with PGlite and an injected mode runner. The people
 // are illustrative and every message is simulated.
@@ -136,6 +137,7 @@ async function listen(
   queue = createRunQueue(runner);
   const server = createApp({
     db: handle.db,
+    sharedSecret: TEST_SECRET,
     model: MODEL,
     queue,
     clock,
@@ -149,7 +151,7 @@ async function listen(
 }
 
 const post = (base: string, body: unknown) =>
-  fetch(`${base}/messages`, {
+  authed(`${base}/messages`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: typeof body === "string" ? body : JSON.stringify(body),
@@ -335,13 +337,13 @@ describe("POST /messages", () => {
       [png, PNG],
       [jpeg, JPEG],
     ] as const) {
-      const photo = await fetch(`${base}/attachments/${attachment?.id}`);
+      const photo = await authed(`${base}/attachments/${attachment?.id}`);
       expect(photo.status).toBe(200);
       expect(photo.headers.get("content-type")).toBe(attachment?.contentType);
       expect(new Uint8Array(await photo.arrayBuffer())).toEqual(bytes);
     }
-    expect((await fetch(`${base}/attachments/att_${"0".repeat(32)}`)).status).toBe(404);
-    expect((await fetch(`${base}/attachments/nope`)).status).toBe(404);
+    expect((await authed(`${base}/attachments/att_${"0".repeat(32)}`)).status).toBe(404);
+    expect((await authed(`${base}/attachments/nope`)).status).toBe(404);
   });
 
   it("takes a chat with only a phone, in baseline mode, and a follow-up in its thread", async () => {
@@ -510,7 +512,7 @@ describe("the run queue and thread readers", () => {
     expect(started).toEqual(answers.map((a) => a.run_id));
     expect(most).toBe(1);
 
-    const list = (await (await fetch(`${base}/threads`)).json()) as {
+    const list = (await (await authed(`${base}/threads`)).json()) as {
       threads: { thread_id: string; preview: string; latest_run: { status: string } }[];
     };
     expect(list.threads.map((t) => t.thread_id)).toEqual(answers.map((a) => a.thread_id).reverse());
@@ -527,7 +529,7 @@ describe("the run queue and thread readers", () => {
       },
     });
 
-    const res = await fetch(`${base}/threads/${answers[0]?.thread_id}`);
+    const res = await authed(`${base}/threads/${answers[0]?.thread_id}`);
     expect(res.status).toBe(200);
     const thread = (await res.json()) as Record<string, unknown>;
     expect(thread).toMatchObject({
@@ -545,7 +547,7 @@ describe("the run queue and thread readers", () => {
         },
       ],
     });
-    expect((await fetch(`${base}/threads/tkt_nope`)).status).toBe(404);
+    expect((await authed(`${base}/threads/tkt_nope`)).status).toBe(404);
   });
 
   it("keeps going after a run throws", async () => {
@@ -609,7 +611,7 @@ describe("the run queue and thread readers", () => {
     ).json()) as { thread_id: string };
     await queue.idle();
     expect(requests).toHaveLength(1);
-    const thread = (await (await fetch(`${base}/threads/${ids.thread_id}`)).json()) as {
+    const thread = (await (await authed(`${base}/threads/${ids.thread_id}`)).json()) as {
       runs: { status: string; outcome: string; reply: string; mode: string }[];
     };
     expect(thread.runs).toMatchObject([
@@ -658,14 +660,14 @@ type DraftView = {
 };
 
 const postDispute = (base: string, body: unknown) =>
-  fetch(`${base}/disputes`, {
+  authed(`${base}/disputes`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 
 const listDrafts = async (base: string) =>
-  ((await (await fetch(`${base}/disputes`)).json()) as { drafts: DraftView[] }).drafts;
+  ((await (await authed(`${base}/disputes`)).json()) as { drafts: DraftView[] }).drafts;
 
 describe("POST /disputes and the draft readers", () => {
   it("refuses a body that isn't exactly { dispute_id }", async () => {
@@ -765,7 +767,7 @@ describe("POST /disputes and the draft readers", () => {
     const base = await listen();
     const posted = (await (await postDispute(base, { dispute_id: "PP-D-1" })).json()) as DraftView;
     await queue.idle();
-    const res = await fetch(`${base}/disputes/PP-D-1`);
+    const res = await authed(`${base}/disputes/PP-D-1`);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       draft_id: posted.draft_id,
@@ -789,7 +791,7 @@ describe("POST /disputes and the draft readers", () => {
       agent_response: { decision: "pending_approval", intent_id: "int_1" },
     });
     for (const id of ["PP-D-404", "PP%20D", "x".repeat(65)]) {
-      const missing = await fetch(`${base}/disputes/${id}`);
+      const missing = await authed(`${base}/disputes/${id}`);
       expect(missing.status).toBe(404);
       expect(((await missing.json()) as { message: string }).message).toBe(
         "There's no draft for that dispute.",
@@ -862,7 +864,7 @@ describe("POST /disputes and the draft readers", () => {
     const bare = await listen(createModeRunner(deps));
     await postDispute(bare, { dispute_id: "PP-D-2" });
     await queue.idle();
-    expect((await (await fetch(`${bare}/disputes/PP-D-2`)).json()) as DraftView).toMatchObject({
+    expect((await (await authed(`${bare}/disputes/PP-D-2`)).json()) as DraftView).toMatchObject({
       status: "failed",
       outcome: "not_configured",
     });
@@ -872,7 +874,7 @@ describe("POST /disputes and the draft readers", () => {
 describe("serve", () => {
   it("uses the supplied database and leaves it open for its owner after stopping", async () => {
     const serving = await serve(
-      { PORT: "0" },
+      { PORT: "0", RESOLVE_SHARED_SECRET: TEST_SECRET },
       { database: handle, host: "127.0.0.1", log: () => {} },
     );
     try {
@@ -900,12 +902,12 @@ describe("serve", () => {
 
     const lines: string[] = [];
     const serving = await serve(
-      { PORT: "0" },
+      { PORT: "0", RESOLVE_SHARED_SECRET: TEST_SECRET },
       { pgliteDir: join(dir, "pglite"), host: "127.0.0.1", log: (line) => lines.push(line) },
     );
     try {
       const base = `http://127.0.0.1:${serving.port}`;
-      expect(await (await fetch(`${base}/disputes/PP-D-1`)).json()).toMatchObject({
+      expect(await (await authed(`${base}/disputes/PP-D-1`)).json()).toMatchObject({
         draft_id: "drf_left",
         status: "failed",
         outcome: "interrupted",
@@ -930,14 +932,14 @@ describe("serve", () => {
     temps.push(dir);
     const lines: string[] = [];
     const serving = await serve(
-      { PORT: "0" },
+      { PORT: "0", RESOLVE_SHARED_SECRET: TEST_SECRET },
       { pgliteDir: join(dir, "pglite"), host: "127.0.0.1", log: (line) => lines.push(line) },
     );
     try {
       const base = `http://127.0.0.1:${serving.port}`;
       expect(await (await fetch(`${base}/health`)).json()).toEqual({ ok: true });
       expect((await post(base, EMAIL)).status).toBe(202);
-      expect((await fetch(`${base}/threads`)).status).toBe(200);
+      expect((await authed(`${base}/threads`)).status).toBe(200);
     } finally {
       await serving.close();
     }
@@ -950,7 +952,7 @@ describe("serve", () => {
     temps.push(dir);
     const lines: string[] = [];
     const serving = await serve(
-      { PORT: "0", RESOLVE_BASELINE: "maybe" },
+      { PORT: "0", RESOLVE_BASELINE: "maybe", RESOLVE_SHARED_SECRET: TEST_SECRET },
       { pgliteDir: join(dir, "pglite"), host: "127.0.0.1", log: (line) => lines.push(line) },
     );
     try {
@@ -972,13 +974,13 @@ describe("serve", () => {
     const file = join(dir, "not-a-directory");
     writeFileSync(file, "");
     const serving = await serve(
-      { PORT: "0" },
+      { PORT: "0", RESOLVE_SHARED_SECRET: TEST_SECRET },
       { pgliteDir: join(file, "pglite"), host: "127.0.0.1", log: () => {} },
     );
     try {
       const base = `http://127.0.0.1:${serving.port}`;
       expect((await fetch(`${base}/health`)).status).toBe(200);
-      const res = await fetch(`${base}/threads`);
+      const res = await authed(`${base}/threads`);
       expect(res.status).toBe(503);
       expect(((await res.json()) as { message: string }).message).toMatch(/no database/);
     } finally {

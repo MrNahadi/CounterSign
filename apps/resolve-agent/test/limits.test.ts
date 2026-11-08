@@ -32,6 +32,7 @@ import type { TransportFactory } from "../src/baseline";
 import { overDailyCap, parseDailyCap } from "../src/limits";
 import { createModeRunner, createRunQueue, type RunQueue } from "../src/queue";
 import { serve } from "../src/serve";
+import { authed, TEST_SECRET } from "./secret";
 
 // The daily cap, interrupted runs and the fallback rerun, through Resolve's app factory and run
 // queue with PGlite, a scripted model and an injected clock. People are illustrative; messages
@@ -132,6 +133,7 @@ async function listen(options: {
   );
   const server = createApp({
     db: handle.db,
+    sharedSecret: TEST_SECRET,
     model: MODEL,
     queue,
     clock,
@@ -144,7 +146,7 @@ async function listen(options: {
 }
 
 const send = async (base: string, body: unknown = EMAIL) => {
-  const res = await fetch(`${base}/messages`, {
+  const res = await authed(`${base}/messages`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -154,7 +156,7 @@ const send = async (base: string, body: unknown = EMAIL) => {
 
 const runsOf = async (base: string, threadId: string) =>
   (
-    (await (await fetch(`${base}/threads/${threadId}`)).json()) as {
+    (await (await authed(`${base}/threads/${threadId}`)).json()) as {
       runs: { model: string; status: string; outcome: string; reply: string | null }[];
     }
   ).runs;
@@ -289,10 +291,13 @@ describe("interrupted runs", () => {
     });
     await earlier.close();
 
-    const serving = await serve({ PORT: "0" }, { pgliteDir, host: "127.0.0.1", log: () => {} });
+    const serving = await serve(
+      { PORT: "0", RESOLVE_SHARED_SECRET: TEST_SECRET },
+      { pgliteDir, host: "127.0.0.1", log: () => {} },
+    );
     try {
       const thread = (await (
-        await fetch(`http://127.0.0.1:${serving.port}/threads/${ticketId}`)
+        await authed(`http://127.0.0.1:${serving.port}/threads/${ticketId}`)
       ).json()) as { runs: { run_id: string; status: string; outcome: string }[] };
       const byId = Object.fromEntries(thread.runs.map((run) => [run.run_id, run]));
       expect(byId.run_queued).toMatchObject({ status: "failed", outcome: "interrupted" });

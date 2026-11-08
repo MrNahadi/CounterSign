@@ -1,6 +1,6 @@
 // The hosted baseline launch (ADR 0044): `POST /baseline/launch`, approver key only. The gate mints
-// one sandbox access token and hands it to Resolve's `POST /scenarios/<id>` over the private
-// network, so Resolve needs no PayPal credential of its own. The token is never logged, stored or
+// one sandbox access token and hands it to Resolve's `POST /scenarios/<id>` with the shared
+// secret (PLAN.md F2), so Resolve needs no PayPal credential of its own. The token is never logged, stored or
 // answered: the answer is rebuilt from Resolve's parsed body, which never holds it. No AI.
 
 import type { PayPalClient } from "@countersign/rail-paypal";
@@ -8,7 +8,7 @@ import express, { type Express, type NextFunction, type Request, type Response }
 import { z } from "zod";
 import { approverOnly } from "./approvals-api";
 import type { Approver } from "./approver";
-import { resolveAgentUrl } from "./nudge";
+import { resolveAgentUrl, resolveSecretHeaders } from "./nudge";
 import type { Environment } from "./principals";
 
 export const BASELINE_LAUNCH_PATH = "/baseline/launch";
@@ -51,13 +51,14 @@ async function askResolve(
   send: typeof fetch,
   url: string,
   payload: string,
+  secretHeaders: Record<string, string>,
 ): Promise<Answer | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LAUNCH_TIMEOUT_MS);
   try {
     const response = await send(url, {
       method: "POST",
-      headers: { accept: "application/json", "content-type": "application/json" },
+      headers: { accept: "application/json", "content-type": "application/json", ...secretHeaders },
       body: payload,
       redirect: "error",
       signal: controller.signal,
@@ -105,7 +106,12 @@ export async function launchBaseline(deps: BaselineLaunchDeps, input: unknown): 
     paypal_token: { access_token: issued.accessToken, expires_at: issued.expiresAt },
   });
   const url = new URL(`/scenarios/${body.data.scenario_id}`, base).toString();
-  const answer = await askResolve(deps.fetch ?? fetch, url, payload);
+  const answer = await askResolve(
+    deps.fetch ?? fetch,
+    url,
+    payload,
+    resolveSecretHeaders(deps.env),
+  );
   return answer ?? say(502, BASELINE_LAUNCH_MESSAGES.resolveUnreachable);
 }
 

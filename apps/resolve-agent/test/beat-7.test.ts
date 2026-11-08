@@ -20,6 +20,7 @@ import { createApp as createResolve } from "../src/app";
 import { runDisputeDraft } from "../src/drafter";
 import { parseProtectedEnv } from "../src/protected";
 import { createModeRunner, createRunQueue, type RunQueue } from "../src/queue";
+import { authed, TEST_SECRET } from "./secret";
 
 // Beat 7 end to end, with no AI and no PayPal: the signed CUSTOMER.DISPUTE.CREATED fixture
 // reaches a listening gate (its fake sandbox and the carrier mock over the store, simulated),
@@ -165,7 +166,13 @@ describe("beat 7: a dispute from webhook to approved submission", { timeout: SLO
       }),
     );
     const resolveUrl = await listen(
-      createResolve({ db, model: "gemini-3.5-flash-lite", queue, clock }),
+      createResolve({
+        db,
+        sharedSecret: TEST_SECRET,
+        model: "gemini-3.5-flash-lite",
+        queue,
+        clock,
+      }),
       servers,
     );
 
@@ -185,6 +192,8 @@ describe("beat 7: a dispute from webhook to approved submission", { timeout: SLO
           COUNTERSIGN_APPROVER_KEY: APPROVER_KEY,
           PAYPAL_WEBHOOK_ID: WEBHOOK_ID,
           RESOLVE_AGENT_URL: resolveUrl,
+          // The gate's nudge carries Resolve's shared secret, or Resolve answers 401 (F2).
+          RESOLVE_SHARED_SECRET: TEST_SECRET,
         },
         clock,
         fetch: nudgeFetch,
@@ -209,7 +218,7 @@ describe("beat 7: a dispute from webhook to approved submission", { timeout: SLO
     expect(nudges).toHaveLength(1);
     expect((await nudges[0])?.ok).toBe(true);
     await queue.idle();
-    const drafts = (await (await fetch(`${resolveUrl}/disputes`)).json()) as {
+    const drafts = (await (await authed(`${resolveUrl}/disputes`)).json()) as {
       drafts: Record<string, unknown>[];
     };
     expect(drafts.drafts).toEqual([

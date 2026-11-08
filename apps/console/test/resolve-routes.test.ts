@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import { APPROVAL_ROUTE_MESSAGES, APPROVER_COOKIE } from "../src/approval-routes";
 import {
   attachmentRoute,
+  callResolve,
   INBOX_SIGN_IN,
   inboxAccess,
   NO_PHOTO,
   NO_THREAD,
+  RESOLVE_SECRET_HEADER,
   RESOLVE_UNREACHABLE,
   resolveAgentUrl,
+  resolveSecretHeaders,
   threadRoute,
   threadsRoute,
 } from "../src/resolve-routes";
@@ -104,6 +107,50 @@ describe("RESOLVE_AGENT_URL", () => {
     expect(resolveAgentUrl(env)?.href).toBe("http://resolve.test:9000/");
     expect(resolveAgentUrl({ RESOLVE_AGENT_URL: "file:///etc/passwd" })).toBeNull();
     expect(resolveAgentUrl({ RESOLVE_AGENT_URL: "not a url" })).toBeNull();
+  });
+});
+
+describe("RESOLVE_SHARED_SECRET", () => {
+  const SECRET = "illustrative-resolve-shared-secret-0123456789";
+  const secretOf = (init: RequestInit | undefined) =>
+    new Headers(init?.headers).get(RESOLVE_SECRET_HEADER);
+
+  it("goes to Resolve on every GET and POST, trimmed, and never to the gate", async () => {
+    expect(RESOLVE_SECRET_HEADER).toBe("x-countersign-resolve-secret");
+    const resolve = resolveAt(() => Response.json(summary));
+    const deps = { env: { ...env, RESOLVE_SHARED_SECRET: ` ${SECRET}\n` }, fetch: resolve.fetch };
+    await callResolve(deps, "/threads");
+    await callResolve(deps, "/messages", { json: "{}" });
+    await threadsRoute(get(), deps);
+    expect(resolve.calls).toHaveLength(3);
+    for (const call of resolve.calls) expect(secretOf(call.init)).toBe(SECRET);
+    expect(new Headers(resolve.calls[1]?.init?.headers).get("content-type")).toBe(
+      "application/json",
+    );
+    expect(resolve.gateCalls).toHaveLength(1);
+    expect(secretOf(resolve.gateCalls[0]?.init)).toBeNull();
+  });
+
+  it("is not sent when unset or blank, so Resolve refuses the call", async () => {
+    expect(resolveSecretHeaders({})).toEqual({});
+    expect(resolveSecretHeaders({ RESOLVE_SHARED_SECRET: "   " })).toEqual({});
+    const resolve = resolveAt(() => Response.json(summary));
+    await callResolve({ env, fetch: resolve.fetch }, "/threads");
+    expect(secretOf(resolve.calls[0]?.init)).toBeNull();
+  });
+
+  it("answers Resolve's 401 as unreachable, never passing it on", async () => {
+    const resolve = resolveAt(() =>
+      Response.json(
+        { message: "Resolve takes calls from the gate and the console only." },
+        { status: 401 },
+      ),
+    );
+    const answer = await threadsRoute(get(), {
+      env: { ...env, RESOLVE_SHARED_SECRET: "wrong-illustrative-secret" },
+      fetch: resolve.fetch,
+    });
+    expect(await bodyOf(answer)).toEqual({ status: 502, body: { message: RESOLVE_UNREACHABLE } });
   });
 });
 

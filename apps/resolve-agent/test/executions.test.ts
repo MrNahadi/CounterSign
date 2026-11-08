@@ -6,6 +6,7 @@ import { createApp } from "../src/app";
 import { allowedIntentIds, heldCalls, readExecutions, readHeld } from "../src/executions";
 import { storeMessage } from "../src/intake";
 import { createRunQueue } from "../src/queue";
+import { authed, TEST_SECRET } from "./secret";
 
 // The thread answer carries what the gate executed for each allowed call, read from the audit
 // log's `execution.result`, so the inbox can show an allowed refund's PayPal refund ID.
@@ -118,6 +119,7 @@ describe("allowed intents and their executions", () => {
 
     const app = createApp({
       db: handle.db,
+      sharedSecret: TEST_SECRET,
       model: "gemini-3.5-flash-lite",
       queue: createRunQueue(async () => undefined),
     });
@@ -126,7 +128,7 @@ describe("allowed intents and their executions", () => {
     try {
       const port = (server.address() as AddressInfo).port;
       const answer = (await (
-        await fetch(`http://127.0.0.1:${port}/threads/${stored.threadId}`)
+        await authed(`http://127.0.0.1:${port}/threads/${stored.threadId}`)
       ).json()) as { runs: { executions: unknown }[] };
       expect(answer.runs[0]?.executions).toEqual([
         {

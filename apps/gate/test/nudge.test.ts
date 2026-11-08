@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { NUDGE_TIMEOUT_MS, type NudgeFetch, nudgeResolve, resolveAgentUrl } from "../src/nudge";
+import {
+  NUDGE_TIMEOUT_MS,
+  type NudgeFetch,
+  nudgeResolve,
+  RESOLVE_SECRET_HEADER,
+  resolveAgentUrl,
+  resolveSecretHeaders,
+} from "../src/nudge";
 
 describe("nudgeResolve", () => {
   beforeEach(() => {
@@ -27,6 +34,34 @@ describe("nudgeResolve", () => {
     expect(seen[0]?.init.method).toBe("POST");
     expect(seen[0]?.init.headers["content-type"]).toBe("application/json");
     expect(JSON.parse(seen[0]?.init.body ?? "")).toEqual({ dispute_id: "PP-D-1" });
+    expect(seen[0]?.init.headers[RESOLVE_SECRET_HEADER]).toBeUndefined();
+  });
+
+  it("sends Resolve's shared secret from RESOLVE_SHARED_SECRET, trimmed", async () => {
+    const secret = "illustrative-resolve-shared-secret-0123456789";
+    const seen: Parameters<NudgeFetch>[1][] = [];
+    const fetch: NudgeFetch = async (_url, init) => {
+      seen.push(init);
+      return { ok: true };
+    };
+    await nudgeResolve("PP-D-1", {
+      env: { RESOLVE_AGENT_URL: "https://resolve.example", RESOLVE_SHARED_SECRET: ` ${secret}\n` },
+      fetch,
+    });
+    expect(RESOLVE_SECRET_HEADER).toBe("x-countersign-resolve-secret");
+    expect(seen[0]?.headers[RESOLVE_SECRET_HEADER]).toBe(secret);
+    expect(resolveSecretHeaders({ RESOLVE_SHARED_SECRET: "  " })).toEqual({});
+    expect(resolveSecretHeaders({})).toEqual({});
+  });
+
+  it("answers false when Resolve refuses the secret with 401", async () => {
+    const refusing: NudgeFetch = async () => ({ ok: false });
+    expect(
+      await nudgeResolve("PP-D-1", {
+        env: { RESOLVE_SHARED_SECRET: "wrong-illustrative-secret" },
+        fetch: refusing,
+      }),
+    ).toBe(false);
   });
 
   it("gives up after 2 seconds and aborts the request", async () => {
