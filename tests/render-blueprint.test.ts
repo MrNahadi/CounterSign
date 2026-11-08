@@ -5,7 +5,10 @@ import { parse } from "yaml";
 
 // ADR 0041 and ADR 0044: render.yaml describes the hosted demo. This checks its invariants, not
 // every line. `problems(blueprint)` lists what is wrong, so the mutation cases below can show a
-// wrong start-command prefix or a free plan is caught.
+// wrong start-command prefix or a paid plan is caught. Since the owner's decision of 8 Nov
+// (DECISIONS.md), the demo is hosted for free: every service on Render's free plan, no Render
+// database (Neon's connection string is typed in as DATABASE_URL), and no cron service (GitHub
+// Actions runs the scheduled jobs).
 
 type EnvVar = {
   key: string;
@@ -29,22 +32,12 @@ type Service = {
   schedule?: string;
   envVars: EnvVar[];
 };
-type Database = {
-  name: string;
-  plan: string;
-  region: string;
-  postgresMajorVersion: string;
-  ipAllowList: unknown[];
-  diskSizeGB: number;
-};
-type Blueprint = { databases: Database[]; services: Service[] };
+type Blueprint = { databases?: unknown[]; services: Service[] };
 
 const GATE = "countersign-gate";
 const RESOLVE = "countersign-resolve-agent";
 const CONSOLE = "countersign-console";
 const STOREFRONT = "countersign-storefront";
-const CRON = "countersign-reconcile";
-const DATABASE = "countersign-db";
 const SANDBOX_URL = "https://api-m.sandbox.paypal.com";
 
 const EXPECTED: Record<string, { type: string; keys: string[] }> = {
@@ -67,7 +60,7 @@ const EXPECTED: Record<string, { type: string; keys: string[] }> = {
     ],
   },
   [RESOLVE]: {
-    type: "pserv",
+    type: "web",
     keys: [
       "NODE_VERSION",
       "PORT",
@@ -93,17 +86,14 @@ const EXPECTED: Record<string, { type: string; keys: string[] }> = {
     type: "web",
     keys: ["NODE_VERSION", "PAYPAL_BASE_URL", "PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET"],
   },
-  [CRON]: {
-    type: "cron",
-    keys: [
-      "NODE_VERSION",
-      "DATABASE_URL",
-      "PAYPAL_BASE_URL",
-      "PAYPAL_CLIENT_ID",
-      "PAYPAL_CLIENT_SECRET",
-      "RESOLVE_AGENT_HOSTPORT",
-    ],
-  },
+};
+
+// Each service's health check path: Render restarts a service that stops answering it.
+const HEALTH_CHECKS: Record<string, string> = {
+  [GATE]: "/health",
+  [RESOLVE]: "/health",
+  [CONSOLE]: "/",
+  [STOREFRONT]: "/",
 };
 
 // The URL variables each start command sets, and the service whose hostport each one uses.
@@ -119,7 +109,6 @@ const EXPECTED_PREFIXES: Record<string, Record<string, { hostport: string; suffi
     RESOLVE_AGENT_URL: { hostport: "RESOLVE_AGENT_HOSTPORT", suffix: "" },
   },
   [STOREFRONT]: {},
-  [CRON]: { RESOLVE_AGENT_URL: { hostport: "RESOLVE_AGENT_HOSTPORT", suffix: "" } },
 };
 
 const SECRET_PATTERN = /(sk|pk|AIza|EC|A21AA)[A-Za-z0-9_-]{10,}/;
@@ -132,18 +121,8 @@ function problems(blueprint: Blueprint): string[] {
   const found: string[] = [];
   const note = (text: string) => found.push(text);
 
-  // The database.
-  if (blueprint.databases?.length !== 1) note("expected exactly one database");
-  const database = blueprint.databases?.[0];
-  if (database) {
-    if (database.name !== DATABASE) note(`database is named ${database.name}`);
-    if (String(database.postgresMajorVersion) !== "18") note("database is not Postgres 18");
-    if (!Array.isArray(database.ipAllowList) || database.ipAllowList.length !== 0) {
-      note("database allow list is not empty");
-    }
-    if (!(database.diskSizeGB > 0)) note("database has no disk");
-    if (!database.plan || database.plan === "free") note("database is not on a paid plan");
-  }
+  // No Render database: Postgres is Neon's free plan, reached through a typed-in DATABASE_URL.
+  if (blueprint.databases !== undefined) note("the blueprint declares a Render database");
 
   // The services.
   const services = blueprint.services ?? [];
@@ -153,16 +132,21 @@ function problems(blueprint: Blueprint): string[] {
   }
   const byName = new Map(services.map((service) => [service.name, service]));
   const regions = new Set(services.map((service) => service.region));
-  if (database) regions.add(database.region);
-  if (regions.size !== 1) note("services and database are not all in one region");
+  if (regions.size !== 1) note("services are not all in one region");
 
   for (const service of services) {
     const expected = EXPECTED[service.name];
     const who = service.name;
     if (!expected) continue;
     if (service.type !== expected.type) note(`${who} has type ${service.type}`);
-    if (!service.plan || service.plan === "free") note(`${who} is not on a paid plan`);
+    // Free only: a paid plan would spend money the owner chose not to spend.
+    if (service.plan !== "free") note(`${who} is not on the free plan`);
     if (service.autoDeployTrigger !== "off") note(`${who} autoDeployTrigger is not off`);
+    if (service.healthCheckPath !== HEALTH_CHECKS[who]) {
+      note(`${who} health check is not ${HEALTH_CHECKS[who]}`);
+    }
+    // Render's free plan runs no pre-deploy command, so nothing may depend on one.
+    if (service.preDeployCommand !== undefined) note(`${who} has a pre-deploy command`);
     if (service.runtime !== undefined && service.runtime !== "node") note(`${who} is not node`);
 
     const keys = (service.envVars ?? []).map((envVar) => envVar.key);
@@ -175,10 +159,13 @@ function problems(blueprint: Blueprint): string[] {
     if (String(nodeVersion?.value) !== "26.7.0") note(`${who} NODE_VERSION is not 26.7.0`);
 
     for (const envVar of service.envVars ?? []) {
-      // References name a declared service of that type, or the declared database.
-      if (envVar.fromDatabase && envVar.fromDatabase.name !== database?.name) {
-        note(`${who} ${envVar.key} names an undeclared database`);
+      // There is no Render database to take a connection string from.
+      if (envVar.fromDatabase) note(`${who} ${envVar.key} comes from a Render database`);
+      // The Neon connection string holds a password, so it's typed in, never written here.
+      if (envVar.key === "DATABASE_URL" && envVar.sync !== false) {
+        note(`${who} DATABASE_URL is not typed in (sync: false)`);
       }
+      // References name a declared service of that type.
       if (envVar.fromService) {
         const target = byName.get(envVar.fromService.name);
         if (!target || target.type !== envVar.fromService.type) {
@@ -232,8 +219,17 @@ function problems(blueprint: Blueprint): string[] {
 
   // Per-service particulars.
   const gate = byName.get(GATE);
-  if (gate?.healthCheckPath !== "/health") note("gate health check is not /health");
-  if (gate?.preDeployCommand !== "npm run db:migrate") note("gate does not migrate before deploy");
+  // With no pre-deploy command, the gate migrates in its build, after the install succeeds.
+  if (!/&&\s*npm run db:migrate\s*$/.test(gate?.buildCommand ?? "")) {
+    note("gate does not migrate at the end of its build");
+  }
+  const databaseHolders = services
+    .filter((entry) => entry.envVars?.some((envVar) => envVar.key === "DATABASE_URL"))
+    .map((entry) => entry.name)
+    .sort();
+  if (JSON.stringify(databaseHolders) !== JSON.stringify([GATE, RESOLVE].sort())) {
+    note(`DATABASE_URL is on ${databaseHolders.join(", ")}`);
+  }
 
   const resolve = byName.get(RESOLVE);
   const resolveValue = (key: string) => resolve?.envVars?.find((v) => v.key === key)?.value;
@@ -242,15 +238,6 @@ function problems(blueprint: Blueprint): string[] {
   if (resolveValue("RESOLVE_DAILY_RUN_CAP") !== "200") note("resolve cap is not 200");
   const gateValue = (key: string) => gate?.envVars?.find((v) => v.key === key)?.value;
   if (gateValue("COUNTERSIGN_DEMO_RESET") !== "on") note("gate reset flag is not on");
-
-  const cron = byName.get(CRON);
-  if (cron?.schedule !== "*/10 * * * *") note("cron does not run every 10 minutes");
-  if (
-    !/;\s*status=\$\?;/.test(cron?.startCommand ?? "") ||
-    !/&&\s*exit \$status\s*$/.test(cron?.startCommand ?? "")
-  ) {
-    note("cron does not fail when either command fails");
-  }
 
   // Where each variable may appear.
   const holders = (test: (key: string) => boolean) =>
@@ -301,15 +288,14 @@ describe("render.yaml", () => {
     expect(problems(load())).toEqual([]);
   });
 
-  it("describes one database and five services", () => {
+  it("describes four free web services and no database", () => {
     const blueprint = load();
-    expect(blueprint.databases.map((database) => database.name)).toEqual([DATABASE]);
-    expect(blueprint.services.map((entry) => `${entry.type}:${entry.name}`)).toEqual([
-      `web:${GATE}`,
-      `pserv:${RESOLVE}`,
-      `web:${CONSOLE}`,
-      `web:${STOREFRONT}`,
-      `cron:${CRON}`,
+    expect(blueprint.databases).toBeUndefined();
+    expect(blueprint.services.map((entry) => `${entry.type}:${entry.plan}:${entry.name}`)).toEqual([
+      `web:free:${GATE}`,
+      `web:free:${RESOLVE}`,
+      `web:free:${CONSOLE}`,
+      `web:free:${STOREFRONT}`,
     ]);
   });
 
@@ -348,9 +334,36 @@ describe("render.yaml", () => {
       expect(problems(blueprint)).not.toEqual([]);
     });
 
-    it("a service is on the free plan", () => {
+    it("a service is on a paid plan", () => {
       const blueprint = clone();
-      service(blueprint, STOREFRONT).plan = "free";
+      service(blueprint, STOREFRONT).plan = "starter";
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("a service has no plan", () => {
+      const blueprint = clone();
+      service(blueprint, RESOLVE).plan = "";
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("a service loses its health check", () => {
+      const blueprint = clone();
+      delete service(blueprint, RESOLVE).healthCheckPath;
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("a service runs a different Node", () => {
+      const blueprint = clone();
+      const envVar = service(blueprint, CONSOLE).envVars.find((v) => v.key === "NODE_VERSION");
+      if (envVar) envVar.value = "22.0.0";
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("the gate relies on a pre-deploy command to migrate", () => {
+      const blueprint = clone();
+      const gate = service(blueprint, GATE);
+      gate.buildCommand = "npm ci --include=dev";
+      gate.preDeployCommand = "npm run db:migrate";
       expect(problems(blueprint)).not.toEqual([]);
     });
 
@@ -381,10 +394,46 @@ describe("render.yaml", () => {
       expect(problems(blueprint)).not.toEqual([]);
     });
 
-    it("the database allows outside connections", () => {
+    it("a Render database comes back", () => {
       const blueprint = clone();
-      const [database] = blueprint.databases;
-      if (database) database.ipAllowList = [{ source: "0.0.0.0/0", description: "everywhere" }];
+      blueprint.databases = [{ name: "countersign-db", plan: "free", region: "oregon" }];
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("DATABASE_URL is taken from a Render database", () => {
+      const blueprint = clone();
+      const envVar = service(blueprint, GATE).envVars.find((v) => v.key === "DATABASE_URL");
+      if (envVar) {
+        delete envVar.sync;
+        envVar.fromDatabase = { name: "countersign-db", property: "connectionString" };
+      }
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("the Neon connection string is written into the file", () => {
+      const blueprint = clone();
+      const envVar = service(blueprint, RESOLVE).envVars.find((v) => v.key === "DATABASE_URL");
+      if (envVar) {
+        delete envVar.sync;
+        envVar.value = "postgres://u:p@ep-x.neon.tech/db?sslmode=require";
+      }
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("a cron service comes back", () => {
+      const blueprint = clone();
+      blueprint.services.push({
+        ...structuredClone(service(blueprint, GATE)),
+        type: "cron",
+        name: "countersign-reconcile",
+        schedule: "*/15 * * * *",
+      });
+      expect(problems(blueprint)).not.toEqual([]);
+    });
+
+    it("Resolve goes back to being a private service", () => {
+      const blueprint = clone();
+      service(blueprint, RESOLVE).type = "pserv";
       expect(problems(blueprint)).not.toEqual([]);
     });
 
@@ -395,13 +444,6 @@ describe("render.yaml", () => {
         delete envVar.sync;
         envVar.value = "A21AAJabcdefghijklmnopqrstuvwxyz";
       }
-      expect(problems(blueprint)).not.toEqual([]);
-    });
-
-    it("the cron job ignores a failed command", () => {
-      const blueprint = clone();
-      const cron = service(blueprint, CRON);
-      cron.startCommand = cron.startCommand.replace(" && exit $status", "");
       expect(problems(blueprint)).not.toEqual([]);
     });
 
