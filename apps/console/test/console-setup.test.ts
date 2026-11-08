@@ -144,9 +144,19 @@ describe("console setup", () => {
       expect(page).toContain("line={AUDIT_ROUTE_MESSAGES.signInLine}");
       expect(page).toContain("APPROVAL_ROUTE_MESSAGES.signInAgain");
     }
-    const page = read("../app/decisions/[seq]/page.tsx");
-    expect(page).toContain("max-md:flex max-md:flex-col");
-    expect(page).toMatch(/className="overflow-x-auto[^"]*"\s*>\s*<table/);
+    // The claims and trace tables live in one file, shared by the decision and attack pages.
+    const tables = read("../app/decisions/claims-parts.tsx");
+    expect(tables).toContain("max-md:flex max-md:flex-col");
+    expect(tables).toMatch(/className="overflow-x-auto[^"]*"\s*>\s*<table/);
+    for (const path of ["../app/decisions/[seq]/page.tsx", "../app/attack/page.tsx"]) {
+      const page = read(path);
+      expect(page).toMatch(/from "\.\.\/(decisions\/)?claims-parts"/);
+      expect(page).toContain("<ClaimsTable");
+      expect(page).toContain("<TraceTable");
+    }
+    expect(read("../app/attack/page.tsx")).toContain("line={ATTACK_COPY.signInLine}");
+    // A visitor never picks a mode: the attack is always protected.
+    expect(read("../app/attack/attack-form.tsx")).not.toMatch(/baseline|MODE_OPTIONS|setMode/i);
     expect(read("../app/decisions/intent/[id]/page.tsx")).toContain("redirect(outcome.href)");
     expect(read("../app/decisions/[seq]/copy-reply.tsx")).not.toContain("@countersign/mandate");
   });

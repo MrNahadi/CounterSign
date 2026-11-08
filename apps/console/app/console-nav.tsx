@@ -3,6 +3,7 @@
 import {
   ClipboardCheck,
   Compass,
+  Crosshair,
   Inbox,
   type LucideIcon,
   Scale,
@@ -15,6 +16,7 @@ import { usePathname } from "next/navigation";
 const items: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/", label: "Start here", Icon: Compass },
   { href: "/inbox", label: "Inbox", Icon: Inbox },
+  { href: "/attack", label: "Attack it yourself", Icon: Crosshair },
   { href: "/approvals", label: "Approvals", Icon: ClipboardCheck },
   { href: "/disputes", label: "Disputes", Icon: ShieldAlert },
   { href: "/decisions", label: "Decisions", Icon: Scale },

@@ -61,7 +61,7 @@ import { PageHeader } from "../ui";
 // DESIGN.md Input: 36px text inputs in the dialog.
 const TEXT_INPUT = `${INPUT} ${INPUT_HEIGHT.default}`;
 
-function Segmented<T extends string>({
+export function Segmented<T extends string>({
   label,
   options,
   value,
@@ -89,7 +89,7 @@ function Segmented<T extends string>({
   );
 }
 
-function Field({
+export function Field({
   id,
   label,
   help,

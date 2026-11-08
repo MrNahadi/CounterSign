@@ -239,7 +239,7 @@ function subjectOf(detail: Readable): string | null {
   return detail.order_number ?? detail.target?.id ?? null;
 }
 
-function claimRow(pair: ClaimPair): ClaimRowView {
+export function claimRow(pair: ClaimPair): ClaimRowView {
   return {
     check: pair.check,
     claim: pair.claim === null ? null : { ...pair.claim },
@@ -255,7 +255,7 @@ function claimRow(pair: ClaimPair): ClaimRowView {
   };
 }
 
-function traceRow(entry: Readable["trace"][number]): TraceRowView {
+export function traceRow(entry: Readable["trace"][number]): TraceRowView {
   return {
     verifier: entry.verifier,
     words: entry.words,
