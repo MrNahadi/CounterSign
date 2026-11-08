@@ -9,14 +9,17 @@ import { loadRiskDecisions, RISK_COPY, type RiskView, riskView } from "../../src
 import { ConsoleShell } from "../console-shell";
 import { SignIn } from "../sign-in";
 import { Card, Notice, Page, PageHeader } from "../ui";
+import { Analyst } from "./analyst";
 import { ChainStatus } from "./chain-status";
+import { RefundSpike } from "./refund-spike";
 import { RiskGrids } from "./risk-grids";
 import { RiskStudio } from "./risk-studio";
 
-// The Risk desk (brief §5 item 11): money protected, decisions by reason code and chain status,
-// read on the server from the gate's audit API with the approver's cookie. With an AG Studio
-// licence key it's an AG Studio report in the Graphite theme; without one it falls back to AG Grid
-// Community grids beside Graphite cards (brief §5 cut line). Nothing here moves money.
+// The Risk desk (brief §5 item 11): money protected, decisions by reason code, chain status and the
+// refund-spike alert, read on the server from the gate's audit API with the approver's cookie,
+// plus the analyst, which builds a widget from a typed question. With an AG Studio licence key
+// it's an AG Studio report in the Graphite theme; without one it falls back to AG Grid Community
+// grids beside Graphite cards (brief §5 cut line). Nothing here moves money.
 
 export const metadata: Metadata = { title: "Risk desk · Countersign console" };
 export const dynamic = "force-dynamic";
@@ -42,12 +45,16 @@ function MoneyProtected({ money }: { money: RiskView["money"] }) {
 function CommunityDesk({ view }: { view: RiskView }) {
   return (
     <div className={STACK}>
-      <div className="grid gap-(--grid-gap) md:grid-cols-2">
+      <div className="grid gap-(--grid-gap) md:grid-cols-2 xl:grid-cols-3">
         <MoneyProtected money={view.money} />
         <Card aria-label={RISK_COPY.chainTitle} gap="tight">
           <ChainStatus chain={view.chain} />
         </Card>
+        <Card aria-label={RISK_COPY.spikeTitle} gap="tight">
+          <RefundSpike spike={view.spike} />
+        </Card>
       </div>
+      <Analyst view={view} />
       <RiskGrids view={view} />
     </div>
   );
@@ -55,8 +62,11 @@ function CommunityDesk({ view }: { view: RiskView }) {
 
 function StudioDesk({ view, licenseKey }: { view: RiskView; licenseKey: string }) {
   return (
-    <div className="h-[80vh] min-h-160 overflow-hidden rounded-3xl bg-container shadow-border">
-      <RiskStudio view={view} licenseKey={licenseKey} />
+    <div className={STACK}>
+      <div className="h-[80vh] min-h-160 overflow-hidden rounded-3xl bg-container shadow-border">
+        <RiskStudio view={view} licenseKey={licenseKey} />
+      </div>
+      <Analyst view={view} />
     </div>
   );
 }

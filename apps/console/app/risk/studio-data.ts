@@ -64,7 +64,7 @@ export function riskStudioData(view: RiskView): RiskStudioData {
   };
 }
 
-/** The desk's three widgets, then the decisions themselves. */
+/** The desk's four widgets, then the decisions themselves. */
 export const riskStudioReport: AgReportState<CountersignRegistry> = {
   selectedPageId: "overview",
   pages: [
@@ -76,6 +76,7 @@ export const riskStudioReport: AgReportState<CountersignRegistry> = {
           dataMapping: { value: [{ id: "decisions.protectedAmount", aggregation: "sum" }] },
         },
         chain: { type: "chain-status", dataMapping: { value: [] } },
+        spike: { type: "refund-spike", dataMapping: { value: [] } },
         byReason: {
           type: "column-chart-stacked",
           dataMapping: {
@@ -102,8 +103,9 @@ export const riskStudioReport: AgReportState<CountersignRegistry> = {
         },
       },
       widgetLayout: {
-        protected: { xTrack: 0, yTrack: 0, xSpan: 12, ySpan: 8 },
-        chain: { xTrack: 12, yTrack: 0, xSpan: 12, ySpan: 8 },
+        protected: { xTrack: 0, yTrack: 0, xSpan: 8, ySpan: 8 },
+        chain: { xTrack: 8, yTrack: 0, xSpan: 8, ySpan: 8 },
+        spike: { xTrack: 16, yTrack: 0, xSpan: 8, ySpan: 8 },
         byReason: { xTrack: 0, yTrack: 8, xSpan: 24, ySpan: 18 },
         recent: { xTrack: 0, yTrack: 26, xSpan: 24, ySpan: 20 },
       },

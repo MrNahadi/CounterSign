@@ -4,10 +4,6 @@ import {
   type FunctionCallingConfig,
   FunctionCallingConfigMode,
   type GenerateContentConfig,
-  type GenerateContentResponse,
-  GoogleGenAI,
-  HarmBlockThreshold,
-  HarmCategory,
   type Part,
   ThinkingLevel,
 } from "@google/genai";
@@ -18,26 +14,27 @@ import type {
   AgLlmRequest,
   AgLlmResponse,
 } from "ag-studio";
+import {
+  answerText,
+  failClosed,
+  geminiFromEnv,
+  geminiModel,
+  type Json,
+  SAFETY_OFF,
+  sanitize,
+  THINKING_LEVELS,
+} from "../../../../src/gemini";
 
-// Spike S9: the Risk desk analyst's model turn, run server-side so the Gemini key never reaches
-// the browser (ADR 0016). Studio's adapter posts an AgLlmRequest; this replies with NDJSON lines:
+// Spike S9: AG Studio's agent turn, run server-side so the Gemini key never reaches the browser
+// (ADR 0016). Studio's adapter posts an AgLlmRequest; this replies with NDJSON lines:
 // {"event": AgAiEvent} for each content event, then {"response": AgLlmResponse} or {"error": ...}.
-// Spike only: no session check, rate limit or budget yet (phase 16 adds them).
+// Spike only: no session check, rate limit or budget yet, and the desk doesn't call it. The
+// desk's analyst is app/api/risk/analyst, which has them; both share src/gemini.ts.
 
 export const runtime = "nodejs";
 
-const apiKey = process.env.GEMINI_API_KEY;
-const model = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
-const ai = apiKey
-  ? new GoogleGenAI({
-      apiKey,
-      vertexai: false,
-      httpOptions: {
-        timeout: 90_000,
-        retryOptions: { attempts: 3, httpStatusCodes: [408, 500, 502, 503, 504] },
-      },
-    })
-  : undefined;
+const model = geminiModel(process.env);
+const generate = geminiFromEnv(process.env);
 
 // Gemini 3 needs each step's own model content (with its thought signatures) when that step is
 // replayed. Studio's history has no field for them, so the original content is kept here, keyed by
@@ -45,57 +42,6 @@ const ai = apiKey
 const modelContentByCallId = new Map<string, Content>();
 const SKIP_SIGNATURE = "skip_thought_signature_validator";
 let turnCount = 0;
-
-type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-
-// ADR 0014's sanitizer, plus Studio's `{ not: {} }` marker for optional union members.
-function sanitize(schema: Json, root: Json = schema, depth = 0): Json {
-  if (schema === true) return {};
-  if (Array.isArray(schema)) return schema.map((item) => sanitize(item, root, depth));
-  if (schema === null || typeof schema !== "object") return schema;
-  if (typeof schema.$ref === "string") {
-    if (depth >= 6) return {};
-    const target = schema.$ref
-      .replace(/^#\//, "")
-      .split("/")
-      .reduce<Json | undefined>(
-        (node, key) =>
-          node && typeof node === "object" && !Array.isArray(node) ? node[key] : undefined,
-        root,
-      );
-    return target === undefined ? {} : sanitize(target, root, depth + 1);
-  }
-  const out: { [key: string]: Json } = {};
-  for (const [key, value] of Object.entries(schema)) {
-    if (["$schema", "$id", "$comment", "$defs", "definitions"].includes(key)) continue;
-    out[key] = sanitize(value, root, depth);
-  }
-  if (Array.isArray(out.anyOf)) {
-    const branches = out.anyOf.filter(
-      (branch) =>
-        !(
-          branch &&
-          typeof branch === "object" &&
-          !Array.isArray(branch) &&
-          Object.keys(branch).length === 1 &&
-          branch.not &&
-          typeof branch.not === "object" &&
-          Object.keys(branch.not).length === 0
-        ),
-    );
-    if (branches.length === 1 && branches[0] && typeof branches[0] === "object") {
-      delete out.anyOf;
-      Object.assign(out, branches[0]);
-    } else {
-      out.anyOf = branches;
-    }
-  }
-  if (Array.isArray(out.required) && out.properties && typeof out.properties === "object") {
-    const declared = Object.keys(out.properties);
-    out.required = out.required.filter((name) => declared.includes(String(name)));
-  }
-  return out;
-}
 
 function parseJson(text: string): Json {
   try {
@@ -172,44 +118,18 @@ function toolConfig(choice: AgLlmRequest["toolChoice"]): FunctionCallingConfig {
   return { mode: FunctionCallingConfigMode.VALIDATED };
 }
 
-const thinkingLevels: Record<string, ThinkingLevel> = {
-  low: ThinkingLevel.LOW,
-  medium: ThinkingLevel.MEDIUM,
-  high: ThinkingLevel.HIGH,
-};
-
-// ADR 0015: nothing is read until the response passes. A failure here means no tool call runs.
-function failClosed(response: GenerateContentResponse): Content {
-  if (response.promptFeedback?.blockReason) {
-    throw new Error(`model_stopped:prompt_blocked:${response.promptFeedback.blockReason}`);
-  }
-  const candidate = response.candidates?.[0];
-  if (!candidate) throw new Error("model_stopped:no_candidate");
-  if (String(candidate.finishReason) !== "STOP") {
-    throw new Error(`model_stopped:${candidate.finishReason ?? "missing_finish_reason"}`);
-  }
-  if (!candidate.content?.parts?.length) throw new Error("model_stopped:empty_content");
-  return candidate.content;
-}
-
 async function runTurn(
   request: AgLlmRequest,
 ): Promise<{ events: AgAiEvent[]; response: AgLlmResponse }> {
-  if (!ai) throw new Error("GEMINI_API_KEY is not set on the server");
+  if (!generate) throw new Error("GEMINI_API_KEY is not set on the server");
   const { contents, system } = toContents(request.input);
   const tools = request.tools ?? [];
   const config: GenerateContentConfig = {
     systemInstruction: [request.instructions, ...system].filter(Boolean).join("\n\n") || undefined,
     thinkingConfig: {
-      thinkingLevel: thinkingLevels[String(request.model?.effort)] ?? ThinkingLevel.LOW,
+      thinkingLevel: THINKING_LEVELS[String(request.model?.effort)] ?? ThinkingLevel.LOW,
     },
-    safetySettings: [
-      HarmCategory.HARM_CATEGORY_HARASSMENT,
-      HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-      HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-      HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-      HarmCategory.HARM_CATEGORY_JAILBREAK,
-    ].map((category) => ({ category, threshold: HarmBlockThreshold.OFF })),
+    safetySettings: SAFETY_OFF,
   };
   if (tools.length > 0) {
     config.tools = [
@@ -229,17 +149,15 @@ async function runTurn(
   }
 
   const started = Date.now();
-  const result = await ai.models.generateContent({ model, contents, config });
+  const result = await generate({ model, contents, config });
+  // ADR 0015: a failure here means no tool call runs.
   const content = failClosed(result);
   turnCount += 1;
 
   const responseId = result.responseId ?? `turn-${Date.now()}`;
   const events: AgAiEvent[] = [];
   const output: AgAiOutputItem[] = [];
-  const text = (content.parts ?? [])
-    .filter((part) => part.text && !part.thought)
-    .map((part) => part.text)
-    .join("");
+  const text = answerText(content);
   if (text) {
     const messageId = `msg-${responseId}`;
     events.push(

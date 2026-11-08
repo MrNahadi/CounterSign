@@ -28,7 +28,7 @@ Where requirements come from: `specs/brief.md` (§4 goals and honesty rules, §5
 ## D. Risk desk (AG Grid sponsor prize)
 
 - [x] **D1. From spike to page.** Promote `apps/console/app/spike/risk-desk` to `/risk`, with the AG Studio theme from `packages/graphite/src/ag-theme.ts`. Three widgets read real audit-log data: money protected, decisions by reason code, chain status. Without `AG_STUDIO_LICENSE_KEY`, fall back to AG Grid Community grids (brief §5 cut line). Add `/risk` to the screenshot harness and the console nav.
-- [ ] **D2. Spike alert and analyst.** A refund-spike alert widget, and the analyst: a console server route that sends the question to Gemini (reuse `gemini-adapter.ts`) and returns a widget spec from a fixed allowlist. It can't move money.
+- [x] **D2. Spike alert and analyst.** A refund-spike alert widget, and the analyst: a console server route that sends the question to Gemini (reuse `gemini-adapter.ts`) and returns a widget spec from a fixed allowlist. It can't move money.
 
 ## E. Mandate compiler (only if time remains)
 

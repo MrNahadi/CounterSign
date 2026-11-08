@@ -180,6 +180,7 @@ describe("riskView: rows, notes and window", () => {
         day: "2026-11-08",
         principal: "support-agent",
         action: "Refund",
+        actionName: "paypal.refund",
         decision: "Denied",
         reasonCode: "TICKET_NOT_FROM_PAYER",
         claim: "Not received",

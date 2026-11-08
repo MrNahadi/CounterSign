@@ -337,7 +337,8 @@ export function fixtures(now: Date): Fixtures {
     at: ago(minutesAgo),
     principal: "resolve",
     intent_id: intentId(`row-${seq}`),
-    action: "create_refund",
+    // The intent's action, as the gate's audit reader sends it (not the tool name).
+    action: "paypal.refund",
     action_words: "Refund",
     amount: usd(4_800),
     target: { kind: "capture", id: "3C679366HH908993F", order_id: null },
@@ -364,7 +365,7 @@ export function fixtures(now: Date): Fixtures {
       row(43, 3, {
         decision: "step_up",
         amount: usd(4_500),
-        action: "create_payout",
+        action: "paypal.payout",
         action_words: "Pay a supplier",
         target: { kind: "payee", id: "payee_kdw", order_id: null },
         order_number: null,
@@ -432,7 +433,7 @@ export function fixtures(now: Date): Fixtures {
       }),
       row(38, 6 * 60, {
         decision: "allow",
-        action: "send_invoice",
+        action: "paypal.invoice.send",
         action_words: "Send an invoice",
         amount: usd(6_000),
         target: { kind: "invoice", id: "INV2-AAAA-BBBB", order_id: null },
@@ -451,7 +452,7 @@ export function fixtures(now: Date): Fixtures {
       }),
       row(37, 20 * 60, {
         decision: "step_up",
-        action: "create_payout",
+        action: "paypal.payout",
         action_words: "Pay a supplier",
         amount: usd(12_000),
         target: { kind: "payee", id: "payee_kdw", order_id: null },

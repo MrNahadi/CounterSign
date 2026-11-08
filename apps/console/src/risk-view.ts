@@ -3,6 +3,7 @@ import { type AuditDeps, loadDecisions } from "./audit-routes";
 import type { ChainVerdict, DecisionRow } from "./audit-schemas";
 import { type VerdictView, verdictView } from "./audit-view";
 import { DECISION_BADGES } from "./decisions-view";
+import { type RefundSpike, refundSpike, SPIKE_RULE } from "./risk-spike";
 import { formatTime } from "./time";
 
 // The Risk desk (brief §5 item 11): money protected, decisions by reason code and the chain's
@@ -25,6 +26,13 @@ export const RISK_COPY = {
   decisionsTitle: "Decisions",
   noReason: "NO_REASON_CODE",
   communityNote: "AG Grid Community view. The AG Studio desk needs its licence key.",
+  spikeTitle: "Refund spike",
+  spikeBadge: { spike: "Spike", normal: "Normal", unknown: "Not checked" },
+  spikeHeading: (recent: number, daily: string) =>
+    `${plural(recent, "refund", "refunds")} proposed in the last 24 hours, against ${daily} a day over the 7 days before.`,
+  spikeAsked: (asked: string, denied: number, held: number) =>
+    `${asked} asked for: ${denied.toLocaleString("en-US")} denied, ${held.toLocaleString("en-US")} held for approval.`,
+  spikeRule: `Alerts at ${SPIKE_RULE.minRefunds} or more in 24 hours and ${SPIKE_RULE.factor} times the daily average. It only alerts: the gate decides every refund.`,
 } as const;
 
 /** Pages of decisions the desk reads, newest first: at most 1,000 decisions. */
@@ -111,6 +119,8 @@ export type RiskRow = {
   day: string;
   principal: string;
   action: string;
+  /** The gate's action name, such as `paypal.refund`, or null when the log has none. */
+  actionName: string | null;
   decision: string;
   reasonCode: string;
   claim: string;
@@ -126,13 +136,24 @@ export type ReasonPair = { seq: number; decision: string; reasonCode: string };
 
 export type ChainView = VerdictView & { badge: string };
 
+export type SpikeView = RefundSpike & {
+  tone: "danger" | "positive" | "neutral";
+  badge: string;
+  heading: string;
+  asked: string;
+  rule: string;
+};
+
 export type RiskView = {
+  /** When the desk read the log, ISO: the "now" its periods are counted back from. */
+  asOf: string;
   /** Which decisions the desk read: all of them, or the newest so many. */
   window: string;
   money: MoneyProtectedView;
   reasons: ReasonRow[];
   reasonPairs: ReasonPair[];
   chain: ChainView;
+  spike: SpikeView;
   rows: RiskRow[];
   /** What the numbers leave out, each said once. */
   notes: string[];
@@ -245,6 +266,7 @@ export function riskView(
       day: dayOf(row.at),
       principal: row.principal,
       action: row.action_words ?? row.action ?? "Unknown action",
+      actionName: row.action,
       decision: DECISION_BADGES[row.decision].label,
       reasonCode: row.reasons[0]?.code ?? RISK_COPY.noReason,
       claim: row.claim_words ?? "None",
@@ -274,6 +296,7 @@ export function riskView(
       : `Read from the newest ${plural(read, "decision", "decisions")} of ${decisions.total.toLocaleString("en-US")} in the audit log.`;
 
   return {
+    asOf: now.toISOString(),
     window,
     money: moneyProtected(readable),
     reasons: reasonRows(reasonPairs),
@@ -282,7 +305,43 @@ export function riskView(
       decision: DECISION_BADGES[pair.decision as Kind].label,
     })),
     chain: chainView(verdict),
+    spike: spikeView(decisions, readable, now),
     rows,
     notes,
+  };
+}
+
+/** The refund-spike card: the alert from `risk-spike.ts`, in the desk's words. */
+function spikeView(
+  decisions: RiskDecisions,
+  readable: Extract<DecisionRow, { readable: true }>[],
+  now: Date,
+): SpikeView {
+  const spike = refundSpike(
+    readable.map((row) => ({
+      at: row.at,
+      actionName: row.action,
+      decision: row.decision,
+      usdMinor: row.amount?.currency === RISK_CHART_CURRENCY ? row.amount.minor : null,
+    })),
+    {
+      complete: decisions.complete && decisions.rows.length >= decisions.total,
+      unreadableAt: decisions.rows.filter((row) => !row.readable).map((row) => row.at),
+    },
+    now,
+  );
+  const tone =
+    spike.status === "spike" ? "danger" : spike.status === "normal" ? "positive" : "neutral";
+  return {
+    ...spike,
+    tone,
+    badge: RISK_COPY.spikeBadge[spike.status],
+    heading: RISK_COPY.spikeHeading(spike.recent, spike.baselineDaily),
+    asked: RISK_COPY.spikeAsked(
+      formatMinor(spike.recentUsdMinor, RISK_CHART_CURRENCY),
+      spike.recentDenied,
+      spike.recentHeld,
+    ),
+    rule: RISK_COPY.spikeRule,
   };
 }

@@ -11,6 +11,7 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { RiskView } from "../../src/risk-view";
 import { ChainStatus } from "./chain-status";
 import { MoneyProtectedWidget } from "./money-protected-widget";
+import { RefundSpike } from "./refund-spike";
 import type { CountersignRegistry } from "./registry";
 import { riskStudioData, riskStudioReport } from "./studio-data";
 
@@ -30,6 +31,18 @@ function ChainStatusWidget({ widgetApi, chain }: AgWidgetParams & { chain: RiskV
   );
 }
 
+// The spike alert compares time windows the page already counted, so it shows those counts.
+function RefundSpikeWidget({ widgetApi, spike }: AgWidgetParams & { spike: RiskView["spike"] }) {
+  useEffect(() => {
+    widgetApi.setDisplayState("displayed");
+  }, [widgetApi]);
+  return (
+    <div className="h-full p-1">
+      <RefundSpike spike={spike} />
+    </div>
+  );
+}
+
 // The Risk desk in AG Studio with the Graphite theme (ADR 0006), from the audit log's decisions.
 // Studio only renders in the browser: Node 26 has a server-side localStorage (ADR 0008).
 export function RiskStudio({ licenseKey, view }: { licenseKey: string; view: RiskView }) {
@@ -43,6 +56,7 @@ export function RiskStudio({ licenseKey, view }: { licenseKey: string; view: Ris
     [view],
   );
   const chain = view.chain;
+  const spike = view.spike;
 
   const widgets = useMemo(
     () =>
@@ -83,9 +97,29 @@ export function RiskStudio({ licenseKey, view }: { licenseKey: string; view: Ris
             minSize: { width: 200, height: 120 },
             ai: { description: "Whether the audit log's hash chain is intact." },
           },
+          {
+            id: "refund-spike",
+            label: "Refund spike",
+            dataMapping: {
+              value: {
+                type: "field",
+                supportedRoles: ["numeric"],
+                requires: { cardinality: "one" },
+                required: false,
+              },
+            },
+            form: (params) => params.createDefaults({ dataMappingItems: [] }),
+            comp: (params: AgWidgetParams) => <RefundSpikeWidget {...params} spike={spike} />,
+            defaultSize: { width: 320, height: 200 },
+            minSize: { width: 240, height: 160 },
+            ai: {
+              description:
+                "Whether refunds proposed in the last 24 hours spiked against the week before.",
+            },
+          },
         ],
       }),
-    [chain],
+    [chain, spike],
   );
 
   if (!inBrowser) return null;
