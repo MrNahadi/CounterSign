@@ -105,6 +105,27 @@ function withMandatePayees(records: GateRecords, mandate: Mandate): GateRecords 
   return { ...rest, payees: { call: CALLS.payees, id, payees } };
 }
 
+/**
+ * Step 4 of decide(): the mandate's rules over a verified intent, its verifier trace and today's
+ * usage, then the gate's own check that it can carry out an allowed action. The mandate replay
+ * (mandate-replay.ts) runs recorded decisions through this same step.
+ */
+export function ruleDecision(input: {
+  mandate: Mandate;
+  intent: Intent;
+  trace: VerifierTrace;
+  usage: Usage;
+}): { decision: Decision; reasons: Reason[]; matchedRules: string[] } {
+  const { intent } = input;
+  const { decision, reasons, matchedRules } = evaluate(input);
+  // The mandate may allow what the gate has no call for yet, so nothing is sent.
+  if (decision === "allow" && !isExecutable(intent.action)) {
+    const detail = `The mandate allows ${intent.action}, but Countersign can't carry it out yet`;
+    return { decision: "deny", reasons: [{ code: "ACTION_UNAVAILABLE", detail }], matchedRules };
+  }
+  return { decision, reasons, matchedRules };
+}
+
 export function decide(input: DecideInput): Decided {
   const { mandate, principal, now } = input;
   const records = withMandatePayees(input.records, mandate);
@@ -144,15 +165,7 @@ export function decide(input: DecideInput): Decided {
   const { hash, id, canonical } = hashIntent(intent);
   // The mandate's rules may require verifiers beyond the action's own set.
   const trace = runVerifiers(intent, records, requiredVerifiers(mandate, intent.action));
-  const evaluated = evaluate({ mandate, intent, trace, usage });
-  const { matchedRules } = evaluated;
-  let { decision, reasons } = evaluated;
-  // The mandate may allow what the gate has no call for yet, so nothing is sent.
-  if (decision === "allow" && !isExecutable(intent.action)) {
-    decision = "deny";
-    const detail = `The mandate allows ${intent.action}, but Countersign can't carry it out yet`;
-    reasons = [{ code: "ACTION_UNAVAILABLE", detail }];
-  }
+  const { decision, reasons, matchedRules } = ruleDecision({ mandate, intent, trace, usage });
   const record: DecisionRecord = {
     ...base,
     intent,

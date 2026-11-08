@@ -124,7 +124,7 @@ const DecisionPayloadSchema = z.object({
   }),
   response: AgentResponseSchema,
 });
-type DecisionPayload = z.infer<typeof DecisionPayloadSchema>;
+export type DecisionPayload = z.infer<typeof DecisionPayloadSchema>;
 
 const MandatePayloadSchema = z.object({
   mandate: z.object({ id: z.string(), version: z.number().int().positive() }),
@@ -137,7 +137,7 @@ const RESPONSE_OF: Record<Decision, DecisionPayload["response"]["decision"]> = {
   deny: "denied",
 };
 
-type Parsed<T> = { ok: true; value: T } | { ok: false; problem: string };
+export type Parsed<T> = { ok: true; value: T } | { ok: false; problem: string };
 
 function parseEntry<T>(row: ChainRow, schema: z.ZodType<T>): Parsed<T> {
   let value: unknown;
@@ -157,7 +157,7 @@ function parseEntry<T>(row: ChainRow, schema: z.ZodType<T>): Parsed<T> {
 }
 
 // A decision entry read in full, with the checks that its parts agree with each other.
-function parseDecision(row: ChainRow): Parsed<DecisionPayload> {
+export function parseDecision(row: ChainRow): Parsed<DecisionPayload> {
   const parsed = parseEntry(row, DecisionPayloadSchema);
   if (!parsed.ok) return parsed;
   const { record, response } = parsed.value;

@@ -33,7 +33,7 @@ Where requirements come from: `specs/brief.md` (§4 goals and honesty rules, §5
 ## E. Mandate compiler (only if time remains)
 
 - [x] **E1. Compile and read back.** A console server route turns plain-English rules into the Mandate schema with Gemini structured output, validated with zod, and reads them back in plain English. Never at decision time.
-- [ ] **E2. Diff, flips and sign.** Show the diff against the current mandate, replay the frozen bench decisions offline (no AI, through the decide path) to list the cases the change flips, then sign version N+1 with its hash in the audit log.
+- [x] **E2. Diff, flips and sign.** Show the diff against the current mandate, replay the frozen bench decisions offline (no AI, through the decide path) to list the cases the change flips, then sign version N+1 with its hash in the audit log.
 
 ## Z. Before submission
 

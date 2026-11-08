@@ -340,6 +340,8 @@ describe("POST /api/mandate/compile", () => {
         readBack: readBackMandate(compiled.mandate),
         leftOut: [],
         base: { version: 3, hash: hashMandate(V3).hash },
+        // The same rules as version 3, so nothing reads as changed.
+        diff: { items: [], unchangedRules: 5 },
       },
     });
     expect(gate.calls).toEqual([{ url: "http://gate.test/approvals", method: "GET" }]);

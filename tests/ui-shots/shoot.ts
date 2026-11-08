@@ -125,6 +125,8 @@ const SCREENS: readonly Screen[] = [
   },
   // The Risk desk: with no AG Studio key in the harness, the AG Grid Community view.
   { name: "risk", app: "console", path: "/risk", signedIn: true, shell: true, scope: null },
+  // The mandate in force read back, over the rules form. The draft view needs Gemini, so it's not shot.
+  { name: "mandate", app: "console", path: "/mandate", signedIn: true, shell: true, scope: null },
   { name: "chat", app: "console", path: "/chat", signedIn: false, shell: false, scope: null },
   { name: "shop", app: "storefront", path: "/", signedIn: false, shell: false, scope: null },
   {

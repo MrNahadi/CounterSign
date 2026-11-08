@@ -12,6 +12,7 @@ import { mountAudit } from "./audit-api";
 import { mountBaselineLaunch } from "./baseline-launch";
 import { demoResetEnabled, type Reseed } from "./demo-reset";
 import { mountDemoReset } from "./demo-reset-api";
+import { mountMandates } from "./mandate-api";
 import { mountMcp } from "./mcp";
 import type { NudgeFetch } from "./nudge";
 import { mountPairing } from "./pairing";
@@ -113,6 +114,12 @@ export function createApp(deps: AppDeps = {}) {
     clock: webhookDeps.clock,
   });
   mountAudit(app, {
+    approver,
+    ...(deps.db ? { db: deps.db } : {}),
+    mandates: principals.mandates,
+    clock: webhookDeps.clock,
+  });
+  mountMandates(app, {
     approver,
     ...(deps.db ? { db: deps.db } : {}),
     mandates: principals.mandates,

@@ -64,7 +64,7 @@ export function proposalText(proposal: unknown): { text: string; truncated: bool
 const LoggedMandateSchema = z.object({ hash: z.string() });
 
 // The hash a logged mandate.version entry holds, or null when it can't be read.
-function loggedHash(row: ChainRow): string | null {
+export function loggedHash(row: ChainRow): string | null {
   try {
     const parsed = LoggedMandateSchema.safeParse(JSON.parse(row.payload));
     return parsed.success ? parsed.data.hash : null;
@@ -75,7 +75,10 @@ function loggedHash(row: ChainRow): string | null {
 
 class MandateVersionConflict extends Error {}
 
-async function findMandateEntry(log: AuditLogWriter, ref: string): Promise<ChainRow | undefined> {
+export async function findMandateEntry(
+  log: AuditLogWriter,
+  ref: string,
+): Promise<ChainRow | undefined> {
   const [row] = await log.tx
     .select()
     .from(auditLog)

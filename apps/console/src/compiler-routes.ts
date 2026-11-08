@@ -9,6 +9,7 @@ import {
   compileAnswer,
   compilerPrompt,
 } from "./mandate-compiler";
+import { diffMandates, type MandateDiff } from "./mandate-diff";
 import { type ReadBack, readBackMandate } from "./mandate-readback";
 import { limitSession } from "./session-limits";
 
@@ -41,6 +42,8 @@ export type CompileAnswer = {
   /** The merchant's rules Gemini said it couldn't express; nothing was compiled for them. */
   leftOut: string[];
   base: { version: number; hash: string };
+  /** What the draft changes against the current mandate, in the read-back's words (PLAN E2). */
+  diff: MandateDiff;
 };
 
 let today = { day: "", count: 0 };
@@ -96,6 +99,7 @@ export function compileRoute(request: Request, deps: CompilerDeps): Promise<Resp
         readBack: readBackMandate(compiled.mandate),
         leftOut: compiled.leftOut,
         base: { version: current.version, hash: hashMandate(current).hash },
+        diff: diffMandates(current, compiled.mandate),
       } satisfies CompileAnswer,
     };
   });

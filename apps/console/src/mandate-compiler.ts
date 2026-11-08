@@ -11,6 +11,7 @@ import {
   VERIFIERS,
 } from "@countersign/mandate";
 import { z } from "zod";
+import { COMPILE_PATH, MAX_RULES_CHARS } from "./mandate-editor";
 
 // The mandate compiler (brief §5 item 12, "Flow: the merchant changes their rules", PLAN E1).
 // The merchant's plain-English rules go to Gemini once, with structured output in the shape below
@@ -18,11 +19,11 @@ import { z } from "zod";
 // and payee list are copied from the current version by code, the version is the current one plus
 // one, and the fallback is always deny, so the model can't widen what the mandate covers or whom
 // it pays. The result must pass the gate's own `MandateSchema`, or nothing is compiled. It is a
-// draft: it isn't signed, isn't stored and never reaches the gate, which decides only with signed
-// mandates and never calls a model (brief §8).
+// draft: it isn't signed or stored here. The gate sees it only when the merchant asks for a replay
+// or signs it (PLAN E2, mandate-routes.ts), and decides only with the signed mandate it loaded,
+// never calling a model (brief §8).
 
-export const COMPILE_PATH = "/api/mandate/compile";
-export const MAX_RULES_CHARS = 4_000;
+export { COMPILE_PATH, MAX_RULES_CHARS };
 /** More rules than any merchant's mandate needs; a longer answer is refused. */
 export const MAX_COMPILED_RULES = 30;
 export const MAX_LEFT_OUT = 20;

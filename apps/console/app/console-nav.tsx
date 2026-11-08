@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Compass,
   Crosshair,
+  FileText,
   Gauge,
   Inbox,
   type LucideIcon,
@@ -22,6 +23,7 @@ const items: { href: string; label: string; Icon: LucideIcon }[] = [
   { href: "/disputes", label: "Disputes", Icon: ShieldAlert },
   { href: "/decisions", label: "Decisions", Icon: Scale },
   { href: "/risk", label: "Risk desk", Icon: Gauge },
+  { href: "/mandate", label: "Mandate", Icon: FileText },
   { href: "/audit", label: "Audit log", Icon: ScrollText },
 ];
 
