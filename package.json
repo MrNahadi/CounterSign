@@ -21,6 +21,7 @@
     "test": "vitest run",
     "build": "npm run build --workspaces --if-present",
     "ui:shots": "tsx tests/ui-shots/shoot.ts",
+    "smoke": "tsx tests/smoke/smoke.ts",
     "decide": "tsx apps/gate/src/decide-main.ts",
     "db:generate": "npm run db:generate --workspace @countersign/db",
     "db:migrate": "tsx --env-file-if-exists=.env.local packages/db/src/migrate-main.ts",

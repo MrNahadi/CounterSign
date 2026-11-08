@@ -1,1 +1,2 @@
 2026-11-08 setup: lean loop in place (PLAN.md, PROMPT.md, loop.sh). Phases 1 and 3-13 and 13a are on main; next task is A1.
+2026-11-08 A1: tests/smoke/smoke.ts and `npm run smoke` (4 checks, one line each, exit 0/1/2), unit-tested with a fake fetch. Full test, lint, typecheck and build are green. Gotcha: the agent couldn't start `npm run dev` (background commands needed approval), so the live run hasn't happened yet; it's in OWNER.md.

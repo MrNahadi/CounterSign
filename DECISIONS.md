@@ -7,3 +7,4 @@ One line each, newest last: the date, what was decided, why, and who decided (ow
 - 2026-11-08 (owner): Trim old phase 19 to a smoke test. The uptime monitor and CI secret scan are dropped unless time remains.
 - 2026-11-08 (owner): The Risk desk ships three widgets plus the spike alert and analyst; the mandate compiler (section E) is built only if time remains.
 - 2026-11-08 (owner): Hosting stays on Render for submission; Cloudflare is revisited after it.
+- 2026-11-08 (agent, A1): `npm run smoke` takes named flags (`--gate`, `--resolve`, `--console`, `--storefront`), not positional URLs, so a URL can't land on the wrong service. Each flag defaults to the local launcher's port. A check passes only on HTTP 200 with a `{"ok":true}` health body or an HTML page. Bad arguments exit 2.

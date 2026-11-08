@@ -8,7 +8,7 @@ Where requirements come from: `specs/brief.md` (§4 goals and honesty rules, §5
 
 ## A. Hosted demo
 
-- [ ] **A1. Smoke test.** `npm run smoke -- <base URLs>` checks the gate and Resolve `/health`, the console start page and the storefront home, and exits 1 on any failure with one line per check. Files: `tests/smoke/smoke.ts`, a `smoke` script in `package.json`. Done when: a unit test covers pass and fail with a fake fetch, and it passes against `npm run dev`.
+- [x] **A1. Smoke test.** `npm run smoke -- <base URLs>` checks the gate and Resolve `/health`, the console start page and the storefront home, and exits 1 on any failure with one line per check. Files: `tests/smoke/smoke.ts`, a `smoke` script in `package.json`. Done when: a unit test covers pass and fail with a fake fetch, and it passes against `npm run dev`. (The live run against `npm run dev` is still to do, so it's in OWNER.md: the agent couldn't start servers.)
 
 ## B. Bench v1
 

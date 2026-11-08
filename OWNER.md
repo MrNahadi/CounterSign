@@ -46,6 +46,7 @@ What only you can do, and what the agents decided on your behalf. Nothing here b
 - **Phase 13a, phone nav row (looks unchanged from `main`):** on a phone, the console's sidebar is one row that scrolls sideways. Disputes, Decisions and Audit log sit past the screen edge, and Approvals' count badge is cut off by the theme control. Say if you want the hidden links shown another way, such as wrapping the row or adding a fade at the edge (DESIGN.md's scroll-area fade).
 - **Stale branches:** `origin/feature/04-tamper-evident-audit-log` and `origin/feature/05-storefront-and-seed` share no history with main (main was rewritten after they were made), and `origin/feature/06-refund-executes-once` is also already on main; the work of all three is on main. Delete them when convenient; the autopilot never deletes branches.
 - **Phase 19, hosting:** the owner has Cloudflare and asked on 1 Nov 2026 about deploying as we build. Their call: not now; keep Render as the brief plans and revisit Cloudflare (preview deploys, frontends only, or everything) at phase 19.
+- **A1, live smoke run:** start `npm run dev` and let it finish starting. Then, in a second terminal, run `npm run smoke` and check that all four lines say PASS. Once Render is up, run `npm run smoke -- --gate <url> --resolve <url> --console <url> --storefront <url>` with the hosted URLs. The loop agent couldn't start servers (background commands needed approval), so the CLI has only run with nothing listening: four FAIL lines (ECONNREFUSED) and no PASS yet.
 
 ## Decided for you
 
