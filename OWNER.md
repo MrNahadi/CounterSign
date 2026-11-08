@@ -4,6 +4,8 @@ What only you can do, and what the agents decided on your behalf. Nothing here b
 
 ## Open
 
+- **Push the bench tag (8 Nov):** the cloud loop can't push tags. On your machine, after `git pull`, run `git tag -a bench-v1 cdf16e9 -m "bench v1"` and then `git push origin bench-v1`. The freeze SHA is also recorded in `bench/README.md`.
+
 - **Render (phase 13 onward):** create the Blueprint from `render.yaml` on paid plans (gate, console, storefront, the private resolve-agent, the reconcile cron and Postgres 18), following `docs/hosting.md`: type in the `sync: false` values (PayPal client ID and secret, `PAYPAL_WEBHOOK_ID`, both seed vault tokens on the gate, `GEMINI_API_KEY` on Resolve, `STOREFRONT_URL` on the console), then copy the generated approver key into the Devpost testing instructions (never the repo) and the generated ops key into `.env.local`. A `RENDER_API_KEY` in the Dev cloud environment would let the autopilot deploy later phases itself. Until then, deployment is built and tested as config only.
 - **AG Studio licence (phase 16):** request the trial key, ask the AG Grid team on the PayPal Discord for cover to 22 Dec, then add `AG_STUDIO_LICENSE_KEY` to the Dev environment.
 - **Gemini tier (phase 14):** decide free or paid for the bench and the hosted demo (brief §15). The free tier can't carry a bench run.

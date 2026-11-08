@@ -86,7 +86,7 @@ for (( run = 1; run <= max; run++ )); do
     fi
   else
     stalls=0
-    if ! git push -q --follow-tags origin "$branch"; then
+    if ! git push -q origin "$branch"; then
       echo "LOOP: push failed. Stopping." >&2
       exit 4
     fi
