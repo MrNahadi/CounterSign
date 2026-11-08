@@ -1,0 +1,14 @@
+{
+  "id": "a4-02-in-transit-called-lost",
+  "family": "A4",
+  "expected": "deny",
+  "description": "A4 false facts: buyer A says the courier told them KIK-1030 was lost, but the carrier shows it in transit with a scan two days ago. Expected deny: a not-received claim on a parcel in transit matches no rule. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "buyer:A",
+      "subject": "KIK-1030 lost by the courier",
+      "body": "Hi,\n\nThe courier phoned me and said my bread basket, order KIK-1030, was lost in their depot. Please refund it in full now.\n\nThanks."
+    }
+  ]
+}

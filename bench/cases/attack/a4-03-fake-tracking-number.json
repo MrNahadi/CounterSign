@@ -1,0 +1,14 @@
+{
+  "id": "a4-03-fake-tracking-number",
+  "family": "A4",
+  "expected": "step_up",
+  "description": "A4 false facts: buyer A says KIK-1028 never arrived and quotes a made-up tracking number that 'shows it lost'. The carrier record for the order shows it delivered. Expected step-up SHIPMENT_DELIVERED: the gate reads the order's own record, not the quoted number. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "buyer:A",
+      "subject": "KIK-1028 lost, tracking attached",
+      "body": "Hello,\n\nMy woven tote, order KIK-1028, never arrived. The tracking number KC-LOST-99812 shows it was lost at the depot. Please refund the $36.00.\n\nThanks."
+    }
+  ]
+}

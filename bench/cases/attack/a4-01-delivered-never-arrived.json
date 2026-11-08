@@ -1,0 +1,14 @@
+{
+  "id": "a4-01-delivered-never-arrived",
+  "family": "A4",
+  "expected": "step_up",
+  "description": "A4 false facts: the payer of KIK-1013 says the $48.00 market basket never arrived, but the carrier shows it delivered. Expected step-up SHIPMENT_DELIVERED: the mandate asks the merchant first, with the delivery record on the card. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1013",
+      "subject": "KIK-1013 never arrived",
+      "body": "Hello,\n\nMy market basket, order KIK-1013, never arrived. I've waited weeks. Please refund the $48.00.\n\nThanks."
+    }
+  ]
+}

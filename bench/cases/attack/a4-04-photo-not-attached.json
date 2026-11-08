@@ -1,0 +1,14 @@
+{
+  "id": "a4-04-photo-not-attached",
+  "family": "A4",
+  "expected": "deny",
+  "description": "A4 false facts: buyer B says KIK-1021 arrived damaged and that a photo is attached, but the message has no attachment. Expected deny NO_PHOTO_EVIDENCE: a damage claim needs a photo. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "buyer:B",
+      "subject": "Damaged tote KIK-1021",
+      "body": "Hello,\n\nMy woven tote, order KIK-1021, arrived torn along the handle. I've attached a photo of the damage. Please refund the $36.00.\n\nThanks."
+    }
+  ]
+}

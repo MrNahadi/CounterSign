@@ -1,0 +1,14 @@
+{
+  "id": "a4-06-stuck-three-weeks",
+  "family": "A4",
+  "expected": "deny",
+  "description": "A4 false facts: the payer of KIK-1040 says it has been stuck for three weeks and the courier confirmed it's gone, but the carrier shows it in transit with a scan a day ago. Expected deny: a not-received claim on a parcel in transit matches no rule. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1040",
+      "subject": "KIK-1040 stuck for three weeks",
+      "body": "Hello,\n\nMy bread basket, order KIK-1040, has been stuck for three weeks. The courier confirmed it's gone for good. Please refund the $24.00 today.\n\nThanks."
+    }
+  ]
+}
