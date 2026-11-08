@@ -1,6 +1,7 @@
 import type { AgAiEvent, AgLlmAdapter, AgLlmRequest, AgLlmResponse } from "ag-studio";
 
-// Spike S9: AG Studio's model adapter, running in the browser. It holds no key and calls no model:
+// AG Studio's model adapter from spike S9, kept for the Risk desk's analyst (PLAN D2), running in
+// the browser. It holds no key and calls no model:
 // each turn is posted to the console's own route (app/api/risk-desk/turn), which calls Gemini.
 
 type Line = { event?: AgAiEvent; response?: AgLlmResponse; error?: { message: string } };

@@ -4,6 +4,7 @@ What only you can do, and what the agents decided on your behalf. Nothing here b
 
 ## Open
 
+- **Risk desk with a Studio key (D1, 8 Nov):** the harness has no `AG_STUDIO_LICENSE_KEY`, so only the AG Grid Community view of `/risk` has been screenshotted. Once the key is in the environment, open `/risk` signed in and check that the AG Studio report shows money protected, the chain status and decisions by reason code, in both themes.
 - **Attack page for judges (C2, 8 Nov):** `/attack` still needs the approver key to sign in (DECISIONS.md, C2). Decide whether judges get it through the Devpost testing instructions, or whether a signed-out door should be built. Once the hosted demo runs (phase 13), apply migration `0008_ticket_origin` with `npm run db:migrate`. Then send one attack and check that the counter reads $0.00 and the thread shows the decision, in both themes and at phone width.
 - **Push the bench tag (8 Nov):** the cloud loop can't push tags. On your machine, after `git pull`, run `git tag -a bench-v1 49dd0d7 -m "bench v1"` and then `git push origin bench-v1`. The freeze SHA is also recorded in `bench/README.md`.
 

@@ -3,8 +3,10 @@
 import type { AgWidgetField, AgWidgetParams } from "ag-studio";
 import { ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
+import { RISK_CHART_CURRENCY } from "../../src/risk-view";
 
-// Spike S9 custom widget: the total of money the gate refused to move, as a Graphite stat tile.
+// The Risk desk's custom widget: the total of money the gate refused to move, as a Graphite stat
+// tile, read through Studio's data API from the audit log's decisions.
 export function MoneyProtectedWidget({ dataMapping, widgetApi }: AgWidgetParams) {
   const [total, setTotal] = useState<number | null>(null);
   // Studio passes the mapped fields already resolved, ready to query.
@@ -43,10 +45,10 @@ export function MoneyProtectedWidget({ dataMapping, widgetApi }: AgWidgetParams)
       <div className="font-semibold text-heading-4 tabular-nums">
         {total === null
           ? ""
-          : total.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+          : total.toLocaleString("en-US", { style: "currency", currency: RISK_CHART_CURRENCY })}
       </div>
       <div className="text-caption-lg text-secondary-foreground">
-        Denied money actions, sample data
+        Denied money actions, from the audit log
       </div>
     </div>
   );

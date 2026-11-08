@@ -123,15 +123,9 @@ const SCREENS: readonly Screen[] = [
     shell: true,
     scope: null,
   },
+  // The Risk desk: with no AG Studio key in the harness, the AG Grid Community view.
+  { name: "risk", app: "console", path: "/risk", signedIn: true, shell: true, scope: null },
   { name: "chat", app: "console", path: "/chat", signedIn: false, shell: false, scope: null },
-  {
-    name: "risk-desk",
-    app: "console",
-    path: "/spike/risk-desk",
-    signedIn: false,
-    shell: false,
-    scope: '[data-graphite="spike-header"]',
-  },
   { name: "shop", app: "storefront", path: "/", signedIn: false, shell: false, scope: null },
   {
     name: "product",
