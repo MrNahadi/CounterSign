@@ -552,7 +552,9 @@ The tickets in `guarded-actions.json` and the proposal files are simulated, and 
 
 ## Project status
 
-The build is complete for submission on 11 November 2026. On 8 November, `npm run typecheck`, `npm run lint`, `npm test` (2,742 tests passed, 21 skipped: the skipped ones are `LIVE=1` sandbox checks), `npm run build` and `npm run ui:shots` (80 screenshots, 0 failures) all passed. What's left is live runs that need credentials or a deployment, the video and the Devpost submission; the owner does those.
+The build is complete for submission on 11 November 2026. On 8 November, after the move to free hosting, `npm run typecheck`, `npm run lint`, `npm test` (2,815 tests passed, 21 skipped: the skipped ones are `LIVE=1` sandbox checks) and `npm run build` all passed. The last full `npm run ui:shots` (80 screenshots, 0 failures) ran before the hosting work; since then the only screen that changed is the start page, and its screenshots pass. The smoke test hasn't run against live servers yet, local or hosted. What's left is the deployment, live runs that need credentials, the video and the Devpost submission; the owner does those.
+
+The hosted demo runs on free plans: Render for the four apps, Neon for Postgres, and the owner's domain on Cloudflare ([`docs/hosting.md`](docs/hosting.md)). A free Render service sleeps after about 15 minutes without visitors, and the first visit after that takes about a minute to wake it. The console's start page says so.
 
 | Phase | Feature | Status |
 |---|---|---|
@@ -568,13 +570,14 @@ The build is complete for submission on 11 November 2026. On 8 November, `npm ru
 | 10 | Claims vs records and the audit console: `/decisions`, `/audit`, evidence export, `npm run audit` | Done; checks against real sandbox data are manual |
 | 11 | Dispute evidence: the dispute webhook, `npm run disputes`, the evidence PDF, the drafter, `/disputes` | Done; the full submission check (`LIVE=1`) has not been run |
 | 12 | Supplier payouts: the ops agent, the payee list, payout cards, payout reconciliation | Done; both `LIVE=1` payout checks passed on the sandbox |
-| 13 | The hosted judge path: start page, demo reset, session limits, Render Blueprint (`render.yaml`, [`docs/hosting.md`](docs/hosting.md)) | Built and tested as config; not deployed yet |
+| 13 | The hosted judge path: start page, demo reset, session limits, Render Blueprint (`render.yaml`, [`docs/hosting.md`](docs/hosting.md)) | Built and tested as config; moved to free plans in section F; not deployed yet |
 | 13a | Graphite at comfortable density on every screen | Done |
-| A | Smoke test, `npm run smoke` | Done; not yet run against live servers |
+| A | Smoke test, `npm run smoke` | Done; not yet run against live servers, local or hosted |
 | B | Bench v1: 60 attack, 45 genuine and 35 hold-out cases, runner and scorer, frozen at `bench-v1` | Done; not run yet (needs credentials and a Gemini tier that can carry it) |
 | C | Attack it yourself, `/attack`, with per-session limits and the visitor money counter | Done; tested with a fake Resolve and gate |
 | D | Risk desk, `/risk`: money protected, reasons, chain status, the spike alert and the analyst | Done; the AG Studio view and the analyst haven't run with a real key or real Gemini |
 | E | Mandate compiler, `/mandate`: compile, read back, diff, replay and sign | Done; tested with a fake Gemini. A signed version doesn't go into force on the gate yet |
+| F | Free hosting: every service on Render's free plan with Neon Postgres, Resolve public behind a shared secret (`RESOLVE_SHARED_SECRET`), services reaching each other at typed-in public URLs, reconcile and a daily smoke test on GitHub Actions, the hosting guide and the start page's wake-up note | Done and tested as config; not deployed yet, and the workflows haven't run on GitHub |
 | Cut | The M-Pesa rail, with bench families A8 to A10 and the genuine M-Pesa slice | Cut on 8 November; reported as not run |
 
 ### Integration spikes
@@ -591,7 +594,7 @@ These were run by hand against live sandboxes on 16 October 2026. Findings are i
 | S8 Gemini API | Passes. The tool loop, structured output and fail-closed response check work |
 | S9 AG Studio | Mostly passes. The Graphite theme and a custom widget render, and the analyst built a widget through a server route. It became the Risk desk, `/risk` |
 | S3 Disputes | Built as `npm run disputes` and a `LIVE=1` check. Reading disputes passed on the sandbox; the full submission hasn't run |
-| S7 Hosting | Built as a Render Blueprint (`render.yaml`); not deployed yet |
+| S7 Hosting | Built as a free-plan Render Blueprint (`render.yaml`) with Neon Postgres; not deployed yet |
 
 ### Real and simulated
 
@@ -628,7 +631,8 @@ packages/
   carrier-mock/         The simulated carrier's shipment status
   rail-mpesa/           Stub; the M-Pesa rail was cut
 bench/                  Bench cases (attack, genuine, hold-out), the runner and the scorer
-tests/                  Repo-wide tests: no AI in the decision path, the Render Blueprint, the smoke test, the screenshot harness
+tests/                  Repo-wide tests: no AI in the decision path, the Render Blueprint, the GitHub workflows, the smoke test, the screenshot harness
+.github/workflows/      Reconcile every 15 minutes and the daily smoke test, on GitHub Actions
 spikes/                 Integration spike scripts (S1, S4, S5, S6, S8, S9)
 specs/                  Brief, mission, tech stack, roadmap and feature specs
 docs/                   Judge guide, hosting, seed buyers, spike findings
@@ -652,7 +656,7 @@ Graphite Design/        The design system every screen follows
 
 - [`specs/brief.md`](specs/brief.md): the project brief, the source of truth for intent
 - [`docs/judge-guide.md`](docs/judge-guide.md): the one-minute judge path
-- [`docs/hosting.md`](docs/hosting.md): hosting on Render
+- [`docs/hosting.md`](docs/hosting.md): hosting for free on Render, Neon and Cloudflare
 - [`bench/README.md`](bench/README.md): the bench cases, the freeze and how each goal is scored
 - [`CONTEXT.md`](CONTEXT.md): the domain glossary (intent, mandate, verifier, step-up and the rest)
 - [`PLAN.md`](PLAN.md): the build's task list

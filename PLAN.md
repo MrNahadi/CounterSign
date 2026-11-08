@@ -44,5 +44,5 @@ Where requirements come from: `specs/brief.md` (§4 goals and honesty rules, §5
 
 ## Z. Before submission
 
-- [ ] **Z2. Recheck after hosting.** Run all four checks and the smoke test against `npm run dev`, and update README "Project status" for free hosting.
+- [x] **Z2. Recheck after hosting.** Run all four checks and the smoke test against `npm run dev`, and update README "Project status" for free hosting. (The smoke run against `npm run dev` is still to do and is in OWNER.md under A1: the agent couldn't start servers.)
 - [x] **Z1. Full check and README.** Run all four checks and `npm run ui:shots`. Update README "Project status" and the judge-facing sections for what was built. Leave video and Devpost to the owner.
