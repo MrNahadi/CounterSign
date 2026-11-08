@@ -29,8 +29,10 @@ import {
   EXIT_REPLIED,
   MessageFileSchema,
   RESOLVE_USAGE,
+  runLoaded,
   runResolve,
 } from "../src/resolve-cli";
+import { parseMessageFile } from "../src/scenario-file";
 
 // The resolve CLI through its run function: a listening gate (its fake sandbox and the carrier
 // mock) sharing a PGlite directory with the CLI, and a scripted model. Plus one child-process
@@ -313,6 +315,33 @@ describe("resolve CLI, protected mode against the real gate", { timeout: SLOW },
       reply: null,
     });
     expect(secretsIn(result.stdout)).toEqual([]);
+  });
+
+  it("runs an already-loaded file with runLoaded, as JSON, for the bench", async () => {
+    const { handle, rail } = await seededWorld();
+    const url = await listenGate(handle, rail);
+    const model = scripted([
+      (request) => answer([call("create_refund", refund(1035, "18.00", ticketOf(request)), "c1")]),
+      () => answer([{ text: "Your refund is on its way." }]),
+    ]);
+    const json = JSON.parse(readFileSync(scenario("beat-4-stalled-parcel.json"), "utf8"));
+    const loaded = parseMessageFile(json, scenarios);
+    if (!loaded.ok) throw new Error(loaded.error);
+
+    const result = await runLoaded(
+      loaded.loaded,
+      { mode: "protected" },
+      { ...ENV, GATE_MCP_URL: url },
+      { db: handle.db, generateContent: model.generateContent, clock: () => NOW },
+    );
+
+    expect(result.exitCode).toBe(EXIT_REPLIED);
+    const runs = JSON.parse(result.stdout) as { status: string; trace: { steps: unknown[] } }[];
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.status).toBe("replied");
+    expect(JSON.stringify(runs[0]?.trace)).toContain('"decision":"allowed"');
+    expect(rail.refunds.size).toBe(1);
+    expect(parseMessageFile({ description: "x", messages: [] }, scenarios).ok).toBe(false);
   });
 
   it("threads a follow-up after the first message's run, so its turn holds the earlier reply", async () => {

@@ -67,13 +67,24 @@ export function loadMessageFile(
       error: error instanceof SyntaxError ? `${path} isn't valid JSON.` : `Can't read ${path}.`,
     };
   }
+  return parseMessageFile(json, dirname(path));
+}
+
+/**
+ * Checks parsed message-file JSON and reads every photo, relative to `baseDir`. The bench uses it
+ * for case files, which carry their own fields around a message file.
+ */
+export function parseMessageFile(
+  json: unknown,
+  baseDir: string,
+): { ok: true; loaded: Loaded } | { ok: false; error: string } {
   const parsed = MessageFileSchema.safeParse(json);
   if (!parsed.success) return { ok: false, error: firstIssueMessage("Message file", parsed.error) };
   const photos: Photo[][] = [];
   for (const [index, message] of parsed.data.messages.entries()) {
     const read: Photo[] = [];
     for (const relative of message.attachments ?? []) {
-      const photoPath = resolvePath(dirname(path), relative);
+      const photoPath = resolvePath(baseDir, relative);
       let bytes: Buffer;
       try {
         bytes = readFileSync(photoPath);

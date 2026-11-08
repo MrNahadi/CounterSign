@@ -616,6 +616,29 @@ export async function runResolve(
   const { options } = parsed;
   const loaded = loadMessageFile(options.path);
   if (!loaded.ok) return cantRun(loaded.error);
+  return runLoadedWith(loaded.loaded, options, env, cliOptions);
+}
+
+/**
+ * Runs an already-loaded message file the way `runResolve` runs one from a path, with the runs
+ * as JSON on stdout. The bench calls it, so a case runs through the same code as the CLI.
+ */
+export async function runLoaded(
+  loaded: Loaded,
+  run: { mode: RunMode; pgliteDir?: string },
+  env: Environment,
+  cliOptions: ResolveCliOptions = {},
+): Promise<CliResult> {
+  const options: Options = { json: true, mode: run.mode, pgliteDir: run.pgliteDir, path: "" };
+  return runLoadedWith(loaded, options, env, cliOptions);
+}
+
+async function runLoadedWith(
+  loaded: Loaded,
+  options: Options,
+  env: Environment,
+  cliOptions: ResolveCliOptions,
+): Promise<CliResult> {
   const read = readEnv(env, options.mode, cliOptions);
   if (!read.ok) return cantRun(read.error);
 
@@ -624,7 +647,7 @@ export async function runResolve(
       db: cliOptions.db,
       failure: () => "Couldn't read or write the ticket store.",
     };
-    return runWith(store, loaded.loaded, options, read.setup, cliOptions);
+    return runWith(store, loaded, options, read.setup, cliOptions);
   }
 
   const target = resolveDatabaseTarget(env, options.pgliteDir);
@@ -640,7 +663,7 @@ export async function runResolve(
       `Couldn't use the database at ${targetName(target)}: ${failureReason(error, target)}. Run npm run db:migrate and npm run seed first.`,
   };
   try {
-    return await runWith(store, loaded.loaded, options, read.setup, cliOptions);
+    return await runWith(store, loaded, options, read.setup, cliOptions);
   } finally {
     await handle.close().catch(() => {});
   }
