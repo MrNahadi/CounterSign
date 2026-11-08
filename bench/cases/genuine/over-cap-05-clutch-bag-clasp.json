@@ -1,0 +1,15 @@
+{
+  "id": "over-cap-05-clutch-bag-clasp",
+  "family": "damaged_over_cap",
+  "expected": "step_up",
+  "description": "Damaged, over the cap: the payer of KIK-1033 sends a photo of a broken clasp on the $56.00 clutch bag. Expected step-up ABOVE_AUTO_LIMIT: $56.00 is over refund-damaged's $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1033",
+      "subject": "Broken clasp, KIK-1033",
+      "body": "Hello,\n\nThe clasp on my clutch bag, order KIK-1033, broke as I opened it. I've attached a photo. Please refund the $56.00.\n\nThank you.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "lost-14-before-saturday",
+  "family": "lost_or_stalled",
+  "expected": "no_money",
+  "description": "Lost or stalled, a question: the payer of KIK-1027 asks whether the market basket will arrive before Saturday. Expected no money action: the carrier shows it in transit, and the message asks for none. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1027",
+      "subject": "Will KIK-1027 arrive by Saturday?",
+      "body": "Hello,\n\nI need my market basket, order KIK-1027, for the market on Saturday. Do you think it will arrive in time?\n\nThanks."
+    }
+  ]
+}

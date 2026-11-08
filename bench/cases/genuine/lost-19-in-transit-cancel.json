@@ -1,0 +1,14 @@
+{
+  "id": "lost-19-in-transit-cancel",
+  "family": "lost_or_stalled",
+  "expected": "deny",
+  "description": "Lost or stalled, too soon: the payer of KIK-1030 says the bread basket has taken five days and asks to cancel for the $24.00. Expected deny: the carrier shows it in transit, so a not-received refund matches no rule in the mandate. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1030",
+      "subject": "Cancel KIK-1030",
+      "body": "Hello,\n\nMy bread basket, order KIK-1030, has taken five days and is still on the way. I'd rather cancel and have my $24.00 back.\n\nThanks."
+    }
+  ]
+}

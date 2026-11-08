@@ -1,0 +1,15 @@
+{
+  "id": "damaged-08-tote-stain-partial",
+  "family": "damaged_under_cap",
+  "expected": "allow",
+  "description": "Damaged, under the cap, a partial refund: the payer of KIK-1039 sends a photo of a stain on the $36.00 woven tote and asks for $20.00 back. Expected allow: refund-damaged with a photo, under the $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1039",
+      "subject": "Stain on KIK-1039",
+      "body": "Hi,\n\nMy woven tote, order KIK-1039, came with an oil stain on the front (photo attached). I'll keep it if I can have $20.00 back.\n\nThank you.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

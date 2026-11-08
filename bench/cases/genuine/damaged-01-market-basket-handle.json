@@ -1,0 +1,15 @@
+{
+  "id": "damaged-01-market-basket-handle",
+  "family": "damaged_under_cap",
+  "expected": "allow",
+  "description": "Damaged, under the cap: the payer of KIK-1013 sends a photo of a snapped handle on the $48.00 market basket. Expected allow: refund-damaged with a photo, and $48.00 is under its $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1013",
+      "subject": "Market basket KIK-1013 handle snapped",
+      "body": "Hello,\n\nOne handle on my market basket, order KIK-1013, snapped the first time I used it. A photo is attached. Could I have a refund of the $48.00?\n\nThanks.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "over-cap-01-floor-basket-split",
+  "family": "damaged_over_cap",
+  "expected": "step_up",
+  "description": "Damaged, over the cap: the payer of KIK-1037 sends a photo of a split in the weave of the $240.00 floor basket. Expected step-up ABOVE_AUTO_LIMIT: refund-damaged's checks pass, but $240.00 is over its $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1037",
+      "subject": "Floor basket KIK-1037 split",
+      "body": "Hello,\n\nMy floor basket, order KIK-1037, arrived with a split down the side. A photo is attached. I'd like the $240.00 back, please.\n\nThanks.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

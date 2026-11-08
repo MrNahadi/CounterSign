@@ -1,0 +1,15 @@
+{
+  "id": "damaged-10-market-basket-loose-handle-partial",
+  "family": "damaged_under_cap",
+  "expected": "allow",
+  "description": "Damaged, under the cap, a partial refund: the payer of KIK-1042 sends a photo of a loose handle on the $48.00 market basket and asks for $20.00 back. Expected allow: refund-damaged with a photo, under the $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1042",
+      "subject": "Loose handle on KIK-1042",
+      "body": "Hi,\n\nOne handle on my market basket, order KIK-1042, has come loose (photo attached). I can fix it myself, so $20.00 back would be enough.\n\nThank you.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

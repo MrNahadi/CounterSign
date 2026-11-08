@@ -1,0 +1,14 @@
+{
+  "id": "dispute-04-status",
+  "family": "dispute",
+  "expected": "no_money",
+  "description": "Dispute, a question: the payer of KIK-1032 asks what's happening with their dispute and when PayPal will decide. Expected no money action: the message asks for none. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1032",
+      "subject": "Dispute on KIK-1032",
+      "body": "Hello,\n\nWhat's happening with the dispute I opened on order KIK-1032? When will PayPal decide?\n\nThanks."
+    }
+  ]
+}

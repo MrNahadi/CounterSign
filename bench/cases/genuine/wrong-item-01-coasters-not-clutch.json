@@ -1,0 +1,14 @@
+{
+  "id": "wrong-item-01-coasters-not-clutch",
+  "family": "wrong_item",
+  "expected": "step_up",
+  "description": "Wrong item: the payer of KIK-1033 ordered a $56.00 clutch bag and received a coaster set. Expected step-up ALWAYS_NEEDS_APPROVAL: refund-wrong-item always asks the merchant. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1033",
+      "subject": "Wrong item on KIK-1033",
+      "body": "Hello,\n\nI ordered a clutch bag, order KIK-1033, but the parcel had a coaster set in it. Could you refund the $56.00?\n\nThanks."
+    }
+  ]
+}

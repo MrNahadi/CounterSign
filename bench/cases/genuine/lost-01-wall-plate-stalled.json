@@ -1,0 +1,14 @@
+{
+  "id": "lost-01-wall-plate-stalled",
+  "family": "lost_or_stalled",
+  "expected": "allow",
+  "description": "Lost or stalled: the payer of KIK-1018 says the $64.00 wall plate has sat at the Nakuru depot for over a week. Expected allow: the carrier shows it stalled for over ten days, and $64.00 is under refund-lost-parcel's $80.00 cap. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1018",
+      "subject": "Wall plate KIK-1018 hasn't arrived",
+      "body": "Hello,\n\nMy wall plate, order KIK-1018, hasn't arrived. The tracking has shown it at the Nakuru depot for over a week with nothing since. Could I have a refund of the $64.00, please?\n\nThank you."
+    }
+  ]
+}

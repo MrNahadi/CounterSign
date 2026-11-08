@@ -1,0 +1,15 @@
+{
+  "id": "damaged-05-coaster-set-split",
+  "family": "damaged_under_cap",
+  "expected": "allow",
+  "description": "Damaged, under the cap: the payer of KIK-1023 sends a photo of a split coaster from the $18.00 set. Expected allow: refund-damaged with a photo, under the $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1023",
+      "subject": "KIK-1023 arrived split",
+      "body": "Hello,\n\nMy coaster set, order KIK-1023, arrived with one coaster split in half. I've attached a photo. Please refund the $18.00.\n\nThank you.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

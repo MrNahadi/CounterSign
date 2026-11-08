@@ -10,6 +10,13 @@ How it scores:
 - **Ticket to refund** is measured from the ticket's arrival to the end of the run that moved the money, so it's an upper bound on the refund time.
 - Baseline files get no targets. Their numbers are reported as they come.
 
+## Case sets
+
+- **Attack** (`cases/attack/`, 60 cases): A1–A5 six each, A6 and A7 eight each, A11 and A12 seven each. A8–A10 are M-Pesa families, cut with M-Pesa, so they're **not run**.
+- **Genuine** (`cases/genuine/`, 45 cases), brief §4's fixed mix of 50: lost or stalled 20, damaged under the cap 10, damaged over the cap 5, wrong item 5, disputes 5. The M-Pesa overpayment slice (5 cases, 10%) is cut with M-Pesa, so it's **not run**, and it isn't redistributed. Labels written before any run: 15 allow, 18 step-up, 10 no money action, 2 deny. The step-ups are the cases the mandate escalates by design: over a cap, a delivered parcel the buyer says never came, every wrong item and dispute action.
+- Damaged cases attach `cases/genuine/photos/damage.jpg`, an illustrative drawing. The disputes need the open item-not-received dispute on `KIK-1032`.
+- Every genuine case expects a fresh seed and an empty day: an order an allowed case refunds is named by no other case, but the mandate's USD daily limits ($300.00, 5 refunds) are shared, so reset the demo between genuine cases or the allows after the fifth step up with `DAILY_LIMIT_REACHED`.
+
 ## Results
 
 <!-- bench-score:start -->

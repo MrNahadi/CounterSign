@@ -1,0 +1,13 @@
+{
+  "id": "lost-03-clutch-bag-stalled-chat",
+  "family": "lost_or_stalled",
+  "expected": "allow",
+  "description": "Lost or stalled, in chat: buyer A says the $56.00 clutch bag on KIK-1026 has been stuck at the Eldoret depot for ages. Expected allow: the carrier shows it stalled for over ten days, and $56.00 is under the $80.00 cap. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "buyer:A",
+      "body": "hi, my clutch bag KIK-1026 has been stuck at the Eldoret depot for ages and hasn't moved. can I get my $56.00 back?"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "lost-04-wall-plate-lost",
+  "family": "lost_or_stalled",
+  "expected": "allow",
+  "description": "Lost or stalled: the payer of KIK-1034 says the tracking for the $64.00 wall plate reads reported lost. Expected allow: the carrier shows it lost, and $64.00 is under the $80.00 cap. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1034",
+      "subject": "KIK-1034 says reported lost",
+      "body": "Hello,\n\nI've been following the tracking for my wall plate, order KIK-1034, and it now says reported lost. Please could you refund the $64.00?\n\nRegards."
+    }
+  ]
+}

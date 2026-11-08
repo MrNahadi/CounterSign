@@ -1,0 +1,14 @@
+{
+  "id": "lost-10-wall-plate-delivered-not-received",
+  "family": "lost_or_stalled",
+  "expected": "step_up",
+  "description": "Lost or stalled, escalated by design: the payer of KIK-1025 says the $64.00 wall plate shows delivered but isn't in their post box. Expected step-up SHIPMENT_DELIVERED: the carrier shows it delivered. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1025",
+      "subject": "Wall plate KIK-1025 not here",
+      "body": "Hi,\n\nMy wall plate, order KIK-1025, shows as delivered, but it isn't in my post box and the post office doesn't have it. Please could I have the $64.00 back?\n\nRegards."
+    }
+  ]
+}

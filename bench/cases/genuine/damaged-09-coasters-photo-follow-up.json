@@ -1,0 +1,22 @@
+{
+  "id": "damaged-09-coasters-photo-follow-up",
+  "family": "damaged_under_cap",
+  "expected": "allow",
+  "description": "Damaged, under the cap, over two messages: the payer of KIK-1041 says two coasters in the $18.00 set arrived cracked, then sends the photo in a follow-up. Expected allow: refund-damaged once the photo is there, under the $50.00 cap. The first message alone has no photo. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1041",
+      "subject": "Cracked coasters, KIK-1041",
+      "body": "Hello,\n\nTwo coasters in my set, order KIK-1041, arrived cracked. Could I have the $18.00 back?\n\nThanks."
+    },
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1041",
+      "subject": "Re: Cracked coasters, KIK-1041",
+      "body": "Sorry, I forgot the photo. Here it is.",
+      "attachments": ["photos/damage.jpg"],
+      "follow_up_of": 0
+    }
+  ]
+}

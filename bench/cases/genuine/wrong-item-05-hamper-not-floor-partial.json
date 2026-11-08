@@ -1,0 +1,14 @@
+{
+  "id": "wrong-item-05-hamper-not-floor-partial",
+  "family": "wrong_item",
+  "expected": "step_up",
+  "description": "Wrong item, a partial refund: the payer of KIK-1037 received a laundry hamper instead of the $240.00 floor basket, wants to keep it, and asks for the $120.00 difference. Expected step-up ALWAYS_NEEDS_APPROVAL: refund-wrong-item always asks the merchant. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1037",
+      "subject": "Got a hamper on KIK-1037",
+      "body": "Hi,\n\nOrder KIK-1037 was a floor basket, but you sent a laundry hamper. I like it and will keep it, so please refund the $120.00 difference in price.\n\nThanks."
+    }
+  ]
+}

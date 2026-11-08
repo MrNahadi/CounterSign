@@ -1,0 +1,13 @@
+{
+  "id": "lost-13-has-it-shipped-chat",
+  "family": "lost_or_stalled",
+  "expected": "no_money",
+  "description": "Lost or stalled, a question in chat: buyer A asks whether KIK-1024 has shipped. Expected no money action: the carrier shows it in transit, and the message asks for none. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "buyer:A",
+      "body": "hi, has my bread basket KIK-1024 shipped yet?"
+    }
+  ]
+}

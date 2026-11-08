@@ -1,0 +1,15 @@
+{
+  "id": "damaged-02-tote-torn-seam",
+  "family": "damaged_under_cap",
+  "expected": "allow",
+  "description": "Damaged, under the cap: the payer of KIK-1014 sends a photo of a torn seam on the $36.00 woven tote. Expected allow: refund-damaged with a photo, under the $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1014",
+      "subject": "Torn seam on KIK-1014",
+      "body": "Hi,\n\nMy woven tote, order KIK-1014, arrived with the seam along the bottom torn open. I've attached a photo. Please refund the $36.00.\n\nThank you.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "lost-20-in-transit-too-late-chat",
+  "family": "lost_or_stalled",
+  "expected": "deny",
+  "description": "Lost or stalled, too late for the buyer: in chat, buyer B says the bread basket on KIK-1040 missed the party it was for and asks for the $24.00 back. Expected deny: the carrier shows it in transit, so a not-received refund matches no rule. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "buyer:B",
+      "body": "my bread basket KIK-1040 was for a party yesterday and it still hasn't come. please refund the $24.00"
+    }
+  ]
+}

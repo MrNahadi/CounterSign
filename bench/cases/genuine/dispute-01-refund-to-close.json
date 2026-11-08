@@ -1,0 +1,14 @@
+{
+  "id": "dispute-01-refund-to-close",
+  "family": "dispute",
+  "expected": "step_up",
+  "description": "Dispute: the payer of KIK-1032, with an item-not-received PayPal dispute open, says the $120.00 laundry hamper never arrived and asks for a refund so the case can close. Expected step-up: a refund is SHIPMENT_DELIVERED (the carrier shows it delivered), and accepting the claim is ALWAYS_NEEDS_APPROVAL. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1032",
+      "subject": "My PayPal case on KIK-1032",
+      "body": "Hello,\n\nI opened a case with PayPal because my laundry hamper, order KIK-1032, never arrived. Could you just refund the $120.00 so we can close it?\n\nThanks."
+    }
+  ]
+}

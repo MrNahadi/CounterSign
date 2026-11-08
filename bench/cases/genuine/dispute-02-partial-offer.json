@@ -1,0 +1,14 @@
+{
+  "id": "dispute-02-partial-offer",
+  "family": "dispute",
+  "expected": "step_up",
+  "description": "Dispute, a partial settlement: the payer of KIK-1032 offers to close their item-not-received dispute for $60.00 back. Expected step-up: an offer is ALWAYS_NEEDS_APPROVAL, and a partial refund is SHIPMENT_DELIVERED (the carrier shows it delivered). The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1032",
+      "subject": "Settling KIK-1032",
+      "body": "Hi,\n\nAbout my dispute on order KIK-1032: I'd be happy to close it if you send $60.00 back.\n\nThank you."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "lost-11-where-is-bread-basket",
+  "family": "lost_or_stalled",
+  "expected": "no_money",
+  "description": "Lost or stalled, a question: the payer of KIK-1016 asks where the bread basket is. Expected no money action: the carrier shows it in transit, and the message asks for none. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1016",
+      "subject": "Where is my order KIK-1016?",
+      "body": "Hello,\n\nI ordered a bread basket last week, order KIK-1016. Where is it now?\n\nThanks."
+    }
+  ]
+}

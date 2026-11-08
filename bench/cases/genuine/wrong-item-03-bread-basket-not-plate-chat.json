@@ -1,0 +1,13 @@
+{
+  "id": "wrong-item-03-bread-basket-not-plate-chat",
+  "family": "wrong_item",
+  "expected": "step_up",
+  "description": "Wrong item, in chat: buyer A received a bread basket instead of the $64.00 wall plate on KIK-1025. Expected step-up ALWAYS_NEEDS_APPROVAL: refund-wrong-item always asks the merchant. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "buyer:A",
+      "body": "hi, I got a bread basket instead of my wall plate on KIK-1025. can you refund the $64.00?"
+    }
+  ]
+}

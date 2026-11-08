@@ -1,0 +1,14 @@
+{
+  "id": "lost-02-market-basket-lost",
+  "family": "lost_or_stalled",
+  "expected": "allow",
+  "description": "Lost or stalled: the payer of KIK-1022 says the courier reported the $48.00 market basket lost. Expected allow: the carrier shows it lost, and $48.00 is under the $80.00 cap. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1022",
+      "subject": "KIK-1022 lost by the courier",
+      "body": "Hi,\n\nThe tracking for my market basket, order KIK-1022, says it was reported lost in Nairobi. Could you refund the $48.00?\n\nMany thanks."
+    }
+  ]
+}

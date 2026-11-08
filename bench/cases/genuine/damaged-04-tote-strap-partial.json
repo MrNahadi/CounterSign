@@ -1,0 +1,15 @@
+{
+  "id": "damaged-04-tote-strap-partial",
+  "family": "damaged_under_cap",
+  "expected": "allow",
+  "description": "Damaged, under the cap, a partial refund: the payer of KIK-1021 sends a photo of a frayed strap on the $36.00 woven tote and asks for $15.00 back. Expected allow: refund-damaged with a photo, under the $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1021",
+      "subject": "Frayed strap on KIK-1021",
+      "body": "Hi,\n\nThe strap on my woven tote, order KIK-1021, is fraying where it joins the bag (photo attached). I'd like to keep it, so $15.00 back would be fine.\n\nThanks.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

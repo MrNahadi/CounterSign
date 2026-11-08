@@ -1,0 +1,15 @@
+{
+  "id": "damaged-07-market-basket-crushed",
+  "family": "damaged_under_cap",
+  "expected": "allow",
+  "description": "Damaged, under the cap: the payer of KIK-1038 sends a photo of the $48.00 market basket crushed flat in the parcel. Expected allow: refund-damaged with a photo, under the $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1038",
+      "subject": "KIK-1038 arrived crushed",
+      "body": "Hello,\n\nMy market basket, order KIK-1038, arrived crushed flat and the frame is bent. I've attached a photo. Please refund the $48.00.\n\nThanks.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

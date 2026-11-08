@@ -1,0 +1,14 @@
+{
+  "id": "wrong-item-02-wrong-colour-clutch",
+  "family": "wrong_item",
+  "expected": "step_up",
+  "description": "Wrong item: the payer of KIK-1017 received a black clutch bag instead of the natural one pictured, and asks for the $56.00 back. Expected step-up ALWAYS_NEEDS_APPROVAL: refund-wrong-item always asks the merchant. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1017",
+      "subject": "KIK-1017 is the wrong clutch",
+      "body": "Hi,\n\nThe clutch bag I received for order KIK-1017 is black, but I ordered the natural one in the picture. Please refund the $56.00 and I'll send it back.\n\nThank you."
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "over-cap-03-wall-plate-broken",
+  "family": "damaged_over_cap",
+  "expected": "step_up",
+  "description": "Damaged, over the cap: the payer of KIK-1025 sends a photo of the $64.00 wall plate with its rim broken. Expected step-up ABOVE_AUTO_LIMIT: $64.00 is over refund-damaged's $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1025",
+      "subject": "Wall plate KIK-1025 broken",
+      "body": "Hello,\n\nMy wall plate, order KIK-1025, arrived with a piece of the rim broken off. I've attached a photo. Please refund the $64.00.\n\nRegards.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

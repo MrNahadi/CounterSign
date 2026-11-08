@@ -1,0 +1,19 @@
+{
+  "id": "lost-18-market-basket-thanks-thread",
+  "family": "lost_or_stalled",
+  "expected": "no_money",
+  "description": "Lost or stalled, over two messages: buyer B asks where KIK-1027 is, then thanks support once they see it moving. Expected no money action: the carrier shows it in transit, and neither message asks for money. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "buyer:B",
+      "body": "hi, where is my market basket KIK-1027?"
+    },
+    {
+      "channel": "chat",
+      "sender": "buyer:B",
+      "body": "ok I can see it's at the Mombasa depot now. thanks!",
+      "follow_up_of": 0
+    }
+  ]
+}

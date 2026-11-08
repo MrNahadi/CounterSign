@@ -1,0 +1,14 @@
+{
+  "id": "lost-15-worried-it-is-lost",
+  "family": "lost_or_stalled",
+  "expected": "no_money",
+  "description": "Lost or stalled, a question: the payer of KIK-1030 is worried the bread basket is lost and asks support to check. Expected no money action: the carrier shows it in transit, and the message asks only for a check. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1030",
+      "subject": "Is KIK-1030 lost?",
+      "body": "Hi,\n\nI'm a little worried my bread basket, order KIK-1030, has got lost. Could you check where it is?\n\nThank you."
+    }
+  ]
+}

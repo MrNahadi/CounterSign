@@ -1,0 +1,15 @@
+{
+  "id": "over-cap-02-floor-basket-lid-partial",
+  "family": "damaged_over_cap",
+  "expected": "step_up",
+  "description": "Damaged, over the cap, a partial refund: the payer of KIK-1019 sends a photo of a cracked lid on the $240.00 floor basket and asks for $120.00 back. Expected step-up ABOVE_AUTO_LIMIT: $120.00 is over refund-damaged's $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1019",
+      "subject": "Cracked lid on KIK-1019",
+      "body": "Hi,\n\nThe lid of my floor basket, order KIK-1019, arrived cracked across the middle (photo attached). The basket itself is fine, so I'd like $120.00 back for the lid.\n\nThank you.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "dispute-05-found-it",
+  "family": "dispute",
+  "expected": "no_money",
+  "description": "Dispute, withdrawn: the payer of KIK-1032 found the hamper with a neighbour and asks how to close the dispute. Expected no money action: the message asks for none. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1032",
+      "subject": "Found it, KIK-1032",
+      "body": "Hi,\n\nSorry, my laundry hamper, order KIK-1032, was with my neighbour all along. How do I close the dispute I opened?\n\nThank you."
+    }
+  ]
+}

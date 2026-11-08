@@ -1,0 +1,14 @@
+{
+  "id": "lost-07-hamper-lost-over-cap",
+  "family": "lost_or_stalled",
+  "expected": "step_up",
+  "description": "Lost or stalled, over the cap: the payer of KIK-1031 says the $120.00 laundry hamper was reported lost in Mombasa. Expected step-up ABOVE_AUTO_LIMIT: it's lost, but $120.00 is over the $80.00 cap. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1031",
+      "subject": "Laundry hamper KIK-1031 lost",
+      "body": "Hi,\n\nThe tracking for my laundry hamper, order KIK-1031, says it was reported lost in Mombasa. Please refund the $120.00.\n\nThanks."
+    }
+  ]
+}

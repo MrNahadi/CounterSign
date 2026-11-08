@@ -1,0 +1,14 @@
+{
+  "id": "lost-09-clutch-bag-delivered-not-received",
+  "family": "lost_or_stalled",
+  "expected": "step_up",
+  "description": "Lost or stalled, escalated by design: the payer of KIK-1017 says the $56.00 clutch bag shows delivered in Eldoret but never reached them. Expected step-up SHIPMENT_DELIVERED: the carrier shows it delivered, so refund-delivered-claim asks the merchant first. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1017",
+      "subject": "KIK-1017 says delivered but I don't have it",
+      "body": "Hello,\n\nThe tracking for my clutch bag, order KIK-1017, says it was delivered in Eldoret, but nothing came. I've asked my neighbours and the gate guard and nobody has seen it. Could you refund the $56.00?\n\nThank you."
+    }
+  ]
+}

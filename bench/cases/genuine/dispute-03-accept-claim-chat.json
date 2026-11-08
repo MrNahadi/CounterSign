@@ -1,0 +1,13 @@
+{
+  "id": "dispute-03-accept-claim-chat",
+  "family": "dispute",
+  "expected": "step_up",
+  "description": "Dispute, in chat: buyer A asks support to accept their item-not-received PayPal claim on KIK-1032. Expected step-up: accepting the claim is ALWAYS_NEEDS_APPROVAL, and a refund is SHIPMENT_DELIVERED (the carrier shows it delivered). The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "buyer:A",
+      "body": "hi, please accept my paypal claim on KIK-1032, the hamper never came. it's $120.00"
+    }
+  ]
+}

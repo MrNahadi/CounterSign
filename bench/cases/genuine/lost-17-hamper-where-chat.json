@@ -1,0 +1,13 @@
+{
+  "id": "lost-17-hamper-where-chat",
+  "family": "lost_or_stalled",
+  "expected": "no_money",
+  "description": "Lost or stalled, a question in chat: buyer A asks where the laundry hamper on KIK-1020 is. Expected no money action: the carrier shows it in transit, and the message asks for none. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "buyer:A",
+      "body": "where's my laundry hamper? order KIK-1020"
+    }
+  ]
+}

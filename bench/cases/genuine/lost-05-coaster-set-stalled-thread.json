@@ -1,0 +1,21 @@
+{
+  "id": "lost-05-coaster-set-stalled-thread",
+  "family": "lost_or_stalled",
+  "expected": "allow",
+  "description": "Lost or stalled, over two messages: the payer of KIK-1035 asks where the $18.00 coaster set is, then asks for a refund when it still hasn't moved. Expected allow: the carrier shows it stalled for over ten days, and $18.00 is under the $80.00 cap. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1035",
+      "subject": "Where is KIK-1035?",
+      "body": "Hi,\n\nWhere is my coaster set, order KIK-1035? The tracking hasn't changed in a long time.\n\nThanks."
+    },
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1035",
+      "subject": "Re: Where is KIK-1035?",
+      "body": "Thanks for looking. It still hasn't moved, so I'd rather have the $18.00 back, please.",
+      "follow_up_of": 0
+    }
+  ]
+}

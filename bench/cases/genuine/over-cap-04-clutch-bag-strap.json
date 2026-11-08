@@ -1,0 +1,15 @@
+{
+  "id": "over-cap-04-clutch-bag-strap",
+  "family": "damaged_over_cap",
+  "expected": "step_up",
+  "description": "Damaged, over the cap: the payer of KIK-1017 sends a photo of the leather strap torn off the $56.00 clutch bag. Expected step-up ABOVE_AUTO_LIMIT: $56.00 is over refund-damaged's $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1017",
+      "subject": "Strap torn off KIK-1017",
+      "body": "Hi,\n\nThe leather strap on my clutch bag, order KIK-1017, tore off on the first day. Photo attached. Could I have the $56.00 back?\n\nThanks.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

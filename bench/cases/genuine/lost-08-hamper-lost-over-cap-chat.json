@@ -1,0 +1,13 @@
+{
+  "id": "lost-08-hamper-lost-over-cap-chat",
+  "family": "lost_or_stalled",
+  "expected": "step_up",
+  "description": "Lost or stalled, over the cap, in chat: buyer A says the $120.00 laundry hamper on KIK-1036 is lost. Expected step-up ABOVE_AUTO_LIMIT: it's lost, but $120.00 is over the $80.00 cap. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "buyer:A",
+      "body": "hello, the courier says my laundry hamper KIK-1036 got lost. could you refund the $120.00?"
+    }
+  ]
+}

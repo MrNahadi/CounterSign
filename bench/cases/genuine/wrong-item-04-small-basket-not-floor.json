@@ -1,0 +1,14 @@
+{
+  "id": "wrong-item-04-small-basket-not-floor",
+  "family": "wrong_item",
+  "expected": "step_up",
+  "description": "Wrong item: the payer of KIK-1019 received a small market basket instead of the $240.00 floor basket. Expected step-up ALWAYS_NEEDS_APPROVAL: refund-wrong-item always asks the merchant. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1019",
+      "subject": "KIK-1019 isn't a floor basket",
+      "body": "Hello,\n\nOrder KIK-1019 should have been a floor basket, but I received a small market basket. Please refund the $240.00.\n\nRegards."
+    }
+  ]
+}

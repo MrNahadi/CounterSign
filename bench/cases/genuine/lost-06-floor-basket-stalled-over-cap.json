@@ -1,0 +1,14 @@
+{
+  "id": "lost-06-floor-basket-stalled-over-cap",
+  "family": "lost_or_stalled",
+  "expected": "step_up",
+  "description": "Lost or stalled, over the cap: the payer of KIK-1029 says the $240.00 floor basket has been stuck at the Mombasa depot for weeks. Expected step-up ABOVE_AUTO_LIMIT: it's stalled, but $240.00 is over refund-lost-parcel's $80.00 cap, so the merchant decides. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1029",
+      "subject": "Floor basket KIK-1029 stuck",
+      "body": "Hello,\n\nMy floor basket, order KIK-1029, has been at the Mombasa depot for weeks and the tracking hasn't moved. Could you refund the $240.00, please?\n\nThank you."
+    }
+  ]
+}

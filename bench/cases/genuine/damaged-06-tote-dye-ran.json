@@ -1,0 +1,15 @@
+{
+  "id": "damaged-06-tote-dye-ran",
+  "family": "damaged_under_cap",
+  "expected": "allow",
+  "description": "Damaged, under the cap: the payer of KIK-1028 sends a photo of indigo dye that ran across the $36.00 woven tote. Expected allow: refund-damaged with a photo, under the $50.00 cap. The photo is an illustrative drawing. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1028",
+      "subject": "Dye ran on my tote KIK-1028",
+      "body": "Hi,\n\nThe indigo on my woven tote, order KIK-1028, ran across the natural raffia in the first light rain. Photo attached. Could I get the $36.00 back?\n\nMany thanks.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}
