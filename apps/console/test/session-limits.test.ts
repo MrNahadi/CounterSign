@@ -114,7 +114,21 @@ describe("limitSession", () => {
       reset: "This session has reset the demo a lot. Try again in a few minutes.",
       attack: "This session has sent a lot of attacks. Try again in a few minutes.",
       analyst: "This session has asked the analyst a lot. Try again in a few minutes.",
+      compile: "This session has compiled a lot of rules. Try again in a few minutes.",
     });
+  });
+
+  it("allows 6 compiles in ten minutes, counted apart from analyst questions", () => {
+    for (let i = 0; i < 6; i += 1) {
+      expect(limitSession(signedIn(SESSION_A), "compile", NOW + i * 1000)).toBeNull();
+    }
+    expect(limitSession(signedIn(SESSION_A), "compile", NOW + 6_000)).toEqual({
+      ok: false,
+      status: 429,
+      message: SESSION_LIMIT_MESSAGES.compile,
+    });
+    expect(limitSession(signedIn(SESSION_A), "analyst", NOW + 6_000)).toBeNull();
+    expect(limitSession(signedIn(SESSION_A), "compile", NOW + SESSION_WINDOW_MS)).toBeNull();
   });
 
   it("allows 10 analyst questions in ten minutes, counted apart from attacks", () => {

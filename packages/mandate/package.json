@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./money": "./src/money.ts"
+    "./money": "./src/money.ts",
+    "./fixtures/*.json": "./fixtures/*.json"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

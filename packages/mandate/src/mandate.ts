@@ -48,14 +48,14 @@ const RuleBase = {
 
 // The rule reasons that come with a reply hint. A denial hands its first reason's hint to the
 // agent, so a deny rule may only name one of these.
-const DENY_RULE_REASON_CODES = [
+export const DENY_RULE_REASON_CODES = [
   "SHIPMENT_DELIVERED",
   "RULE_DENIES",
 ] as const satisfies readonly RuleReasonCode[];
 
 // The rule reasons whose words fit a hold. RULE_DENIES ("Your rules don't allow this.") refuses,
 // so a step-up rule can't name it.
-const STEP_UP_RULE_REASON_CODES = [
+export const STEP_UP_RULE_REASON_CODES = [
   "SHIPMENT_DELIVERED",
   "ALWAYS_NEEDS_APPROVAL",
 ] as const satisfies readonly RuleReasonCode[];

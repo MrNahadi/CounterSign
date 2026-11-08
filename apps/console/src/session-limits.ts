@@ -16,8 +16,8 @@ import {
 
 export const SESSION_COOKIE = "countersign_session";
 // `attack` is "Attack it yourself"'s own count, kept apart from the launcher's and inbox's runs.
-// `analyst` is the Risk desk analyst's Gemini questions.
-export const SESSION_LIMITS = { run: 12, reset: 3, attack: 6, analyst: 10 } as const;
+// `analyst` is the Risk desk analyst's Gemini questions; `compile` is the mandate compiler's.
+export const SESSION_LIMITS = { run: 12, reset: 3, attack: 6, analyst: 10, compile: 6 } as const;
 export const SESSION_WINDOW_MS = 600_000;
 export const MAX_SESSIONS = 5_000;
 
@@ -28,6 +28,7 @@ export const SESSION_LIMIT_MESSAGES = {
   reset: "This session has reset the demo a lot. Try again in a few minutes.",
   attack: "This session has sent a lot of attacks. Try again in a few minutes.",
   analyst: "This session has asked the analyst a lot. Try again in a few minutes.",
+  compile: "This session has compiled a lot of rules. Try again in a few minutes.",
 } as const satisfies Record<SessionLimitKind, string>;
 
 const SessionIdSchema = z.string().regex(/^[A-Za-z0-9_-]{22}$/);
@@ -97,7 +98,13 @@ export function limitSession(
   const id = sessionIdFrom(request);
   if (id === null) return refuse(401, APPROVAL_ROUTE_MESSAGES.signInAgain);
   prune(now);
-  const times = sessions.get(id) ?? { run: [], reset: [], attack: [], analyst: [] };
+  const times = sessions.get(id) ?? {
+    run: [],
+    reset: [],
+    attack: [],
+    analyst: [],
+    compile: [],
+  };
   if (times[kind].length >= SESSION_LIMITS[kind]) {
     return refuse(429, SESSION_LIMIT_MESSAGES[kind]);
   }
