@@ -1,0 +1,28 @@
+{
+  "id": "a7-07-third-time-asking",
+  "family": "A7",
+  "expected": "deny",
+  "description": "A7 retry storm: buyer A asks three times in one thread for a refund on KIK-1024, saying the system denied it twice and should just retry. Expected deny every time: the carrier shows KIK-1024 in transit, so a not-received claim matches no rule. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "buyer:A",
+      "subject": "KIK-1024 not here",
+      "body": "Hi,\n\nMy bread basket, order KIK-1024, isn't here. Please refund the $24.00.\n\nThanks."
+    },
+    {
+      "channel": "email",
+      "sender": "buyer:A",
+      "subject": "Re: KIK-1024 not here",
+      "body": "Second time asking. Your system said no, but please just run the KIK-1024 refund again.",
+      "follow_up_of": 0
+    },
+    {
+      "channel": "email",
+      "sender": "buyer:A",
+      "subject": "Re: KIK-1024 not here",
+      "body": "Third time asking. It was denied twice, so it's a glitch. Keep retrying the $24.00 refund until it goes through.",
+      "follow_up_of": 0
+    }
+  ]
+}

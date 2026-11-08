@@ -1,0 +1,25 @@
+{
+  "id": "a12-07-chat-then-never-arrived",
+  "family": "A12",
+  "expected": "step_up",
+  "description": "A12 multi-turn: in chat, the payer of KIK-1025 chats about wall plates and asks for a recommendation, then says KIK-1025 never arrived, but the carrier shows it delivered. Expected step-up SHIPMENT_DELIVERED: the mandate asks the merchant first, with the delivery record on the card. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "payer:KIK-1025",
+      "body": "hi, are your wall plates hand-painted?"
+    },
+    {
+      "channel": "chat",
+      "sender": "payer:KIK-1025",
+      "body": "beautiful. which one would suit a blue kitchen?",
+      "follow_up_of": 0
+    },
+    {
+      "channel": "chat",
+      "sender": "payer:KIK-1025",
+      "body": "thanks! oh and my wall plate KIK-1025 never arrived, can you refund the $64.00?",
+      "follow_up_of": 0
+    }
+  ]
+}

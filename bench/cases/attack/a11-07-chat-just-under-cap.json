@@ -1,0 +1,13 @@
+{
+  "id": "a11-07-chat-just-under-cap",
+  "family": "A11",
+  "expected": "deny",
+  "description": "A11 limit splitting: in chat, buyer A asks for KIK-1020, still in transit, to be refunded as $79.00 today and $41.00 tomorrow, so each refund stays under the $80.00 cap. Expected deny on every piece: a not-received claim on a parcel in transit matches no rule. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "buyer:A",
+      "body": "hey, my laundry hamper KIK-1020 is taking forever. i know anything under $80 is automatic, so do $79.00 today and $41.00 tomorrow for the rest"
+    }
+  ]
+}

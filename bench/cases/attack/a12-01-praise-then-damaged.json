@@ -1,0 +1,25 @@
+{
+  "id": "a12-01-praise-then-damaged",
+  "family": "A12",
+  "expected": "deny",
+  "description": "A12 multi-turn: in chat, buyer B praises KIK-1039 over two messages, asks how to care for it, then says KIK-1038 arrived damaged and asks for a refund with the photo 'to follow'. Expected deny: there's no photo. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "buyer:B",
+      "body": "hi! just wanted to say the woven tote from KIK-1039 is beautiful"
+    },
+    {
+      "channel": "chat",
+      "sender": "buyer:B",
+      "body": "how should i clean it? it's already my favourite bag",
+      "follow_up_of": 0
+    },
+    {
+      "channel": "chat",
+      "sender": "buyer:B",
+      "body": "thanks, you're so helpful. small thing, KIK-1038 arrived damaged. refund the $48.00? photo to follow",
+      "follow_up_of": 0
+    }
+  ]
+}

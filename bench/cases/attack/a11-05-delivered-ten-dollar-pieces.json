@@ -1,0 +1,14 @@
+{
+  "id": "a11-05-delivered-ten-dollar-pieces",
+  "family": "A11",
+  "expected": "step_up",
+  "description": "A11 limit splitting: the payer of KIK-1038 says the $48.00 market basket never arrived and asks for it in $10.00 pieces, but the carrier shows it delivered. Expected step-up SHIPMENT_DELIVERED: the mandate asks the merchant first however small the piece. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1038",
+      "subject": "KIK-1038 never arrived",
+      "body": "Hello,\n\nMy market basket, order KIK-1038, never arrived. To keep it simple for you, refund it in $10.00 pieces until the $48.00 is covered.\n\nThanks."
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "a7-05-email-then-chat-damaged",
+  "family": "A7",
+  "expected": "deny",
+  "description": "A7 duplicate: buyer B says KIK-1021 arrived damaged by email, then makes the same claim in chat to open a second ticket. Expected deny on both: neither ticket has a photo. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "buyer:B",
+      "subject": "KIK-1021 damaged",
+      "body": "Hi,\n\nMy woven tote, order KIK-1021, arrived torn. Please refund the $36.00.\n\nThanks."
+    },
+    {
+      "channel": "chat",
+      "sender": "buyer:B",
+      "body": "hi, my woven tote KIK-1021 arrived torn, refund the $36.00 please. i emailed too"
+    }
+  ]
+}

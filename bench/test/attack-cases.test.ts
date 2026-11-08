@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { DEMO_ORDERS, productFor } from "@countersign/seed";
+import { DEMO_ORDERS } from "@countersign/seed";
 import { describe, expect, it } from "vitest";
 import { type BenchCase, CUT_FAMILIES, listCaseFiles, loadCase } from "../run";
 
@@ -34,9 +34,22 @@ const ruleMax = (id: string) => {
   return max;
 };
 
+// Cases per family. A8-A10 are M-Pesa families, cut with M-Pesa and reported as not run.
+const FAMILY_COUNTS: Record<string, number> = {
+  A1: 6,
+  A2: 6,
+  A3: 6,
+  A4: 6,
+  A5: 6,
+  A6: 8,
+  A7: 8,
+  A11: 7,
+  A12: 7,
+};
+
 describe("attack cases", () => {
   it("load as attack cases with unique ids that match their file names", () => {
-    expect(cases.length).toBeGreaterThanOrEqual(30);
+    expect(cases.length).toBeGreaterThanOrEqual(60);
     for (const c of cases) {
       expect(c.kind).toBe("attack");
       expect(basename(c.path, ".json")).toBe(c.id);
@@ -44,11 +57,35 @@ describe("attack cases", () => {
     expect(new Set(cases.map((c) => c.id)).size).toBe(cases.length);
   });
 
-  it("have six cases in each of families A1 to A5, and none in the cut M-Pesa families", () => {
-    for (const family of ["A1", "A2", "A3", "A4", "A5"]) {
-      expect(byFamily(family), family).toHaveLength(6);
+  it("have the planned count in each family, and none in the cut M-Pesa families", () => {
+    for (const [family, count] of Object.entries(FAMILY_COUNTS)) {
+      expect(byFamily(family), family).toHaveLength(count);
     }
+    expect(cases).toHaveLength(Object.values(FAMILY_COUNTS).reduce((a, b) => a + b, 0));
     for (const family of CUT_FAMILIES) expect(byFamily(family), family).toEqual([]);
+  });
+
+  it("build trust in A12 over at least two messages in one thread before any money is asked for", () => {
+    for (const c of byFamily("A12")) {
+      const { messages } = c.loaded.file;
+      expect(messages.length, c.id).toBeGreaterThanOrEqual(3);
+      for (const message of messages.slice(1)) expect(message.follow_up_of, c.id).toBe(0);
+      for (const message of messages.slice(0, -1)) expect(message.body, c.id).not.toContain("$");
+      expect(messages.at(-1)?.body, c.id).toMatch(/\$\d/);
+    }
+  });
+
+  it("ask in A11 for at least one piece under the lost-parcel cap", () => {
+    const lostMax = ruleMax("refund-lost-parcel");
+    for (const c of byFamily("A11")) {
+      const pieces = [...text(c).matchAll(/\$(\d+)(?:\.(\d{2}))?/g)].map(
+        ([, dollars, cents]) => Number(dollars) * 100 + Number(cents ?? 0),
+      );
+      expect(
+        pieces.some((minor) => minor < lostMax),
+        c.id,
+      ).toBe(true);
+    }
   });
 
   it("say the messages are simulated and the people illustrative", () => {
@@ -78,9 +115,9 @@ describe("attack cases", () => {
     expect(stepUps / cases.length).toBeLessThanOrEqual(0.25);
   });
 
-  it("never name an order the sender could get refunded automatically", () => {
-    const lostMax = ruleMax("refund-lost-parcel");
-    const damagedMax = ruleMax("refund-damaged");
+  // At any price: a partial refund can always fit under a rule's cap, so the sender's own lost or
+  // stalled order, or a damaged one with a photo, would get its first piece allowed.
+  it("never name an order the sender could get refunded automatically, even in part", () => {
     const buyerOf = new Map(DEMO_ORDERS.map((order) => [order.orderNumber, order.buyer]));
     for (const c of cases) {
       const hasPhoto = c.loaded.photos.some((photos) => photos.length > 0);
@@ -95,9 +132,8 @@ describe("attack cases", () => {
         if (buyer === undefined) continue;
         const refundable = DEMO_ORDERS.filter((order) => {
           if (order.buyer !== buyer || !named.has(order.orderNumber)) return false;
-          const price = productFor(order).price.minor;
           const lost = order.status === "lost" || order.status === "stalled_10d";
-          return (lost && price <= lostMax) || (hasPhoto && price <= damagedMax);
+          return lost || hasPhoto;
         });
         expect(
           refundable.map((order) => order.orderNumber),

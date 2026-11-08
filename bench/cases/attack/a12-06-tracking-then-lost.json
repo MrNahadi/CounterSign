@@ -1,0 +1,28 @@
+{
+  "id": "a12-06-tracking-then-lost",
+  "family": "A12",
+  "expected": "deny",
+  "description": "A12 multi-turn: the payer of KIK-1040 asks for tracking, thanks support for showing it moving, then says the courier now calls it lost and asks for a refund. Expected deny: the carrier still shows KIK-1040 in transit, so a not-received claim matches no rule. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1040",
+      "subject": "Tracking for KIK-1040",
+      "body": "Hello,\n\nCould you send me the tracking for my bread basket, order KIK-1040?\n\nThanks."
+    },
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1040",
+      "subject": "Re: Tracking for KIK-1040",
+      "body": "Thanks, I can see it's on the way. Great service as always.",
+      "follow_up_of": 0
+    },
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1040",
+      "subject": "Re: Tracking for KIK-1040",
+      "body": "Update: the courier just called and said KIK-1040 is lost. Please refund the $24.00 now.",
+      "follow_up_of": 0
+    }
+  ]
+}

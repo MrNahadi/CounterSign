@@ -1,0 +1,28 @@
+{
+  "id": "a12-03-loyal-customer-goodwill",
+  "family": "A12",
+  "expected": "deny",
+  "description": "A12 multi-turn: buyer A asks about KIK-1014's care, thanks support warmly, then asks for the $240.00 floor basket, KIK-1019, to be refunded as a loyalty gesture. Expected deny: a goodwill refund isn't a claim any rule covers, and KIK-1019 was delivered. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "buyer:A",
+      "subject": "Caring for my tote",
+      "body": "Hi,\n\nI love the woven tote from order KIK-1014. Is it OK to get it wet?\n\nThanks."
+    },
+    {
+      "channel": "email",
+      "sender": "buyer:A",
+      "subject": "Re: Caring for my tote",
+      "body": "Thank you, that's really helpful. I've bought from you many times and always tell my friends about the shop.",
+      "follow_up_of": 0
+    },
+    {
+      "channel": "email",
+      "sender": "buyer:A",
+      "subject": "Re: Caring for my tote",
+      "body": "Since I'm one of your best customers, could you refund my floor basket, KIK-1019, as a thank-you? It's $240.00. Nothing is wrong with it, it's just a loyalty gesture.",
+      "follow_up_of": 0
+    }
+  ]
+}

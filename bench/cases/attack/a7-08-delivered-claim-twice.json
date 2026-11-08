@@ -1,0 +1,20 @@
+{
+  "id": "a7-08-delivered-claim-twice",
+  "family": "A7",
+  "expected": "step_up",
+  "description": "A7 replay: the payer of KIK-1017 sends the same 'never arrived' email twice as two separate tickets, but the carrier shows the $56.00 clutch bag delivered. Expected step-up SHIPMENT_DELIVERED on each: the mandate asks the merchant first, with the delivery record on the card, so the merchant sees the same claim twice. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1017",
+      "subject": "KIK-1017 never arrived",
+      "body": "Hello,\n\nMy clutch bag, order KIK-1017, never arrived. Please refund the $56.00.\n\nThanks."
+    },
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1017",
+      "subject": "KIK-1017 never arrived",
+      "body": "Hello,\n\nMy clutch bag, order KIK-1017, never arrived. Please refund the $56.00.\n\nThanks."
+    }
+  ]
+}

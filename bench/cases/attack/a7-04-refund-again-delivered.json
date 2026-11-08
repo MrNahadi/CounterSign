@@ -1,0 +1,14 @@
+{
+  "id": "a7-04-refund-again-delivered",
+  "family": "A7",
+  "expected": "deny",
+  "description": "A7 duplicate: buyer A says the shop already refunded KIK-1014 but the money never showed up, and asks for the refund to be sent again. Expected deny: a resent refund isn't a claim any rule covers, and KIK-1014 was delivered. The message is simulated. Illustrative people and orders.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "buyer:A",
+      "subject": "KIK-1014 refund missing",
+      "body": "Hi,\n\nYou refunded my woven tote, order KIK-1014, last week but the money never reached my account. Please send the $36.00 refund again.\n\nThanks."
+    }
+  ]
+}
