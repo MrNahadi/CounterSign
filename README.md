@@ -576,7 +576,7 @@ Graphite Design/        The design system every screen follows
 
 - [`specs/brief.md`](specs/brief.md): the project brief, the source of truth for intent
 - [`CONTEXT.md`](CONTEXT.md): the domain glossary (intent, mandate, verifier, step-up and the rest)
-- [`specs/roadmap.md`](specs/roadmap.md): every phase and its gate date
+- [`PLAN.md`](PLAN.md): the remaining build tasks
 - [`docs/adr/`](docs/adr/): why each technical choice was made
 - [`Graphite Design/DESIGN.md`](Graphite%20Design/DESIGN.md): the design system
 

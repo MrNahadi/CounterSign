@@ -9,7 +9,13 @@
     "SessionStart": [
       {
         "matcher": "startup",
-        "hooks": [{ "type": "command", "command": "bash scripts/cloud-setup.sh", "timeout": 600 }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/cloud-setup.sh",
+            "timeout": 600
+          }
+        ]
       }
     ]
   },
@@ -65,9 +71,6 @@
       "Bash(bash scripts/cloud-setup.sh)",
       "Bash(node --version)",
       "Bash(npm --version)",
-      "Bash(cat .ralph/current-feature)",
-      "Bash(cat .ralph/done)",
-      "Bash(rm .ralph/done)",
       "Bash(grep:*)",
       "Bash(sed -n:*)",
       "Bash(tail:*)",

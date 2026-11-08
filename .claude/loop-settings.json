@@ -25,7 +25,6 @@
       "Bash(git mv:*)",
       "Bash(git rm:*)",
       "Bash(git branch --show-current)",
-      "Bash(cat .ralph/current-feature)",
       "Bash(grep:*)",
       "Bash(sed -n:*)",
       "Bash(tail:*)",
@@ -41,7 +40,11 @@
       "Bash(npx vitest run:*)",
       "Bash(npx biome check:*)",
       "Bash(npm run ui:shots)",
-      "Bash(npm run ui:shots:*)"
+      "Bash(npm run ui:shots:*)",
+      "Bash(npm run bench:*)",
+      "Bash(npm run smoke:*)",
+      "Bash(npx tsx:*)",
+      "Bash(git tag:*)"
     ],
     "deny": [
       "Bash(git reset:*)",
@@ -64,10 +67,8 @@
       "Read(./secrets/**)",
       "Read(./package-lock.json)",
       "Read(./node_modules/**)",
-      "Read(./apps/*/.next/**)"
+      "Read(./apps/*/.next/**)",
+      "Bash(git push:*)"
     ]
-  },
-  "env": {
-    "UI_SHOTS_CHROMIUM": "/opt/pw-browsers/chromium-1243/chrome-linux64/chrome"
   }
 }

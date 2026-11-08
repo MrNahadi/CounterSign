@@ -18,8 +18,7 @@ playwright-report/
 test-results/
 
 # Ralph loop runtime state
-.ralph/logs/
-.ralph/done
+loop-logs/
 
 # OS and editor
 .DS_Store

@@ -1,0 +1,1 @@
+2026-11-08 setup: lean loop in place (PLAN.md, PROMPT.md, loop.sh). Phases 1 and 3-13 and 13a are on main; next task is A1.

@@ -1,6 +1,6 @@
-# For the owner
+# Owner tasks
 
-The autopilot builds everything it can and lists here what only you can do, or what it decided on your behalf. Nothing here blocks the build unless it says so. Tick or delete lines as you deal with them.
+What only you can do, and what the agents decided on your behalf. Nothing here blocks the build unless it says so. Tick or delete lines as you deal with them.
 
 ## Open
 
@@ -96,7 +96,3 @@ The autopilot builds everything it can and lists here what only you can do, or w
 - **Phase 13, judges' access (ADR 0043):** the console opens on a start page (guide, three-scenario launcher, phone code, reset); every console route to Resolve, the inbox and the customer chat included, now needs the approver sign-in; on the hosted demo baseline mode runs only the attack-email scenario (`RESOLVE_BASELINE=scenarios`), so visitor text never reaches PayPal's toolkit. Overturn to offer baseline fully or not at all.
 - **Phase 13, round A changes (ADR 0044):** a reset now replaces touched orders before it clears anything, reads in-flight work from the log, allows one reset a minute, and restarts today's usage for the mandate's limits (the run cap still carries over). On Render the gate mints each baseline token, so Resolve holds no PayPal secret (the answerer escalated this one; it's the fail-closed pick). The QR code pairs the phone. Each session gets 12 runs and 3 resets per 10 minutes. Deploys are manual (`autoDeployTrigger: off`). Overturn the usage restart, or move the token back to Resolve, in ADR 0044.
 - **Phase 13, round B (ADR 0044):** a gate-minted baseline token also serves its run's one fallback rerun, held in memory only and refused with 60 s or less of life left, so hosted baseline keeps the same model fallback as protected mode (answerer, inferred). Overturn to skip the rerun for those runs.
-
-## Done
-
-- **1 Nov 2026, local PayPal seed buyers:** the owner approved wallet saving for two distinct sandbox Personal buyers. Reusable payment tokens were written directly to ignored `.env.local` and verified against the expected accounts, without displaying secrets. Run `local20261101` seeded 30 of 30 real sandbox orders (16 delivered, 6 in transit, 4 stalled, 4 lost) in approximately 60 seconds. Replaying the same run reused the orders; a database check found 30 unique order IDs and 30 unique capture IDs. Read-only PayPal calls confirmed completed captures, trackers and different payers for KIK-1038 and KIK-1042. The separate live reset test and its timing target remain open. Dev is stopped; restart with `npm run dev`.
