@@ -18,7 +18,7 @@ Where requirements come from: `specs/brief.md` (§4 goals and honesty rules, §5
 - [x] **B4. 30 attack cases, families A6, A7, A11 and A12.** Same rules. This brings the total to 60. A8–A10 are M-Pesa families, so they're cut with M-Pesa: report them as not run.
 - [x] **B5. 50 genuine cases** in brief §4's fixed mix: 40% lost or stalled, 20% damaged under the cap, 10% over the cap, 10% wrong item, 10% disputes. The 10% M-Pesa slice is cut: report it as not run, don't redistribute it. Include the cases the mandate escalates by design.
 - [x] **B6. Hold-out slice.** 20 attack and 15 genuine cases in `bench/cases/holdout/`, written from the family descriptions in `specs/brief.original.md` §16 only. Don't open the mandate, the gate or the other cases while writing them. Commit unread.
-- [ ] **B7. Freeze.** Tag `bench-v1` with `git tag -a bench-v1 -m "bench v1"` (the loop pushes it), and record the case-set tag and SHA in `bench/README.md`. Any later edit to cases or the mandate makes a `bench-v2`. Running the bench needs sandbox credentials, so the owner runs it (OWNER.md).
+- [x] **B7. Freeze.** Tag `bench-v1` with `git tag -a bench-v1 -m "bench v1"` (the loop pushes it), and record the case-set tag and SHA in `bench/README.md`. Any later edit to cases or the mandate makes a `bench-v2`. Running the bench needs sandbox credentials, so the owner runs it (OWNER.md).
 
 ## C. Attack it yourself
 

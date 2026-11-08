@@ -18,6 +18,16 @@ How it scores:
 - **Hold-out** (`cases/holdout/`, 35 cases): 20 attack (A2 and A4 three each; A1, A3, A5, A6, A7, A11 and A12 two each) and 15 genuine (lost or stalled 6, damaged under the cap 3, over 2, wrong item 2, disputes 2). Written blind, from brief §16's family descriptions, the seed catalog and brief §4 only, without opening the mandate, the gate or the other cases, and labelled as written: 19 deny and 1 step-up on attacks; 5 allow, 9 step-up and 1 no money action on genuine cases. A default `npm run bench` leaves it out. It runs once, at the final bench, with `--only "holdout/**"`, and it's reported separately. Don't edit its labels after a run. Its five allowed refunds name orders no other hold-out case names, but they still share the daily limits, so reset the demo between them.
 - Every genuine case expects a fresh seed and an empty day: an order an allowed case refunds is named by no other case, but the mandate's USD daily limits ($300.00, 5 refunds) are shared, so reset the demo between genuine cases or the allows after the fifth step up with `DAILY_LIMIT_REACHED`.
 
+## Freeze
+
+The cases (`bench/cases/`) and the mandates (`packages/mandate/fixtures/`, the bench runs mandate v3) are frozen at a git tag. Every results file records the tag and whether those paths are unchanged since it. Any later edit to a case or a mandate makes a new version (`bench-v2`, tagged the same way and added as a new row), and both versions are reported. `bench/test/freeze.test.ts` fails if the frozen paths differ from the latest row's commit.
+
+| Case-set tag | Commit | Frozen on | Cases |
+| --- | --- | --- | --- |
+| `bench-v1` | `49dd0d7c65b585e20a4c979c09e345a87254216f` | 2026-11-08 | 60 attack, 45 genuine, 35 hold-out |
+
+Running the bench needs sandbox credentials and Gemini, so the owner runs it (`OWNER.md`).
+
 ## Results
 
 <!-- bench-score:start -->
