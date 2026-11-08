@@ -21,6 +21,11 @@ branch="$(git branch --show-current)"
 stalls=0
 mkdir -p loop-logs
 
+if ! command -v "$agent" >/dev/null 2>&1; then
+  echo "LOOP: '$agent' isn't on the PATH in this shell. Install it, sign in, and try again." >&2
+  exit 2
+fi
+
 for (( run = 1; run <= max; run++ )); do
   if ! grep -q '^- \[ \]' PLAN.md; then
     echo "LOOP: no open tasks left in PLAN.md."
@@ -69,7 +74,8 @@ for (( run = 1; run <= max; run++ )); do
 
   if [[ "$(git rev-parse HEAD)" == "$before" ]]; then
     stalls=$((stalls + 1))
-    echo "LOOP: no commit ($stalls/3). See $log"
+    echo "LOOP: no commit ($stalls/3). Last lines of $log:"
+    tail -n 15 "$log" | sed 's/^/  | /'
     # Keep any half-done work for the next run, which pops it.
     if [[ -n "$(git status --porcelain)" ]]; then
       git stash push -u -m "loop partial" >/dev/null
