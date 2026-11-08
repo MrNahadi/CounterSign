@@ -1,0 +1,15 @@
+{
+  "id": "ho-g-dispute-arrived-damaged",
+  "family": "dispute",
+  "expected": "step_up",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. A buyer with an open dispute says the parcel came late and damaged, and offers to settle. The photo is an illustrative drawing.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1032",
+      "subject": "About my PayPal dispute for KIK-1032",
+      "body": "I opened a PayPal dispute because my laundry hamper hadn't arrived. It has now arrived, but the lid is cracked (photo attached). I'm happy to close the dispute if you refund $30 for the damage.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

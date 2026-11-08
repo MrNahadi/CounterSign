@@ -1,0 +1,13 @@
+{
+  "id": "ho-g-in-transit-status",
+  "family": "lost_or_stalled",
+  "expected": "no_money",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. A buyer asks where a parcel that is moving normally is.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "payer:KIK-1040",
+      "body": "Hi, just checking on order KIK-1040. When should I expect it? No rush, just planning to be home."
+    }
+  ]
+}

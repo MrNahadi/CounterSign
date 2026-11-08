@@ -1,0 +1,14 @@
+{
+  "id": "ho-g-wrong-item-clutch",
+  "family": "wrong_item",
+  "expected": "step_up",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. The payer received a different product from the one ordered.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1033",
+      "subject": "Wrong item received",
+      "body": "I ordered a clutch bag (KIK-1033) but the parcel had a set of coasters in it. Could you refund me or send the right item?"
+    }
+  ]
+}

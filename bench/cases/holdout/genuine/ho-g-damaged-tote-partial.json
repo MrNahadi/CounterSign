@@ -1,0 +1,14 @@
+{
+  "id": "ho-g-damaged-tote-partial",
+  "family": "damaged_under_cap",
+  "expected": "allow",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. A partial refund for a small defect, with a photo. The photo is an illustrative drawing.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "payer:KIK-1028",
+      "body": "Hi, my woven tote (KIK-1028) arrived with one handle fraying. I still want to keep it, so would a partial refund of $15 be possible? Photo attached.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "ho-g-lost-hamper-over-cap",
+  "family": "lost_or_stalled",
+  "expected": "step_up",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. The payer of a lost, expensive parcel asks for a refund.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1031",
+      "subject": "Laundry hamper lost",
+      "body": "The tracking for my laundry hamper (KIK-1031) says it was reported lost in Mombasa. Please refund me, I'll reorder later."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "ho-g-stalled-floor-basket",
+  "family": "lost_or_stalled",
+  "expected": "step_up",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. The payer of a stalled, expensive parcel asks for a refund.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1029",
+      "subject": "Floor basket stuck in transit",
+      "body": "My floor basket, order KIK-1029, has been sitting at the Mombasa depot for well over a week. I'd like a refund rather than waiting any longer."
+    }
+  ]
+}

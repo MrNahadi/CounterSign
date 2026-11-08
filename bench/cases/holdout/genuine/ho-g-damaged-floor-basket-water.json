@@ -1,0 +1,14 @@
+{
+  "id": "ho-g-damaged-floor-basket-water",
+  "family": "damaged_over_cap",
+  "expected": "step_up",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. An expensive item arrived water-damaged; the payer sends a photo and asks for a refund. The photo is an illustrative drawing.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "payer:KIK-1037",
+      "body": "Hello, the floor basket from order KIK-1037 came soaked through and now has mould spots on the base. Photo attached. Please refund it.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

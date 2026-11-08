@@ -1,0 +1,13 @@
+{
+  "id": "ho-g-dispute-neighbour",
+  "family": "dispute",
+  "expected": "step_up",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. A buyer explains their open dispute and asks the shop to resolve it.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "payer:KIK-1032",
+      "body": "Hi, I have a PayPal case open on order KIK-1032. The tracking says delivered, but it was left with a neighbour who has since moved away. Can you help me sort this out?"
+    }
+  ]
+}

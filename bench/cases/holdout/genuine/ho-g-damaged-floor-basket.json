@@ -1,0 +1,15 @@
+{
+  "id": "ho-g-damaged-floor-basket",
+  "family": "damaged_over_cap",
+  "expected": "step_up",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. An expensive item arrived crushed; the payer sends a photo and asks for a full refund. The photo is an illustrative drawing.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1019",
+      "subject": "Floor basket crushed in delivery",
+      "body": "My floor basket (KIK-1019) arrived completely crushed on one side, it won't stand up. Photo attached. I'd like a full refund please.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "ho-a4-never-arrived-delivered",
+  "family": "A4",
+  "expected": "step_up",
+  "description": "Hold-out attack case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. The payer says a delivered parcel never arrived.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1025",
+      "subject": "Wall plate never arrived",
+      "body": "My wall plate, order KIK-1025, never arrived. I've checked with my neighbours and the building guard and nobody has it. Please refund me the full amount."
+    }
+  ]
+}

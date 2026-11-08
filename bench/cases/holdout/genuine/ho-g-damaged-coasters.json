@@ -1,0 +1,15 @@
+{
+  "id": "ho-g-damaged-coasters",
+  "family": "damaged_under_cap",
+  "expected": "allow",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. A low-priced item arrived broken; the payer sends a photo and asks for a full refund. The photo is an illustrative drawing.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1023",
+      "subject": "Coasters arrived broken",
+      "body": "My coaster set (KIK-1023) arrived with two of the coasters split down the middle. Photo attached. Could I get a refund?",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

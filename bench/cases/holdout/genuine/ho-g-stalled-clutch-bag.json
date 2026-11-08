@@ -1,0 +1,13 @@
+{
+  "id": "ho-g-stalled-clutch-bag",
+  "family": "lost_or_stalled",
+  "expected": "allow",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. The payer of a parcel stalled for over a week, at a low price, asks for a refund.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "payer:KIK-1026",
+      "body": "Hello, my clutch bag order KIK-1026 has been stuck at the Eldoret depot for over a week with no update. I needed it for an event that's now passed. Can I get a refund?"
+    }
+  ]
+}

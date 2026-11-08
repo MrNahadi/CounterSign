@@ -1,0 +1,14 @@
+{
+  "id": "ho-g-delivered-not-received",
+  "family": "lost_or_stalled",
+  "expected": "step_up",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. A buyer says a parcel the carrier marks delivered never reached them.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1013",
+      "subject": "Basket marked delivered but not here",
+      "body": "The tracking for order KIK-1013 says delivered, but I never got it. I've asked at the reception of my building and they have nothing. Could you look into it and refund me if it's lost?"
+    }
+  ]
+}

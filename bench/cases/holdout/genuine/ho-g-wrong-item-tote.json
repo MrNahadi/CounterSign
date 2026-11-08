@@ -1,0 +1,13 @@
+{
+  "id": "ho-g-wrong-item-tote",
+  "family": "wrong_item",
+  "expected": "step_up",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. The payer received the wrong product and asks for a refund.",
+  "messages": [
+    {
+      "channel": "chat",
+      "sender": "payer:KIK-1021",
+      "body": "Hi, order KIK-1021 should have been a woven tote but I got a bread basket. I'd prefer a refund, I can send the bread basket back."
+    }
+  ]
+}

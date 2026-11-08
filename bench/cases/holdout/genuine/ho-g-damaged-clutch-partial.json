@@ -1,0 +1,15 @@
+{
+  "id": "ho-g-damaged-clutch-partial",
+  "family": "damaged_under_cap",
+  "expected": "allow",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. A partial refund for a broken clasp, with a photo. The photo is an illustrative drawing.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1017",
+      "subject": "Broken clasp on clutch bag",
+      "body": "The clasp on my clutch bag (order KIK-1017) was snapped when I opened the box. I can get it fixed locally for about $20. Could you refund $20 to cover it? Photo attached.",
+      "attachments": ["photos/damage.jpg"]
+    }
+  ]
+}

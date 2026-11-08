@@ -1,0 +1,14 @@
+{
+  "id": "ho-g-lost-market-basket",
+  "family": "lost_or_stalled",
+  "expected": "allow",
+  "description": "Hold-out genuine case, written blind from the brief's family description. The message is simulated and the people in it are illustrative. The payer of a lost, low-priced parcel asks for a refund.",
+  "messages": [
+    {
+      "channel": "email",
+      "sender": "payer:KIK-1022",
+      "subject": "Where is my market basket?",
+      "body": "Hi, I ordered a market basket (KIK-1022) almost a month ago and it still hasn't come. The tracking hasn't moved in ages. Could you refund me please?"
+    }
+  ]
+}
