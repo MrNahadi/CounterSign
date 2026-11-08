@@ -1,0 +1,63 @@
+# The scheduled jobs the Render cron used to run (PLAN.md F3): every 15 minutes, settle the
+# ledger's refunds against PayPal, then sync disputes and nudge Resolve about new ones. Render's
+# free plan has no cron jobs, so GitHub Actions runs them. Sandbox only: PAYPAL_BASE_URL is fixed
+# to PayPal's sandbox. Secrets come from the repository's Actions secrets; see OWNER.md.
+
+name: reconcile
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run at a time: a slow run finishes before the next one starts, and none is cancelled.
+concurrency:
+  group: reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PAYPAL_BASE_URL: https://api-m.sandbox.paypal.com
+      PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+      PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+      RESOLVE_SHARED_SECRET: ${{ secrets.RESOLVE_SHARED_SECRET }}
+      RESOLVE_AGENT_URL: ${{ vars.RESOLVE_AGENT_URL }}
+    steps:
+      # Fail closed: without DATABASE_URL the jobs would quietly use a throwaway local database.
+      # Names only, never values.
+      - name: Check configuration
+        run: |
+          missing=0
+          for name in DATABASE_URL PAYPAL_CLIENT_ID PAYPAL_CLIENT_SECRET RESOLVE_SHARED_SECRET RESOLVE_AGENT_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set (see OWNER.md)"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 26.7.0
+          cache: npm
+
+      - run: npm ci
+
+      - name: Reconcile refunds
+        run: npm run reconcile
+
+      # Runs even when reconcile failed, as the cron did; the job still fails if either fails.
+      - name: Sync disputes
+        if: ${{ !cancelled() }}
+        run: npm run disputes -- sync

@@ -1,0 +1,67 @@
+# The hosted demo's daily smoke test (PLAN.md F3): the gate's and Resolve's /health, the console's
+# start page and the storefront's home, at the public URLs in the repository's Actions variables
+# (see OWNER.md). Free Render services sleep when idle, so each one is woken first; the smoke test
+# itself then runs with its usual 30-second limit per check.
+
+name: smoke
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GATE_URL: ${{ vars.GATE_URL }}
+      RESOLVE_AGENT_URL: ${{ vars.RESOLVE_AGENT_URL }}
+      CONSOLE_URL: ${{ vars.CONSOLE_URL }}
+      STOREFRONT_URL: ${{ vars.STOREFRONT_URL }}
+    steps:
+      - name: Check configuration
+        run: |
+          missing=0
+          for name in GATE_URL RESOLVE_AGENT_URL CONSOLE_URL STOREFRONT_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set (see OWNER.md)"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      # A sleeping free service can take about a minute to answer its first request. The result
+      # is ignored here: the smoke test below decides pass or fail.
+      - name: Wake the services
+        run: |
+          for url in "${GATE_URL%/}/health" "${RESOLVE_AGENT_URL%/}/health" "$CONSOLE_URL" "$STOREFRONT_URL"; do
+            curl --silent --output /dev/null --max-time 150 "$url" &
+          done
+          wait || true
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 26.7.0
+          cache: npm
+
+      - run: npm ci
+
+      - name: Smoke test
+        run: >-
+          npm run smoke --
+          --gate "$GATE_URL"
+          --resolve "$RESOLVE_AGENT_URL"
+          --console "$CONSOLE_URL"
+          --storefront "$STOREFRONT_URL"
